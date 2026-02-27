@@ -166,6 +166,14 @@ function App() {
           }
         />
         <Route
+          path='/console/registration-code'
+          element={
+            <AdminRoute>
+              <RegistrationCode />
+            </AdminRoute>
+          }
+        />
+        <Route
           path='/console/user'
           element={
             <AdminRoute>

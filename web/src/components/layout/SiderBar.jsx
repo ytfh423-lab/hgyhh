@@ -181,7 +181,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
       {
         text: t('注册码管理'),
         itemKey: 'registration_code',
-        to: '/registration-code',
+        to: '/console/registration-code',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
