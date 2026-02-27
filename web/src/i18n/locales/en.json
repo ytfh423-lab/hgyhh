@@ -2847,6 +2847,14 @@
     "稳定可靠": "Highly Reliable",
     "多通道自动故障切换，99.9%+ 可用性保障": "Multi-channel auto failover with 99.9%+ uptime guarantee",
     "全模型覆盖": "Full Model Coverage",
-    "聚合 30+ 主流 AI 供应商，统一接口一键切换": "Aggregating 30+ mainstream AI providers with a unified API"
+    "聚合 30+ 主流 AI 供应商，统一接口一键切换": "Aggregating 30+ mainstream AI providers with a unified API",
+    "请求风控": "Request Risk Control",
+    "启用请求风控（防高频并发与翻译滥用）": "Enable request risk control (anti burst \u0026 translation abuse)",
+    "短时请求上限": "Burst Request Limit",
+    "在指定时间窗口内单个令牌最多允许的请求次数": "Max requests allowed per token within the burst time window",
+    "短时窗口": "Burst Window",
+    "频率检测的时间窗口长度（秒）": "Burst detection time window length (seconds)",
+    "最大并发数": "Max Concurrency",
+    "单个令牌同时允许的最大并发请求数，有效拦截沉浸式翻译等翻译服务的瞬时并发": "Max concurrent in-flight requests per token. Effectively blocks translation services like Immersive Translate"
   }
 }

@@ -39,6 +39,11 @@ export default function RequestRateLimit(props) {
     ModelRequestRateLimitSuccessCount: 1000,
     ModelRequestRateLimitDurationMinutes: 1,
     ModelRequestRateLimitGroup: '',
+    RequestRiskControlEnabled: false,
+    RequestRiskControlBurstLimit: 20,
+    RequestRiskControlBurstWindow: 10,
+    RequestRiskControlTokenThreshold: 5,
+    RequestRiskControlTokenWindow: 5,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -233,6 +238,81 @@ export default function RequestRateLimit(props) {
               <Button size='default' onClick={onSubmit}>
                 {t('保存模型速率限制')}
               </Button>
+            </Row>
+          </Form.Section>
+
+          <Form.Section text={t('请求风控')}>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'RequestRiskControlEnabled'}
+                  label={t('启用请求风控（防高频并发与翻译滥用）')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      RequestRiskControlEnabled: value,
+                    });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('短时请求上限')}
+                  step={1}
+                  min={1}
+                  max={1000}
+                  suffix={t('次')}
+                  extraText={t('在指定时间窗口内单个令牌最多允许的请求次数')}
+                  field={'RequestRiskControlBurstLimit'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      RequestRiskControlBurstLimit: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('短时窗口')}
+                  step={1}
+                  min={1}
+                  max={300}
+                  suffix={t('秒')}
+                  extraText={t('频率检测的时间窗口长度（秒）')}
+                  field={'RequestRiskControlBurstWindow'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      RequestRiskControlBurstWindow: String(value),
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('最大并发数')}
+                  step={1}
+                  min={1}
+                  max={100}
+                  suffix={t('个')}
+                  extraText={t('单个令牌同时允许的最大并发请求数，有效拦截沉浸式翻译等翻译服务的瞬时并发')}
+                  field={'RequestRiskControlTokenThreshold'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      RequestRiskControlTokenThreshold: String(value),
+                    })
+                  }
+                />
+              </Col>
             </Row>
           </Form.Section>
         </Form>

@@ -140,6 +140,11 @@ func InitOptionMap() {
 	common.OptionMap["DemoSiteEnabled"] = strconv.FormatBool(operation_setting.DemoSiteEnabled)
 	common.OptionMap["SelfUseModeEnabled"] = strconv.FormatBool(operation_setting.SelfUseModeEnabled)
 	common.OptionMap["ModelRequestRateLimitEnabled"] = strconv.FormatBool(setting.ModelRequestRateLimitEnabled)
+	common.OptionMap["RequestRiskControlEnabled"] = strconv.FormatBool(setting.RequestRiskControlEnabled)
+	common.OptionMap["RequestRiskControlBurstLimit"] = strconv.Itoa(setting.RequestRiskControlBurstLimit)
+	common.OptionMap["RequestRiskControlBurstWindow"] = strconv.Itoa(setting.RequestRiskControlBurstWindow)
+	common.OptionMap["RequestRiskControlTokenThreshold"] = strconv.Itoa(setting.RequestRiskControlTokenThreshold)
+	common.OptionMap["RequestRiskControlTokenWindow"] = strconv.Itoa(setting.RequestRiskControlTokenWindow)
 	common.OptionMap["CheckSensitiveOnPromptEnabled"] = strconv.FormatBool(setting.CheckSensitiveOnPromptEnabled)
 	common.OptionMap["StopOnSensitiveEnabled"] = strconv.FormatBool(setting.StopOnSensitiveEnabled)
 	common.OptionMap["SensitiveWords"] = setting.SensitiveWordsToString()
@@ -288,6 +293,8 @@ func updateOptionMap(key string, value string) (err error) {
 			setting.CheckSensitiveOnPromptEnabled = boolValue
 		case "ModelRequestRateLimitEnabled":
 			setting.ModelRequestRateLimitEnabled = boolValue
+		case "RequestRiskControlEnabled":
+			setting.RequestRiskControlEnabled = boolValue
 		case "StopOnSensitiveEnabled":
 			setting.StopOnSensitiveEnabled = boolValue
 		case "SMTPSSLEnabled":
@@ -406,6 +413,14 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.ModelRequestRateLimitDurationMinutes, _ = strconv.Atoi(value)
 	case "ModelRequestRateLimitSuccessCount":
 		setting.ModelRequestRateLimitSuccessCount, _ = strconv.Atoi(value)
+	case "RequestRiskControlBurstLimit":
+		setting.RequestRiskControlBurstLimit, _ = strconv.Atoi(value)
+	case "RequestRiskControlBurstWindow":
+		setting.RequestRiskControlBurstWindow, _ = strconv.Atoi(value)
+	case "RequestRiskControlTokenThreshold":
+		setting.RequestRiskControlTokenThreshold, _ = strconv.Atoi(value)
+	case "RequestRiskControlTokenWindow":
+		setting.RequestRiskControlTokenWindow, _ = strconv.Atoi(value)
 	case "ModelRequestRateLimitGroup":
 		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
 	case "RetryTimes":
