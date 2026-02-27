@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -197,17 +198,21 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, session sessions.Session) (*model.User, error) {
 	user := &model.User{}
 
-	// Check if user already exists with new ID
 	if provider.IsUserIDTaken(oauthUser.ProviderUserID) {
 		err := provider.FillUserByProviderID(user, oauthUser.ProviderUserID)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				common.SysLog(fmt.Sprintf("[OAuth] provider id exists but user not found, fallback to registration: provider=%s, provider_user_id=%s", provider.GetName(), oauthUser.ProviderUserID))
+			} else {
+				return nil, err
+			}
+		} else {
+			// Check if user has been deleted
+			if user.Id == 0 {
+				return nil, &OAuthUserDeletedError{}
+			}
+			return user, nil
 		}
-		// Check if user has been deleted
-		if user.Id == 0 {
-			return nil, &OAuthUserDeletedError{}
-		}
-		return user, nil
 	}
 
 	// Try to find user with legacy ID (for GitHub migration from login to numeric ID)
@@ -215,9 +220,10 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		if provider.IsUserIDTaken(legacyID) {
 			err := provider.FillUserByProviderID(user, legacyID)
 			if err != nil {
-				return nil, err
-			}
-			if user.Id != 0 {
+				if !errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, err
+				}
+			} else if user.Id != 0 {
 				// Found user with legacy ID, migrate to new ID
 				common.SysLog(fmt.Sprintf("[OAuth] Migrating user %d from legacy_id=%s to new_id=%s",
 					user.Id, legacyID, oauthUser.ProviderUserID))
