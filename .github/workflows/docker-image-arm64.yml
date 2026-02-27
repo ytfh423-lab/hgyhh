@@ -65,7 +65,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.DOCKER_IMAGE_NAME }}
+          images: npckf/hgyhh
 
       - name: Build & push single-arch
         uses: docker/build-push-action@v6
@@ -74,8 +74,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            ${{ vars.DOCKER_IMAGE_NAME }}:${{ env.TAG }}-${{ matrix.arch }}
-            ${{ vars.DOCKER_IMAGE_NAME }}:latest-${{ matrix.arch }}
+            npckf/hgyhh:${{ env.TAG }}-${{ matrix.arch }}
+            npckf/hgyhh:latest-${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -107,13 +107,13 @@ jobs:
       - name: Create & push manifest (version)
         run: |
           docker buildx imagetools create \
-            -t ${{ vars.DOCKER_IMAGE_NAME }}:${TAG} \
-            ${{ vars.DOCKER_IMAGE_NAME }}:${TAG}-amd64 \
-            ${{ vars.DOCKER_IMAGE_NAME }}:${TAG}-arm64
+            -t npckf/hgyhh:${TAG} \
+            npckf/hgyhh:${TAG}-amd64 \
+            npckf/hgyhh:${TAG}-arm64
 
       - name: Create & push manifest (latest)
         run: |
           docker buildx imagetools create \
-            -t ${{ vars.DOCKER_IMAGE_NAME }}:latest \
-            ${{ vars.DOCKER_IMAGE_NAME }}:latest-amd64 \
-            ${{ vars.DOCKER_IMAGE_NAME }}:latest-arm64
+            -t npckf/hgyhh:latest \
+            npckf/hgyhh:latest-amd64 \
+            npckf/hgyhh:latest-arm64
