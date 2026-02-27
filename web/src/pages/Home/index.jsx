@@ -157,29 +157,85 @@ const Home = () => {
       />
       {homePageContentLoaded && homePageContent === '' ? (
         <div className='w-full overflow-x-hidden'>
-          {/* Banner 部分 */}
-          <div className='w-full border-b border-semi-color-border min-h-[500px] md:min-h-[600px] lg:min-h-[700px] relative overflow-x-hidden'>
-            {/* 背景模糊晕染球 */}
-            <div className='blur-ball blur-ball-indigo' />
-            <div className='blur-ball blur-ball-teal' />
-            <div className='flex items-center justify-center h-full px-4 py-20 md:py-24 lg:py-32 mt-10'>
-              {/* 居中内容区 */}
+          {/* Hero 区域 */}
+          <div className='w-full min-h-[600px] md:min-h-[700px] lg:min-h-[800px] relative overflow-hidden'>
+            {/* 动态浮动光球背景 */}
+            <div className='hero-orb hero-orb-1' />
+            <div className='hero-orb hero-orb-2' />
+            <div className='hero-orb hero-orb-3' />
+            <div className='hero-orb hero-orb-4' />
+            {/* 脉冲环装饰 */}
+            <div className='hero-pulse-ring' />
+            <div className='hero-pulse-ring hero-pulse-ring-2' />
+
+            <div className='flex items-center justify-center h-full px-4 py-20 md:py-24 lg:py-32 mt-10 relative z-10'>
               <div className='flex flex-col items-center justify-center text-center max-w-4xl mx-auto'>
-                <div className='flex flex-col items-center justify-center mb-6 md:mb-8'>
-                  <h1
-                    className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-semi-color-text-0 leading-tight ${isChinese ? 'tracking-wide md:tracking-wider' : ''}`}
+                {/* 品牌徽标 */}
+                <div className='hero-animate-in hero-animate-in-delay-1 mb-6'>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '6px 18px',
+                      borderRadius: '100px',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                    }}
                   >
-                    <>
-                      {t('统一的')}
-                      <br />
-                      <span className='shine-text'>{t('大模型接口网关')}</span>
-                    </>
+                    <div
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                        boxShadow: '0 0 8px rgba(99, 102, 241, 0.5)',
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: 'var(--semi-color-text-0)',
+                        letterSpacing: '1px',
+                      }}
+                    >
+                      NPC-API
+                    </span>
+                  </div>
+                </div>
+
+                {/* 主标题 */}
+                <div className='hero-animate-in hero-animate-in-delay-2 mb-4 md:mb-6'>
+                  <h1
+                    className={`text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold leading-tight ${isChinese ? 'tracking-wide md:tracking-wider' : ''}`}
+                    style={{ lineHeight: 1.1 }}
+                  >
+                    {t('统一的')}
+                    <br />
+                    <span className='hero-gradient-title'>
+                      {t('大模型接口网关')}
+                    </span>
                   </h1>
-                  <p className='text-base md:text-lg lg:text-xl text-semi-color-text-1 mt-4 md:mt-6 max-w-xl'>
+                </div>
+
+                {/* 副标题 */}
+                <div className='hero-animate-in hero-animate-in-delay-2'>
+                  <p
+                    className='text-base md:text-lg lg:text-xl max-w-lg mx-auto'
+                    style={{
+                      color: 'var(--semi-color-text-2)',
+                      lineHeight: 1.7,
+                    }}
+                  >
                     {t('更好的价格，更好的稳定性，只需要将模型基址替换为：')}
                   </p>
-                  {/* BASE URL 与端点选择 */}
-                  <div className='flex flex-col md:flex-row items-center justify-center gap-4 w-full mt-4 md:mt-6 max-w-md'>
+                </div>
+
+                {/* 毛玻璃 URL 卡片 */}
+                <div className='hero-animate-in hero-animate-in-delay-3 mt-8 md:mt-10 w-full max-w-lg'>
+                  <div className='hero-url-card'>
                     <Input
                       readonly
                       value={serverAddress}
@@ -212,17 +268,22 @@ const Home = () => {
                 </div>
 
                 {/* 操作按钮 */}
-                <div className='flex flex-row gap-4 justify-center items-center'>
+                <div className='hero-animate-in hero-animate-in-delay-4 flex flex-row gap-4 justify-center items-center mt-8'>
                   <Link to='/console'>
                     <Button
                       theme='solid'
                       type='primary'
                       size={isMobile ? 'default' : 'large'}
-                      className='!rounded-3xl px-8 py-2'
+                      className='!rounded-3xl'
                       icon={<IconPlay />}
                       style={{
-                        boxShadow: '0 4px 14px rgba(var(--semi-blue-5), 0.35)',
+                        padding: '10px 32px',
                         fontWeight: 600,
+                        fontSize: '15px',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
+                        border: 'none',
+                        boxShadow: '0 6px 24px rgba(99, 102, 241, 0.35), 0 0 0 1px rgba(99, 102, 241, 0.1)',
+                        transition: 'all 0.3s ease',
                       }}
                     >
                       {t('获取密钥')}
@@ -231,7 +292,7 @@ const Home = () => {
                   {isDemoSiteMode && statusState?.status?.version ? (
                     <Button
                       size={isMobile ? 'default' : 'large'}
-                      className='flex items-center !rounded-3xl px-6 py-2'
+                      className='flex items-center !rounded-3xl'
                       icon={<IconGithubLogo />}
                       onClick={() =>
                         window.open(
@@ -239,6 +300,14 @@ const Home = () => {
                           '_blank',
                         )
                       }
+                      style={{
+                        padding: '10px 24px',
+                        fontWeight: 500,
+                        borderRadius: '24px',
+                        border: '1px solid var(--semi-color-border)',
+                        background: 'var(--semi-color-bg-1)',
+                        transition: 'all 0.3s ease',
+                      }}
                     >
                       {statusState.status.version}
                     </Button>
@@ -246,9 +315,17 @@ const Home = () => {
                     docsLink && (
                       <Button
                         size={isMobile ? 'default' : 'large'}
-                        className='flex items-center !rounded-3xl px-6 py-2'
+                        className='flex items-center !rounded-3xl'
                         icon={<IconFile />}
                         onClick={() => window.open(docsLink, '_blank')}
+                        style={{
+                          padding: '10px 24px',
+                          fontWeight: 500,
+                          borderRadius: '24px',
+                          border: '1px solid var(--semi-color-border)',
+                          background: 'var(--semi-color-bg-1)',
+                          transition: 'all 0.3s ease',
+                        }}
                       >
                         {t('文档')}
                       </Button>
@@ -256,80 +333,74 @@ const Home = () => {
                   )}
                 </div>
 
-                {/* 框架兼容性图标 */}
-                <div className='mt-12 md:mt-16 lg:mt-20 w-full'>
-                  <div className='flex items-center mb-6 md:mb-8 justify-center'>
-                    <Text
-                      type='tertiary'
-                      className='text-lg md:text-xl lg:text-2xl'
-                      style={{ fontWeight: 300, letterSpacing: '0.5px' }}
+                {/* 供应商图标区 */}
+                <div className='hero-animate-in hero-animate-in-delay-5 mt-16 md:mt-20 lg:mt-24 w-full'>
+                  <div className='flex items-center mb-8 md:mb-10 justify-center'>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                      }}
                     >
-                      {t('支持众多的大模型供应商')}
-                    </Text>
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '1px',
+                          background: 'linear-gradient(to right, transparent, var(--semi-color-border))',
+                        }}
+                      />
+                      <Text
+                        style={{
+                          fontWeight: 400,
+                          letterSpacing: '2px',
+                          fontSize: '14px',
+                          textTransform: 'uppercase',
+                          color: 'var(--semi-color-text-2)',
+                        }}
+                      >
+                        {t('支持众多的大模型供应商')}
+                      </Text>
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '1px',
+                          background: 'linear-gradient(to left, transparent, var(--semi-color-border))',
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className='flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 max-w-5xl mx-auto px-4'>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Moonshot size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <OpenAI size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <XAI size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Zhipu.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Volcengine.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Cohere.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Claude.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Gemini.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Suno size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Minimax.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Wenxin.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Spark.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Qingyan.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <DeepSeek.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Qwen.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Midjourney size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Grok size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <AzureAI.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Hunyuan.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Xinference.Color size={40} />
-                    </div>
-                    <div className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center'>
-                      <Typography.Text className='!text-lg sm:!text-xl md:!text-2xl lg:!text-3xl font-bold'>
+                  <div className='flex flex-wrap items-center justify-center gap-3 sm:gap-4 max-w-4xl mx-auto px-4'>
+                    <div className='provider-icon-wrapper'><Moonshot size={28} /></div>
+                    <div className='provider-icon-wrapper'><OpenAI size={28} /></div>
+                    <div className='provider-icon-wrapper'><XAI size={28} /></div>
+                    <div className='provider-icon-wrapper'><Zhipu.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Volcengine.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Cohere.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Claude.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Gemini.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Suno size={28} /></div>
+                    <div className='provider-icon-wrapper'><Minimax.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Wenxin.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Spark.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Qingyan.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><DeepSeek.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Qwen.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Midjourney size={28} /></div>
+                    <div className='provider-icon-wrapper'><Grok size={28} /></div>
+                    <div className='provider-icon-wrapper'><AzureAI.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Hunyuan.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'><Xinference.Color size={28} /></div>
+                    <div className='provider-icon-wrapper'>
+                      <Typography.Text
+                        style={{
+                          fontSize: '18px',
+                          fontWeight: 800,
+                          background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                        }}
+                      >
                         30+
                       </Typography.Text>
                     </div>
