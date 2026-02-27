@@ -38,11 +38,26 @@ const ApiInfoPanel = ({
   return (
     <Card
       {...CARD_PROPS}
-      className='bg-gray-50 border-0 !rounded-2xl'
+      className='!rounded-2xl'
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+        border: '1px solid var(--semi-color-border)',
+      }}
       title={
         <div className={FLEX_CENTER_GAP2}>
-          <Server size={16} />
-          {t('API信息')}
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Server size={14} style={{ color: 'white' }} />
+          </div>
+          <span style={{ fontWeight: 600 }}>{t('API信息')}</span>
         </div>
       }
       bodyStyle={{ padding: 0 }}
@@ -51,7 +66,12 @@ const ApiInfoPanel = ({
         {apiInfoData.length > 0 ? (
           apiInfoData.map((api) => (
             <React.Fragment key={api.id}>
-              <div className='flex p-2 hover:bg-white rounded-lg transition-colors cursor-pointer'>
+              <div
+                className='flex p-2 rounded-lg transition-colors cursor-pointer'
+                style={{ ':hover': { background: 'var(--semi-color-fill-0)' } }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--semi-color-fill-0)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 <div className='flex-shrink-0 mr-3'>
                   <Avatar size='extra-small' color={api.color}>
                     {api.route.substring(0, 2)}
@@ -59,7 +79,7 @@ const ApiInfoPanel = ({
                 </div>
                 <div className='flex-1'>
                   <div className='flex flex-wrap items-center justify-between mb-1 w-full gap-2'>
-                    <span className='text-sm font-medium text-gray-900 !font-bold break-all'>
+                    <span className='text-sm font-medium !font-bold break-all' style={{ color: 'var(--semi-color-text-0)' }}>
                       {api.route}
                     </span>
                     <div className='flex items-center gap-1 mt-1 lg:mt-0'>

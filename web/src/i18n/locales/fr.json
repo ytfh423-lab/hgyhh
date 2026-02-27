@@ -2363,6 +2363,7 @@
     "运行时长（小时）": "Runtime Duration (hours)",
     "返回修改": "Revenir pour modifier",
     "返回登录": "Retour à la connexion",
+    "返回首页": "Retour à l'accueil",
     "违规扣费金额": "Montant de la déduction de violation",
     "这是重复键中的最后一个，其值将被使用": "Ceci est la dernière clé dupliquée, sa valeur sera utilisée",
     "这是基础金额，实际扣费 = 基础金额 x 系统分组倍率。": "Ceci est le montant de base. Déduction réelle = montant de base × ratio de groupe système.",

@@ -40,6 +40,9 @@ const StatsCards = ({
             key={idx}
             {...CARD_PROPS}
             className={`${group.color} border-0 !rounded-2xl w-full`}
+            style={{
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.03)',
+            }}
             title={group.title}
           >
             <div className='space-y-4'>
@@ -47,19 +50,33 @@ const StatsCards = ({
                 <div
                   key={itemIdx}
                   className='flex items-center justify-between cursor-pointer'
+                  style={{
+                    padding: '4px 2px',
+                    borderRadius: '10px',
+                    transition: 'background 0.15s ease',
+                  }}
                   onClick={item.onClick}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(0,0,0,0.02)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
                   <div className='flex items-center'>
                     <Avatar
                       className='mr-3'
                       size='small'
                       color={item.avatarColor}
+                      style={{ flexShrink: 0 }}
                     >
                       {item.icon}
                     </Avatar>
                     <div>
-                      <div className='text-xs text-gray-500'>{item.title}</div>
-                      <div className='text-lg font-semibold'>
+                      <div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)' }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: '17px', fontWeight: 600 }}>
                         <Skeleton
                           loading={loading}
                           active
@@ -85,6 +102,11 @@ const StatsCards = ({
                       color='white'
                       shape='circle'
                       size='large'
+                      style={{
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate('/console/topup');

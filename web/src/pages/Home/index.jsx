@@ -220,6 +220,10 @@ const Home = () => {
                       size={isMobile ? 'default' : 'large'}
                       className='!rounded-3xl px-8 py-2'
                       icon={<IconPlay />}
+                      style={{
+                        boxShadow: '0 4px 14px rgba(var(--semi-blue-5), 0.35)',
+                        fontWeight: 600,
+                      }}
                     >
                       {t('获取密钥')}
                     </Button>
@@ -257,7 +261,8 @@ const Home = () => {
                   <div className='flex items-center mb-6 md:mb-8 justify-center'>
                     <Text
                       type='tertiary'
-                      className='text-lg md:text-xl lg:text-2xl font-light'
+                      className='text-lg md:text-xl lg:text-2xl'
+                      style={{ fontWeight: 300, letterSpacing: '0.5px' }}
                     >
                       {t('支持众多的大模型供应商')}
                     </Text>

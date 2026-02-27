@@ -114,17 +114,36 @@ const PreferencesSettings = ({ t }) => {
 	};
 
 	return (
-		<Card className="!rounded-2xl shadow-sm border-0">
+		<Card
+			className="!rounded-2xl"
+			style={{
+				boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+				border: '1px solid var(--semi-color-border)',
+			}}
+		>
 			{/* Card Header */}
 			<div className="flex items-center mb-4">
-				<Avatar size="small" color="violet" className="mr-3 shadow-md">
-					<Languages size={16} />
-				</Avatar>
+				<div
+					className="mr-3"
+					style={{
+						width: '36px',
+						height: '36px',
+						borderRadius: '10px',
+						background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
+						flexShrink: 0,
+					}}
+				>
+					<Languages size={18} style={{ color: 'white' }} />
+				</div>
 				<div>
-					<Typography.Text className="text-lg font-medium">
+					<Typography.Text style={{ fontSize: '16px', fontWeight: 600 }}>
 						{t("偏好设置")}
 					</Typography.Text>
-					<div className="text-xs text-gray-600 dark:text-gray-400">
+					<div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)' }}>
 						{t("界面语言和其他个人偏好")}
 					</div>
 				</div>

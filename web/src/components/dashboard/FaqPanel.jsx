@@ -38,11 +38,26 @@ const FaqPanel = ({
   return (
     <Card
       {...CARD_PROPS}
-      className='shadow-sm !rounded-2xl lg:col-span-1'
+      className='!rounded-2xl lg:col-span-1'
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+        border: '1px solid var(--semi-color-border)',
+      }}
       title={
         <div className={FLEX_CENTER_GAP2}>
-          <HelpCircle size={16} />
-          {t('常见问答')}
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <HelpCircle size={14} style={{ color: 'white' }} />
+          </div>
+          <span style={{ fontWeight: 600 }}>{t('常见问答')}</span>
         </div>
       }
       bodyStyle={{ padding: 0 }}

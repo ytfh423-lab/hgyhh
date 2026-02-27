@@ -135,34 +135,58 @@ const About = () => {
   return (
     <div className='mt-[60px] px-2'>
       {aboutLoaded && about === '' ? (
-        <div className='flex justify-center items-center h-screen p-8'>
-          <Empty
-            image={
-              <IllustrationConstruction style={{ width: 150, height: 150 }} />
-            }
-            darkModeImage={
-              <IllustrationConstructionDark
-                style={{ width: 150, height: 150 }}
-              />
-            }
-            description={t('管理员暂时未设置任何关于内容')}
-            style={emptyStyle}
+        <div className='flex justify-center items-center' style={{ minHeight: 'calc(100vh - 120px)' }}>
+          <div
+            style={{
+              padding: '40px',
+              borderRadius: '16px',
+              background: 'var(--semi-color-bg-1)',
+              border: '1px solid var(--semi-color-border)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+              maxWidth: '600px',
+              width: '100%',
+            }}
           >
-            {customDescription}
-          </Empty>
+            <Empty
+              image={
+                <IllustrationConstruction style={{ width: 150, height: 150 }} />
+              }
+              darkModeImage={
+                <IllustrationConstructionDark
+                  style={{ width: 150, height: 150 }}
+                />
+              }
+              description={
+                <span style={{ color: 'var(--semi-color-text-2)', fontSize: '15px' }}>
+                  {t('管理员暂时未设置任何关于内容')}
+                </span>
+              }
+            >
+              {customDescription}
+            </Empty>
+          </div>
         </div>
       ) : (
         <>
           {about.startsWith('https://') ? (
-            <iframe
-              src={about}
-              style={{ width: '100%', height: '100vh', border: 'none' }}
-            />
+            <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--semi-color-border)' }}>
+              <iframe
+                src={about}
+                style={{ width: '100%', height: 'calc(100vh - 80px)', border: 'none' }}
+              />
+            </div>
           ) : (
             <div
-              style={{ fontSize: 'larger' }}
+              style={{
+                fontSize: 'larger',
+                padding: '24px',
+                borderRadius: '16px',
+                background: 'var(--semi-color-bg-1)',
+                border: '1px solid var(--semi-color-border)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+              }}
               dangerouslySetInnerHTML={{ __html: about }}
-            ></div>
+            />
           )}
         </>
       )}

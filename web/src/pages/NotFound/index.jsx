@@ -18,15 +18,17 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Empty } from '@douyinfe/semi-ui';
+import { Empty, Button } from '@douyinfe/semi-ui';
 import {
   IllustrationNotFound,
   IllustrationNotFoundDark,
 } from '@douyinfe/semi-illustrations';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 const NotFound = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   return (
     <div className='flex justify-center items-center h-screen p-8'>
       <Empty
@@ -34,8 +36,26 @@ const NotFound = () => {
         darkModeImage={
           <IllustrationNotFoundDark style={{ width: 250, height: 250 }} />
         }
-        description={t('页面未找到，请检查您的浏览器地址是否正确')}
-      />
+        description={
+          <span style={{ color: 'var(--semi-color-text-2)', fontSize: '15px' }}>
+            {t('页面未找到，请检查您的浏览器地址是否正确')}
+          </span>
+        }
+      >
+        <Button
+          theme='solid'
+          type='primary'
+          onClick={() => navigate('/')}
+          style={{
+            borderRadius: '12px',
+            padding: '8px 24px',
+            marginTop: '8px',
+            fontWeight: 500,
+          }}
+        >
+          {t('返回首页')}
+        </Button>
+      </Empty>
     </div>
   );
 };

@@ -96,20 +96,19 @@ const CardPro = ({
 
         {/* 移动端操作切换按钮 */}
         {isMobile && hasMobileHideableContent && (
-          <>
-            <div className='w-full mb-2'>
-              <Button
-                onClick={toggleMobileActions}
-                icon={showMobileActions ? <IconEyeClosed /> : <IconEyeOpened />}
-                type='tertiary'
-                size='small'
-                theme='outline'
-                block
-              >
-                {showMobileActions ? t('隐藏操作项') : t('显示操作项')}
-              </Button>
-            </div>
-          </>
+          <div className='w-full mb-2'>
+            <Button
+              onClick={toggleMobileActions}
+              icon={showMobileActions ? <IconEyeClosed /> : <IconEyeOpened />}
+              type='tertiary'
+              size='small'
+              theme='outline'
+              block
+              style={{ borderRadius: '10px', fontWeight: 500 }}
+            >
+              {showMobileActions ? t('隐藏操作项') : t('显示操作项')}
+            </Button>
+          </div>
         )}
 
         {/* 操作按钮和搜索表单的容器 */}
@@ -148,8 +147,11 @@ const CardPro = ({
 
     return (
       <div
-        className={`flex w-full pt-4 border-t ${isMobile ? 'justify-center' : 'justify-between items-center'}`}
-        style={{ borderColor: 'var(--semi-color-border)' }}
+        className={`flex w-full pt-3 border-t ${isMobile ? 'justify-center' : 'justify-between items-center'}`}
+        style={{
+          borderColor: 'var(--semi-color-border)',
+          paddingBottom: '2px',
+        }}
       >
         {paginationArea}
       </div>
@@ -165,7 +167,11 @@ const CardPro = ({
       footer={footerContent}
       shadows={shadows}
       bordered={bordered}
-      style={style}
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+        border: '1px solid var(--semi-color-border)',
+        ...style,
+      }}
       {...props}
     >
       {children}

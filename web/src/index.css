@@ -825,6 +825,71 @@ html.dark .with-pastel-balls::before {
   min-height: 0;
 }
 
+/* ==================== 全局美化增强 ==================== */
+/* 全局页面滚动条美化 */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(var(--semi-grey-2), 0.25);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--semi-grey-2), 0.45);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 全局卡片美化 */
+.semi-card {
+  transition: box-shadow 0.25s ease, transform 0.2s ease, border-color 0.25s ease;
+}
+
+/* 全局按钮过渡增强 */
+.semi-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 全局输入框聚焦增强 */
+.semi-input-wrapper:focus-within {
+  box-shadow: 0 0 0 3px rgba(var(--semi-blue-5), 0.1) !important;
+}
+
+.semi-select:focus-within {
+  box-shadow: 0 0 0 3px rgba(var(--semi-blue-5), 0.1) !important;
+}
+
+/* 全局表格行悬停增强 */
+.semi-table-row:hover > .semi-table-row-cell {
+  transition: background-color 0.15s ease;
+}
+
+/* 全局 Modal 圆角增强 */
+.semi-modal-content {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+/* 全局 Tag 圆角增强 */
+.semi-tag {
+  border-radius: 8px !important;
+}
+
+/* 全局 Banner 圆角增强 */
+.semi-banner {
+  border-radius: 12px !important;
+}
+
+/* 全局 Tooltip 圆角增强 */
+.semi-tooltip-wrapper {
+  border-radius: 10px !important;
+}
+
 /* ==================== semi-ui 组件自定义样式 ==================== */
 .semi-card-header,
 .semi-card-body {

@@ -39,11 +39,26 @@ const ChartsPanel = ({
     <Card
       {...CARD_PROPS}
       className={`!rounded-2xl ${hasApiInfoPanel ? 'lg:col-span-3' : ''}`}
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+        border: '1px solid var(--semi-color-border)',
+      }}
       title={
         <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between w-full gap-3'>
           <div className={FLEX_CENTER_GAP2}>
-            <PieChart size={16} />
-            {t('模型数据分析')}
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <PieChart size={14} style={{ color: 'white' }} />
+            </div>
+            <span style={{ fontWeight: 600 }}>{t('模型数据分析')}</span>
           </div>
           <Tabs
             type='slash'

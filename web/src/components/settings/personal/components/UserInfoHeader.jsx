@@ -54,22 +54,53 @@ const UserInfoHeader = ({ t, userState }) => {
   return (
     <Card
       className='!rounded-2xl overflow-hidden'
+      style={{
+        border: 'none',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 10px 30px rgba(0,0,0,0.03)',
+      }}
       cover={
         <div
-          className='relative h-32'
+          className='relative'
           style={{
-            '--palette-primary-darkerChannel': '0 75 80',
-            backgroundImage: `linear-gradient(0deg, rgba(var(--palette-primary-darkerChannel) / 80%), rgba(var(--palette-primary-darkerChannel) / 80%)), url('/cover-4.webp')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
+            background: 'linear-gradient(135deg, #065f46 0%, #059669 50%, #0d9488 100%)',
+            padding: '0',
+            minHeight: '128px',
           }}
         >
+          <div
+            style={{
+              position: 'absolute',
+              top: '-40px',
+              right: '-40px',
+              width: '160px',
+              height: '160px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.06)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-20px',
+              left: '20%',
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.04)',
+            }}
+          />
           {/* 用户信息内容 */}
           <div className='relative z-10 h-full flex flex-col justify-end p-6'>
             <div className='flex items-center'>
               <div className='flex items-stretch gap-3 sm:gap-4 flex-1 min-w-0'>
-                <Avatar size='large' color={stringToColor(getUsername())}>
+                <Avatar
+                  size='large'
+                  color={stringToColor(getUsername())}
+                  style={{
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+                    border: '3px solid rgba(255,255,255,0.3)',
+                  }}
+                >
                   {getAvatarText()}
                 </Avatar>
                 <div className='flex-1 min-w-0 flex flex-col justify-between'>
@@ -131,6 +162,7 @@ const UserInfoHeader = ({ t, userState }) => {
             size='small'
             className='!rounded-xl'
             bodyStyle={{ padding: '12px 16px' }}
+            style={{ border: '1px solid var(--semi-color-border)' }}
           >
             <div className='flex items-center gap-4'>
               <div className='flex items-center gap-2'>
@@ -173,6 +205,7 @@ const UserInfoHeader = ({ t, userState }) => {
           size='small'
           className='!rounded-xl'
           bodyStyle={{ padding: '12px 16px' }}
+          style={{ border: '1px solid var(--semi-color-border)' }}
         >
           <div className='space-y-3'>
             <div className='flex items-center justify-between'>

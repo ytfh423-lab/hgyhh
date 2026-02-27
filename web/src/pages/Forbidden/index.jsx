@@ -18,15 +18,17 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Empty } from '@douyinfe/semi-ui';
+import { Empty, Button } from '@douyinfe/semi-ui';
 import {
   IllustrationNoAccess,
   IllustrationNoAccessDark,
 } from '@douyinfe/semi-illustrations';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 const Forbidden = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   return (
     <div className='flex justify-center items-center h-screen p-8'>
       <Empty
@@ -34,8 +36,26 @@ const Forbidden = () => {
         darkModeImage={
           <IllustrationNoAccessDark style={{ width: 250, height: 250 }} />
         }
-        description={t('您无权访问此页面，请联系管理员')}
-      />
+        description={
+          <span style={{ color: 'var(--semi-color-text-2)', fontSize: '15px' }}>
+            {t('您无权访问此页面，请联系管理员')}
+          </span>
+        }
+      >
+        <Button
+          theme='solid'
+          type='primary'
+          onClick={() => navigate('/')}
+          style={{
+            borderRadius: '12px',
+            padding: '8px 24px',
+            marginTop: '8px',
+            fontWeight: 500,
+          }}
+        >
+          {t('返回首页')}
+        </Button>
+      </Empty>
     </div>
   );
 };

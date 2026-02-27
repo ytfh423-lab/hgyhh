@@ -169,17 +169,36 @@ const AccountManagement = ({
     : t('尚未使用');
 
   return (
-    <Card className='!rounded-2xl'>
+    <Card
+      className='!rounded-2xl'
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+        border: '1px solid var(--semi-color-border)',
+      }}
+    >
       {/* 卡片头部 */}
       <div className='flex items-center mb-4'>
-        <Avatar size='small' color='teal' className='mr-3 shadow-md'>
-          <UserPlus size={16} />
-        </Avatar>
+        <div
+          className='mr-3'
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(20, 184, 166, 0.3)',
+            flexShrink: 0,
+          }}
+        >
+          <UserPlus size={18} style={{ color: 'white' }} />
+        </div>
         <div>
-          <Typography.Text className='text-lg font-medium'>
+          <Typography.Text style={{ fontSize: '16px', fontWeight: 600 }}>
             {t('账户管理')}
           </Typography.Text>
-          <div className='text-xs text-gray-600'>
+          <div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)' }}>
             {t('账户绑定、安全设置和身份验证')}
           </div>
         </div>
@@ -209,7 +228,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('邮箱')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -246,7 +265,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('微信')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -287,7 +306,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('GitHub')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -328,7 +347,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('Discord')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -369,7 +388,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('OIDC')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -412,7 +431,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('Telegram')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -487,7 +506,7 @@ const AccountManagement = ({
                       />
                     </div>
                     <div className='flex-1 min-w-0'>
-                      <div className='font-medium text-gray-900'>
+                      <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                         {t('LinuxDO')}
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
@@ -533,7 +552,7 @@ const AccountManagement = ({
                             )}
                           </div>
                           <div className='flex-1 min-w-0'>
-                            <div className='font-medium text-gray-900'>
+                            <div style={{ fontWeight: 500, color: 'var(--semi-color-text-0)' }}>
                               {provider.name}
                             </div>
                             <div className='text-sm text-gray-500 truncate'>

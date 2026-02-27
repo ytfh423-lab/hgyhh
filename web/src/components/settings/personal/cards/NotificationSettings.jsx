@@ -352,16 +352,19 @@ const NotificationSettings = ({
 
   return (
     <Card
-      className='!rounded-2xl shadow-sm border-0'
+      className='!rounded-2xl'
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02)',
+        border: '1px solid var(--semi-color-border)',
+      }}
       footer={
         <div className='flex justify-end gap-3'>
           {activeTabKey === 'sidebar' ? (
-            // 边栏设置标签页的按钮
             <>
               <Button
                 type='tertiary'
                 onClick={resetSidebarModules}
-                className='!rounded-lg'
+                style={{ borderRadius: '10px', fontWeight: 500 }}
               >
                 {t('重置为默认')}
               </Button>
@@ -369,14 +372,17 @@ const NotificationSettings = ({
                 type='primary'
                 onClick={saveSidebarSettings}
                 loading={sidebarLoading}
-                className='!rounded-lg'
+                style={{ borderRadius: '10px', fontWeight: 500 }}
               >
                 {t('保存设置')}
               </Button>
             </>
           ) : (
-            // 其他标签页的通用保存按钮
-            <Button type='primary' onClick={handleSubmit}>
+            <Button
+              type='primary'
+              onClick={handleSubmit}
+              style={{ borderRadius: '10px', fontWeight: 500 }}
+            >
               {t('保存设置')}
             </Button>
           )}
@@ -385,14 +391,27 @@ const NotificationSettings = ({
     >
       {/* 卡片头部 */}
       <div className='flex items-center mb-4'>
-        <Avatar size='small' color='blue' className='mr-3 shadow-md'>
-          <Bell size={16} />
-        </Avatar>
+        <div
+          className='mr-3'
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+            flexShrink: 0,
+          }}
+        >
+          <Bell size={18} style={{ color: 'white' }} />
+        </div>
         <div>
-          <Typography.Text className='text-lg font-medium'>
+          <Typography.Text style={{ fontSize: '16px', fontWeight: 600 }}>
             {t('其他设置')}
           </Typography.Text>
-          <div className='text-xs text-gray-600'>
+          <div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)' }}>
             {t('通知、价格和隐私相关设置')}
           </div>
         </div>
