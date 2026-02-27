@@ -19,7 +19,16 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Home, LayoutDashboard, Store, BookOpen, Info } from 'lucide-react';
 import SkeletonWrapper from '../components/SkeletonWrapper';
+
+const NAV_ICONS = {
+  home: Home,
+  console: LayoutDashboard,
+  pricing: Store,
+  docs: BookOpen,
+  about: Info,
+};
 
 const Navigation = ({
   mainNavLinks,
@@ -31,12 +40,12 @@ const Navigation = ({
   const location = useLocation();
 
   const baseClasses =
-    'group relative flex-shrink-0 flex items-center justify-center font-semibold rounded-full transition-all duration-300 ease-out border backdrop-blur-sm';
-  const spacingClasses = isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-[15px]';
+    'group relative flex-shrink-0 flex items-center justify-center gap-1.5 font-semibold rounded-full transition-all duration-300 ease-out border backdrop-blur-sm';
+  const spacingClasses = isMobile ? 'px-3 py-1.5 text-sm' : 'px-5 py-2 text-[14px]';
   const inactiveClasses =
-    'border-transparent bg-semi-color-fill-0/70 text-semi-color-text-1 hover:text-semi-color-primary hover:bg-semi-color-fill-1 hover:border-semi-color-primary/20 hover:shadow-sm';
+    'border-transparent text-semi-color-text-1 hover:text-semi-color-primary hover:bg-semi-color-fill-1 hover:border-semi-color-primary/20 hover:shadow-sm';
   const activeClasses =
-    'text-white border-semi-color-primary/80 shadow-md shadow-blue-500/25 bg-gradient-to-r from-blue-500 to-indigo-500';
+    'text-white border-transparent shadow-lg shadow-blue-500/30 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500';
 
   const getTargetPath = (link) => {
     if (link.itemKey === 'console' && !userState.user) {
@@ -62,12 +71,23 @@ const Navigation = ({
     const targetPath = getTargetPath(link);
     const isActive = isLinkActive(link, targetPath);
     const commonLinkClasses = `${baseClasses} ${spacingClasses} ${isActive ? activeClasses : inactiveClasses}`;
+    const IconComponent = NAV_ICONS[link.icon];
 
     const linkContent = (
       <>
+        {IconComponent && (
+          <IconComponent
+            size={15}
+            className='relative z-[1]'
+            style={{
+              opacity: isActive ? 1 : 0.7,
+              transition: 'opacity 0.2s ease',
+            }}
+          />
+        )}
         <span className='relative z-[1]'>{link.text}</span>
         {!isActive && (
-          <span className='absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500/10 to-indigo-500/10' />
+          <span className='absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500/8 to-violet-500/8' />
         )}
       </>
     );
