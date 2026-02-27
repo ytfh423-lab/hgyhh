@@ -27,9 +27,23 @@ const { Text } = Typography;
 const TokensDescription = ({ compactMode, setCompactMode, t }) => {
   return (
     <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-2 w-full'>
-      <div className='flex items-center text-blue-500'>
-        <Key size={16} className='mr-2' />
-        <Text>{t('令牌管理')}</Text>
+      <div className='flex items-center gap-2.5'>
+        <div
+          style={{
+            width: '30px',
+            height: '30px',
+            borderRadius: '9px',
+            background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.25)',
+            flexShrink: 0,
+          }}
+        >
+          <Key size={14} style={{ color: 'white' }} />
+        </div>
+        <Text style={{ fontWeight: 600, fontSize: '15px' }}>{t('令牌管理')}</Text>
       </div>
 
       <CompactModeToggle

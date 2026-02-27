@@ -73,6 +73,7 @@ const TokensActions = ({
             setShowEdit(true);
           }}
           size='small'
+          style={{ borderRadius: '10px', fontWeight: 500 }}
         >
           {t('添加令牌')}
         </Button>
@@ -82,6 +83,7 @@ const TokensActions = ({
           className='flex-1 md:flex-initial'
           onClick={handleCopySelectedTokens}
           size='small'
+          style={{ borderRadius: '10px', fontWeight: 500 }}
         >
           {t('复制所选令牌')}
         </Button>
@@ -91,6 +93,7 @@ const TokensActions = ({
           className='w-full md:w-auto'
           onClick={handleDeleteSelectedTokens}
           size='small'
+          style={{ borderRadius: '10px', fontWeight: 500 }}
         >
           {t('删除所选令牌')}
         </Button>

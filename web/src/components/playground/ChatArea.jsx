@@ -62,11 +62,29 @@ const ChatArea = ({
       {styleState.isMobile ? (
         <div className='pt-4'></div>
       ) : (
-        <div className='px-6 py-4 bg-gradient-to-r from-purple-500 to-blue-500 rounded-t-2xl'>
+        <div
+          className='px-6 py-4'
+          style={{
+            background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 40%, #3b82f6 100%)',
+            borderRadius: '16px 16px 0 0',
+          }}
+        >
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
-              <div className='w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center'>
-                <MessageSquare size={20} className='text-white' />
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.18)',
+                  backdropFilter: 'blur(10px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                }}
+              >
+                <MessageSquare size={20} style={{ color: 'white' }} />
               </div>
               <div>
                 <Typography.Title heading={5} className='!text-white mb-0'>
@@ -84,7 +102,13 @@ const ChatArea = ({
                 theme='borderless'
                 type='primary'
                 size='small'
-                className='!rounded-lg !text-white/80 hover:!text-white hover:!bg-white/10'
+                style={{
+                  borderRadius: '10px',
+                  color: 'rgba(255,255,255,0.85)',
+                  fontWeight: 500,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                }}
               >
                 {showDebugPanel ? t('隐藏调试') : t('显示调试')}
               </Button>

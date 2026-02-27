@@ -66,14 +66,29 @@ const SettingsPanel = ({
         display: 'flex',
         flexDirection: 'column',
       }}
+      style={{
+        background: 'var(--semi-color-bg-0)',
+      }}
     >
-      {/* 标题区域 - 与调试面板保持一致 */}
+      {/* 标题区域 */}
       <div className='flex items-center justify-between mb-6 flex-shrink-0'>
-        <div className='flex items-center'>
-          <div className='w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mr-3'>
-            <Settings size={20} className='text-white' />
+        <div className='flex items-center gap-3'>
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '11px',
+              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)',
+              flexShrink: 0,
+            }}
+          >
+            <Settings size={18} style={{ color: 'white' }} />
           </div>
-          <Typography.Title heading={5} className='mb-0'>
+          <Typography.Title heading={5} style={{ margin: 0 }}>
             {t('模型配置')}
           </Typography.Title>
         </div>
@@ -116,7 +131,7 @@ const SettingsPanel = ({
         {/* 分组选择 */}
         <div className={customRequestMode ? 'opacity-50' : ''}>
           <div className='flex items-center gap-2 mb-2'>
-            <Users size={16} className='text-gray-500' />
+            <Users size={16} style={{ color: 'var(--semi-color-text-2)' }} />
             <Typography.Text strong className='text-sm'>
               {t('分组')}
             </Typography.Text>
@@ -148,7 +163,7 @@ const SettingsPanel = ({
         {/* 模型选择 */}
         <div className={customRequestMode ? 'opacity-50' : ''}>
           <div className='flex items-center gap-2 mb-2'>
-            <Sparkles size={16} className='text-gray-500' />
+            <Sparkles size={16} style={{ color: 'var(--semi-color-text-2)' }} />
             <Typography.Text strong className='text-sm'>
               {t('模型')}
             </Typography.Text>
@@ -204,7 +219,7 @@ const SettingsPanel = ({
         <div className={customRequestMode ? 'opacity-50' : ''}>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-2'>
-              <ToggleLeft size={16} className='text-gray-500' />
+              <ToggleLeft size={16} style={{ color: 'var(--semi-color-text-2)' }} />
               <Typography.Text strong className='text-sm'>
                 {t('流式输出')}
               </Typography.Text>

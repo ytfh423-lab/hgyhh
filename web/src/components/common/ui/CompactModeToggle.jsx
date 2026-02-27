@@ -49,6 +49,7 @@ const CompactModeToggle = ({
       size={size}
       className={`w-full md:w-auto ${className}`}
       onClick={() => setCompactMode(!compactMode)}
+      style={{ borderRadius: '10px', fontWeight: 500 }}
       {...props}
     >
       {compactMode ? t('自适应列表') : t('紧凑列表')}

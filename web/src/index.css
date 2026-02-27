@@ -890,6 +890,45 @@ html.dark .with-pastel-balls::before {
   border-radius: 10px !important;
 }
 
+/* 全局 Dropdown 菜单圆角 */
+.semi-dropdown-menu {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid var(--semi-color-border) !important;
+}
+
+/* 全局 Popover 圆角 */
+.semi-popover-wrapper-content {
+  border-radius: 12px !important;
+}
+
+/* 全局分页高亮项样式 */
+.semi-page-item-active {
+  font-weight: 600 !important;
+}
+
+/* 表格行选中背景 */
+.semi-table-row-selected > .semi-table-row-cell {
+  transition: background-color 0.2s ease;
+}
+
+/* Pure 模式输入框增强 */
+.semi-input-wrapper-pure {
+  border-radius: 10px !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.semi-input-wrapper-pure:focus-within {
+  box-shadow: 0 0 0 3px rgba(var(--semi-blue-5), 0.1) !important;
+}
+
+/* 全局 Collapse 面板圆角 */
+.semi-collapse-item {
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
 /* ==================== semi-ui 组件自定义样式 ==================== */
 .semi-card-header,
 .semi-card-body {

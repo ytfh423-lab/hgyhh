@@ -85,6 +85,7 @@ const TokensFilters = ({
             loading={loading || searching}
             className='flex-1 md:flex-initial md:w-auto'
             size='small'
+            style={{ borderRadius: '10px', fontWeight: 500 }}
           >
             {t('查询')}
           </Button>
@@ -94,6 +95,7 @@ const TokensFilters = ({
             onClick={handleReset}
             className='flex-1 md:flex-initial md:w-auto'
             size='small'
+            style={{ borderRadius: '10px', fontWeight: 500 }}
           >
             {t('重置')}
           </Button>

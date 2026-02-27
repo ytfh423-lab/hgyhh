@@ -158,6 +158,7 @@ const LogsFilters = ({
               htmlType='submit'
               loading={loading}
               size='small'
+              style={{ borderRadius: '10px', fontWeight: 500 }}
             >
               {t('查询')}
             </Button>
@@ -173,6 +174,7 @@ const LogsFilters = ({
                 }
               }}
               size='small'
+              style={{ borderRadius: '10px', fontWeight: 500 }}
             >
               {t('重置')}
             </Button>
@@ -180,6 +182,7 @@ const LogsFilters = ({
               type='tertiary'
               onClick={() => setShowColumnSelector(true)}
               size='small'
+              style={{ borderRadius: '10px', fontWeight: 500 }}
             >
               {t('列设置')}
             </Button>
