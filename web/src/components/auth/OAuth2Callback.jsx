@@ -59,6 +59,8 @@ const OAuth2Callback = (props) => {
       if (message === 'bind') {
         showSuccess(t('绑定成功！'));
         navigate('/console/personal');
+      } else if (data?.registration_required) {
+        navigate(`/oauth/register/${props.type}`);
       } else {
         userDispatch({ type: 'login', payload: data });
         localStorage.setItem('user', JSON.stringify(data));

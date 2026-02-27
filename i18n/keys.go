@@ -278,8 +278,9 @@ const (
 	MsgOAuthAlreadyBound    = "oauth.already_bound"
 	MsgOAuthConnectFailed   = "oauth.connect_failed"
 	MsgOAuthTokenFailed     = "oauth.token_failed"
-	MsgOAuthUserInfoEmpty   = "oauth.user_info_empty"
-	MsgOAuthTrustLevelLow   = "oauth.trust_level_low"
+	MsgOAuthUserInfoEmpty           = "oauth.user_info_empty"
+	MsgOAuthTrustLevelLow           = "oauth.trust_level_low"
+	MsgOAuthRegistrationSessionInvalid = "oauth.registration_session_invalid"
 )
 
 // Model layer error messages (for translation in controller)

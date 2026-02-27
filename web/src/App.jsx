@@ -34,6 +34,7 @@ import PasswordResetConfirm from './components/auth/PasswordResetConfirm';
 import Channel from './pages/Channel';
 import Token from './pages/Token';
 import Redemption from './pages/Redemption';
+import RegistrationCode from './pages/RegistrationCode';
 import TopUp from './pages/TopUp';
 import Log from './pages/Log';
 import Chat from './pages/Chat';
@@ -236,6 +237,14 @@ function App() {
           element={
             <Suspense fallback={<Loading></Loading>} key={location.pathname}>
               <OAuth2Callback type='linuxdo'></OAuth2Callback>
+            </Suspense>
+          }
+        />
+        <Route
+          path='/oauth/register/:provider'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <OAuthRegistrationForm />
             </Suspense>
           }
         />
