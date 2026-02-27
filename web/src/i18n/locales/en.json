@@ -2837,6 +2837,16 @@
     "写": "Write",
     "根据 Anthropic 协定，/v1/messages 的输入 tokens 仅统计非缓存输入，不包含缓存读取与缓存写入 tokens。": "Per Anthropic conventions, /v1/messages input tokens count only non-cached input and exclude cache read/write tokens.",
     "设计版本": "b80c3466cb6feafeb3990c7820e10e50",
-    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "No matching models. Press Enter to add \"{{name}}\" as a custom model name."
+    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "No matching models. Press Enter to add \"{{name}}\" as a custom model name.",
+    "所有服务运行正常": "All Services Operational",
+    "一站式 AI 模型接口聚合平台，更快、更稳、更省": "One-stop AI model API aggregation platform — faster, more stable, more affordable",
+    "开始使用": "Get Started",
+    "查看文档": "View Docs",
+    "极速响应": "Lightning Fast",
+    "全球节点智能路由，毫秒级转发，让每一次调用都快人一步": "Global smart routing with millisecond forwarding, making every API call faster",
+    "稳定可靠": "Highly Reliable",
+    "多通道自动故障切换，99.9%+ 可用性保障": "Multi-channel auto failover with 99.9%+ uptime guarantee",
+    "全模型覆盖": "Full Model Coverage",
+    "聚合 30+ 主流 AI 供应商，统一接口一键切换": "Aggregating 30+ mainstream AI providers with a unified API"
   }
 }

@@ -674,234 +674,310 @@ html:not(.dark) .blur-ball-teal {
   opacity: 0.2;
 }
 
-/* ==================== 首页超级美化 ==================== */
+/* ==================== NPC-API 首页视觉系统 ==================== */
 
-/* 浮动光球动画 */
-@keyframes hero-float-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(30px, -40px) scale(1.1); }
-  50% { transform: translate(-20px, -60px) scale(0.95); }
-  75% { transform: translate(40px, -20px) scale(1.05); }
+/* --- 动画关键帧 --- */
+@keyframes npc-mesh-rotate {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.15); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 
-@keyframes hero-float-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(-40px, 30px) scale(1.05); }
-  50% { transform: translate(30px, 50px) scale(0.9); }
-  75% { transform: translate(-30px, -30px) scale(1.1); }
+@keyframes npc-float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-25px) rotate(3deg); }
 }
 
-@keyframes hero-float-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(50px, 20px) scale(1.08); }
-  66% { transform: translate(-30px, -40px) scale(0.92); }
+@keyframes npc-float-mid {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-18px) rotate(-2deg); }
 }
 
-@keyframes hero-pulse-ring {
-  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
-  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.2; }
-  100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
+@keyframes npc-title-glow {
+  0%, 100% { text-shadow: 0 0 40px rgba(99, 102, 241, 0.15), 0 0 80px rgba(139, 92, 246, 0.08); }
+  50% { text-shadow: 0 0 60px rgba(99, 102, 241, 0.25), 0 0 120px rgba(139, 92, 246, 0.15); }
 }
 
-/* Hero 渐变标题动画 */
-@keyframes hero-gradient-shift {
+@keyframes npc-gradient-flow {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-.hero-gradient-title {
+@keyframes npc-fade-up {
+  from { opacity: 0; transform: translateY(40px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes npc-border-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes npc-dot-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(34, 197, 94, 0.6); }
+  50% { opacity: 0.6; box-shadow: 0 0 12px rgba(34, 197, 94, 0.8); }
+}
+
+/* --- Hero 背景 Mesh --- */
+.npc-hero-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.npc-mesh-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+}
+
+.npc-mesh-1 {
+  width: 600px; height: 600px;
+  background: conic-gradient(from 0deg, #6366f1, #8b5cf6, #a78bfa, #6366f1);
+  top: -15%; left: -10%;
+  animation: npc-mesh-rotate 30s linear infinite;
+}
+
+.npc-mesh-2 {
+  width: 500px; height: 500px;
+  background: conic-gradient(from 120deg, #ec4899, #f472b6, #a855f7, #ec4899);
+  top: -10%; right: -15%;
+  animation: npc-mesh-rotate 25s linear infinite reverse;
+}
+
+.npc-mesh-3 {
+  width: 450px; height: 450px;
+  background: conic-gradient(from 240deg, #06b6d4, #22d3ee, #3b82f6, #06b6d4);
+  bottom: -20%; left: 30%;
+  animation: npc-mesh-rotate 35s linear infinite;
+}
+
+html:not(.dark) .npc-mesh-blob { opacity: 0.25; }
+html.dark .npc-mesh-blob { opacity: 0.18; filter: blur(100px); }
+
+/* --- NPC-API 品牌标题 --- */
+.npc-brand-title {
+  font-size: clamp(4rem, 12vw, 9rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
   background: linear-gradient(
     135deg,
     #6366f1 0%,
-    #8b5cf6 15%,
-    #a855f7 30%,
-    #ec4899 50%,
-    #6366f1 70%,
-    #3b82f6 85%,
+    #8b5cf6 20%,
+    #a855f7 40%,
+    #ec4899 60%,
+    #06b6d4 80%,
     #6366f1 100%
   );
-  background-size: 200% 200%;
+  background-size: 300% 300%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: hero-gradient-shift 6s ease infinite;
+  animation: npc-gradient-flow 8s ease infinite, npc-title-glow 4s ease-in-out infinite;
+  user-select: none;
 }
 
-/* Hero 浮动光球 */
-.hero-orb {
-  position: absolute;
+/* --- 副标题 --- */
+.npc-subtitle {
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  font-weight: 400;
+  color: var(--semi-color-text-2);
+  line-height: 1.8;
+  max-width: 520px;
+}
+
+/* --- 状态徽标 --- */
+.npc-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  border-radius: 100px;
+  background: var(--semi-color-bg-1);
+  border: 1px solid var(--semi-color-border);
+  backdrop-filter: blur(12px);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--semi-color-text-1);
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.npc-status-badge:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.1);
+}
+
+.npc-status-dot {
+  width: 8px; height: 8px;
   border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
+  background: #22c55e;
+  animation: npc-dot-pulse 2s ease-in-out infinite;
 }
 
-.hero-orb-1 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, transparent 70%);
-  top: -5%;
-  left: 15%;
-  filter: blur(60px);
-  animation: hero-float-1 12s ease-in-out infinite;
+/* --- URL 区域 --- */
+.npc-url-container {
+  position: relative;
+  border-radius: 18px;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(168,85,247,0.3), rgba(236,72,153,0.2), rgba(6,182,212,0.3));
+  background-size: 300% 300%;
+  animation: npc-border-shimmer 6s linear infinite;
+  transition: all 0.3s ease;
 }
 
-.hero-orb-2 {
-  width: 350px;
-  height: 350px;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
-  top: 10%;
-  right: 10%;
-  filter: blur(70px);
-  animation: hero-float-2 15s ease-in-out infinite;
+.npc-url-container:hover {
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
 }
 
-.hero-orb-3 {
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%);
-  bottom: 5%;
-  left: 35%;
-  filter: blur(80px);
-  animation: hero-float-3 18s ease-in-out infinite;
+.npc-url-inner {
+  background: var(--semi-color-bg-0);
+  border-radius: 16px;
+  padding: 16px 20px;
 }
 
-.hero-orb-4 {
-  width: 250px;
-  height: 250px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
-  bottom: 15%;
-  right: 20%;
-  filter: blur(60px);
-  animation: hero-float-1 20s ease-in-out infinite reverse;
+/* --- 操作按钮 --- */
+.npc-btn-primary {
+  padding: 12px 36px !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7) !important;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
 }
 
-/* 脉冲环 */
-.hero-pulse-ring {
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  top: 50%;
-  left: 50%;
-  pointer-events: none;
-  z-index: 0;
-  animation: hero-pulse-ring 6s ease-in-out infinite;
+.npc-btn-primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255,255,255,0.2) !important;
 }
 
-.hero-pulse-ring-2 {
-  width: 700px;
-  height: 700px;
-  border-color: rgba(168, 85, 247, 0.1);
-  animation-delay: 2s;
-  animation-duration: 8s;
+.npc-btn-secondary {
+  padding: 12px 28px !important;
+  font-weight: 500 !important;
+  font-size: 15px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--semi-color-border) !important;
+  background: var(--semi-color-bg-1) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* 暗色模式光球更亮 */
-html.dark .hero-orb-1 {
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
-}
-html.dark .hero-orb-2 {
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, transparent 70%);
-}
-html.dark .hero-orb-3 {
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.18) 0%, transparent 70%);
-}
-html.dark .hero-orb-4 {
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
+.npc-btn-secondary:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
 }
 
-/* 毛玻璃 URL 卡片 */
-.hero-url-card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  padding: 24px 28px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+/* --- 供应商网格 --- */
+.npc-provider-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
-.hero-url-card:hover {
-  box-shadow:
-    0 12px 40px rgba(99, 102, 241, 0.12),
-    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
-  transform: translateY(-2px);
-}
-
-html.dark .hero-url-card {
-  background: rgba(30, 30, 40, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-}
-
-html.dark .hero-url-card:hover {
-  box-shadow:
-    0 12px 40px rgba(99, 102, 241, 0.2),
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-}
-
-/* 供应商图标悬浮效果 */
-.provider-icon-wrapper {
+.npc-provider-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 52px; height: 52px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--semi-color-bg-1);
+  border: 1px solid var(--semi-color-border);
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: default;
+  position: relative;
 }
 
-.provider-icon-wrapper:hover {
-  transform: translateY(-4px) scale(1.08);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.2);
-  background: rgba(255, 255, 255, 0.9);
+.npc-provider-item:hover {
+  transform: translateY(-6px) scale(1.1);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.18);
+  z-index: 2;
 }
 
-html.dark .provider-icon-wrapper {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.06);
+html.dark .npc-provider-item:hover {
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.25);
 }
 
-html.dark .provider-icon-wrapper:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.2);
+/* --- 特性卡片 --- */
+.npc-feature-card {
+  position: relative;
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: var(--semi-color-bg-1);
+  border: 1px solid var(--semi-color-border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
-/* 首页入场动画 */
-@keyframes hero-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.npc-feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.hero-animate-in {
-  animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.npc-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.npc-feature-card:hover::before {
+  opacity: 1;
+}
+
+html.dark .npc-feature-card:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.npc-feature-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+/* --- 入场动画 --- */
+.npc-animate {
+  animation: npc-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
 }
 
-.hero-animate-in-delay-1 { animation-delay: 0.1s; }
-.hero-animate-in-delay-2 { animation-delay: 0.25s; }
-.hero-animate-in-delay-3 { animation-delay: 0.4s; }
-.hero-animate-in-delay-4 { animation-delay: 0.55s; }
-.hero-animate-in-delay-5 { animation-delay: 0.7s; }
+.npc-delay-1 { animation-delay: 0.05s; }
+.npc-delay-2 { animation-delay: 0.15s; }
+.npc-delay-3 { animation-delay: 0.3s; }
+.npc-delay-4 { animation-delay: 0.45s; }
+.npc-delay-5 { animation-delay: 0.6s; }
+.npc-delay-6 { animation-delay: 0.75s; }
+
+/* --- 分隔线 --- */
+.npc-divider {
+  width: 60px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  margin: 0 auto;
+}
 
 /* ==================== 卡片马卡龙模糊球（类封装） ==================== */
 /* 使用方式：给容器加上 with-pastel-balls 类即可，无需在 JSX 中插入额外节点 */
