@@ -2,12 +2,13 @@ package controller
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/Calcium-Ion/go-epay/epay"
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
@@ -42,8 +43,11 @@ func SubscriptionRequestEpay(c *gin.Context) {
 		common.ApiErrorMsg(c, "套餐金额过低")
 		return
 	}
-	if !operation_setting.ContainsPayMethod(req.PaymentMethod) {
-		common.ApiErrorMsg(c, "支付方式不存在")
+
+	pid := strings.TrimSpace(operation_setting.EpayId)
+	secret := strings.TrimSpace(operation_setting.EpayKey)
+	if pid == "" || secret == "" {
+		common.ApiErrorMsg(c, "当前管理员未配置支付信息")
 		return
 	}
 
@@ -61,61 +65,84 @@ func SubscriptionRequestEpay(c *gin.Context) {
 	}
 
 	callBackAddress := service.GetCallbackAddress()
-	returnUrl, err := url.Parse(callBackAddress + "/api/subscription/epay/return")
-	if err != nil {
-		common.ApiErrorMsg(c, "回调地址配置错误")
-		return
+	returnUrl := callBackAddress + "/api/subscription/epay/return"
+	notifyUrl := callBackAddress + "/api/subscription/epay/notify"
+
+	tradeNo := fmt.Sprintf("SUBUSR%dNO%s%d", userId, common.GetRandomString(6), time.Now().Unix())
+	payMoneyStr := strconv.FormatFloat(plan.PriceAmount, 'f', 2, 64)
+
+	formParams := map[string]string{
+		"pid":          pid,
+		"type":         "epay",
+		"out_trade_no": tradeNo,
+		"name":         fmt.Sprintf("SUB:%s", plan.Title),
+		"money":        payMoneyStr,
+		"notify_url":   notifyUrl,
+		"return_url":   returnUrl,
+		"sign_type":    "MD5",
 	}
-	notifyUrl, err := url.Parse(callBackAddress + "/api/subscription/epay/notify")
+	formParams["sign"] = buildLinuxDoSign(formParams, secret)
+
+	endpoint, err := getLinuxDoEpaySubmitURL()
 	if err != nil {
-		common.ApiErrorMsg(c, "回调地址配置错误")
+		common.ApiErrorMsg(c, err.Error())
 		return
 	}
 
-	tradeNo := fmt.Sprintf("%s%d", common.GetRandomString(6), time.Now().Unix())
-	tradeNo = fmt.Sprintf("SUBUSR%dNO%s", userId, tradeNo)
-
-	client := GetEpayClient()
-	if client == nil {
-		common.ApiErrorMsg(c, "当前管理员未配置支付信息")
-		return
+	formValues := url.Values{}
+	for key, value := range formParams {
+		formValues.Set(key, value)
 	}
 
-	order := &model.SubscriptionOrder{
-		UserId:        userId,
-		PlanId:        plan.Id,
-		Money:         plan.PriceAmount,
-		TradeNo:       tradeNo,
-		PaymentMethod: req.PaymentMethod,
-		CreateTime:    time.Now().Unix(),
-		Status:        common.TopUpStatusPending,
+	httpClient := &http.Client{
+		Timeout: 15 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
-	if err := order.Insert(); err != nil {
-		common.ApiErrorMsg(c, "创建订单失败")
-		return
-	}
-	uri, params, err := client.Purchase(&epay.PurchaseArgs{
-		Type:           req.PaymentMethod,
-		ServiceTradeNo: tradeNo,
-		Name:           fmt.Sprintf("SUB:%s", plan.Title),
-		Money:          strconv.FormatFloat(plan.PriceAmount, 'f', 2, 64),
-		Device:         epay.PC,
-		NotifyUrl:      notifyUrl,
-		ReturnUrl:      returnUrl,
-	})
+	httpResp, err := httpClient.PostForm(endpoint, formValues)
 	if err != nil {
-		_ = model.ExpireSubscriptionOrder(tradeNo)
 		common.ApiErrorMsg(c, "拉起支付失败")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "success", "data": params, "url": uri})
+	defer httpResp.Body.Close()
+
+	redirectURL := httpResp.Header.Get("Location")
+	if (httpResp.StatusCode == http.StatusFound || httpResp.StatusCode == http.StatusSeeOther) && redirectURL != "" {
+		order := &model.SubscriptionOrder{
+			UserId:        userId,
+			PlanId:        plan.Id,
+			Money:         plan.PriceAmount,
+			TradeNo:       tradeNo,
+			PaymentMethod: "epay",
+			CreateTime:    time.Now().Unix(),
+			Status:        common.TopUpStatusPending,
+		}
+		if err := order.Insert(); err != nil {
+			common.ApiErrorMsg(c, "创建订单失败")
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "success", "url": redirectURL, "trade_no": tradeNo})
+		return
+	}
+
+	body, _ := io.ReadAll(httpResp.Body)
+	var failResp struct {
+		ErrorMsg string `json:"error_msg"`
+	}
+	if len(body) > 0 {
+		_ = common.Unmarshal(body, &failResp)
+	}
+	if failResp.ErrorMsg == "" {
+		failResp.ErrorMsg = "拉起支付失败"
+	}
+	common.ApiErrorMsg(c, failResp.ErrorMsg)
 }
 
 func SubscriptionEpayNotify(c *gin.Context) {
 	var params map[string]string
 
 	if c.Request.Method == "POST" {
-		// POST 请求：从 POST body 解析参数
 		if err := c.Request.ParseForm(); err != nil {
 			_, _ = c.Writer.Write([]byte("fail"))
 			return
@@ -125,7 +152,6 @@ func SubscriptionEpayNotify(c *gin.Context) {
 			return r
 		}, map[string]string{})
 	} else {
-		// GET 请求：从 URL Query 解析参数
 		params = lo.Reduce(lo.Keys(c.Request.URL.Query()), func(r map[string]string, t string, i int) map[string]string {
 			r[t] = c.Request.URL.Query().Get(t)
 			return r
@@ -137,26 +163,37 @@ func SubscriptionEpayNotify(c *gin.Context) {
 		return
 	}
 
-	client := GetEpayClient()
-	if client == nil {
-		_, _ = c.Writer.Write([]byte("fail"))
-		return
-	}
-	verifyInfo, err := client.Verify(params)
-	if err != nil || !verifyInfo.VerifyStatus {
+	secret := strings.TrimSpace(operation_setting.EpayKey)
+	if secret == "" {
 		_, _ = c.Writer.Write([]byte("fail"))
 		return
 	}
 
-	if verifyInfo.TradeStatus != epay.StatusTradeSuccess {
+	expectedSign := buildLinuxDoSign(params, secret)
+	receivedSign := strings.ToLower(strings.TrimSpace(params["sign"]))
+	if expectedSign != receivedSign {
 		_, _ = c.Writer.Write([]byte("fail"))
 		return
 	}
 
-	LockOrder(verifyInfo.ServiceTradeNo)
-	defer UnlockOrder(verifyInfo.ServiceTradeNo)
+	if params["trade_status"] != "TRADE_SUCCESS" {
+		_, _ = c.Writer.Write([]byte("fail"))
+		return
+	}
 
-	if err := model.CompleteSubscriptionOrder(verifyInfo.ServiceTradeNo, common.GetJsonString(verifyInfo)); err != nil {
+	tradeNo := strings.TrimSpace(params["out_trade_no"])
+	if tradeNo == "" {
+		tradeNo = strings.TrimSpace(params["trade_no"])
+	}
+	if tradeNo == "" {
+		_, _ = c.Writer.Write([]byte("fail"))
+		return
+	}
+
+	LockOrder(tradeNo)
+	defer UnlockOrder(tradeNo)
+
+	if err := model.CompleteSubscriptionOrder(tradeNo, common.GetJsonString(params)); err != nil {
 		_, _ = c.Writer.Write([]byte("fail"))
 		return
 	}
@@ -170,7 +207,6 @@ func SubscriptionEpayReturn(c *gin.Context) {
 	var params map[string]string
 
 	if c.Request.Method == "POST" {
-		// POST 请求：从 POST body 解析参数
 		if err := c.Request.ParseForm(); err != nil {
 			c.Redirect(http.StatusFound, system_setting.ServerAddress+"/console/subscription?pay=fail")
 			return
@@ -180,7 +216,6 @@ func SubscriptionEpayReturn(c *gin.Context) {
 			return r
 		}, map[string]string{})
 	} else {
-		// GET 请求：从 URL Query 解析参数
 		params = lo.Reduce(lo.Keys(c.Request.URL.Query()), func(r map[string]string, t string, i int) map[string]string {
 			r[t] = c.Request.URL.Query().Get(t)
 			return r
@@ -192,20 +227,31 @@ func SubscriptionEpayReturn(c *gin.Context) {
 		return
 	}
 
-	client := GetEpayClient()
-	if client == nil {
+	secret := strings.TrimSpace(operation_setting.EpayKey)
+	if secret == "" {
 		c.Redirect(http.StatusFound, system_setting.ServerAddress+"/console/subscription?pay=fail")
 		return
 	}
-	verifyInfo, err := client.Verify(params)
-	if err != nil || !verifyInfo.VerifyStatus {
+
+	expectedSign := buildLinuxDoSign(params, secret)
+	receivedSign := strings.ToLower(strings.TrimSpace(params["sign"]))
+	if expectedSign != receivedSign {
 		c.Redirect(http.StatusFound, system_setting.ServerAddress+"/console/subscription?pay=fail")
 		return
 	}
-	if verifyInfo.TradeStatus == epay.StatusTradeSuccess {
-		LockOrder(verifyInfo.ServiceTradeNo)
-		defer UnlockOrder(verifyInfo.ServiceTradeNo)
-		if err := model.CompleteSubscriptionOrder(verifyInfo.ServiceTradeNo, common.GetJsonString(verifyInfo)); err != nil {
+
+	if params["trade_status"] == "TRADE_SUCCESS" {
+		tradeNo := strings.TrimSpace(params["out_trade_no"])
+		if tradeNo == "" {
+			tradeNo = strings.TrimSpace(params["trade_no"])
+		}
+		if tradeNo == "" {
+			c.Redirect(http.StatusFound, system_setting.ServerAddress+"/console/subscription?pay=fail")
+			return
+		}
+		LockOrder(tradeNo)
+		defer UnlockOrder(tradeNo)
+		if err := model.CompleteSubscriptionOrder(tradeNo, common.GetJsonString(params)); err != nil {
 			c.Redirect(http.StatusFound, system_setting.ServerAddress+"/console/subscription?pay=fail")
 			return
 		}

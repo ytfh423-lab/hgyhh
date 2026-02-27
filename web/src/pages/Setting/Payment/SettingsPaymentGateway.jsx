@@ -219,7 +219,7 @@ export default function SettingsPaymentGateway(props) {
         <Form.Section text={t('支付设置')}>
           <Text>
             {t(
-              '（当前仅支持易支付接口，默认使用上方服务器地址作为回调地址！）',
+              '（对接 LinuxDo 论坛积分支付接口，默认使用上方服务器地址作为回调地址！）',
             )}
           </Text>
           <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}>
@@ -227,20 +227,20 @@ export default function SettingsPaymentGateway(props) {
               <Form.Input
                 field='PayAddress'
                 label={t('支付地址')}
-                placeholder={t('例如：https://yourdomain.com')}
+                placeholder={t('例如：https://credit.linux.do/epay')}
               />
             </Col>
             <Col xs={24} sm={24} md={8} lg={8} xl={8}>
               <Form.Input
                 field='EpayId'
-                label={t('易支付商户ID')}
+                label={t('LinuxDo 商户ID (pid)')}
                 placeholder={t('例如：0001')}
               />
             </Col>
             <Col xs={24} sm={24} md={8} lg={8} xl={8}>
               <Form.Input
                 field='EpayKey'
-                label={t('易支付商户密钥')}
+                label={t('LinuxDo 商户密钥 (key)')}
                 placeholder={t('敏感信息不会发送到前端显示')}
                 type='password'
               />
@@ -261,8 +261,8 @@ export default function SettingsPaymentGateway(props) {
               <Form.InputNumber
                 field='Price'
                 precision={2}
-                label={t('充值价格（x元/美金）')}
-                placeholder={t('例如：7，就是7元/美金')}
+                label={t('充值价格（x积分/美金）')}
+                placeholder={t('例如：7，就是7积分/美金')}
               />
             </Col>
             <Col xs={24} sm={24} md={8} lg={8} xl={8}>

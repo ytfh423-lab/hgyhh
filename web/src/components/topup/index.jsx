@@ -210,10 +210,9 @@ const TopUp = () => {
           payment_method: 'stripe',
         });
       } else {
-        // 普通支付请求
-        res = await API.post('/api/user/pay', {
+        // LinuxDo 积分支付请求
+        res = await API.post('/api/user/linuxdo/pay', {
           amount: parseInt(topUpCount),
-          payment_method: payWay,
         });
       }
 
@@ -224,28 +223,13 @@ const TopUp = () => {
             // Stripe 支付回调处理
             window.open(data.pay_link, '_blank');
           } else {
-            // 普通支付表单提交
-            let params = data;
+            // LinuxDo 积分支付跳转
             let url = res.data.url;
-            let form = document.createElement('form');
-            form.action = url;
-            form.method = 'POST';
-            let isSafari =
-              navigator.userAgent.indexOf('Safari') > -1 &&
-              navigator.userAgent.indexOf('Chrome') < 1;
-            if (!isSafari) {
-              form.target = '_blank';
+            if (url) {
+              window.open(url, '_blank');
+            } else {
+              showError(t('支付跳转地址为空'));
             }
-            for (let key in params) {
-              let input = document.createElement('input');
-              input.type = 'hidden';
-              input.name = key;
-              input.value = params[key];
-              form.appendChild(input);
-            }
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
           }
         } else {
           const errorMsg =
