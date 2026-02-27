@@ -79,6 +79,7 @@ const RegisterForm = () => {
     password2: '',
     email: '',
     verification_code: '',
+    registration_code: '',
     wechat_verification_code: '',
   });
   const { username, password, password2 } = inputs;
@@ -636,6 +637,15 @@ const RegisterForm = () => {
                     />
                   </>
                 )}
+
+                <Form.Input
+                  field='registration_code'
+                  label={t('注册码')}
+                  placeholder={t('请输入管理员发放的注册码')}
+                  name='registration_code'
+                  onChange={(value) => handleChange('registration_code', value)}
+                  prefix={<IconKey />}
+                />
 
                 {(hasUserAgreement || hasPrivacyPolicy) && (
                   <div className='pt-4'>

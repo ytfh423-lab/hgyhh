@@ -115,6 +115,65 @@ func GetRedemptionById(id int) (*Redemption, error) {
 	return &redemption, err
 }
 
+func ValidateRedemptionCodeForRegistration(key string) error {
+	if key == "" {
+		return errors.New("未提供兑换码")
+	}
+	redemption := &Redemption{}
+	keyCol := "`key`"
+	if common.UsingPostgreSQL {
+		keyCol = `"key"`
+	}
+	err := DB.Where(keyCol+" = ?", key).First(redemption).Error
+	if err != nil {
+		return err
+	}
+	if redemption.Status != common.RedemptionCodeStatusEnabled {
+		return errors.New("该兑换码已被使用")
+	}
+	if redemption.ExpiredTime != 0 && redemption.ExpiredTime < common.GetTimestamp() {
+		return errors.New("该兑换码已过期")
+	}
+	return nil
+}
+
+func ConsumeRedemptionCodeForRegistration(key string, userId int) (quota int, err error) {
+	if key == "" {
+		return 0, errors.New("未提供兑换码")
+	}
+	if userId == 0 {
+		return 0, errors.New("无效的 user id")
+	}
+	redemption := &Redemption{}
+
+	keyCol := "`key`"
+	if common.UsingPostgreSQL {
+		keyCol = `"key"`
+	}
+	common.RandomSleep()
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Set("gorm:query_option", "FOR UPDATE").Where(keyCol+" = ?", key).First(redemption).Error
+		if err != nil {
+			return errors.New("无效的兑换码")
+		}
+		if redemption.Status != common.RedemptionCodeStatusEnabled {
+			return errors.New("该兑换码已被使用")
+		}
+		if redemption.ExpiredTime != 0 && redemption.ExpiredTime < common.GetTimestamp() {
+			return errors.New("该兑换码已过期")
+		}
+		redemption.RedeemedTime = common.GetTimestamp()
+		redemption.Status = common.RedemptionCodeStatusUsed
+		redemption.UsedUserId = userId
+		return tx.Save(redemption).Error
+	})
+	if err != nil {
+		common.SysError("registration code consume failed: " + err.Error())
+		return 0, ErrRedeemFailed
+	}
+	return redemption.Quota, nil
+}
+
 func Redeem(key string, userId int) (quota int, err error) {
 	if key == "" {
 		return 0, errors.New("未提供兑换码")

@@ -90,6 +90,8 @@ const (
 	MsgUserTransferFailed            = "user.transfer_failed"
 	MsgUserTopUpProcessing           = "user.topup_processing"
 	MsgUserRegisterFailed            = "user.register_failed"
+	MsgUserRegistrationCodeRequired  = "user.registration_code_required"
+	MsgUserRegistrationCodeInvalid   = "user.registration_code_invalid"
 	MsgUserDefaultTokenFailed        = "user.default_token_failed"
 	MsgUserAffCodeEmpty              = "user.aff_code_empty"
 	MsgUserEmailEmpty                = "user.email_empty"

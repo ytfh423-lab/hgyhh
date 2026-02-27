@@ -190,6 +190,11 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserRegisterFailed)
 		return
 	}
+	if _, err := model.ConsumeRedemptionCodeForRegistration(user.RegistrationCode, insertedUser.Id); err != nil {
+		_ = model.DeleteUserById(insertedUser.Id)
+		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
+		return
+	}
 	// 生成默认令牌
 	if constant.GenerateDefaultToken {
 		key, err := common.GenerateKey()
