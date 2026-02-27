@@ -241,47 +241,65 @@ const TopupHistoryModal = ({ visible, onCancel, t }) => {
 
   return (
     <Modal
-      title={t('充值账单')}
+      title={
+        <div className='flex items-center gap-2'>
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Coins size={14} style={{ color: 'white' }} />
+          </div>
+          {t('充值账单')}
+        </div>
+      }
       visible={visible}
       onCancel={onCancel}
       footer={null}
       size={isMobile ? 'full-width' : 'large'}
     >
-      <div className='mb-3'>
+      <div style={{ marginBottom: '16px' }}>
         <Input
           prefix={<IconSearch />}
           placeholder={t('订单号')}
           value={keyword}
           onChange={handleKeywordChange}
           showClear
+          style={{ borderRadius: '10px' }}
         />
       </div>
-      <Table
-        columns={columns}
-        dataSource={topups}
-        loading={loading}
-        rowKey='id'
-        pagination={{
-          currentPage: page,
-          pageSize: pageSize,
-          total: total,
-          showSizeChanger: true,
-          pageSizeOpts: [10, 20, 50, 100],
-          onPageChange: handlePageChange,
-          onPageSizeChange: handlePageSizeChange,
-        }}
-        size='small'
-        empty={
-          <Empty
-            image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
-            darkModeImage={
-              <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
-            }
-            description={t('暂无充值记录')}
-            style={{ padding: 30 }}
-          />
-        }
-      />
+      <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--semi-color-border)' }}>
+        <Table
+          columns={columns}
+          dataSource={topups}
+          loading={loading}
+          rowKey='id'
+          pagination={{
+            currentPage: page,
+            pageSize: pageSize,
+            total: total,
+            showSizeChanger: true,
+            pageSizeOpts: [10, 20, 50, 100],
+            onPageChange: handlePageChange,
+            onPageSizeChange: handlePageSizeChange,
+          }}
+          size='small'
+          empty={
+            <Empty
+              image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
+              darkModeImage={
+                <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
+              }
+              description={t('暂无充值记录')}
+              style={{ padding: 30 }}
+            />
+          }
+        />
+      </div>
     </Modal>
   );
 };

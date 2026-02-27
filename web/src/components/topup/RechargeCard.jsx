@@ -119,101 +119,85 @@ const RechargeCard = ({
     <Space vertical style={{ width: '100%' }}>
       {/* 统计数据 */}
       <Card
-        className='!rounded-xl w-full'
+        className='!rounded-2xl w-full !overflow-hidden'
+        style={{ border: 'none' }}
         cover={
           <div
-            className='relative h-30'
+            className='relative'
             style={{
-              '--palette-primary-darkerChannel': '37 99 235',
-              backgroundImage: `linear-gradient(0deg, rgba(var(--palette-primary-darkerChannel) / 80%), rgba(var(--palette-primary-darkerChannel) / 80%)), url('/cover-4.webp')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
+              background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #7c3aed 100%)',
+              padding: '28px 24px',
             }}
           >
-            <div className='relative z-10 h-full flex flex-col justify-between p-4'>
-              <div className='flex justify-between items-center'>
-                <Text strong style={{ color: 'white', fontSize: '16px' }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '-40px',
+                width: '160px',
+                height: '160px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.06)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-30px',
+                left: '20%',
+                width: '100px',
+                height: '100px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.04)',
+              }}
+            />
+            <div className='relative z-10 flex flex-col'>
+              <div className='flex justify-between items-center mb-5'>
+                <Text strong style={{ color: 'white', fontSize: '17px', letterSpacing: '0.5px' }}>
                   {t('账户统计')}
                 </Text>
               </div>
 
-              {/* 统计数据 */}
-              <div className='grid grid-cols-3 gap-6 mt-4'>
-                {/* 当前余额 */}
-                <div className='text-center'>
+              <div className='grid grid-cols-3 gap-4'>
+                {[
+                  { value: renderQuota(userState?.user?.quota), label: t('当前余额'), icon: Wallet },
+                  { value: renderQuota(userState?.user?.used_quota), label: t('历史消耗'), icon: TrendingUp },
+                  { value: userState?.user?.request_count || 0, label: t('请求次数'), icon: BarChart2 },
+                ].map((stat, i) => (
                   <div
-                    className='text-base sm:text-2xl font-bold mb-2'
-                    style={{ color: 'white' }}
+                    key={i}
+                    className='text-center'
+                    style={{
+                      background: 'rgba(255,255,255,0.1)',
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: '14px',
+                      padding: '16px 8px',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      transition: 'transform 0.2s ease, background 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                    }}
                   >
-                    {renderQuota(userState?.user?.quota)}
-                  </div>
-                  <div className='flex items-center justify-center text-sm'>
-                    <Wallet
-                      size={14}
-                      className='mr-1'
-                      style={{ color: 'rgba(255,255,255,0.8)' }}
-                    />
-                    <Text
-                      style={{
-                        color: 'rgba(255,255,255,0.8)',
-                        fontSize: '12px',
-                      }}
+                    <div
+                      className='text-base sm:text-xl font-bold mb-1.5'
+                      style={{ color: 'white' }}
                     >
-                      {t('当前余额')}
-                    </Text>
+                      {stat.value}
+                    </div>
+                    <div className='flex items-center justify-center gap-1'>
+                      <stat.icon size={13} style={{ color: 'rgba(255,255,255,0.7)' }} />
+                      <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>
+                        {stat.label}
+                      </Text>
+                    </div>
                   </div>
-                </div>
-
-                {/* 历史消耗 */}
-                <div className='text-center'>
-                  <div
-                    className='text-base sm:text-2xl font-bold mb-2'
-                    style={{ color: 'white' }}
-                  >
-                    {renderQuota(userState?.user?.used_quota)}
-                  </div>
-                  <div className='flex items-center justify-center text-sm'>
-                    <TrendingUp
-                      size={14}
-                      className='mr-1'
-                      style={{ color: 'rgba(255,255,255,0.8)' }}
-                    />
-                    <Text
-                      style={{
-                        color: 'rgba(255,255,255,0.8)',
-                        fontSize: '12px',
-                      }}
-                    >
-                      {t('历史消耗')}
-                    </Text>
-                  </div>
-                </div>
-
-                {/* 请求次数 */}
-                <div className='text-center'>
-                  <div
-                    className='text-base sm:text-2xl font-bold mb-2'
-                    style={{ color: 'white' }}
-                  >
-                    {userState?.user?.request_count || 0}
-                  </div>
-                  <div className='flex items-center justify-center text-sm'>
-                    <BarChart2
-                      size={14}
-                      className='mr-1'
-                      style={{ color: 'rgba(255,255,255,0.8)' }}
-                    />
-                    <Text
-                      style={{
-                        color: 'rgba(255,255,255,0.8)',
-                        fontSize: '12px',
-                      }}
-                    >
-                      {t('请求次数')}
-                    </Text>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -327,7 +311,13 @@ const RechargeCard = ({
                                     />
                                   )
                                 }
-                                className='!rounded-lg !px-4 !py-2'
+                                style={{
+                                  borderRadius: '12px',
+                                  padding: '8px 20px',
+                                  height: 'auto',
+                                  transition: 'all 0.2s ease',
+                                  fontWeight: 500,
+                                }}
                               >
                                 {payMethod.name}
                               </Button>
@@ -353,7 +343,15 @@ const RechargeCard = ({
                           })}
                         </Space>
                       ) : (
-                        <div className='text-gray-500 text-sm p-3 bg-gray-50 rounded-lg border border-dashed border-gray-300'>
+                        <div style={{
+                          color: 'var(--semi-color-text-2)',
+                          fontSize: '13px',
+                          padding: '16px',
+                          background: 'var(--semi-color-bg-1)',
+                          borderRadius: '12px',
+                          border: '1px dashed var(--semi-color-border)',
+                          textAlign: 'center',
+                        }}>
                           {t('暂无可用的支付方式，请联系管理员配置')}
                         </div>
                       )}
@@ -426,7 +424,7 @@ const RechargeCard = ({
                       }
 
                       return (
-                        <Card
+                        <div
                           key={index}
                           style={{
                             cursor: 'pointer',
@@ -434,10 +432,22 @@ const RechargeCard = ({
                               selectedPreset === preset.value
                                 ? '2px solid var(--semi-color-primary)'
                                 : '1px solid var(--semi-color-border)',
+                            borderRadius: '16px',
                             height: '100%',
                             width: '100%',
+                            padding: '16px 12px',
+                            background:
+                              selectedPreset === preset.value
+                                ? 'var(--semi-color-primary-light-default)'
+                                : 'var(--semi-color-bg-2)',
+                            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow:
+                              selectedPreset === preset.value
+                                ? '0 4px 16px rgba(var(--semi-blue-5), 0.15)'
+                                : '0 1px 3px rgba(0,0,0,0.04)',
+                            position: 'relative',
+                            overflow: 'hidden',
                           }}
-                          bodyStyle={{ padding: '12px' }}
                           onClick={() => {
                             selectPresetAmount(preset);
                             onlineFormApiRef.current?.setValue(
@@ -445,38 +455,66 @@ const RechargeCard = ({
                               preset.value,
                             );
                           }}
+                          onMouseEnter={(e) => {
+                            if (selectedPreset !== preset.value) {
+                              e.currentTarget.style.borderColor = 'var(--semi-color-primary)';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedPreset !== preset.value) {
+                              e.currentTarget.style.borderColor = 'var(--semi-color-border)';
+                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }
+                          }}
                         >
+                          {hasDiscount && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '0',
+                              right: '0',
+                              background: 'linear-gradient(135deg, #10b981, #059669)',
+                              color: 'white',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              padding: '2px 10px 2px 12px',
+                              borderRadius: '0 16px 0 12px',
+                            }}>
+                              {t('折').includes('off')
+                                ? ((1 - parseFloat(discount)) * 100).toFixed(1)
+                                : (discount * 10).toFixed(1)}
+                              {t('折')}
+                            </div>
+                          )}
                           <div style={{ textAlign: 'center' }}>
-                            <Typography.Title
-                              heading={6}
-                              style={{ margin: '0 0 8px 0' }}
-                            >
-                              <Coins size={18} />
-                              {formatLargeNumber(displayValue)} {symbol}
-                              {hasDiscount && (
-                                <Tag style={{ marginLeft: 4 }} color='green'>
-                                  {t('折').includes('off')
-                                    ? ((1 - parseFloat(discount)) * 100).toFixed(1)
-                                    : (discount * 10).toFixed(1)}
-                                  {t('折')}
-                                </Tag>
-                              )}
-                            </Typography.Title>
+                            <div className='flex items-center justify-center gap-1.5 mb-2'>
+                              <Coins size={18} style={{ color: 'var(--semi-color-primary)' }} />
+                              <Typography.Title
+                                heading={6}
+                                style={{ margin: 0 }}
+                              >
+                                {formatLargeNumber(displayValue)} {symbol}
+                              </Typography.Title>
+                            </div>
                             <div
                               style={{
                                 color: 'var(--semi-color-text-2)',
-                                fontSize: '12px',
-                                margin: '4px 0',
+                                fontSize: '11px',
+                                lineHeight: '1.5',
                               }}
                             >
                               {t('实付')} {symbol}
-                              {displayActualPay.toFixed(2)}，
-                              {hasDiscount
-                                ? `${t('节省')} ${symbol}${displaySave.toFixed(2)}`
-                                : `${t('节省')} ${symbol}0.00`}
+                              {displayActualPay.toFixed(2)}
+                              {hasDiscount && (
+                                <span style={{ color: '#10b981', marginLeft: '4px' }}>
+                                  {t('节省')} {symbol}{displaySave.toFixed(2)}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        </Card>
+                        </div>
                       );
                     })}
                   </div>
@@ -525,11 +563,15 @@ const RechargeCard = ({
 
       {/* 兑换码充值 */}
       <Card
-        className='!rounded-xl w-full'
+        className='!rounded-2xl w-full'
+        style={{ border: '1px solid var(--semi-color-border)' }}
         title={
-          <Text type='tertiary' strong>
-            {t('兑换码充值')}
-          </Text>
+          <div className='flex items-center gap-2'>
+            <IconGift style={{ color: 'var(--semi-color-primary)' }} />
+            <Text type='tertiary' strong>
+              {t('兑换码充值')}
+            </Text>
+          </div>
         }
       >
         <Form
@@ -579,24 +621,45 @@ const RechargeCard = ({
   );
 
   return (
-    <Card className='!rounded-2xl shadow-sm border-0'>
+    <Card
+      className='!rounded-2xl'
+      style={{
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 10px 30px rgba(0,0,0,0.03)',
+        border: '1px solid var(--semi-color-border)',
+      }}
+    >
       {/* 卡片头部 */}
-      <div className='flex items-center justify-between mb-4'>
+      <div className='flex items-center justify-between mb-5'>
         <div className='flex items-center'>
-          <Avatar size='small' color='blue' className='mr-3 shadow-md'>
-            <CreditCard size={16} />
-          </Avatar>
+          <div
+            className='mr-3 flex items-center justify-center'
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+            }}
+          >
+            <CreditCard size={18} style={{ color: 'white' }} />
+          </div>
           <div>
-            <Typography.Text className='text-lg font-medium'>
+            <Typography.Text style={{ fontSize: '17px', fontWeight: 600 }}>
               {t('账户充值')}
             </Typography.Text>
-            <div className='text-xs'>{t('多种充值方式，安全便捷')}</div>
+            <div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)', marginTop: '2px' }}>
+              {t('多种充值方式，安全便捷')}
+            </div>
           </div>
         </div>
         <Button
           icon={<Receipt size={16} />}
           theme='solid'
           onClick={onOpenHistory}
+          style={{
+            borderRadius: '10px',
+            fontWeight: 500,
+          }}
         >
           {t('账单')}
         </Button>

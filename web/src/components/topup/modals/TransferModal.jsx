@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React from 'react';
 import { Modal, Typography, Input, InputNumber } from '@douyinfe/semi-ui';
-import { CreditCard } from 'lucide-react';
+import { ArrowRightLeft } from 'lucide-react';
 
 const TransferModal = ({
   t,
@@ -35,8 +35,18 @@ const TransferModal = ({
   return (
     <Modal
       title={
-        <div className='flex items-center'>
-          <CreditCard className='mr-2' size={18} />
+        <div className='flex items-center gap-2'>
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <ArrowRightLeft size={14} style={{ color: 'white' }} />
+          </div>
           {t('划转邀请额度')}
         </div>
       }
@@ -46,19 +56,25 @@ const TransferModal = ({
       maskClosable={false}
       centered
     >
-      <div className='space-y-4'>
-        <div>
-          <Typography.Text strong className='block mb-2'>
+      <div style={{
+        borderRadius: '16px',
+        background: 'var(--semi-color-bg-1)',
+        border: '1px solid var(--semi-color-border)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ padding: '16px 20px' }}>
+          <Typography.Text style={{ color: 'var(--semi-color-text-2)', fontSize: '13px', display: 'block', marginBottom: '8px' }}>
             {t('可用邀请额度')}
           </Typography.Text>
           <Input
             value={renderQuota(userState?.user?.aff_quota)}
             disabled
-            className='!rounded-lg'
+            style={{ borderRadius: '10px' }}
           />
         </div>
-        <div>
-          <Typography.Text strong className='block mb-2'>
+        <div style={{ height: '1px', background: 'var(--semi-color-border)', margin: '0 20px' }} />
+        <div style={{ padding: '16px 20px' }}>
+          <Typography.Text style={{ color: 'var(--semi-color-text-2)', fontSize: '13px', display: 'block', marginBottom: '8px' }}>
             {t('划转额度')} · {t('最低') + renderQuota(getQuotaPerUnit())}
           </Typography.Text>
           <InputNumber
@@ -66,7 +82,7 @@ const TransferModal = ({
             max={userState?.user?.aff_quota || 0}
             value={transferAmount}
             onChange={(value) => setTransferAmount(value)}
-            className='w-full !rounded-lg'
+            style={{ width: '100%', borderRadius: '10px' }}
           />
         </div>
       </div>
