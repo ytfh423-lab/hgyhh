@@ -25,6 +25,8 @@ const (
 	oauthPendingLegacyIDKey       = "oauth_pending_legacy_id"
 )
 
+var errOAuthRegistrationCodeRequired = errors.New("oauth registration code required")
+
 type OAuthCompleteRegistrationRequest struct {
 	RegistrationCode string `json:"registration_code"`
 }
@@ -155,6 +157,10 @@ func HandleOAuth(c *gin.Context) {
 
 	createdUser, err := createOAuthUser(provider, oauthUser, session, "")
 	if err != nil {
+		if errors.Is(err, errOAuthRegistrationCodeRequired) {
+			common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeRequired)
+			return
+		}
 		handleOAuthError(c, err)
 		return
 	}
@@ -346,6 +352,10 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, sessio
 	inviterId := 0
 	if affCode != nil {
 		inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
+	}
+
+	if strings.EqualFold(provider.GetProviderPrefix(), "linuxdo_") && registrationCode == "" {
+		return nil, errOAuthRegistrationCodeRequired
 	}
 
 	if genericProvider, ok := provider.(*oauth.GenericOAuthProvider); ok {
