@@ -18,7 +18,7 @@ tiktoken_cache
 .gocache
 .gomodcache/
 .cache
-web/bun.lock
+web/bun.lockb
 plans
 
 electron/node_modules
