@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import SkeletonWrapper from '../components/SkeletonWrapper';
 
 const Navigation = ({
@@ -28,49 +28,73 @@ const Navigation = ({
   userState,
   pricingRequireAuth,
 }) => {
-  const renderNavLinks = () => {
-    const baseClasses =
-      'flex-shrink-0 flex items-center gap-1 font-semibold rounded-md transition-all duration-200 ease-in-out';
-    const hoverClasses = 'hover:text-semi-color-primary';
-    const spacingClasses = isMobile ? 'p-1' : 'p-2';
+  const location = useLocation();
 
-    const commonLinkClasses = `${baseClasses} ${spacingClasses} ${hoverClasses}`;
+  const baseClasses =
+    'group relative flex-shrink-0 flex items-center justify-center font-semibold rounded-full transition-all duration-300 ease-out border backdrop-blur-sm';
+  const spacingClasses = isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-[15px]';
+  const inactiveClasses =
+    'border-transparent bg-semi-color-fill-0/70 text-semi-color-text-1 hover:text-semi-color-primary hover:bg-semi-color-fill-1 hover:border-semi-color-primary/20 hover:shadow-sm';
+  const activeClasses =
+    'text-white border-semi-color-primary/80 shadow-md shadow-blue-500/25 bg-gradient-to-r from-blue-500 to-indigo-500';
 
-    return mainNavLinks.map((link) => {
-      const linkContent = <span>{link.text}</span>;
+  const getTargetPath = (link) => {
+    if (link.itemKey === 'console' && !userState.user) {
+      return '/login';
+    }
+    if (link.itemKey === 'pricing' && pricingRequireAuth && !userState.user) {
+      return '/login';
+    }
+    return link.to;
+  };
 
-      if (link.isExternal) {
-        return (
-          <a
-            key={link.itemKey}
-            href={link.externalLink}
-            target='_blank'
-            rel='noopener noreferrer'
-            className={commonLinkClasses}
-          >
-            {linkContent}
-          </a>
-        );
-      }
+  const isLinkActive = (link, targetPath) => {
+    if (link.itemKey === 'home') {
+      return location.pathname === '/';
+    }
+    if (link.itemKey === 'console') {
+      return location.pathname.startsWith('/console');
+    }
+    return location.pathname === targetPath;
+  };
 
-      let targetPath = link.to;
-      if (link.itemKey === 'console' && !userState.user) {
-        targetPath = '/login';
-      }
-      if (link.itemKey === 'pricing' && pricingRequireAuth && !userState.user) {
-        targetPath = '/login';
-      }
+  const renderNavLink = (link) => {
+    const targetPath = getTargetPath(link);
+    const isActive = isLinkActive(link, targetPath);
+    const commonLinkClasses = `${baseClasses} ${spacingClasses} ${isActive ? activeClasses : inactiveClasses}`;
 
+    const linkContent = (
+      <>
+        <span className='relative z-[1]'>{link.text}</span>
+        {!isActive && (
+          <span className='absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500/10 to-indigo-500/10' />
+        )}
+      </>
+    );
+
+    if (link.isExternal) {
       return (
-        <Link key={link.itemKey} to={targetPath} className={commonLinkClasses}>
+        <a
+          key={link.itemKey}
+          href={link.externalLink}
+          target='_blank'
+          rel='noopener noreferrer'
+          className={commonLinkClasses}
+        >
           {linkContent}
-        </Link>
+        </a>
       );
-    });
+    }
+
+    return (
+      <Link key={link.itemKey} to={targetPath} className={commonLinkClasses}>
+        {linkContent}
+      </Link>
+    );
   };
 
   return (
-    <nav className='flex flex-1 items-center gap-1 lg:gap-2 mx-2 md:mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide'>
+    <nav className='flex flex-1 items-center gap-2 lg:gap-3 mx-2 md:mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide'>
       <SkeletonWrapper
         loading={isLoading}
         type='navigation'
@@ -79,7 +103,7 @@ const Navigation = ({
         height={16}
         isMobile={isMobile}
       >
-        {renderNavLinks()}
+        {mainNavLinks.map((link) => renderNavLink(link))}
       </SkeletonWrapper>
     </nav>
   );
