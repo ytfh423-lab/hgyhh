@@ -28,6 +28,7 @@ type Token struct {
 	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
 	Group              string         `json:"group" gorm:"default:''"`
 	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	BypassRateLimit    bool           `json:"bypass_rate_limit"` // 豁免频率限制和并发限制（沉浸式翻译等高并发场景）
 	DeletedAt          gorm.DeletedAt `gorm:"index"`
 }
 
@@ -283,7 +284,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "bypass_rate_limit").Updates(token).Error
 	return err
 }
 

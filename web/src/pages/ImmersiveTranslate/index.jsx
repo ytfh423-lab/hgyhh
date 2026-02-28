@@ -33,6 +33,8 @@ import {
   Key,
   Globe,
   AlertTriangle,
+  Layers,
+  Gauge,
 } from 'lucide-react';
 import { StatusContext } from '../../context/Status';
 import { UserContext } from '../../context/User';
@@ -67,8 +69,8 @@ const ImmersiveTranslate = () => {
         remain_quota: 0,
         expired_time: -1,
         unlimited_quota: true,
-        model_limits_enabled: true,
-        model_limits: 'gpt-4o-mini,gpt-3.5-turbo,deepseek-chat,deepseek-v3,glm-4-flash',
+        model_limits_enabled: false,
+        bypass_rate_limit: true,
       });
 
       const { success, message, data } = res.data;
@@ -98,22 +100,28 @@ const ImmersiveTranslate = () => {
 
   const features = [
     {
-      icon: <Zap size={28} style={{ color: '#6366f1' }} />,
-      title: t('极速翻译'),
-      desc: t('基于大模型的高质量翻译，支持上下文理解，翻译更准确自然'),
+      icon: <Gauge size={28} style={{ color: '#6366f1' }} />,
+      title: t('高并发支持'),
+      desc: t('专为翻译场景优化，支持高并发请求，大批量翻译无压力'),
       bg: 'rgba(99, 102, 241, 0.08)',
     },
     {
-      icon: <Shield size={28} style={{ color: '#10b981' }} />,
-      title: t('免费使用'),
-      desc: t('公益接口完全免费，无需付费即可享受 AI 翻译服务'),
+      icon: <Layers size={28} style={{ color: '#10b981' }} />,
+      title: t('海量 Token 吞吐'),
+      desc: t('无限额度、不限速率，满足沉浸式翻译的大规模 Token 消耗需求'),
       bg: 'rgba(16, 185, 129, 0.08)',
     },
     {
       icon: <Globe size={28} style={{ color: '#f59e0b' }} />,
-      title: t('多模型支持'),
-      desc: t('支持 GPT-4o-mini、DeepSeek、GLM 等多种模型，自由切换'),
+      title: t('全模型覆盖'),
+      desc: t('支持平台全部模型，包括 GPT-4o、Claude、DeepSeek、Gemini 等，自由选择最佳翻译模型'),
       bg: 'rgba(245, 158, 11, 0.08)',
+    },
+    {
+      icon: <Shield size={28} style={{ color: '#ec4899' }} />,
+      title: t('免费使用'),
+      desc: t('公益接口完全免费，无需付费即可享受 AI 翻译服务'),
+      bg: 'rgba(236, 72, 153, 0.08)',
     },
   ];
 
@@ -182,7 +190,7 @@ const ImmersiveTranslate = () => {
         </div>
 
         {/* Feature Cards */}
-        <div className={`grid gap-5 mb-12 md:mb-16 npc-animate npc-delay-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+        <div className={`grid gap-5 mb-12 md:mb-16 npc-animate npc-delay-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-4'}`}>
           {features.map((f, i) => (
             <div
               key={i}
@@ -267,7 +275,7 @@ const ImmersiveTranslate = () => {
                 fontSize: '14px',
               }}
             >
-              {t('点击下方按钮一键生成沉浸式翻译专属令牌，已限制仅可使用翻译相关模型')}
+              {t('点击下方按钮一键生成沉浸式翻译专属令牌，支持全部模型、无限额度、高并发')}
             </Paragraph>
 
             {!isLoggedIn && (
@@ -355,7 +363,7 @@ const ImmersiveTranslate = () => {
                     <li>{t('在「翻译服务」中选择 OpenAI 或自定义 API')}</li>
                     <li>{t('填入上方的 API 接口地址')}</li>
                     <li>{t('填入上方的 API 密钥')}</li>
-                    <li>{t('模型选择 gpt-4o-mini 或 deepseek-chat')}</li>
+                    <li>{t('选择任意可用模型（推荐 gpt-4o-mini 或 deepseek-chat）')}</li>
                     <li>{t('保存设置，即可使用')}</li>
                   </ol>
                 </div>

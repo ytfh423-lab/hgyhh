@@ -194,6 +194,7 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
+		BypassRateLimit:    token.BypassRateLimit,
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -203,6 +204,7 @@ func AddToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+		"data":    cleanToken,
 	})
 	return
 }
@@ -274,6 +276,7 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = token.AllowIps
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+		cleanToken.BypassRateLimit = token.BypassRateLimit
 	}
 	err = cleanToken.Update()
 	if err != nil {
