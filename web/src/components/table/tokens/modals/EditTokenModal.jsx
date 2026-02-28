@@ -62,6 +62,7 @@ const EditTokenModal = (props) => {
   const formApiRef = useRef(null);
   const [models, setModels] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [isBypassToken, setIsBypassToken] = useState(false);
   const isEdit = props.editingToken.id !== undefined;
 
   const getInitValues = () => ({
@@ -165,6 +166,7 @@ const EditTokenModal = (props) => {
       if (formApiRef.current) {
         formApiRef.current.setValues({ ...getInitValues(), ...data });
       }
+      setIsBypassToken(!!data.bypass_rate_limit);
     } else {
       showError(message);
     }
@@ -190,6 +192,7 @@ const EditTokenModal = (props) => {
       }
     } else {
       formApiRef.current?.reset();
+      setIsBypassToken(false);
     }
   }, [props.visiable, props.editingToken.id]);
 
@@ -308,6 +311,7 @@ const EditTokenModal = (props) => {
               onClick={() => formApiRef.current?.submitForm()}
               icon={<IconSave />}
               loading={loading}
+              disabled={isBypassToken}
             >
               {t('提交')}
             </Button>
@@ -335,6 +339,18 @@ const EditTokenModal = (props) => {
         >
           {({ values }) => (
             <div className='p-2'>
+              {isBypassToken && (
+                <div style={{ padding: '0 0 12px 0' }}>
+                  <Card
+                    className='!rounded-2xl'
+                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}
+                  >
+                    <Text style={{ color: '#b45309', fontWeight: 600 }}>
+                      {t('沉浸式翻译专属令牌，所有配置由系统管理，不可手动修改。仅可启用或禁用。')}
+                    </Text>
+                  </Card>
+                </div>
+              )}
               {/* 基本信息 */}
               <Card className='!rounded-2xl shadow-sm border-0'>
                 <div className='flex items-center mb-2'>
@@ -356,6 +372,7 @@ const EditTokenModal = (props) => {
                       placeholder={t('请输入名称')}
                       rules={[{ required: true, message: t('请输入名称') }]}
                       showClear
+                      disabled={isBypassToken}
                     />
                   </Col>
                   <Col span={24}>
@@ -367,6 +384,7 @@ const EditTokenModal = (props) => {
                         optionList={groups}
                         renderOptionItem={renderGroupOption}
                         showClear
+                        disabled={isBypassToken}
                         style={{ width: '100%' }}
                       />
                     ) : (
@@ -398,6 +416,7 @@ const EditTokenModal = (props) => {
                       field='expired_time'
                       label={t('过期时间')}
                       type='dateTime'
+                      disabled={isBypassToken}
                       placeholder={t('请选择过期时间')}
                       rules={[
                         { required: true, message: t('请选择过期时间') },
@@ -494,7 +513,7 @@ const EditTokenModal = (props) => {
                       label={t('额度')}
                       placeholder={t('请输入额度')}
                       type='number'
-                      disabled={values.unlimited_quota}
+                      disabled={values.unlimited_quota || isBypassToken}
                       extraText={renderQuotaWithPrompt(values.remain_quota)}
                       rules={
                         values.unlimited_quota
@@ -515,6 +534,7 @@ const EditTokenModal = (props) => {
                     <Form.Switch
                       field='unlimited_quota'
                       label={t('无限额度')}
+                      disabled={isBypassToken}
                       size='default'
                       extraText={t(
                         '令牌的额度仅用于限制令牌本身的最大额度使用量，实际的使用受到账户的剩余额度限制',
@@ -551,11 +571,12 @@ const EditTokenModal = (props) => {
                       )}
                       multiple
                       optionList={models}
-                      extraText={t('非必要，不建议启用模型限制')}
+                      extraText={isBypassToken ? t('沉浸式翻译专属令牌，模型由系统指定，不可修改') : t('非必要，不建议启用模型限制')}
                       filter={selectFilter}
                       autoClearSearchValue={false}
                       searchPosition='dropdown'
                       showClear
+                      disabled={isBypassToken}
                       style={{ width: '100%' }}
                     />
                   </Col>
@@ -565,6 +586,7 @@ const EditTokenModal = (props) => {
                       label={t('IP白名单（支持CIDR表达式）')}
                       placeholder={t('允许的IP，一行一个，不填写则不限制')}
                       autosize
+                      disabled={isBypassToken}
                       rows={1}
                       extraText={t(
                         '请勿过度信任此功能，IP可能被伪造，请配合nginx和cdn等网关使用',

@@ -2896,6 +2896,9 @@
     "保存设置，即可使用": "Save settings and start using",
     "一键生成专属令牌": "Generate Dedicated Token",
     "登录后申请": "Log in to Apply",
-    "本接口为公益服务，请合理使用。严禁批量爬取、高频滥用等行为，违规将被封禁。": "This is a public welfare service, please use responsibly. Batch scraping, high-frequency abuse and other violations will result in a ban."
+    "本接口为公益服务，请合理使用。严禁批量爬取、高频滥用等行为，违规将被封禁。": "This is a public welfare service, please use responsibly. Batch scraping, high-frequency abuse and other violations will result in a ban.",
+    "沉浸式翻译专属令牌，所有配置由系统管理，不可手动修改。仅可启用或禁用。": "Immersive Translate dedicated token. All settings are managed by the system and cannot be manually modified. You can only enable or disable it.",
+    "沉浸式翻译专属令牌，模型由系统指定，不可修改": "Immersive Translate dedicated token, model is assigned by the system and cannot be changed",
+    "您已拥有沉浸式翻译专属令牌，每个用户仅限一个": "You already have an Immersive Translate dedicated token. Only one per user is allowed."
   }
 }

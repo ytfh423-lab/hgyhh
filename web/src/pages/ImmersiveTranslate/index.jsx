@@ -64,15 +64,7 @@ const ImmersiveTranslate = () => {
 
     setLoading(true);
     try {
-      const res = await API.post('/api/token/', {
-        name: t('沉浸式翻译专用'),
-        remain_quota: 0,
-        expired_time: -1,
-        unlimited_quota: true,
-        model_limits_enabled: true,
-        model_limits: 'gpt5.2',
-        bypass_rate_limit: true,
-      });
+      const res = await API.post('/api/token/immersive-translate');
 
       const { success, message, data } = res.data;
       if (success) {

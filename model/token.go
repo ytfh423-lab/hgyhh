@@ -428,6 +428,13 @@ func CountUserTokens(userId int) (int64, error) {
 	return total, err
 }
 
+// CountUserBypassTokens 统计用户拥有的 bypass_rate_limit 令牌数量
+func CountUserBypassTokens(userId int) (int64, error) {
+	var total int64
+	err := DB.Model(&Token{}).Where("user_id = ? AND bypass_rate_limit = ?", userId, commonTrueVal).Count(&total).Error
+	return total, err
+}
+
 // BatchDeleteTokens 删除指定用户的一组令牌，返回成功删除数量
 func BatchDeleteTokens(ids []int, userId int) (int, error) {
 	if len(ids) == 0 {
