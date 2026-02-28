@@ -2900,7 +2900,15 @@
     "沉浸式翻译专属令牌，所有配置由系统管理，不可手动修改。仅可启用或禁用。": "Immersive Translate dedicated token. All settings are managed by the system and cannot be manually modified. You can only enable or disable it.",
     "沉浸式翻译专属令牌，模型由系统指定，不可修改": "Immersive Translate dedicated token, model is assigned by the system and cannot be changed",
     "您已拥有沉浸式翻译专属令牌，每个用户仅限一个": "You already have an Immersive Translate dedicated token. Only one per user is allowed.",
-    "3 倍额度计费": "3x Quota Billing",
-    "沉浸式翻译专属令牌的额度消耗为正常模型计费的 3 倍，享受高并发特权的同时请注意额度用量": "Immersive Translate dedicated token consumes 3x the normal model billing. Please be mindful of your quota usage while enjoying high-concurrency privileges."
+    "邀请码": "Invitation Code",
+    "邀请码生成": "Invitation Code Generator",
+    "生成邀请码分享给好友注册，每日最多 2 个，有效期 24 小时": "Generate invitation codes to share with friends for registration. Max 2 per day, valid for 24 hours.",
+    "生成邀请码": "Generate Code",
+    "邀请码生成成功，已复制到剪贴板": "Invitation code generated and copied to clipboard",
+    "邀请码生成成功": "Invitation code generated successfully",
+    "每日最多生成 2 个邀请码": "You can generate up to 2 invitation codes per day",
+    "每个邀请码仅可使用一次，过期后自动作废。请将邀请码分享给信任的朋友。": "Each invitation code can only be used once and expires automatically. Please share with trusted friends only.",
+    "还没有生成过邀请码": "No invitation codes generated yet",
+    "已过期": "Expired"
   }
 }

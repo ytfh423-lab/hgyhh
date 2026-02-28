@@ -338,6 +338,63 @@ func DeleteInvalidRegistrationCode(c *gin.Context) {
 	})
 }
 
+// GenerateInvitationCode 用户生成邀请码（每日最多2个，有效期1天）
+func GenerateInvitationCode(c *gin.Context) {
+	userId := c.GetInt("id")
+	if userId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
+		return
+	}
+
+	// 检查今日已生成数量
+	dailyCount, err := model.CountUserDailyRegistrationCodes(userId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if dailyCount >= 2 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "每日最多生成 2 个邀请码"})
+		return
+	}
+
+	key := common.GetUUID()
+	now := common.GetTimestamp()
+	expiredTime := now + 86400 // 1天后过期
+
+	code := model.Redemption{
+		UserId:      userId,
+		Name:        "用户邀请码",
+		Key:         key,
+		Purpose:     common.RedemptionPurposeRegistration,
+		CreatedTime: now,
+		Quota:       0,
+		ExpiredTime: expiredTime,
+	}
+	if err := code.Insert(); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    code,
+	})
+}
+
+// GetMyInvitationCodes 获取当前用户生成的邀请码列表
+func GetMyInvitationCodes(c *gin.Context) {
+	userId := c.GetInt("id")
+	pageInfo := common.GetPageQuery(c)
+	codes, total, err := model.GetUserRegistrationCodes(userId, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(codes)
+	common.ApiSuccess(c, pageInfo)
+}
+
 func validateExpiredTime(c *gin.Context, expired int64) (bool, string) {
 	if expired != 0 && expired < common.GetTimestamp() {
 		return false, i18n.T(c, i18n.MsgRedemptionExpireTimeInvalid)

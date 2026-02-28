@@ -338,6 +338,31 @@ func DeleteInvalidRedemptions() (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
+// CountUserDailyRegistrationCodes counts how many registration codes a user has created today
+func CountUserDailyRegistrationCodes(userId int) (int64, error) {
+	now := common.GetTimestamp()
+	// Start of today (UTC): truncate to day boundary
+	todayStart := now - (now % 86400)
+	var total int64
+	err := DB.Model(&Redemption{}).Where("user_id = ? AND purpose = ? AND created_time >= ?",
+		userId, common.RedemptionPurposeRegistration, todayStart).Count(&total).Error
+	return total, err
+}
+
+// GetUserRegistrationCodes returns registration codes created by a specific user
+func GetUserRegistrationCodes(userId int, startIdx int, num int) (redemptions []*Redemption, total int64, err error) {
+	query := DB.Model(&Redemption{}).Where("user_id = ? AND purpose = ?", userId, common.RedemptionPurposeRegistration)
+	err = query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = DB.Where("user_id = ? AND purpose = ?", userId, common.RedemptionPurposeRegistration).Order("id desc").Limit(num).Offset(startIdx).Find(&redemptions).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return redemptions, total, nil
+}
+
 func DeleteInvalidRegistrationCodes() (int64, error) {
 	now := common.GetTimestamp()
 	result := DB.Where("purpose = ? AND (status IN ? OR (status = ? AND expired_time != 0 AND expired_time < ?))", common.RedemptionPurposeRegistration, []int{common.RedemptionCodeStatusUsed, common.RedemptionCodeStatusDisabled}, common.RedemptionCodeStatusEnabled, now).Delete(&Redemption{})

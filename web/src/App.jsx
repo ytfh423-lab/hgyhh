@@ -46,6 +46,7 @@ import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
 import Subscription from './pages/Subscription';
+import InvitationCode from './pages/InvitationCode';
 import OAuth2Callback from './components/auth/OAuth2Callback';
 import OAuthRegistrationForm from './components/auth/OAuthRegistrationForm';
 import PersonalSetting from './components/settings/PersonalSetting';
@@ -55,7 +56,6 @@ import SetupCheck from './components/layout/SetupCheck';
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
-const ImmersiveTranslate = lazy(() => import('./pages/ImmersiveTranslate'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
@@ -172,6 +172,14 @@ function App() {
             <AdminRoute>
               <RegistrationCode />
             </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/invitation-code'
+          element={
+            <PrivateRoute>
+              <InvitationCode />
+            </PrivateRoute>
           }
         />
         <Route
@@ -351,14 +359,6 @@ function App() {
                 <Pricing />
               </Suspense>
             )
-          }
-        />
-        <Route
-          path='/immersive-translate'
-          element={
-            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
-              <ImmersiveTranslate />
-            </Suspense>
           }
         />
         <Route

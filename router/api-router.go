@@ -251,7 +251,6 @@ func SetApiRouter(router *gin.Engine) {
 			tokenRoute.GET("/search", middleware.SearchRateLimit(), controller.SearchTokens)
 			tokenRoute.GET("/:id", controller.GetToken)
 			tokenRoute.POST("/", controller.AddToken)
-			tokenRoute.POST("/immersive-translate", controller.AddImmersiveTranslateToken)
 			tokenRoute.PUT("/", controller.UpdateToken)
 			tokenRoute.DELETE("/:id", controller.DeleteToken)
 			tokenRoute.POST("/batch", controller.DeleteTokenBatch)
@@ -277,6 +276,13 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.PUT("/", controller.UpdateRedemption)
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
+		}
+
+		invitationCodeRoute := apiRouter.Group("/invitation-code")
+		invitationCodeRoute.Use(middleware.UserAuth())
+		{
+			invitationCodeRoute.POST("/", controller.GenerateInvitationCode)
+			invitationCodeRoute.GET("/", controller.GetMyInvitationCodes)
 		}
 
 		registrationCodeRoute := apiRouter.Group("/registration-code")

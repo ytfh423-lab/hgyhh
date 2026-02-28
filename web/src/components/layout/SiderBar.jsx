@@ -50,6 +50,7 @@ const routerMap = {
   deployment: '/console/deployment',
   playground: '/console/playground',
   personal: '/console/personal',
+  invitation_code: '/console/invitation-code',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -134,6 +135,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('个人设置'),
         itemKey: 'personal',
         to: '/personal',
+      },
+      {
+        text: t('邀请码'),
+        itemKey: 'invitation_code',
+        to: '/console/invitation-code',
       },
     ];
 

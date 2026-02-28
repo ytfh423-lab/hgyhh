@@ -194,7 +194,6 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
-		BypassRateLimit:    false, // 普通接口禁止设置，必须通过专用端点
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -253,14 +252,6 @@ func UpdateToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	// 沉浸式翻译专属令牌（bypass_rate_limit）禁止修改配置，仅允许启用/禁用
-	if cleanToken.BypassRateLimit && statusOnly == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "沉浸式翻译专属令牌不可修改，仅可启用或禁用",
-		})
-		return
-	}
 	if token.Status == common.TokenStatusEnabled {
 		if cleanToken.Status == common.TokenStatusExpired && cleanToken.ExpiredTime <= common.GetTimestamp() && cleanToken.ExpiredTime != -1 {
 			common.ApiErrorI18n(c, i18n.MsgTokenExpiredCannotEnable)
@@ -284,7 +275,6 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = token.AllowIps
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
-		// bypass_rate_limit 不允许通过普通更新接口修改
 	}
 	err = cleanToken.Update()
 	if err != nil {
@@ -300,80 +290,6 @@ func UpdateToken(c *gin.Context) {
 
 type TokenBatch struct {
 	Ids []int `json:"ids"`
-}
-
-// AddImmersiveTranslateToken 沉浸式翻译专属令牌创建端点
-// 所有安全敏感字段由服务端硬编码，客户端无法篡改
-func AddImmersiveTranslateToken(c *gin.Context) {
-	userId := c.GetInt("id")
-	if userId == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "请先登录后再申请令牌",
-		})
-		return
-	}
-
-	// 检查用户令牌数量是否已达上限
-	maxTokens := operation_setting.GetMaxUserTokens()
-	count, err := model.CountUserTokens(userId)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if int(count) >= maxTokens {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("已达到最大令牌数量限制 (%d)", maxTokens),
-		})
-		return
-	}
-
-	// 检查是否已有沉浸式翻译专属令牌（每个用户只允许一个）
-	existingCount, err := model.CountUserBypassTokens(userId)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if existingCount > 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "您已拥有沉浸式翻译专属令牌，每个用户仅限一个",
-		})
-		return
-	}
-
-	key, err := common.GenerateKey()
-	if err != nil {
-		common.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
-		common.SysLog("failed to generate token key: " + err.Error())
-		return
-	}
-
-	// 所有字段由服务端硬编码，不接受客户端输入
-	cleanToken := model.Token{
-		UserId:             userId,
-		Name:               "沉浸式翻译专用",
-		Key:                key,
-		CreatedTime:        common.GetTimestamp(),
-		AccessedTime:       common.GetTimestamp(),
-		ExpiredTime:        -1,
-		RemainQuota:        0,
-		UnlimitedQuota:     true,
-		ModelLimitsEnabled: true,
-		ModelLimits:        "gpt-5.2",
-		BypassRateLimit:    true,
-	}
-	err = cleanToken.Insert()
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    cleanToken,
-	})
 }
 
 func DeleteTokenBatch(c *gin.Context) {

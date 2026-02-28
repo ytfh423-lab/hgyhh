@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/gin-gonic/gin"
 )
@@ -140,11 +139,6 @@ func RequestRiskControl() func(c *gin.Context) {
 			return
 		}
 
-		// 豁免标记的令牌（如沉浸式翻译专属令牌）
-		if common.GetContextKeyBool(c, constant.ContextKeyTokenBypassRateLimit) {
-			c.Next()
-			return
-		}
 
 		tokenId := c.GetInt("token_id")
 		userId := c.GetInt("id")

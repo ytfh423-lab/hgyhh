@@ -172,11 +172,6 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 			return
 		}
 
-		// 豁免标记的令牌（如沉浸式翻译专属令牌）
-		if common.GetContextKeyBool(c, constant.ContextKeyTokenBypassRateLimit) {
-			c.Next()
-			return
-		}
 
 		// 计算限流参数
 		duration := int64(setting.ModelRequestRateLimitDurationMinutes * 60)
