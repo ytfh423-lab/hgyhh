@@ -9,8 +9,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
  * @param {boolean} options.once - only trigger once (default true)
  */
 export function useScrollReveal({
-  threshold = 0.15,
-  rootMargin = '0px 0px -60px 0px',
+  threshold = 0.05,
+  rootMargin = '0px 0px -40px 0px',
   once = true,
 } = {}) {
   const ref = useRef(null);
@@ -19,6 +19,13 @@ export function useScrollReveal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    // Immediately check if already in viewport on mount
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      setIsVisible(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -33,7 +40,14 @@ export function useScrollReveal({
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+
+    // Safety fallback: ensure content shows after 2s even if observer fails
+    const fallback = setTimeout(() => setIsVisible(true), 2000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallback);
+    };
   }, [threshold, rootMargin, once]);
 
   return [ref, isVisible];
