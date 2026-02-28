@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import {
   Button,
   Typography,
@@ -41,6 +41,13 @@ import {
 import { Zap, Shield, Globe, Rocket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import NoticeModal from '../../components/layout/NoticeModal';
+import {
+  useScrollReveal,
+  useMouseGlow,
+  useTiltEffect,
+  useCountUp,
+  useStaggerReveal,
+} from '../../hooks/common/useInteractiveEffects';
 import {
   Moonshot,
   OpenAI,
@@ -81,6 +88,71 @@ const Home = () => {
   const endpointItems = API_ENDPOINTS.map((e) => ({ value: e }));
   const [endpointIndex, setEndpointIndex] = useState(0);
   const isChinese = i18n.language.startsWith('zh');
+
+  // Interactive effects hooks
+  const [heroRef, heroGlowStyle] = useMouseGlow();
+  const [featuresRef, featuresVisible] = useScrollReveal({ threshold: 0.1 });
+  const [providersRef, providersVisible] = useScrollReveal({ threshold: 0.1 });
+  const tiltRef1 = useTiltEffect({ maxTilt: 6, scale: 1.03 });
+  const tiltRef2 = useTiltEffect({ maxTilt: 6, scale: 1.03 });
+  const tiltRef3 = useTiltEffect({ maxTilt: 6, scale: 1.03 });
+  const providerCount = 21; // 20 icons + 1 "30+" badge
+  const providerStagger = useStaggerReveal(providerCount, 50, providersVisible);
+  const countUpValue = useCountUp(30, 1800, providersVisible);
+  const canvasRef = useRef(null);
+
+  // Floating particles effect
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animId;
+    let particles = [];
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+      canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    };
+    resize();
+
+    const PARTICLE_COUNT = isMobile ? 25 : 50;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push({
+        x: Math.random() * canvas.offsetWidth,
+        y: Math.random() * canvas.offsetHeight,
+        r: Math.random() * 2 + 0.5,
+        dx: (Math.random() - 0.5) * 0.4,
+        dy: (Math.random() - 0.5) * 0.3 - 0.1,
+        opacity: Math.random() * 0.5 + 0.1,
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+      const isDark = document.documentElement.classList.contains('dark');
+      particles.forEach((p) => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = isDark
+          ? `rgba(165, 140, 255, ${p.opacity})`
+          : `rgba(99, 102, 241, ${p.opacity})`;
+        ctx.fill();
+        p.x += p.dx;
+        p.y += p.dy;
+        if (p.x < 0 || p.x > canvas.offsetWidth) p.dx *= -1;
+        if (p.y < 0 || p.y > canvas.offsetHeight) p.dy *= -1;
+      });
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    window.addEventListener('resize', resize);
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, [isMobile]);
 
   const displayHomePageContent = async () => {
     setHomePageContent(localStorage.getItem('home_page_content') || '');
@@ -159,13 +231,17 @@ const Home = () => {
       {homePageContentLoaded && homePageContent === '' ? (
         <div className='w-full overflow-x-hidden'>
           {/* ===== Hero 区域 ===== */}
-          <div className='w-full relative overflow-hidden'>
+          <div className='w-full relative overflow-hidden npc-hero-glow-container' ref={heroRef} style={heroGlowStyle}>
             {/* Mesh 渐变背景 */}
             <div className='npc-hero-bg'>
               <div className='npc-mesh-blob npc-mesh-1' />
               <div className='npc-mesh-blob npc-mesh-2' />
               <div className='npc-mesh-blob npc-mesh-3' />
             </div>
+            {/* Mouse-following glow */}
+            <div className='npc-mouse-glow' />
+            {/* Floating particles */}
+            <canvas ref={canvasRef} className='npc-particles-canvas' />
 
             <div className='flex flex-col items-center justify-center text-center px-4 pt-24 pb-16 md:pt-32 md:pb-20 lg:pt-40 lg:pb-24 relative z-10'>
               {/* 状态徽标 */}
@@ -268,11 +344,11 @@ const Home = () => {
           </div>
 
           {/* ===== 特性卡片区 ===== */}
-          <div className='w-full px-4 py-16 md:py-20 relative z-10'>
-            <div className='npc-animate npc-delay-5 max-w-4xl mx-auto'>
+          <div className='w-full px-4 py-16 md:py-20 relative z-10' ref={featuresRef}>
+            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${featuresVisible ? 'npc-scroll-visible' : ''}`}>
               <div className='grid grid-cols-1 md:grid-cols-3 gap-5'>
-                <div className='npc-feature-card'>
-                  <div className='npc-feature-icon' style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
+                <div className='npc-feature-card npc-stagger-1' ref={tiltRef1}>
+                  <div className='npc-feature-icon npc-icon-pulse' style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
                     <Zap size={24} style={{ color: '#6366f1' }} />
                   </div>
                   <Typography.Title heading={5} style={{ marginBottom: '8px' }}>
@@ -282,8 +358,8 @@ const Home = () => {
                     {t('全球节点智能路由，毫秒级转发，让每一次调用都快人一步')}
                   </Text>
                 </div>
-                <div className='npc-feature-card'>
-                  <div className='npc-feature-icon' style={{ background: 'rgba(168, 85, 247, 0.1)' }}>
+                <div className='npc-feature-card npc-stagger-2' ref={tiltRef2}>
+                  <div className='npc-feature-icon npc-icon-pulse' style={{ background: 'rgba(168, 85, 247, 0.1)' }}>
                     <Shield size={24} style={{ color: '#a855f7' }} />
                   </div>
                   <Typography.Title heading={5} style={{ marginBottom: '8px' }}>
@@ -293,8 +369,8 @@ const Home = () => {
                     {t('多通道自动故障切换，99.9%+ 可用性保障')}
                   </Text>
                 </div>
-                <div className='npc-feature-card'>
-                  <div className='npc-feature-icon' style={{ background: 'rgba(6, 182, 212, 0.1)' }}>
+                <div className='npc-feature-card npc-stagger-3' ref={tiltRef3}>
+                  <div className='npc-feature-icon npc-icon-pulse' style={{ background: 'rgba(6, 182, 212, 0.1)' }}>
                     <Globe size={24} style={{ color: '#06b6d4' }} />
                   </div>
                   <Typography.Title heading={5} style={{ marginBottom: '8px' }}>
@@ -309,10 +385,10 @@ const Home = () => {
           </div>
 
           {/* ===== 供应商展示区 ===== */}
-          <div className='w-full px-4 pb-20 md:pb-28 relative z-10'>
-            <div className='npc-animate npc-delay-6 max-w-4xl mx-auto'>
+          <div className='w-full px-4 pb-20 md:pb-28 relative z-10' ref={providersRef}>
+            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${providersVisible ? 'npc-scroll-visible' : ''}`}>
               <div className='text-center mb-10'>
-                <div className='npc-divider mb-5' />
+                <div className='npc-divider npc-divider-animated mb-5' />
                 <Text style={{
                   fontWeight: 500,
                   fontSize: '15px',
@@ -323,27 +399,36 @@ const Home = () => {
                 </Text>
               </div>
               <div className='npc-provider-grid'>
-                <div className='npc-provider-item'><OpenAI size={26} /></div>
-                <div className='npc-provider-item'><Claude.Color size={26} /></div>
-                <div className='npc-provider-item'><Gemini.Color size={26} /></div>
-                <div className='npc-provider-item'><DeepSeek.Color size={26} /></div>
-                <div className='npc-provider-item'><Qwen.Color size={26} /></div>
-                <div className='npc-provider-item'><XAI size={26} /></div>
-                <div className='npc-provider-item'><Grok size={26} /></div>
-                <div className='npc-provider-item'><Zhipu.Color size={26} /></div>
-                <div className='npc-provider-item'><Moonshot size={26} /></div>
-                <div className='npc-provider-item'><Volcengine.Color size={26} /></div>
-                <div className='npc-provider-item'><Cohere.Color size={26} /></div>
-                <div className='npc-provider-item'><Minimax.Color size={26} /></div>
-                <div className='npc-provider-item'><Wenxin.Color size={26} /></div>
-                <div className='npc-provider-item'><Spark.Color size={26} /></div>
-                <div className='npc-provider-item'><Qingyan.Color size={26} /></div>
-                <div className='npc-provider-item'><Suno size={26} /></div>
-                <div className='npc-provider-item'><Midjourney size={26} /></div>
-                <div className='npc-provider-item'><AzureAI.Color size={26} /></div>
-                <div className='npc-provider-item'><Hunyuan.Color size={26} /></div>
-                <div className='npc-provider-item'><Xinference.Color size={26} /></div>
-                <div className='npc-provider-item'>
+                {[
+                  <OpenAI size={26} />,
+                  <Claude.Color size={26} />,
+                  <Gemini.Color size={26} />,
+                  <DeepSeek.Color size={26} />,
+                  <Qwen.Color size={26} />,
+                  <XAI size={26} />,
+                  <Grok size={26} />,
+                  <Zhipu.Color size={26} />,
+                  <Moonshot size={26} />,
+                  <Volcengine.Color size={26} />,
+                  <Cohere.Color size={26} />,
+                  <Minimax.Color size={26} />,
+                  <Wenxin.Color size={26} />,
+                  <Spark.Color size={26} />,
+                  <Qingyan.Color size={26} />,
+                  <Suno size={26} />,
+                  <Midjourney size={26} />,
+                  <AzureAI.Color size={26} />,
+                  <Hunyuan.Color size={26} />,
+                  <Xinference.Color size={26} />,
+                ].map((icon, idx) => (
+                  <div
+                    key={idx}
+                    className={`npc-provider-item npc-provider-pop ${providerStagger.has(idx) ? 'npc-provider-visible' : ''}`}
+                  >
+                    {icon}
+                  </div>
+                ))}
+                <div className={`npc-provider-item npc-provider-pop ${providerStagger.has(20) ? 'npc-provider-visible' : ''}`}>
                   <Typography.Text style={{
                     fontSize: '16px',
                     fontWeight: 800,
@@ -351,7 +436,7 @@ const Home = () => {
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                   }}>
-                    30+
+                    {countUpValue}+
                   </Typography.Text>
                 </div>
               </div>
