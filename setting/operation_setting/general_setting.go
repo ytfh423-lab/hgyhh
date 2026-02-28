@@ -20,6 +20,7 @@ type GeneralSetting struct {
 	CustomCurrencySymbol string `json:"custom_currency_symbol"`
 	// 自定义货币与美元汇率（1 USD = X Custom）
 	CustomCurrencyExchangeRate float64 `json:"custom_currency_exchange_rate"`
+	InvitationCodeEnabled     bool    `json:"invitation_code_enabled"`
 }
 
 // 默认配置
@@ -30,6 +31,7 @@ var generalSetting = GeneralSetting{
 	QuotaDisplayType:           QuotaDisplayTypeUSD,
 	CustomCurrencySymbol:       "¤",
 	CustomCurrencyExchangeRate: 1.0,
+	InvitationCodeEnabled:     false,
 }
 
 func init() {
@@ -71,6 +73,10 @@ func GetCurrencySymbol() string {
 	default:
 		return ""
 	}
+}
+
+func IsInvitationCodeEnabled() bool {
+	return generalSetting.InvitationCodeEnabled
 }
 
 // GetUsdToCurrencyRate 返回 1 USD = X <currency> 的 X（TOKENS 不适用）

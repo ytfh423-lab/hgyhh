@@ -2909,6 +2909,10 @@
     "每日最多生成 2 个邀请码": "You can generate up to 2 invitation codes per day",
     "每个邀请码仅可使用一次，过期后自动作废。请将邀请码分享给信任的朋友。": "Each invitation code can only be used once and expires automatically. Please share with trusted friends only.",
     "还没有生成过邀请码": "No invitation codes generated yet",
-    "已过期": "Expired"
+    "已过期": "Expired",
+    "允许用户生成邀请码": "Allow Users to Generate Invitation Codes",
+    "开启后用户可生成邀请码邀请好友注册，每日最多 2 个，有效期 24 小时": "When enabled, users can generate invitation codes to invite friends. Max 2 per day, valid for 24 hours.",
+    "管理员已关闭邀请码功能": "Invitation code feature has been disabled by the administrator.",
+    "邀请码功能已关闭": "Invitation code feature is disabled"
   }
 }

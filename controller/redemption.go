@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -340,6 +341,11 @@ func DeleteInvalidRegistrationCode(c *gin.Context) {
 
 // GenerateInvitationCode 用户生成邀请码（每日最多2个，有效期1天）
 func GenerateInvitationCode(c *gin.Context) {
+	if !operation_setting.IsInvitationCodeEnabled() {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "邀请码功能已关闭"})
+		return
+	}
+
 	userId := c.GetInt("id")
 	if userId == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})

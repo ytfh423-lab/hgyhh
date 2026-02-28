@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   API,
@@ -16,11 +16,14 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { Gift, Copy, AlertCircle } from 'lucide-react';
+import { StatusContext } from '../../context/Status';
 
 const { Text, Title } = Typography;
 
 const InvitationCode = () => {
   const { t } = useTranslation();
+  const [statusState] = useContext(StatusContext);
+  const enabled = statusState?.status?.invitation_code_enabled;
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [records, setRecords] = useState([]);
@@ -170,11 +173,32 @@ const InvitationCode = () => {
             icon={<Gift size={16} />}
             loading={generating}
             onClick={generateCode}
+            disabled={!enabled}
             style={{ borderRadius: '10px' }}
           >
             {t('生成邀请码')}
           </Button>
         </div>
+
+        {!enabled && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.06)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle size={16} style={{ color: '#dc2626', flexShrink: 0 }} />
+            <Text size='small' style={{ color: '#dc2626' }}>
+              {t('管理员已关闭邀请码功能')}
+            </Text>
+          </div>
+        )}
 
         <div
           style={{
