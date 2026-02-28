@@ -293,8 +293,13 @@ func migrateDB() error {
 	// 硬删除所有被软删除的幽灵用户（注册失败遗留）
 	DB.Unscoped().Where("deleted_at IS NOT NULL").Delete(&User{})
 
-	// 为已有用户回填 created_at（新增字段，旧记录为 0）
-	DB.Model(&User{}).Where("created_at = 0 OR created_at IS NULL").Update("created_at", common.GetTimestamp())
+	// 一次性修正：撤销之前错误的 created_at 回填
+	// 老用户保持 0 表示不受邀请码天数限制，新注册用户由 GORM autoCreateTime 正确设置
+	var migrationFlag Option
+	if DB.Where(commonKeyCol+" = ?", "created_at_backfill_fixed").First(&migrationFlag).Error != nil {
+		DB.Model(&User{}).Where("created_at > 0").Update("created_at", 0)
+		DB.Create(&Option{Key: "created_at_backfill_fixed", Value: "true"})
+	}
 
 	return nil
 }
