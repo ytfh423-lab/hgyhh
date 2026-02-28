@@ -112,8 +112,8 @@ const ImmersiveTranslate = () => {
     },
     {
       icon: <Shield size={28} style={{ color: '#ec4899' }} />,
-      title: t('免费使用'),
-      desc: t('公益接口完全免费，无需付费即可享受 AI 翻译服务'),
+      title: t('3 倍额度计费'),
+      desc: t('沉浸式翻译专属令牌的额度消耗为正常模型计费的 3 倍，享受高并发特权的同时请注意额度用量'),
       bg: 'rgba(236, 72, 153, 0.08)',
     },
   ];
@@ -356,7 +356,7 @@ const ImmersiveTranslate = () => {
                     <li>{t('在「翻译服务」中选择 OpenAI 或自定义 API')}</li>
                     <li>{t('填入上方的 API 接口地址')}</li>
                     <li>{t('填入上方的 API 密钥')}</li>
-                    <li>{t('模型填写 gpt5.2（专属模型，不可更改）')}</li>
+                    <li>{t('模型填写 gpt-5.2（专属模型，不可更改）')}</li>
                     <li>{t('保存设置，即可使用')}</li>
                   </ol>
                 </div>

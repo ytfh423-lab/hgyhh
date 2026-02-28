@@ -405,6 +405,13 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage 
 	}
 
 	quota := int(quotaCalculateDecimal.Round(0).IntPart())
+
+	// 沉浸式翻译专属令牌额度消耗 3 倍计费
+	if common.GetContextKeyBool(ctx, constant.ContextKeyTokenBypassRateLimit) {
+		quota *= 3
+		extraContent = append(extraContent, "沉浸式翻译专属令牌 3 倍计费")
+	}
+
 	totalTokens := promptTokens + completionTokens
 
 	//var logContent string

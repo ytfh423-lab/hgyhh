@@ -2890,7 +2890,7 @@
     "填入上方的 API 接口地址": "Enter the API endpoint above",
     "填入上方的 API 密钥": "Enter the API key above",
     "选择任意可用模型（推荐 gpt-4o-mini 或 deepseek-chat）": "Select any available model (gpt-4o-mini or deepseek-chat recommended)",
-    "模型填写 gpt5.2（专属模型，不可更改）": "Enter gpt5.2 as the model (exclusive model, cannot be changed)",
+    "模型填写 gpt-5.2（专属模型，不可更改）": "Enter gpt-5.2 as the model (exclusive model, cannot be changed)",
     "GPT-5.2 专属模型": "Exclusive GPT-5.2 Model",
     "专属使用 GPT-5.2 顶级模型，翻译质量远超同类，精准流畅无与伦比": "Exclusive access to the top-tier GPT-5.2 model, translation quality far exceeds alternatives, unmatched precision and fluency",
     "保存设置，即可使用": "Save settings and start using",
@@ -2899,6 +2899,8 @@
     "本接口为公益服务，请合理使用。严禁批量爬取、高频滥用等行为，违规将被封禁。": "This is a public welfare service, please use responsibly. Batch scraping, high-frequency abuse and other violations will result in a ban.",
     "沉浸式翻译专属令牌，所有配置由系统管理，不可手动修改。仅可启用或禁用。": "Immersive Translate dedicated token. All settings are managed by the system and cannot be manually modified. You can only enable or disable it.",
     "沉浸式翻译专属令牌，模型由系统指定，不可修改": "Immersive Translate dedicated token, model is assigned by the system and cannot be changed",
-    "您已拥有沉浸式翻译专属令牌，每个用户仅限一个": "You already have an Immersive Translate dedicated token. Only one per user is allowed."
+    "您已拥有沉浸式翻译专属令牌，每个用户仅限一个": "You already have an Immersive Translate dedicated token. Only one per user is allowed.",
+    "3 倍额度计费": "3x Quota Billing",
+    "沉浸式翻译专属令牌的额度消耗为正常模型计费的 3 倍，享受高并发特权的同时请注意额度用量": "Immersive Translate dedicated token consumes 3x the normal model billing. Please be mindful of your quota usage while enjoying high-concurrency privileges."
   }
 }

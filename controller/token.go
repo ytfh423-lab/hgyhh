@@ -361,7 +361,7 @@ func AddImmersiveTranslateToken(c *gin.Context) {
 		RemainQuota:        0,
 		UnlimitedQuota:     true,
 		ModelLimitsEnabled: true,
-		ModelLimits:        "gpt5.2",
+		ModelLimits:        "gpt-5.2",
 		BypassRateLimit:    true,
 	}
 	err = cleanToken.Insert()
