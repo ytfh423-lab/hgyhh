@@ -58,6 +58,7 @@ export default function GeneralSettings(props) {
     SelfUseModeEnabled: false,
     'token_setting.max_user_tokens': 1000,
     'general_setting.invitation_code_enabled': false,
+    'general_setting.invitation_code_min_days': 0,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -310,6 +311,15 @@ export default function GeneralSettings(props) {
                   checkedText='｜'
                   uncheckedText='〇'
                   onChange={handleFieldChange('general_setting.invitation_code_enabled')}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  field={'general_setting.invitation_code_min_days'}
+                  label={t('邀请码最低注册天数')}
+                  extraText={t('用户注册满多少天后才可生成邀请码，0 表示不限制')}
+                  min={0}
+                  onChange={handleFieldChange('general_setting.invitation_code_min_days')}
                 />
               </Col>
             </Row>

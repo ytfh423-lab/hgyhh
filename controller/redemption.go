@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
@@ -350,6 +352,27 @@ func GenerateInvitationCode(c *gin.Context) {
 	if userId == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
 		return
+	}
+
+	// 检查注册天数限制
+	minDays := operation_setting.GetInvitationCodeMinDays()
+	if minDays > 0 {
+		user, err := model.GetUserById(userId, false)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		// CreatedAt == 0 表示旧用户（无记录），视为满足条件
+		if user.CreatedAt > 0 {
+			daysSinceReg := int(time.Since(time.Unix(user.CreatedAt, 0)).Hours() / 24)
+			if daysSinceReg < minDays {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": fmt.Sprintf("注册满 %d 天后才可生成邀请码，您还需等待 %d 天", minDays, minDays-daysSinceReg),
+				})
+				return
+			}
+		}
 	}
 
 	// 检查今日已生成数量

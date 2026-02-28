@@ -24,6 +24,7 @@ const InvitationCode = () => {
   const { t } = useTranslation();
   const [statusState] = useContext(StatusContext);
   const enabled = statusState?.status?.invitation_code_enabled;
+  const minDays = statusState?.status?.invitation_code_min_days || 0;
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [records, setRecords] = useState([]);
@@ -165,6 +166,7 @@ const InvitationCode = () => {
             </Title>
             <Text type='tertiary' size='small'>
               {t('生成邀请码分享给好友注册，每日最多 2 个，有效期 24 小时')}
+              {minDays > 0 && ` · ${t('需注册满 {{days}} 天', { days: minDays })}`}
             </Text>
           </div>
           <Button

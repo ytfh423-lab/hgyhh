@@ -117,6 +117,7 @@ func GetStatus(c *gin.Context) {
 		"privacy_policy_enabled":      legalSetting.PrivacyPolicy != "",
 		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
 		"invitation_code_enabled":     operation_setting.IsInvitationCodeEnabled(),
+		"invitation_code_min_days":    operation_setting.GetInvitationCodeMinDays(),
 		"_qn":                         "new-api",
 	}
 

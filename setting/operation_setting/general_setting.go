@@ -21,6 +21,7 @@ type GeneralSetting struct {
 	// 自定义货币与美元汇率（1 USD = X Custom）
 	CustomCurrencyExchangeRate float64 `json:"custom_currency_exchange_rate"`
 	InvitationCodeEnabled     bool    `json:"invitation_code_enabled"`
+	InvitationCodeMinDays     int     `json:"invitation_code_min_days"`
 }
 
 // 默认配置
@@ -32,6 +33,7 @@ var generalSetting = GeneralSetting{
 	CustomCurrencySymbol:       "¤",
 	CustomCurrencyExchangeRate: 1.0,
 	InvitationCodeEnabled:     false,
+	InvitationCodeMinDays:     0,
 }
 
 func init() {
@@ -77,6 +79,10 @@ func GetCurrencySymbol() string {
 
 func IsInvitationCodeEnabled() bool {
 	return generalSetting.InvitationCodeEnabled
+}
+
+func GetInvitationCodeMinDays() int {
+	return generalSetting.InvitationCodeMinDays
 }
 
 // GetUsdToCurrencyRate 返回 1 USD = X <currency> 的 X（TOKENS 不适用）

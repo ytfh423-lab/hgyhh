@@ -84,6 +84,7 @@ const OperationSetting = () => {
 
     /* 邀请码设置 */
     'general_setting.invitation_code_enabled': false,
+    'general_setting.invitation_code_min_days': 0,
   });
 
   let [loading, setLoading] = useState(false);
