@@ -403,10 +403,17 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, sessio
 	}
 
 	if registrationCode != "" {
-		if _, err := model.ConsumeRedemptionCodeForRegistration(registrationCode, user.Id); err != nil {
+		usedCode, err := model.ConsumeRedemptionCodeForRegistration(registrationCode, user.Id)
+		if err != nil {
 			_ = model.DeleteUserById(user.Id)
 			return nil, err
 		}
+		// 记录邀请码关联关系
+		updates := map[string]interface{}{"invitation_code_id": usedCode.Id}
+		if user.InviterId == 0 && usedCode.UserId != 0 {
+			updates["inviter_id"] = usedCode.UserId
+		}
+		model.DB.Model(&model.User{}).Where("id = ?", user.Id).Updates(updates)
 	}
 
 	return user, nil

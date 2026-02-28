@@ -206,12 +206,12 @@ func ValidateRedemptionCodeForRegistration(key string) error {
 	return nil
 }
 
-func ConsumeRedemptionCodeForRegistration(key string, userId int) (quota int, err error) {
+func ConsumeRedemptionCodeForRegistration(key string, userId int) (*Redemption, error) {
 	if key == "" {
-		return 0, errors.New("未提供兑换码")
+		return nil, errors.New("未提供兑换码")
 	}
 	if userId == 0 {
-		return 0, errors.New("无效的 user id")
+		return nil, errors.New("无效的 user id")
 	}
 	redemption := &Redemption{}
 
@@ -220,7 +220,7 @@ func ConsumeRedemptionCodeForRegistration(key string, userId int) (quota int, er
 		keyCol = `"key"`
 	}
 	common.RandomSleep()
-	err = DB.Transaction(func(tx *gorm.DB) error {
+	err := DB.Transaction(func(tx *gorm.DB) error {
 		err := tx.Set("gorm:query_option", "FOR UPDATE").Where(keyCol+" = ? AND purpose = ?", key, common.RedemptionPurposeRegistration).First(redemption).Error
 		if err != nil {
 			return errors.New("无效的兑换码")
@@ -238,9 +238,9 @@ func ConsumeRedemptionCodeForRegistration(key string, userId int) (quota int, er
 	})
 	if err != nil {
 		common.SysError("registration code consume failed: " + err.Error())
-		return 0, ErrRedeemFailed
+		return nil, ErrRedeemFailed
 	}
-	return redemption.Quota, nil
+	return redemption, nil
 }
 
 func Redeem(key string, userId int) (quota int, err error) {

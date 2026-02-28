@@ -194,11 +194,18 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserRegisterFailed)
 		return
 	}
-	if _, err := model.ConsumeRedemptionCodeForRegistration(user.RegistrationCode, insertedUser.Id); err != nil {
+	usedCode, err := model.ConsumeRedemptionCodeForRegistration(user.RegistrationCode, insertedUser.Id)
+	if err != nil {
 		_ = model.DeleteUserById(insertedUser.Id)
 		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
 		return
 	}
+	// 记录邀请码关联关系：哪个邀请码、谁邀请的
+	updates := map[string]interface{}{"invitation_code_id": usedCode.Id}
+	if insertedUser.InviterId == 0 && usedCode.UserId != 0 {
+		updates["inviter_id"] = usedCode.UserId
+	}
+	model.DB.Model(&model.User{}).Where("id = ?", insertedUser.Id).Updates(updates)
 	// 生成默认令牌
 	if constant.GenerateDefaultToken {
 		key, err := common.GenerateKey()
