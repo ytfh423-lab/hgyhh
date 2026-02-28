@@ -69,7 +69,8 @@ const ImmersiveTranslate = () => {
         remain_quota: 0,
         expired_time: -1,
         unlimited_quota: true,
-        model_limits_enabled: false,
+        model_limits_enabled: true,
+        model_limits: 'gpt5.2',
         bypass_rate_limit: true,
       });
 
@@ -113,8 +114,8 @@ const ImmersiveTranslate = () => {
     },
     {
       icon: <Globe size={28} style={{ color: '#f59e0b' }} />,
-      title: t('全模型覆盖'),
-      desc: t('支持平台全部模型，包括 GPT-4o、Claude、DeepSeek、Gemini 等，自由选择最佳翻译模型'),
+      title: t('GPT-5.2 专属模型'),
+      desc: t('专属使用 GPT-5.2 顶级模型，翻译质量远超同类，精准流畅无与伦比'),
       bg: 'rgba(245, 158, 11, 0.08)',
     },
     {
@@ -275,7 +276,7 @@ const ImmersiveTranslate = () => {
                 fontSize: '14px',
               }}
             >
-              {t('点击下方按钮一键生成沉浸式翻译专属令牌，支持全部模型、无限额度、高并发')}
+              {t('点击下方按钮一键生成沉浸式翻译专属令牌，专属 GPT-5.2 模型、无限额度、高并发')}
             </Paragraph>
 
             {!isLoggedIn && (
@@ -363,7 +364,7 @@ const ImmersiveTranslate = () => {
                     <li>{t('在「翻译服务」中选择 OpenAI 或自定义 API')}</li>
                     <li>{t('填入上方的 API 接口地址')}</li>
                     <li>{t('填入上方的 API 密钥')}</li>
-                    <li>{t('选择任意可用模型（推荐 gpt-4o-mini 或 deepseek-chat）')}</li>
+                    <li>{t('模型填写 gpt5.2（专属模型，不可更改）')}</li>
                     <li>{t('保存设置，即可使用')}</li>
                   </ol>
                 </div>

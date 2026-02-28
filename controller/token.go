@@ -253,6 +253,14 @@ func UpdateToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	// 沉浸式翻译专属令牌（bypass_rate_limit）禁止修改配置，仅允许启用/禁用
+	if cleanToken.BypassRateLimit && statusOnly == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "沉浸式翻译专属令牌不可修改，仅可启用或禁用",
+		})
+		return
+	}
 	if token.Status == common.TokenStatusEnabled {
 		if cleanToken.Status == common.TokenStatusExpired && cleanToken.ExpiredTime <= common.GetTimestamp() && cleanToken.ExpiredTime != -1 {
 			common.ApiErrorI18n(c, i18n.MsgTokenExpiredCannotEnable)
