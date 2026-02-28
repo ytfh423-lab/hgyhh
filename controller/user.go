@@ -171,6 +171,11 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeRequired)
 		return
 	}
+	// 先验证注册码有效性，避免创建用户后再回滚导致幽灵账户
+	if err := model.ValidateRedemptionCodeForRegistration(user.RegistrationCode); err != nil {
+		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
+		return
+	}
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
 	inviterId, _ := model.GetUserIdByAffCode(affCode)
 	cleanUser := model.User{
@@ -196,7 +201,8 @@ func Register(c *gin.Context) {
 	}
 	usedCode, err := model.ConsumeRedemptionCodeForRegistration(user.RegistrationCode, insertedUser.Id)
 	if err != nil {
-		_ = model.DeleteUserById(insertedUser.Id)
+		// 使用硬删除，避免留下软删除的幽灵账户
+		_ = model.HardDeleteUserById(insertedUser.Id)
 		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
 		return
 	}

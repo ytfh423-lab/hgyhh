@@ -358,6 +358,13 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, sessio
 		return nil, errOAuthRegistrationCodeRequired
 	}
 
+	// 先验证注册码有效性，避免创建用户后再回滚导致幽灵账户
+	if registrationCode != "" {
+		if err := model.ValidateRedemptionCodeForRegistration(registrationCode); err != nil {
+			return nil, err
+		}
+	}
+
 	if genericProvider, ok := provider.(*oauth.GenericOAuthProvider); ok {
 		err := model.DB.Transaction(func(tx *gorm.DB) error {
 			if err := user.InsertWithTx(tx, inviterId); err != nil {
@@ -405,7 +412,8 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, sessio
 	if registrationCode != "" {
 		usedCode, err := model.ConsumeRedemptionCodeForRegistration(registrationCode, user.Id)
 		if err != nil {
-			_ = model.DeleteUserById(user.Id)
+			// 使用硬删除，避免留下软删除的幽灵账户
+			_ = model.HardDeleteUserById(user.Id)
 			return nil, err
 		}
 		// 记录邀请码关联关系
