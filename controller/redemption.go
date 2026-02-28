@@ -362,16 +362,13 @@ func GenerateInvitationCode(c *gin.Context) {
 			common.ApiError(c, err)
 			return
 		}
-		// CreatedAt == 0 表示旧用户（无记录），视为满足条件
-		if user.CreatedAt > 0 {
-			daysSinceReg := int(time.Since(time.Unix(user.CreatedAt, 0)).Hours() / 24)
-			if daysSinceReg < minDays {
-				c.JSON(http.StatusOK, gin.H{
-					"success": false,
-					"message": fmt.Sprintf("注册满 %d 天后才可生成邀请码，您还需等待 %d 天", minDays, minDays-daysSinceReg),
-				})
-				return
-			}
+		daysSinceReg := int(time.Since(time.Unix(user.CreatedAt, 0)).Hours() / 24)
+		if daysSinceReg < minDays {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": fmt.Sprintf("注册满 %d 天后才可生成邀请码，您还需等待 %d 天", minDays, minDays-daysSinceReg),
+			})
+			return
 		}
 	}
 

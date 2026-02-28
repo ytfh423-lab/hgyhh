@@ -289,6 +289,10 @@ func migrateDB() error {
 			return err
 		}
 	}
+
+	// 为已有用户回填 created_at（新增字段，旧记录为 0）
+	DB.Model(&User{}).Where("created_at = 0 OR created_at IS NULL").Update("created_at", common.GetTimestamp())
+
 	return nil
 }
 
