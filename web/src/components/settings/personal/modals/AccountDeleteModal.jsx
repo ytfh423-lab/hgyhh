@@ -17,74 +17,146 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
-import { Banner, Input, Modal, Typography } from '@douyinfe/semi-ui';
-import { IconDelete, IconUser } from '@douyinfe/semi-icons';
-import Turnstile from 'react-turnstile';
+import React, { useEffect, useState } from 'react';
+import { Banner, Input, Modal, Typography, Tag, TextArea } from '@douyinfe/semi-ui';
+import { IconDelete } from '@douyinfe/semi-icons';
+import { API, showError, showSuccess } from '../../../../helpers';
 
 const AccountDeleteModal = ({
   t,
   showAccountDeleteModal,
   setShowAccountDeleteModal,
-  inputs,
-  handleInputChange,
-  deleteAccount,
-  userState,
-  turnstileEnabled,
-  turnstileSiteKey,
-  setTurnstileToken,
 }) => {
+  const [reason, setReason] = useState('');
+  const [pendingRequest, setPendingRequest] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadPendingRequest = async () => {
+    try {
+      const res = await API.get('/api/user/deletion-request');
+      if (res.data.success && res.data.data) {
+        setPendingRequest(res.data.data);
+      } else {
+        setPendingRequest(null);
+      }
+    } catch {
+      setPendingRequest(null);
+    }
+  };
+
+  useEffect(() => {
+    if (showAccountDeleteModal) {
+      loadPendingRequest();
+    }
+  }, [showAccountDeleteModal]);
+
+  const submitDeletionRequest = async () => {
+    if (!reason.trim()) {
+      showError(t('请填写注销理由'));
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await API.delete('/api/user/self', { data: { reason: reason.trim() } });
+      if (res.data.success) {
+        showSuccess(res.data.message || t('注销申请已提交'));
+        setReason('');
+        await loadPendingRequest();
+      } else {
+        showError(res.data.message);
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || t('提交失败'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelDeletionRequest = async () => {
+    setLoading(true);
+    try {
+      const res = await API.post('/api/user/deletion-request/cancel');
+      if (res.data.success) {
+        showSuccess(res.data.message || t('注销申请已取消'));
+        setPendingRequest(null);
+      } else {
+        showError(res.data.message);
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || t('操作失败'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Modal
       title={
         <div className='flex items-center'>
           <IconDelete className='mr-2 text-red-500' />
-          {t('删除账户确认')}
+          {t('注销账户')}
         </div>
       }
       visible={showAccountDeleteModal}
       onCancel={() => setShowAccountDeleteModal(false)}
-      onOk={deleteAccount}
+      onOk={pendingRequest ? cancelDeletionRequest : submitDeletionRequest}
+      okText={pendingRequest ? t('取消申请') : t('提交注销申请')}
+      okButtonProps={{
+        type: pendingRequest ? 'tertiary' : 'danger',
+        loading,
+      }}
       size={'small'}
       centered={true}
       className='modern-modal'
     >
       <div className='space-y-4 py-4'>
-        <Banner
-          type='danger'
-          description={t('您正在删除自己的帐户，将清空所有数据且不可恢复')}
-          closeIcon={null}
-          className='!rounded-lg'
-        />
-
-        <div>
-          <Typography.Text strong className='block mb-2 text-red-600'>
-            {t('请输入您的用户名以确认删除')}
-          </Typography.Text>
-          <Input
-            placeholder={t('输入你的账户名{{username}}以确认删除', {
-              username: ` ${userState?.user?.username} `,
-            })}
-            name='self_account_deletion_confirmation'
-            value={inputs.self_account_deletion_confirmation}
-            onChange={(value) =>
-              handleInputChange('self_account_deletion_confirmation', value)
-            }
-            size='large'
-            className='!rounded-lg'
-            prefix={<IconUser />}
-          />
-        </div>
-
-        {turnstileEnabled && (
-          <div className='flex justify-center'>
-            <Turnstile
-              sitekey={turnstileSiteKey}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-              }}
+        {pendingRequest ? (
+          <>
+            <Banner
+              type='warning'
+              description={t('您已提交注销申请，正在等待管理员审核')}
+              closeIcon={null}
+              className='!rounded-lg'
             />
-          </div>
+            <div className='space-y-2'>
+              <div>
+                <Typography.Text strong>{t('注销理由')}：</Typography.Text>
+                <Typography.Text>{pendingRequest.reason}</Typography.Text>
+              </div>
+              <div>
+                <Typography.Text strong>{t('状态')}：</Typography.Text>
+                <Tag color='orange' className='ml-1'>{t('待审核')}</Tag>
+              </div>
+              <div>
+                <Typography.Text strong>{t('提交时间')}：</Typography.Text>
+                <Typography.Text>
+                  {new Date(pendingRequest.created_at * 1000).toLocaleString()}
+                </Typography.Text>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <Banner
+              type='danger'
+              description={t('注销账户需要管理员审核，审核通过后账户将被永久删除且不可恢复')}
+              closeIcon={null}
+              className='!rounded-lg'
+            />
+            <div>
+              <Typography.Text strong className='block mb-2'>
+                {t('请填写注销理由')}
+              </Typography.Text>
+              <TextArea
+                placeholder={t('请说明您注销账户的原因...')}
+                value={reason}
+                onChange={setReason}
+                maxCount={500}
+                rows={4}
+                className='!rounded-lg'
+              />
+            </div>
+          </>
         )}
       </div>
     </Modal>

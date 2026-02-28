@@ -47,6 +47,7 @@ import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
 import Subscription from './pages/Subscription';
 import InvitationCode from './pages/InvitationCode';
+import DeletionRequestPage from './pages/DeletionRequest';
 import OAuth2Callback from './components/auth/OAuth2Callback';
 import OAuthRegistrationForm from './components/auth/OAuthRegistrationForm';
 import PersonalSetting from './components/settings/PersonalSetting';
@@ -187,6 +188,14 @@ function App() {
           element={
             <AdminRoute>
               <User />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/deletion-request'
+          element={
+            <AdminRoute>
+              <DeletionRequestPage />
             </AdminRoute>
           }
         />

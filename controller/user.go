@@ -809,16 +809,64 @@ func DeleteSelf(c *gin.Context) {
 		return
 	}
 
-	err := model.DeleteUserById(id)
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil || req.Reason == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "请填写注销理由",
+		})
+		return
+	}
+
+	_, err := model.CreateDeletionRequest(id, user.Username, req.Reason)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "",
+		"message": "注销申请已提交，请等待管理员审核",
 	})
 	return
+}
+
+func GetSelfDeletionRequest(c *gin.Context) {
+	id := c.GetInt("id")
+	req, err := model.GetPendingDeletionRequestByUserId(id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    nil,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+	})
+}
+
+func CancelSelfDeletionRequest(c *gin.Context) {
+	userId := c.GetInt("id")
+	req, err := model.GetPendingDeletionRequestByUserId(userId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "没有待审核的注销申请",
+		})
+		return
+	}
+	err = model.RejectDeletionRequest(req.Id, 0, "用户主动取消")
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "注销申请已取消",
+	})
 }
 
 func CreateUser(c *gin.Context) {

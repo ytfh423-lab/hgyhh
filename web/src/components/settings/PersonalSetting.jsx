@@ -530,13 +530,6 @@ const PersonalSetting = () => {
         t={t}
         showAccountDeleteModal={showAccountDeleteModal}
         setShowAccountDeleteModal={setShowAccountDeleteModal}
-        inputs={inputs}
-        handleInputChange={handleInputChange}
-        deleteAccount={deleteAccount}
-        userState={userState}
-        turnstileEnabled={turnstileEnabled}
-        turnstileSiteKey={turnstileSiteKey}
-        setTurnstileToken={setTurnstileToken}
       />
 
       <ChangePasswordModal

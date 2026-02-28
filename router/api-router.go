@@ -76,6 +76,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/models", controller.GetUserModels)
 				selfRoute.PUT("/self", controller.UpdateSelf)
 				selfRoute.DELETE("/self", controller.DeleteSelf)
+				selfRoute.GET("/deletion-request", controller.GetSelfDeletionRequest)
+				selfRoute.POST("/deletion-request/cancel", controller.CancelSelfDeletionRequest)
 				selfRoute.GET("/token", controller.GenerateAccessToken)
 				selfRoute.GET("/passkey", controller.PasskeyStatus)
 				selfRoute.POST("/passkey/register/begin", controller.PasskeyRegisterBegin)
@@ -135,6 +137,14 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
 				adminRoute.DELETE("/:id/2fa", controller.AdminDisable2FA)
 			}
+		}
+
+		deletionRequestRoute := apiRouter.Group("/deletion-request")
+		deletionRequestRoute.Use(middleware.AdminAuth())
+		{
+			deletionRequestRoute.GET("/", controller.GetAllDeletionRequests)
+			deletionRequestRoute.POST("/:id/approve", controller.ApproveDeletionRequest)
+			deletionRequestRoute.POST("/:id/reject", controller.RejectDeletionRequest)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

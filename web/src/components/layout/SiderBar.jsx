@@ -51,6 +51,7 @@ const routerMap = {
   playground: '/console/playground',
   personal: '/console/personal',
   invitation_code: '/console/invitation-code',
+  deletion_request: '/console/deletion-request',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -194,6 +195,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('用户管理'),
         itemKey: 'user',
         to: '/user',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('注销审核'),
+        itemKey: 'deletion_request',
+        to: '/console/deletion-request',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
