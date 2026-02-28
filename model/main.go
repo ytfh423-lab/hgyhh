@@ -290,6 +290,9 @@ func migrateDB() error {
 		}
 	}
 
+	// 硬删除所有被软删除的幽灵用户（注册失败遗留）
+	DB.Unscoped().Where("deleted_at IS NOT NULL").Delete(&User{})
+
 	// 为已有用户回填 created_at（新增字段，旧记录为 0）
 	DB.Model(&User{}).Where("created_at = 0 OR created_at IS NULL").Update("created_at", common.GetTimestamp())
 
