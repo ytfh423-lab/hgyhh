@@ -64,6 +64,12 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
           ]
         : []),
       {
+        text: t('沉浸式翻译'),
+        itemKey: 'immersive',
+        to: '/immersive-translate',
+        icon: 'immersive',
+      },
+      {
         text: t('关于'),
         itemKey: 'about',
         to: '/about',
@@ -81,6 +87,9 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         return typeof modules.pricing === 'object'
           ? modules.pricing.enabled
           : modules.pricing;
+      }
+      if (link.itemKey === 'immersive') {
+        return true;
       }
       return modules[link.itemKey] === true;
     });
