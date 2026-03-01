@@ -54,6 +54,26 @@ func GetCheckinLeaderboard(c *gin.Context) {
 		}
 	}
 
+	keyword := c.Query("keyword")
+	if keyword != "" {
+		// 搜索模式：返回匹配用户及其真实排名
+		results, err := model.SearchCheckinLeaderboard(limit, keyword)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "搜索排行榜失败",
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    results,
+			"total":   int64(len(results)),
+			"limit":   limit,
+		})
+		return
+	}
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize := 50
 

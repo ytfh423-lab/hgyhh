@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -201,6 +202,37 @@ func GetCheckinLeaderboard(limit, page, pageSize int) ([]CheckinLeaderboardEntry
 		results[i].Rank = offset + i + 1
 	}
 	return results, totalCount, nil
+}
+
+// SearchCheckinLeaderboard 按用户名搜索排行榜，返回匹配用户及其真实排名
+func SearchCheckinLeaderboard(limit int, keyword string) ([]CheckinLeaderboardEntry, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// 获取完整排行榜（在limit范围内）
+	var all []CheckinLeaderboardEntry
+	err := DB.Table("checkins").
+		Select("checkins.user_id, users.username, users.display_name, SUM(checkins.quota_awarded) as total_quota, COUNT(*) as total_days").
+		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
+		Group("checkins.user_id, users.username, users.display_name").
+		Order("total_quota DESC").
+		Limit(limit).
+		Find(&all).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 在内存中过滤匹配的用户并保留真实排名
+	var results []CheckinLeaderboardEntry
+	for i, entry := range all {
+		entry.Rank = i + 1
+		if strings.Contains(strings.ToLower(entry.Username), strings.ToLower(keyword)) ||
+			strings.Contains(strings.ToLower(entry.DisplayName), strings.ToLower(keyword)) {
+			results = append(results, entry)
+		}
+	}
+	return results, nil
 }
 
 // GetUserCheckinStats 获取用户签到统计信息

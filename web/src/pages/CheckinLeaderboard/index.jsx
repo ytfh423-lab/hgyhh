@@ -6,8 +6,9 @@ import {
   Avatar,
   Spin,
   Tag,
+  Input,
 } from '@douyinfe/semi-ui';
-import { Trophy, Medal, Award } from 'lucide-react';
+import { Trophy, Medal, Award, Search } from 'lucide-react';
 import { API, showError, renderQuota } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 
@@ -22,12 +23,19 @@ const CheckinLeaderboard = () => {
   const [total, setTotal] = useState(0);
   const [limit, setLimit] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
+  const [keyword, setKeyword] = useState('');
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchTimer, setSearchTimer] = useState(null);
   const userId = parseInt(localStorage.getItem('user_id') || '0');
 
-  const fetchLeaderboard = async (page = 1) => {
+  const fetchLeaderboard = async (page = 1, search = '') => {
     setLoading(true);
     try {
-      const res = await API.get(`/api/user/checkin/leaderboard?page=${page}`);
+      let url = `/api/user/checkin/leaderboard?page=${page}`;
+      if (search) {
+        url = `/api/user/checkin/leaderboard?keyword=${encodeURIComponent(search)}`;
+      }
+      const res = await API.get(url);
       const { success, data, message } = res.data;
       if (success) {
         setLeaderboard(data || []);
@@ -44,8 +52,26 @@ const CheckinLeaderboard = () => {
   };
 
   useEffect(() => {
-    fetchLeaderboard(currentPage);
+    if (!searchMode) {
+      fetchLeaderboard(currentPage);
+    }
   }, [currentPage]);
+
+  const handleSearch = (value) => {
+    setKeyword(value);
+    if (searchTimer) clearTimeout(searchTimer);
+    if (!value.trim()) {
+      setSearchMode(false);
+      setCurrentPage(1);
+      fetchLeaderboard(1);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSearchMode(true);
+      fetchLeaderboard(1, value.trim());
+    }, 400);
+    setSearchTimer(timer);
+  };
 
   const getRankIcon = (rank) => {
     if (rank === 1) return <Trophy size={20} style={{ color: '#FFD700' }} />;
@@ -171,6 +197,15 @@ const CheckinLeaderboard = () => {
           </Text>
         }
       >
+        <div style={{ marginBottom: 12 }}>
+          <Input
+            prefix={<Search size={16} />}
+            placeholder={t('搜索用户名查找排名')}
+            value={keyword}
+            onChange={handleSearch}
+            showClear
+          />
+        </div>
         <Spin spinning={loading}>
           <Table
             columns={columns}
@@ -179,7 +214,7 @@ const CheckinLeaderboard = () => {
             size='small'
             empty={<Text type='tertiary'>{t('暂无排行数据')}</Text>}
             pagination={
-              total > PAGE_SIZE
+              !searchMode && total > PAGE_SIZE
                 ? {
                     currentPage,
                     pageSize: PAGE_SIZE,
