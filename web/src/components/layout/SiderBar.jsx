@@ -52,6 +52,7 @@ const routerMap = {
   personal: '/console/personal',
   invitation_code: '/console/invitation-code',
   deletion_request: '/console/deletion-request',
+  checkin_leaderboard: '/console/checkin-leaderboard',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -141,6 +142,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('邀请码'),
         itemKey: 'invitation_code',
         to: '/console/invitation-code',
+      },
+      {
+        text: t('屯屯鼠排行榜'),
+        itemKey: 'checkin_leaderboard',
+        to: '/console/checkin-leaderboard',
       },
     ];
 

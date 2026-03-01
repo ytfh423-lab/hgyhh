@@ -48,6 +48,7 @@ import Playground from './pages/Playground';
 import Subscription from './pages/Subscription';
 import InvitationCode from './pages/InvitationCode';
 import DeletionRequestPage from './pages/DeletionRequest';
+import CheckinLeaderboard from './pages/CheckinLeaderboard';
 import OAuth2Callback from './components/auth/OAuth2Callback';
 import OAuthRegistrationForm from './components/auth/OAuthRegistrationForm';
 import PersonalSetting from './components/settings/PersonalSetting';
@@ -197,6 +198,14 @@ function App() {
             <AdminRoute>
               <DeletionRequestPage />
             </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/checkin-leaderboard'
+          element={
+            <PrivateRoute>
+              <CheckinLeaderboard />
+            </PrivateRoute>
           }
         />
         <Route

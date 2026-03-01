@@ -140,6 +140,35 @@ func userCheckinWithoutTransaction(checkin *Checkin, userId int, quotaAwarded in
 	return checkin, nil
 }
 
+// CheckinLeaderboardEntry 排行榜条目
+type CheckinLeaderboardEntry struct {
+	Rank         int    `json:"rank"`
+	UserId       int    `json:"user_id"`
+	Username     string `json:"username"`
+	DisplayName  string `json:"display_name"`
+	TotalQuota   int64  `json:"total_quota"`
+	TotalDays    int64  `json:"total_days"`
+}
+
+// GetCheckinLeaderboard 获取签到排行榜（按累计获得额度排序，前100名）
+func GetCheckinLeaderboard() ([]CheckinLeaderboardEntry, error) {
+	var results []CheckinLeaderboardEntry
+	err := DB.Table("checkins").
+		Select("checkins.user_id, users.username, users.display_name, SUM(checkins.quota_awarded) as total_quota, COUNT(*) as total_days").
+		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
+		Group("checkins.user_id, users.username, users.display_name").
+		Order("total_quota DESC").
+		Limit(100).
+		Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range results {
+		results[i].Rank = i + 1
+	}
+	return results, nil
+}
+
 // GetUserCheckinStats 获取用户签到统计信息
 func GetUserCheckinStats(userId int, month string) (map[string]interface{}, error) {
 	// 获取指定月份的所有签到记录

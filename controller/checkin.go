@@ -43,6 +43,22 @@ func GetCheckinStatus(c *gin.Context) {
 	})
 }
 
+// GetCheckinLeaderboard 获取签到排行榜
+func GetCheckinLeaderboard(c *gin.Context) {
+	leaderboard, err := model.GetCheckinLeaderboard()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "获取排行榜失败",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    leaderboard,
+	})
+}
+
 // DoCheckin 执行用户签到
 func DoCheckin(c *gin.Context) {
 	setting := operation_setting.GetCheckinSetting()

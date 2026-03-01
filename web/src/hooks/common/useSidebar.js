@@ -44,6 +44,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     topup: true,
     personal: true,
     invitation_code: true,
+    checkin_leaderboard: true,
   },
   admin: {
     enabled: true,

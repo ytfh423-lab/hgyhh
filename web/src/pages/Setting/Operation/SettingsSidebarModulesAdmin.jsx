@@ -57,6 +57,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       enabled: true,
       topup: true,
       personal: true,
+      checkin_leaderboard: true,
     },
     admin: {
       enabled: true,
@@ -120,6 +121,7 @@ export default function SettingsSidebarModulesAdmin(props) {
         enabled: true,
         topup: true,
         personal: true,
+        checkin_leaderboard: true,
       },
       admin: {
         enabled: true,
@@ -191,7 +193,7 @@ export default function SettingsSidebarModulesAdmin(props) {
             midjourney: true,
             task: true,
           },
-          personal: { enabled: true, topup: true, personal: true },
+          personal: { enabled: true, topup: true, personal: true, checkin_leaderboard: true },
           admin: {
             enabled: true,
             channel: true,
@@ -251,6 +253,11 @@ export default function SettingsSidebarModulesAdmin(props) {
           key: 'personal',
           title: t('个人设置'),
           description: t('个人信息设置'),
+        },
+        {
+          key: 'checkin_leaderboard',
+          title: t('屯屯鼠排行榜'),
+          description: t('签到额度排行榜'),
         },
       ],
     },

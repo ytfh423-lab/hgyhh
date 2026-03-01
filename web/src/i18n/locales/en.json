@@ -2947,6 +2947,16 @@
     "在此输入首页广告区域的 HTML 代码，将显示在首页按钮下方，留空则不显示": "Enter HTML code for the home page ad area. It will be displayed below the action buttons. Leave empty to hide.",
     "设置首页广告": "Set Home Ad",
     "设置已更新": "Settings updated",
-    "设置更新失败": "Failed to update settings"
+    "设置更新失败": "Failed to update settings",
+    "屯屯鼠排行榜": "Check-in Leaderboard",
+    "签到累计额度 TOP 100": "Top 100 by Total Check-in Quota",
+    "排名": "Rank",
+    "累计签到额度": "Total Check-in Quota",
+    "签到天数": "Check-in Days",
+    "天": "days",
+    "我": "Me",
+    "暂无排行数据": "No leaderboard data yet",
+    "获取排行榜失败": "Failed to load leaderboard",
+    "签到额度排行榜": "Check-in quota leaderboard"
   }
 }
