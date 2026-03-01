@@ -54,10 +54,13 @@ func GetCheckinLeaderboard(c *gin.Context) {
 		}
 	}
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize := 50
+
 	keyword := c.Query("keyword")
 	if keyword != "" {
-		// 搜索模式：返回匹配用户及其真实排名
-		results, err := model.SearchCheckinLeaderboard(limit, keyword)
+		// 搜索模式：返回匹配用户及其真实排名（分页）
+		results, total, err := model.SearchCheckinLeaderboard(limit, page, pageSize, keyword)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -68,14 +71,11 @@ func GetCheckinLeaderboard(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data":    results,
-			"total":   int64(len(results)),
+			"total":   total,
 			"limit":   limit,
 		})
 		return
 	}
-
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize := 50
 
 	leaderboard, total, err := model.GetCheckinLeaderboard(limit, page, pageSize)
 	if err != nil {

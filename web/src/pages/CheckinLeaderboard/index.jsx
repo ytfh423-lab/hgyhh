@@ -33,7 +33,7 @@ const CheckinLeaderboard = () => {
     try {
       let url = `/api/user/checkin/leaderboard?page=${page}`;
       if (search) {
-        url = `/api/user/checkin/leaderboard?keyword=${encodeURIComponent(search)}`;
+        url = `/api/user/checkin/leaderboard?page=${page}&keyword=${encodeURIComponent(search)}`;
       }
       const res = await API.get(url);
       const { success, data, message } = res.data;
@@ -52,9 +52,7 @@ const CheckinLeaderboard = () => {
   };
 
   useEffect(() => {
-    if (!searchMode) {
-      fetchLeaderboard(currentPage);
-    }
+    fetchLeaderboard(currentPage, searchMode ? keyword.trim() : '');
   }, [currentPage]);
 
   const handleSearch = (value) => {
@@ -68,6 +66,7 @@ const CheckinLeaderboard = () => {
     }
     const timer = setTimeout(() => {
       setSearchMode(true);
+      setCurrentPage(1);
       fetchLeaderboard(1, value.trim());
     }, 400);
     setSearchTimer(timer);
@@ -214,7 +213,7 @@ const CheckinLeaderboard = () => {
             size='small'
             empty={<Text type='tertiary'>{t('暂无排行数据')}</Text>}
             pagination={
-              !searchMode && total > PAGE_SIZE
+              total > PAGE_SIZE
                 ? {
                     currentPage,
                     pageSize: PAGE_SIZE,

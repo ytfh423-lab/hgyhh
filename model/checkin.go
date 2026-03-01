@@ -246,30 +246,46 @@ func GetCheckinLeaderboard(limit, page, pageSize int) ([]CheckinLeaderboardEntry
 	return all[offset:end], totalCount, nil
 }
 
-// SearchCheckinLeaderboard 按用户名搜索排行榜，返回匹配用户及其真实排名
-func SearchCheckinLeaderboard(limit int, keyword string) ([]CheckinLeaderboardEntry, error) {
+// SearchCheckinLeaderboard 按用户名搜索排行榜，返回匹配用户及其真实排名（分页）
+func SearchCheckinLeaderboard(limit, page, pageSize int, keyword string) ([]CheckinLeaderboardEntry, int64, error) {
 	if limit <= 0 {
 		limit = 100
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 50
 	}
 
 	all, err := getCachedLeaderboard()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// 截取到limit并过滤匹配用户
 	lowerKeyword := strings.ToLower(keyword)
-	var results []CheckinLeaderboardEntry
+	var matched []CheckinLeaderboardEntry
 	for _, entry := range all {
 		if entry.Rank > limit {
 			break
 		}
 		if strings.Contains(strings.ToLower(entry.Username), lowerKeyword) ||
 			strings.Contains(strings.ToLower(entry.DisplayName), lowerKeyword) {
-			results = append(results, entry)
+			matched = append(matched, entry)
 		}
 	}
-	return results, nil
+
+	totalCount := int64(len(matched))
+	offset := (page - 1) * pageSize
+	if offset >= len(matched) {
+		return []CheckinLeaderboardEntry{}, totalCount, nil
+	}
+	end := offset + pageSize
+	if end > len(matched) {
+		end = len(matched)
+	}
+	return matched[offset:end], totalCount, nil
 }
 
 // GetUserCheckinStats 获取用户签到统计信息
