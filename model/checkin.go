@@ -4,11 +4,20 @@ import (
 	"errors"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"gorm.io/gorm"
+)
+
+// 排行榜缓存（24小时更新一次）
+var (
+	leaderboardCache     []CheckinLeaderboardEntry
+	leaderboardCacheTime time.Time
+	leaderboardCacheMu   sync.RWMutex
+	leaderboardCacheTTL  = 24 * time.Hour
 )
 
 // Checkin 签到记录
@@ -151,7 +160,57 @@ type CheckinLeaderboardEntry struct {
 	TotalDays    int64  `json:"total_days"`
 }
 
-// GetCheckinLeaderboard 获取签到排行榜（按累计获得额度排序）
+// getLeaderboardFromDB 从数据库查询完整排行榜
+func getLeaderboardFromDB() ([]CheckinLeaderboardEntry, error) {
+	var results []CheckinLeaderboardEntry
+	err := DB.Table("checkins").
+		Select("checkins.user_id, users.username, users.display_name, SUM(checkins.quota_awarded) as total_quota, COUNT(*) as total_days").
+		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
+		Group("checkins.user_id, users.username, users.display_name").
+		Order("total_quota DESC").
+		Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range results {
+		results[i].Rank = i + 1
+	}
+	return results, nil
+}
+
+// getCachedLeaderboard 获取缓存的排行榜数据，24小时更新一次
+func getCachedLeaderboard() ([]CheckinLeaderboardEntry, error) {
+	leaderboardCacheMu.RLock()
+	if leaderboardCache != nil && time.Since(leaderboardCacheTime) < leaderboardCacheTTL {
+		cached := make([]CheckinLeaderboardEntry, len(leaderboardCache))
+		copy(cached, leaderboardCache)
+		leaderboardCacheMu.RUnlock()
+		return cached, nil
+	}
+	leaderboardCacheMu.RUnlock()
+
+	// 缓存过期或不存在，重新查询
+	leaderboardCacheMu.Lock()
+	defer leaderboardCacheMu.Unlock()
+	// 双重检查
+	if leaderboardCache != nil && time.Since(leaderboardCacheTime) < leaderboardCacheTTL {
+		cached := make([]CheckinLeaderboardEntry, len(leaderboardCache))
+		copy(cached, leaderboardCache)
+		return cached, nil
+	}
+
+	results, err := getLeaderboardFromDB()
+	if err != nil {
+		return nil, err
+	}
+	leaderboardCache = results
+	leaderboardCacheTime = time.Now()
+	cached := make([]CheckinLeaderboardEntry, len(results))
+	copy(cached, results)
+	return cached, nil
+}
+
+// GetCheckinLeaderboard 获取签到排行榜（按累计获得额度排序，24小时缓存）
 // limit: 排行榜总人数上限; page: 页码(从1开始); pageSize: 每页条数
 func GetCheckinLeaderboard(limit, page, pageSize int) ([]CheckinLeaderboardEntry, int64, error) {
 	if limit <= 0 {
@@ -164,44 +223,27 @@ func GetCheckinLeaderboard(limit, page, pageSize int) ([]CheckinLeaderboardEntry
 		pageSize = 50
 	}
 
-	// 先查总数（在limit范围内的记录数）
-	var totalCount int64
-	countQuery := DB.Table("checkins").
-		Select("checkins.user_id").
-		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
-		Group("checkins.user_id")
-	// 用子查询统计总数
-	DB.Table("(?) as sub", countQuery).Count(&totalCount)
-	if totalCount > int64(limit) {
-		totalCount = int64(limit)
-	}
-
-	offset := (page - 1) * pageSize
-	if offset >= limit {
-		return []CheckinLeaderboardEntry{}, totalCount, nil
-	}
-	// 确保不超过limit
-	actualPageSize := pageSize
-	if offset+actualPageSize > limit {
-		actualPageSize = limit - offset
-	}
-
-	var results []CheckinLeaderboardEntry
-	err := DB.Table("checkins").
-		Select("checkins.user_id, users.username, users.display_name, SUM(checkins.quota_awarded) as total_quota, COUNT(*) as total_days").
-		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
-		Group("checkins.user_id, users.username, users.display_name").
-		Order("total_quota DESC").
-		Limit(actualPageSize).
-		Offset(offset).
-		Find(&results).Error
+	all, err := getCachedLeaderboard()
 	if err != nil {
 		return nil, 0, err
 	}
-	for i := range results {
-		results[i].Rank = offset + i + 1
+
+	// 截取到limit
+	if len(all) > limit {
+		all = all[:limit]
 	}
-	return results, totalCount, nil
+	totalCount := int64(len(all))
+
+	offset := (page - 1) * pageSize
+	if offset >= len(all) {
+		return []CheckinLeaderboardEntry{}, totalCount, nil
+	}
+	end := offset + pageSize
+	if end > len(all) {
+		end = len(all)
+	}
+
+	return all[offset:end], totalCount, nil
 }
 
 // SearchCheckinLeaderboard 按用户名搜索排行榜，返回匹配用户及其真实排名
@@ -210,25 +252,20 @@ func SearchCheckinLeaderboard(limit int, keyword string) ([]CheckinLeaderboardEn
 		limit = 100
 	}
 
-	// 获取完整排行榜（在limit范围内）
-	var all []CheckinLeaderboardEntry
-	err := DB.Table("checkins").
-		Select("checkins.user_id, users.username, users.display_name, SUM(checkins.quota_awarded) as total_quota, COUNT(*) as total_days").
-		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
-		Group("checkins.user_id, users.username, users.display_name").
-		Order("total_quota DESC").
-		Limit(limit).
-		Find(&all).Error
+	all, err := getCachedLeaderboard()
 	if err != nil {
 		return nil, err
 	}
 
-	// 在内存中过滤匹配的用户并保留真实排名
+	// 截取到limit并过滤匹配用户
+	lowerKeyword := strings.ToLower(keyword)
 	var results []CheckinLeaderboardEntry
-	for i, entry := range all {
-		entry.Rank = i + 1
-		if strings.Contains(strings.ToLower(entry.Username), strings.ToLower(keyword)) ||
-			strings.Contains(strings.ToLower(entry.DisplayName), strings.ToLower(keyword)) {
+	for _, entry := range all {
+		if entry.Rank > limit {
+			break
+		}
+		if strings.Contains(strings.ToLower(entry.Username), lowerKeyword) ||
+			strings.Contains(strings.ToLower(entry.DisplayName), lowerKeyword) {
 			results = append(results, entry)
 		}
 	}
