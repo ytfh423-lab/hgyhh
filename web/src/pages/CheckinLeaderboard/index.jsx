@@ -24,7 +24,7 @@ const CheckinLeaderboard = () => {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/api/user/self/checkin/leaderboard');
+      const res = await API.get('/api/user/checkin/leaderboard');
       const { success, data, message } = res.data;
       if (success) {
         setLeaderboard(data || []);
