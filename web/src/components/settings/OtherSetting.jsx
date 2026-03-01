@@ -48,6 +48,7 @@ const OtherSetting = () => {
     Footer: '',
     About: '',
     HomePageContent: '',
+    HomeAdHtml: '',
   });
   let [loading, setLoading] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -79,6 +80,7 @@ const OtherSetting = () => {
     SystemName: false,
     Logo: false,
     HomePageContent: false,
+    HomeAdHtml: false,
     About: false,
     Footer: false,
     CheckUpdate: false,
@@ -187,17 +189,17 @@ const OtherSetting = () => {
     try {
       setLoadingInput((loadingInput) => ({
         ...loadingInput,
-        HomePageContent: true,
+        [key]: true,
       }));
       await updateOption(key, inputs[key]);
-      showSuccess('首页内容已更新');
+      showSuccess(t('设置已更新'));
     } catch (error) {
-      console.error('首页内容更新失败', error);
-      showError('首页内容更新失败');
+      console.error(t('设置更新失败'), error);
+      showError(t('设置更新失败'));
     } finally {
       setLoadingInput((loadingInput) => ({
         ...loadingInput,
-        HomePageContent: false,
+        [key]: false,
       }));
     }
   };
@@ -459,6 +461,22 @@ const OtherSetting = () => {
                 loading={loadingInput['HomePageContent']}
               >
                 {t('设置首页内容')}
+              </Button>
+              <Form.TextArea
+                label={t('首页广告 HTML')}
+                placeholder={t(
+                  '在此输入首页广告区域的 HTML 代码，将显示在首页按钮下方，留空则不显示',
+                )}
+                field={'HomeAdHtml'}
+                onChange={handleInputChange}
+                style={{ fontFamily: 'JetBrains Mono, Consolas' }}
+                autosize={{ minRows: 6, maxRows: 12 }}
+              />
+              <Button
+                onClick={() => submitOption('HomeAdHtml')}
+                loading={loadingInput['HomeAdHtml']}
+              >
+                {t('设置首页广告')}
               </Button>
               <Form.TextArea
                 label={t('关于')}

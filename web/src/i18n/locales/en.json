@@ -2942,6 +2942,11 @@
     "暂无注销申请": "No deletion requests",
     "用户注销申请审核": "Review user account deletion requests",
     "全部": "All",
-    "用户ID": "User ID"
+    "用户ID": "User ID",
+    "首页广告 HTML": "Home Page Ad HTML",
+    "在此输入首页广告区域的 HTML 代码，将显示在首页按钮下方，留空则不显示": "Enter HTML code for the home page ad area. It will be displayed below the action buttons. Leave empty to hide.",
+    "设置首页广告": "Set Home Ad",
+    "设置已更新": "Settings updated",
+    "设置更新失败": "Failed to update settings"
   }
 }

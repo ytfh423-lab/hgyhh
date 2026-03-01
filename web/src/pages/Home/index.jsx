@@ -340,6 +340,14 @@ const Home = () => {
                   )
                 )}
               </div>
+
+              {/* 广告 HTML 区域 */}
+              {statusState?.status?.home_ad_html && (
+                <div
+                  className='npc-animate npc-delay-4 w-full max-w-4xl mt-10'
+                  dangerouslySetInnerHTML={{ __html: statusState.status.home_ad_html }}
+                />
+              )}
             </div>
           </div>
 

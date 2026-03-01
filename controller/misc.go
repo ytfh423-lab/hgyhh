@@ -118,6 +118,7 @@ func GetStatus(c *gin.Context) {
 		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
 		"invitation_code_enabled":     operation_setting.IsInvitationCodeEnabled(),
 		"invitation_code_min_days":    operation_setting.GetInvitationCodeMinDays(),
+		"home_ad_html":                common.OptionMap["HomeAdHtml"],
 		"_qn":                         "new-api",
 	}
 
