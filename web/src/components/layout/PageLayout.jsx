@@ -149,6 +149,7 @@ const PageLayout = () => {
           overflow: isMobile ? 'visible' : 'auto',
           display: 'flex',
           flexDirection: 'column',
+          marginTop: '64px',
         }}
       >
         {showSider && (
