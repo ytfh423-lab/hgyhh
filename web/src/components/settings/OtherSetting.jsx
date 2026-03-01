@@ -49,6 +49,7 @@ const OtherSetting = () => {
     About: '',
     HomePageContent: '',
     HomeAdHtml: '',
+    CheckinLeaderboardLimit: '',
   });
   let [loading, setLoading] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -81,6 +82,7 @@ const OtherSetting = () => {
     Logo: false,
     HomePageContent: false,
     HomeAdHtml: false,
+    CheckinLeaderboardLimit: false,
     About: false,
     Footer: false,
     CheckUpdate: false,
@@ -477,6 +479,19 @@ const OtherSetting = () => {
                 loading={loadingInput['HomeAdHtml']}
               >
                 {t('设置首页广告')}
+              </Button>
+              <Form.Input
+                label={t('排行榜显示人数')}
+                placeholder={t('设置签到排行榜显示前多少名，默认 100')}
+                field={'CheckinLeaderboardLimit'}
+                onChange={handleInputChange}
+                type='number'
+              />
+              <Button
+                onClick={() => submitOption('CheckinLeaderboardLimit')}
+                loading={loadingInput['CheckinLeaderboardLimit']}
+              >
+                {t('设置排行榜人数')}
               </Button>
               <Form.TextArea
                 label={t('关于')}

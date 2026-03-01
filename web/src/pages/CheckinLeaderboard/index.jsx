@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -10,24 +10,29 @@ import {
 import { Trophy, Medal, Award } from 'lucide-react';
 import { API, showError, renderQuota } from '../../helpers';
 import { useTranslation } from 'react-i18next';
-import { StatusContext } from '../../context/Status';
 
 const { Title, Text } = Typography;
+
+const PAGE_SIZE = 50;
 
 const CheckinLeaderboard = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [statusState] = useContext(StatusContext);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(100);
+  const [currentPage, setCurrentPage] = useState(1);
   const userId = parseInt(localStorage.getItem('user_id') || '0');
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await API.get('/api/user/checkin/leaderboard');
+      const res = await API.get(`/api/user/checkin/leaderboard?page=${page}`);
       const { success, data, message } = res.data;
       if (success) {
         setLeaderboard(data || []);
+        setTotal(res.data.total || 0);
+        setLimit(res.data.limit || 100);
       } else {
         showError(message);
       }
@@ -39,8 +44,8 @@ const CheckinLeaderboard = () => {
   };
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, []);
+    fetchLeaderboard(currentPage);
+  }, [currentPage]);
 
   const getRankIcon = (rank) => {
     if (rank === 1) return <Trophy size={20} style={{ color: '#FFD700' }} />;
@@ -71,13 +76,6 @@ const CheckinLeaderboard = () => {
     return {};
   };
 
-  const getMaskedName = (username, displayName) => {
-    const name = displayName || username || '';
-    if (name.length <= 1) return name + '**';
-    if (name.length <= 3) return name[0] + '**';
-    return name[0] + '**' + name[name.length - 1];
-  };
-
   const columns = [
     {
       title: t('排名'),
@@ -94,8 +92,6 @@ const CheckinLeaderboard = () => {
               style={{
                 fontSize: rank <= 3 ? '18px' : '14px',
                 fontWeight: rank <= 3 ? 800 : 500,
-                ...style,
-                background: undefined,
                 color: style.color || 'var(--semi-color-text-0)',
               }}
             >
@@ -110,7 +106,7 @@ const CheckinLeaderboard = () => {
       dataIndex: 'username',
       render: (_, record) => {
         const isMe = record.user_id === userId;
-        const name = getMaskedName(record.username, record.display_name);
+        const displayName = record.display_name || record.username || '?';
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Avatar
@@ -121,10 +117,10 @@ const CheckinLeaderboard = () => {
                   : 'var(--semi-color-primary)',
               }}
             >
-              {(record.display_name || record.username || '?')[0].toUpperCase()}
+              {displayName[0].toUpperCase()}
             </Avatar>
             <span style={{ fontWeight: isMe ? 700 : 400 }}>
-              {name}
+              {displayName}
               {isMe && (
                 <Tag size='small' color='green' style={{ marginLeft: 6 }}>
                   {t('我')}
@@ -159,7 +155,7 @@ const CheckinLeaderboard = () => {
   ];
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px 16px' }}>
+    <div style={{ maxWidth: 800, margin: '20px auto', padding: '20px 16px' }}>
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -171,7 +167,7 @@ const CheckinLeaderboard = () => {
         }
         headerExtraContent={
           <Text type='secondary' size='small'>
-            {t('签到累计额度 TOP 100')}
+            {t('签到累计额度 TOP {{limit}}', { limit })}
           </Text>
         }
       >
@@ -180,9 +176,18 @@ const CheckinLeaderboard = () => {
             columns={columns}
             dataSource={leaderboard}
             rowKey='rank'
-            pagination={false}
             size='small'
             empty={<Text type='tertiary'>{t('暂无排行数据')}</Text>}
+            pagination={
+              total > PAGE_SIZE
+                ? {
+                    currentPage,
+                    pageSize: PAGE_SIZE,
+                    total,
+                    onPageChange: (page) => setCurrentPage(page),
+                  }
+                : false
+            }
             onRow={(record) => {
               const style = {};
               if (record.user_id === userId) {

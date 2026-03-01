@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -45,7 +46,18 @@ func GetCheckinStatus(c *gin.Context) {
 
 // GetCheckinLeaderboard 获取签到排行榜
 func GetCheckinLeaderboard(c *gin.Context) {
-	leaderboard, err := model.GetCheckinLeaderboard()
+	// 从 OptionMap 读取管理员配置的排行榜上限
+	limit := 100
+	if val, ok := common.OptionMap["CheckinLeaderboardLimit"]; ok && val != "" {
+		if n, err := strconv.Atoi(val); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize := 50
+
+	leaderboard, total, err := model.GetCheckinLeaderboard(limit, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -56,6 +68,8 @@ func GetCheckinLeaderboard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    leaderboard,
+		"total":   total,
+		"limit":   limit,
 	})
 }
 

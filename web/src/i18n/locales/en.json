@@ -2949,7 +2949,7 @@
     "设置已更新": "Settings updated",
     "设置更新失败": "Failed to update settings",
     "屯屯鼠排行榜": "Check-in Leaderboard",
-    "签到累计额度 TOP 100": "Top 100 by Total Check-in Quota",
+    "签到累计额度 TOP {{limit}}": "Top {{limit}} by Total Check-in Quota",
     "排名": "Rank",
     "累计签到额度": "Total Check-in Quota",
     "签到天数": "Check-in Days",
@@ -2957,6 +2957,9 @@
     "我": "Me",
     "暂无排行数据": "No leaderboard data yet",
     "获取排行榜失败": "Failed to load leaderboard",
-    "签到额度排行榜": "Check-in quota leaderboard"
+    "签到额度排行榜": "Check-in quota leaderboard",
+    "排行榜显示人数": "Leaderboard Display Limit",
+    "设置签到排行榜显示前多少名，默认 100": "Set how many top users to display on the check-in leaderboard, default 100",
+    "设置排行榜人数": "Set Leaderboard Limit"
   }
 }

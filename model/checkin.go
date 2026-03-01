@@ -150,23 +150,57 @@ type CheckinLeaderboardEntry struct {
 	TotalDays    int64  `json:"total_days"`
 }
 
-// GetCheckinLeaderboard 获取签到排行榜（按累计获得额度排序，前100名）
-func GetCheckinLeaderboard() ([]CheckinLeaderboardEntry, error) {
+// GetCheckinLeaderboard 获取签到排行榜（按累计获得额度排序）
+// limit: 排行榜总人数上限; page: 页码(从1开始); pageSize: 每页条数
+func GetCheckinLeaderboard(limit, page, pageSize int) ([]CheckinLeaderboardEntry, int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+
+	// 先查总数（在limit范围内的记录数）
+	var totalCount int64
+	countQuery := DB.Table("checkins").
+		Select("checkins.user_id").
+		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
+		Group("checkins.user_id")
+	// 用子查询统计总数
+	DB.Table("(?) as sub", countQuery).Count(&totalCount)
+	if totalCount > int64(limit) {
+		totalCount = int64(limit)
+	}
+
+	offset := (page - 1) * pageSize
+	if offset >= limit {
+		return []CheckinLeaderboardEntry{}, totalCount, nil
+	}
+	// 确保不超过limit
+	actualPageSize := pageSize
+	if offset+actualPageSize > limit {
+		actualPageSize = limit - offset
+	}
+
 	var results []CheckinLeaderboardEntry
 	err := DB.Table("checkins").
 		Select("checkins.user_id, users.username, users.display_name, SUM(checkins.quota_awarded) as total_quota, COUNT(*) as total_days").
 		Joins("JOIN users ON users.id = checkins.user_id AND users.deleted_at IS NULL AND users.status = 1").
 		Group("checkins.user_id, users.username, users.display_name").
 		Order("total_quota DESC").
-		Limit(100).
+		Limit(actualPageSize).
+		Offset(offset).
 		Find(&results).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	for i := range results {
-		results[i].Rank = i + 1
+		results[i].Rank = offset + i + 1
 	}
-	return results, nil
+	return results, totalCount, nil
 }
 
 // GetUserCheckinStats 获取用户签到统计信息
