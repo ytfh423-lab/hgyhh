@@ -33,7 +33,7 @@ const AccountDeleteModal = ({
 
   const loadPendingRequest = async () => {
     try {
-      const res = await API.get('/api/user/deletion-request');
+      const res = await API.get('/api/user/delreq');
       if (res.data.success && res.data.data) {
         setPendingRequest(res.data.data);
       } else {
@@ -75,7 +75,7 @@ const AccountDeleteModal = ({
   const cancelDeletionRequest = async () => {
     setLoading(true);
     try {
-      const res = await API.post('/api/user/deletion-request/cancel');
+      const res = await API.post('/api/user/delreq/cancel');
       if (res.data.success) {
         showSuccess(res.data.message || t('注销申请已取消'));
         setPendingRequest(null);

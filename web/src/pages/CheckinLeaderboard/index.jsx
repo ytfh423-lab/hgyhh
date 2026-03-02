@@ -31,9 +31,9 @@ const CheckinLeaderboard = () => {
   const fetchLeaderboard = async (page = 1, search = '') => {
     setLoading(true);
     try {
-      let url = `/api/user/checkin/leaderboard?page=${page}`;
+      let url = `/api/user/checkin/ranking?page=${page}`;
       if (search) {
-        url = `/api/user/checkin/leaderboard?page=${page}&keyword=${encodeURIComponent(search)}`;
+        url = `/api/user/checkin/ranking?page=${page}&keyword=${encodeURIComponent(search)}`;
       }
       const res = await API.get(url);
       const { success, data, message } = res.data;

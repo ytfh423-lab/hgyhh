@@ -35,8 +35,8 @@ const RegistrationCode = () => {
       setLoading(true);
       try {
         const path = kw
-          ? `/api/registration-code/search?keyword=${encodeURIComponent(kw)}&p=${page}&page_size=${size}`
-          : `/api/registration-code/?p=${page}&page_size=${size}`;
+          ? `/api/regcode/search?keyword=${encodeURIComponent(kw)}&p=${page}&page_size=${size}`
+          : `/api/regcode/?p=${page}&page_size=${size}`;
         const { data: resData } = await API.get(path);
         const { success, message, data } = resData;
         if (!success) {
@@ -76,7 +76,7 @@ const RegistrationCode = () => {
         count,
         expired_time: Number(values.expired_time || 0),
       };
-      const { data: resData } = await API.post('/api/registration-code/', payload);
+      const { data: resData } = await API.post('/api/regcode/', payload);
       const { success, message, data } = resData;
       if (!success) {
         showError(message || t('生成失败'));
@@ -99,7 +99,7 @@ const RegistrationCode = () => {
 
   const updateStatus = async (row, status) => {
     try {
-      const { data: resData } = await API.put('/api/registration-code/?status_only=true', {
+      const { data: resData } = await API.put('/api/regcode/?status_only=true', {
         id: row.id,
         status,
       });
@@ -116,7 +116,7 @@ const RegistrationCode = () => {
 
   const deleteCode = async (id) => {
     try {
-      const { data: resData } = await API.delete(`/api/registration-code/${id}`);
+      const { data: resData } = await API.delete(`/api/regcode/${id}`);
       if (!resData.success) {
         showError(resData.message || t('删除失败'));
         return;

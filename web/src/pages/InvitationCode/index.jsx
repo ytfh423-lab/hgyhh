@@ -37,7 +37,7 @@ const InvitationCode = () => {
       setLoading(true);
       try {
         const { data: resData } = await API.get(
-          `/api/invitation-code/?p=${page}&page_size=${size}`,
+          `/api/invcode/?p=${page}&page_size=${size}`,
         );
         const { success, message, data } = resData;
         if (!success) {
@@ -62,7 +62,7 @@ const InvitationCode = () => {
   const generateCode = async () => {
     setGenerating(true);
     try {
-      const { data: resData } = await API.post('/api/invitation-code/');
+      const { data: resData } = await API.post('/api/invcode/');
       const { success, message, data } = resData;
       if (!success) {
         showError(message || t('生成失败'));

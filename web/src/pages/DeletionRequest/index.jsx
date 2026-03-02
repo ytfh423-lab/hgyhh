@@ -42,7 +42,7 @@ const DeletionRequestPage = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      let url = `/api/deletion-request/?page=${page}&page_size=${pageSize}`;
+      let url = `/api/delreq/?page=${page}&page_size=${pageSize}`;
       if (statusFilter !== '') {
         url += `&status=${statusFilter}`;
       }
@@ -72,7 +72,7 @@ const DeletionRequestPage = () => {
   const confirmAction = async () => {
     setActionLoading(true);
     try {
-      const url = `/api/deletion-request/${remarkModal.id}/${remarkModal.action}`;
+      const url = `/api/delreq/${remarkModal.id}/${remarkModal.action}`;
       const res = await API.post(url, { admin_remark: adminRemark });
       if (res.data.success) {
         showSuccess(res.data.message);

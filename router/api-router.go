@@ -76,8 +76,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/models", controller.GetUserModels)
 				selfRoute.PUT("/self", controller.UpdateSelf)
 				selfRoute.DELETE("/self", controller.DeleteSelf)
-				selfRoute.GET("/deletion-request", controller.GetSelfDeletionRequest)
-				selfRoute.POST("/deletion-request/cancel", controller.CancelSelfDeletionRequest)
+				selfRoute.GET("/delreq", controller.GetSelfDeletionRequest)
+				selfRoute.POST("/delreq/cancel", controller.CancelSelfDeletionRequest)
 				selfRoute.GET("/token", controller.GenerateAccessToken)
 				selfRoute.GET("/passkey", controller.PasskeyStatus)
 				selfRoute.POST("/passkey/register/begin", controller.PasskeyRegisterBegin)
@@ -109,7 +109,7 @@ func SetApiRouter(router *gin.Engine) {
 				// Check-in routes
 				selfRoute.GET("/checkin", controller.GetCheckinStatus)
 				selfRoute.POST("/checkin", middleware.TurnstileCheck(), controller.DoCheckin)
-				selfRoute.GET("/checkin/leaderboard", controller.GetCheckinLeaderboard)
+				selfRoute.GET("/checkin/ranking", controller.GetCheckinLeaderboard)
 
 				// Custom OAuth bindings
 				selfRoute.GET("/oauth/bindings", controller.GetUserOAuthBindings)
@@ -140,12 +140,12 @@ func SetApiRouter(router *gin.Engine) {
 			}
 		}
 
-		deletionRequestRoute := apiRouter.Group("/deletion-request")
-		deletionRequestRoute.Use(middleware.AdminAuth())
+		delReqRoute := apiRouter.Group("/delreq")
+		delReqRoute.Use(middleware.AdminAuth())
 		{
-			deletionRequestRoute.GET("/", controller.GetAllDeletionRequests)
-			deletionRequestRoute.POST("/:id/approve", controller.ApproveDeletionRequest)
-			deletionRequestRoute.POST("/:id/reject", controller.RejectDeletionRequest)
+			delReqRoute.GET("/", controller.GetAllDeletionRequests)
+			delReqRoute.POST("/:id/approve", controller.ApproveDeletionRequest)
+			delReqRoute.POST("/:id/reject", controller.RejectDeletionRequest)
 		}
 
 		// Subscription billing (plans, purchase, admin management)
@@ -289,23 +289,23 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
 		}
 
-		invitationCodeRoute := apiRouter.Group("/invitation-code")
-		invitationCodeRoute.Use(middleware.UserAuth())
+		invCodeRoute := apiRouter.Group("/invcode")
+		invCodeRoute.Use(middleware.UserAuth())
 		{
-			invitationCodeRoute.POST("/", controller.GenerateInvitationCode)
-			invitationCodeRoute.GET("/", controller.GetMyInvitationCodes)
+			invCodeRoute.POST("/", controller.GenerateInvitationCode)
+			invCodeRoute.GET("/", controller.GetMyInvitationCodes)
 		}
 
-		registrationCodeRoute := apiRouter.Group("/registration-code")
-		registrationCodeRoute.Use(middleware.AdminAuth())
+		regCodeRoute := apiRouter.Group("/regcode")
+		regCodeRoute.Use(middleware.AdminAuth())
 		{
-			registrationCodeRoute.GET("/", controller.GetAllRegistrationCodes)
-			registrationCodeRoute.GET("/search", controller.SearchRegistrationCodes)
-			registrationCodeRoute.GET("/:id", controller.GetRegistrationCode)
-			registrationCodeRoute.POST("/", controller.AddRegistrationCode)
-			registrationCodeRoute.PUT("/", controller.UpdateRegistrationCode)
-			registrationCodeRoute.DELETE("/invalid", controller.DeleteInvalidRegistrationCode)
-			registrationCodeRoute.DELETE("/:id", controller.DeleteRegistrationCode)
+			regCodeRoute.GET("/", controller.GetAllRegistrationCodes)
+			regCodeRoute.GET("/search", controller.SearchRegistrationCodes)
+			regCodeRoute.GET("/:id", controller.GetRegistrationCode)
+			regCodeRoute.POST("/", controller.AddRegistrationCode)
+			regCodeRoute.PUT("/", controller.UpdateRegistrationCode)
+			regCodeRoute.DELETE("/invalid", controller.DeleteInvalidRegistrationCode)
+			regCodeRoute.DELETE("/:id", controller.DeleteRegistrationCode)
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
