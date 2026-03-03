@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"sort"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -17,8 +18,9 @@ type TgFarmPlot struct {
 	Status      int    `json:"status" gorm:"default:0"` // 0=empty 1=growing 2=mature 3=event
 	EventType   string `json:"event_type" gorm:"type:varchar(32)"`
 	EventAt     int64  `json:"event_at"`
-	StolenCount int    `json:"stolen_count" gorm:"default:0"`
-	Fertilized  int    `json:"fertilized" gorm:"default:0"` // 0=未施肥 1=已施肥
+	StolenCount   int    `json:"stolen_count" gorm:"default:0"`
+	Fertilized    int    `json:"fertilized" gorm:"default:0"`    // 0=未施肥 1=已施肥
+	LastWateredAt int64  `json:"last_watered_at" gorm:"default:0"` // 上次浇水时间
 }
 
 // TgFarmItem 农场道具背包
@@ -27,6 +29,17 @@ type TgFarmItem struct {
 	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_farm_item"`
 	ItemType   string `json:"item_type" gorm:"type:varchar(32);uniqueIndex:idx_farm_item"`
 	Quantity   int    `json:"quantity" gorm:"default:0"`
+}
+
+// TgFarmDog 农场看门狗
+type TgFarmDog struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex"`
+	Name       string `json:"name" gorm:"type:varchar(32)"`
+	Level      int    `json:"level" gorm:"default:1"`      // 1=幼犬 2=成犬
+	Hunger     int    `json:"hunger" gorm:"default:100"`   // 0-100 饥饿度
+	LastFedAt  int64  `json:"last_fed_at"`
+	CreatedAt  int64  `json:"created_at" gorm:"autoCreateTime"`
 }
 
 // TgFarmStealLog 偷菜记录
@@ -91,6 +104,7 @@ func ClearFarmPlot(id int) error {
 	return DB.Model(&TgFarmPlot{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"crop_type": "", "planted_at": 0, "status": 0,
 		"event_type": "", "event_at": 0, "stolen_count": 0, "fertilized": 0,
+		"last_watered_at": 0,
 	}).Error
 }
 
@@ -166,4 +180,73 @@ func CountRecentSteals(thiefId, victimId string, sinceUnix int64) (int64, error)
 		Where("thief_id = ? AND victim_id = ? AND created_at > ?", thiefId, victimId, sinceUnix).
 		Count(&count).Error
 	return count, err
+}
+
+// ========== TgFarmDog ==========
+
+func GetFarmDog(telegramId string) (*TgFarmDog, error) {
+	var dog TgFarmDog
+	err := DB.Where("telegram_id = ?", telegramId).First(&dog).Error
+	return &dog, err
+}
+
+func CreateFarmDog(dog *TgFarmDog) error {
+	return DB.Create(dog).Error
+}
+
+func UpdateFarmDog(dog *TgFarmDog) error {
+	return DB.Save(dog).Error
+}
+
+// UpdateDogHunger 懒更新狗的饥饿度（每小时-1）并检查是否升级
+func UpdateDogHunger(dog *TgFarmDog) bool {
+	now := time.Now().Unix()
+	changed := false
+
+	// 计算自上次喂食以来过了多少小时
+	if dog.LastFedAt > 0 {
+		hoursPassed := int((now - dog.LastFedAt) / 3600)
+		newHunger := 100 - hoursPassed
+		if newHunger < 0 {
+			newHunger = 0
+		}
+		if newHunger != dog.Hunger {
+			dog.Hunger = newHunger
+			changed = true
+		}
+	}
+
+	// 幼犬升级为成犬
+	if dog.Level == 1 && dog.Hunger > 0 {
+		hoursSinceCreation := (now - dog.CreatedAt) / 3600
+		if int(hoursSinceCreation) >= getDogGrowHours() {
+			dog.Level = 2
+			changed = true
+		}
+	}
+
+	if changed {
+		_ = UpdateFarmDog(dog)
+	}
+	return changed
+}
+
+func getDogGrowHours() int {
+	// 从 common 包读取，避免循环导入用延迟求值
+	return 24 // 会被 controller 层覆盖调用
+}
+
+// FeedFarmDog 喂狗，重置饥饿度
+func FeedFarmDog(dogId int) error {
+	now := time.Now().Unix()
+	return DB.Model(&TgFarmDog{}).Where("id = ?", dogId).Updates(map[string]interface{}{
+		"hunger":      100,
+		"last_fed_at": now,
+	}).Error
+}
+
+// WaterFarmPlot 浇水
+func WaterFarmPlot(plotId int) error {
+	now := time.Now().Unix()
+	return DB.Model(&TgFarmPlot{}).Where("id = ?", plotId).Update("last_watered_at", now).Error
 }

@@ -102,7 +102,15 @@ var TelegramBotName = ""
 var TgBotLotteryEnabled = false
 var TgBotLotteryMessagesRequired = 10
 var TgBotLotteryWinRate = 30 // 中奖概率百分比
-var TgBotFarmPlotPrice = 2000000 // 购买土地价格（quota单位，默认$4）
+var TgBotFarmPlotPrice = 2000000      // 购买土地价格（quota单位，默认$4）
+var TgBotFarmDogPrice = 5000000       // 买狗价格（quota单位，默认$10）
+var TgBotFarmDogFoodPrice = 500000    // 狗粮价格（quota单位，默认$1）
+var TgBotFarmDogGrowHours = 24        // 小狗长大所需小时
+var TgBotFarmDogGuardRate = 50        // 看门狗拦截偷菜概率%
+var TgBotFarmWaterInterval = 7200     // 浇水间隔秒数（默认2小时）
+var TgBotFarmWiltDuration = 3600      // 枯萎到死亡秒数（默认1小时）
+var TgBotFarmEventChance = 30         // 随机事件概率%
+var TgBotFarmStealCooldown = 1800     // 偷菜冷却秒数
 
 var QuotaForNewUser = 0
 var QuotaForInviter = 0

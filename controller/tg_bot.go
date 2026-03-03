@@ -870,13 +870,21 @@ func GetTgBotSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"token_set":          tokenSet,
-			"masked_token":       maskedToken,
-			"bot_name":           common.TelegramBotName,
-			"lottery_enabled":    common.TgBotLotteryEnabled,
-			"messages_required":  common.TgBotLotteryMessagesRequired,
-			"win_rate":           common.TgBotLotteryWinRate,
-			"farm_plot_price":    common.TgBotFarmPlotPrice,
+			"token_set":            tokenSet,
+			"masked_token":         maskedToken,
+			"bot_name":             common.TelegramBotName,
+			"lottery_enabled":      common.TgBotLotteryEnabled,
+			"messages_required":    common.TgBotLotteryMessagesRequired,
+			"win_rate":             common.TgBotLotteryWinRate,
+			"farm_plot_price":      common.TgBotFarmPlotPrice,
+			"farm_dog_price":       common.TgBotFarmDogPrice,
+			"farm_dog_food_price":  common.TgBotFarmDogFoodPrice,
+			"farm_dog_grow_hours":  common.TgBotFarmDogGrowHours,
+			"farm_dog_guard_rate":  common.TgBotFarmDogGuardRate,
+			"farm_water_interval":  common.TgBotFarmWaterInterval,
+			"farm_wilt_duration":   common.TgBotFarmWiltDuration,
+			"farm_event_chance":    common.TgBotFarmEventChance,
+			"farm_steal_cooldown":  common.TgBotFarmStealCooldown,
 		},
 	})
 }

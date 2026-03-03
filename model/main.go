@@ -286,6 +286,7 @@ func migrateDB() error {
 		&TgFarmPlot{},
 		&TgFarmItem{},
 		&TgFarmStealLog{},
+		&TgFarmDog{},
 	)
 	if err != nil {
 		return err
@@ -355,6 +356,7 @@ func migrateDBFast() error {
 		{&TgFarmPlot{}, "TgFarmPlot"},
 		{&TgFarmItem{}, "TgFarmItem"},
 		{&TgFarmStealLog{}, "TgFarmStealLog"},
+		{&TgFarmDog{}, "TgFarmDog"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))

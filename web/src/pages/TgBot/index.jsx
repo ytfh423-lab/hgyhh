@@ -64,6 +64,15 @@ const TgBotPage = () => {
   const [lotteryWinRate, setLotteryWinRate] = useState(30);
   const [savingLottery, setSavingLottery] = useState(false);
   const [farmPlotPrice, setFarmPlotPrice] = useState(2000000);
+  const [farmDogPrice, setFarmDogPrice] = useState(5000000);
+  const [farmDogFoodPrice, setFarmDogFoodPrice] = useState(500000);
+  const [farmDogGrowHours, setFarmDogGrowHours] = useState(24);
+  const [farmDogGuardRate, setFarmDogGuardRate] = useState(50);
+  const [farmWaterInterval, setFarmWaterInterval] = useState(7200);
+  const [farmWiltDuration, setFarmWiltDuration] = useState(3600);
+  const [farmEventChance, setFarmEventChance] = useState(30);
+  const [farmStealCooldown, setFarmStealCooldown] = useState(1800);
+  const [savingFarm, setSavingFarm] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
   const [lotteryPrizeTotal, setLotteryPrizeTotal] = useState(0);
@@ -86,6 +95,14 @@ const TgBotPage = () => {
         setLotteryMessagesRequired(data.messages_required || 10);
         setLotteryWinRate(data.win_rate || 30);
         setFarmPlotPrice(data.farm_plot_price || 2000000);
+        setFarmDogPrice(data.farm_dog_price || 5000000);
+        setFarmDogFoodPrice(data.farm_dog_food_price || 500000);
+        setFarmDogGrowHours(data.farm_dog_grow_hours || 24);
+        setFarmDogGuardRate(data.farm_dog_guard_rate || 50);
+        setFarmWaterInterval(data.farm_water_interval || 7200);
+        setFarmWiltDuration(data.farm_wilt_duration || 3600);
+        setFarmEventChance(data.farm_event_chance || 30);
+        setFarmStealCooldown(data.farm_steal_cooldown || 1800);
         setBotToken('');
       }
     } catch (err) {
@@ -218,7 +235,6 @@ const TgBotPage = () => {
         { key: 'TgBotLotteryEnabled', value: String(lotteryEnabled) },
         { key: 'TgBotLotteryMessagesRequired', value: String(lotteryMessagesRequired) },
         { key: 'TgBotLotteryWinRate', value: String(lotteryWinRate) },
-        { key: 'TgBotFarmPlotPrice', value: String(farmPlotPrice) },
       ];
       for (const opt of options) {
         const res = await API.put('/api/option/', opt);
@@ -229,6 +245,7 @@ const TgBotPage = () => {
         }
       }
       showSuccess(t('抽奖设置保存成功'));
+      await loadSettings();
     } catch (err) {
       showError(t('保存失败'));
     } finally {
@@ -739,6 +756,97 @@ const TgBotPage = () => {
         />
       </Card>
 
+      {/* ===== 农场游戏设置 ===== */}
+      <Card
+        title={
+          <span>{t('农场游戏设置')}</span>
+        }
+        className='mt-4'
+      >
+        <div className='mb-4'>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('土地价格(额度)')}</Typography.Text>
+            <InputNumber value={farmPlotPrice} onChange={setFarmPlotPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmPlotPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('买狗价格(额度)')}</Typography.Text>
+            <InputNumber value={farmDogPrice} onChange={setFarmDogPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmDogPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('狗粮价格(额度)')}</Typography.Text>
+            <InputNumber value={farmDogFoodPrice} onChange={setFarmDogFoodPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmDogFoodPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('小狗成长时间(小时)')}</Typography.Text>
+            <InputNumber value={farmDogGrowHours} onChange={setFarmDogGrowHours} min={1} max={720} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('看门狗拦截率(%)')}</Typography.Text>
+            <InputNumber value={farmDogGuardRate} onChange={setFarmDogGuardRate} min={0} max={100} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('浇水间隔(秒)')}</Typography.Text>
+            <InputNumber value={farmWaterInterval} onChange={setFarmWaterInterval} min={60} step={600} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(farmWaterInterval / 3600).toFixed(1) + t('小时')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('枯萎到死亡时间(秒)')}</Typography.Text>
+            <InputNumber value={farmWiltDuration} onChange={setFarmWiltDuration} min={60} step={600} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(farmWiltDuration / 3600).toFixed(1) + t('小时')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('随机事件概率(%)')}</Typography.Text>
+            <InputNumber value={farmEventChance} onChange={setFarmEventChance} min={0} max={100} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('偷菜冷却时间(秒)')}</Typography.Text>
+            <InputNumber value={farmStealCooldown} onChange={setFarmStealCooldown} min={0} step={60} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(farmStealCooldown / 60).toFixed(0) + t('分钟')}</Typography.Text>
+          </div>
+          <Button
+            theme='solid'
+            type='primary'
+            loading={savingFarm}
+            onClick={async () => {
+              setSavingFarm(true);
+              try {
+                const farmOptions = [
+                  { key: 'TgBotFarmPlotPrice', value: String(farmPlotPrice) },
+                  { key: 'TgBotFarmDogPrice', value: String(farmDogPrice) },
+                  { key: 'TgBotFarmDogFoodPrice', value: String(farmDogFoodPrice) },
+                  { key: 'TgBotFarmDogGrowHours', value: String(farmDogGrowHours) },
+                  { key: 'TgBotFarmDogGuardRate', value: String(farmDogGuardRate) },
+                  { key: 'TgBotFarmWaterInterval', value: String(farmWaterInterval) },
+                  { key: 'TgBotFarmWiltDuration', value: String(farmWiltDuration) },
+                  { key: 'TgBotFarmEventChance', value: String(farmEventChance) },
+                  { key: 'TgBotFarmStealCooldown', value: String(farmStealCooldown) },
+                ];
+                for (const opt of farmOptions) {
+                  const res = await API.put('/api/option/', opt);
+                  if (!res.data.success) {
+                    showError(res.data.message);
+                    setSavingFarm(false);
+                    return;
+                  }
+                }
+                showSuccess(t('农场设置保存成功'));
+                await loadSettings();
+              } catch (err) {
+                showError(t('保存失败'));
+              } finally {
+                setSavingFarm(false);
+              }
+            }}
+            style={{ marginTop: 8 }}
+          >
+            {t('保存农场设置')}
+          </Button>
+        </div>
+      </Card>
+
       {/* ===== 抽奖设置 ===== */}
       <Card
         title={
@@ -763,13 +871,6 @@ const TgBotPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
             <Typography.Text style={{ width: 160 }}>{t('中奖概率(%)')}</Typography.Text>
             <InputNumber value={lotteryWinRate} onChange={setLotteryWinRate} min={0} max={100} style={{ width: 120 }} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            <Typography.Text style={{ width: 160 }}>{t('农场土地价格(额度)')}</Typography.Text>
-            <InputNumber value={farmPlotPrice} onChange={setFarmPlotPrice} min={0} step={100000} style={{ width: 180 }} />
-            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>
-              {'$' + (farmPlotPrice / 500000).toFixed(2)}
-            </Typography.Text>
           </div>
           <Button
             theme='solid'

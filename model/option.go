@@ -102,6 +102,14 @@ func InitOptionMap() {
 	common.OptionMap["TgBotLotteryMessagesRequired"] = "10"
 	common.OptionMap["TgBotLotteryWinRate"] = "30"
 	common.OptionMap["TgBotFarmPlotPrice"] = strconv.Itoa(common.TgBotFarmPlotPrice)
+	common.OptionMap["TgBotFarmDogPrice"] = strconv.Itoa(common.TgBotFarmDogPrice)
+	common.OptionMap["TgBotFarmDogFoodPrice"] = strconv.Itoa(common.TgBotFarmDogFoodPrice)
+	common.OptionMap["TgBotFarmDogGrowHours"] = strconv.Itoa(common.TgBotFarmDogGrowHours)
+	common.OptionMap["TgBotFarmDogGuardRate"] = strconv.Itoa(common.TgBotFarmDogGuardRate)
+	common.OptionMap["TgBotFarmWaterInterval"] = strconv.Itoa(common.TgBotFarmWaterInterval)
+	common.OptionMap["TgBotFarmWiltDuration"] = strconv.Itoa(common.TgBotFarmWiltDuration)
+	common.OptionMap["TgBotFarmEventChance"] = strconv.Itoa(common.TgBotFarmEventChance)
+	common.OptionMap["TgBotFarmStealCooldown"] = strconv.Itoa(common.TgBotFarmStealCooldown)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -416,6 +424,52 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmPlotPrice, _ = strconv.Atoi(value)
 		if common.TgBotFarmPlotPrice <= 0 {
 			common.TgBotFarmPlotPrice = 2000000
+		}
+	case "TgBotFarmDogPrice":
+		common.TgBotFarmDogPrice, _ = strconv.Atoi(value)
+		if common.TgBotFarmDogPrice <= 0 {
+			common.TgBotFarmDogPrice = 5000000
+		}
+	case "TgBotFarmDogFoodPrice":
+		common.TgBotFarmDogFoodPrice, _ = strconv.Atoi(value)
+		if common.TgBotFarmDogFoodPrice <= 0 {
+			common.TgBotFarmDogFoodPrice = 500000
+		}
+	case "TgBotFarmDogGrowHours":
+		common.TgBotFarmDogGrowHours, _ = strconv.Atoi(value)
+		if common.TgBotFarmDogGrowHours <= 0 {
+			common.TgBotFarmDogGrowHours = 24
+		}
+	case "TgBotFarmDogGuardRate":
+		common.TgBotFarmDogGuardRate, _ = strconv.Atoi(value)
+		if common.TgBotFarmDogGuardRate < 0 {
+			common.TgBotFarmDogGuardRate = 0
+		}
+		if common.TgBotFarmDogGuardRate > 100 {
+			common.TgBotFarmDogGuardRate = 100
+		}
+	case "TgBotFarmWaterInterval":
+		common.TgBotFarmWaterInterval, _ = strconv.Atoi(value)
+		if common.TgBotFarmWaterInterval <= 0 {
+			common.TgBotFarmWaterInterval = 7200
+		}
+	case "TgBotFarmWiltDuration":
+		common.TgBotFarmWiltDuration, _ = strconv.Atoi(value)
+		if common.TgBotFarmWiltDuration <= 0 {
+			common.TgBotFarmWiltDuration = 3600
+		}
+	case "TgBotFarmEventChance":
+		common.TgBotFarmEventChance, _ = strconv.Atoi(value)
+		if common.TgBotFarmEventChance < 0 {
+			common.TgBotFarmEventChance = 0
+		}
+		if common.TgBotFarmEventChance > 100 {
+			common.TgBotFarmEventChance = 100
+		}
+	case "TgBotFarmStealCooldown":
+		common.TgBotFarmStealCooldown, _ = strconv.Atoi(value)
+		if common.TgBotFarmStealCooldown < 0 {
+			common.TgBotFarmStealCooldown = 0
 		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
