@@ -380,19 +380,7 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 		return
 	}
 
-	// 检查领取次数限制
-	claimCount, err := model.CountTgBotClaims(tgId, categoryId)
-	if err != nil {
-		common.SysError(fmt.Sprintf("TG Bot: CountTgBotClaims failed for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
-		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。", from)
-		return
-	}
-	if claimCount >= int64(category.MaxClaims) {
-		sendTgMessage(chatId, fmt.Sprintf("❌ 你已达到「%s」的最大领取次数（%d 次）。", category.Name, category.MaxClaims), from)
-		return
-	}
-
-	// 事务性领取：取码+标记+写记录，任一失败则整体回滚
+	// 随机取一个未使用的库存码直接发放（无限制）
 	code, err := model.DispenseRandomCode(categoryId, tgId)
 	if err != nil {
 		common.SysError(fmt.Sprintf("TG Bot: DispenseRandomCode failed for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
