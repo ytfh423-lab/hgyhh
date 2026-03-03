@@ -55,6 +55,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     registration_code: true,
     user: true,
     deletion_request: true,
+    tgbot: true,
     subscription: true,
     setting: true,
   },
