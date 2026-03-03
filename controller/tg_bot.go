@@ -62,12 +62,15 @@ type TgInlineKeyboardMarkup struct {
 func TgBotWebhook(c *gin.Context) {
 	var update TgUpdate
 	if err := common.DecodeJson(c.Request.Body, &update); err != nil {
+		common.SysLog(fmt.Sprintf("TG Bot webhook: JSON decode error: %s", err.Error()))
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 		return
 	}
 
 	// 处理 callback_query（按钮点击）
 	if update.CallbackQuery != nil {
+		common.SysLog(fmt.Sprintf("TG Bot webhook: callback_query from user %d, data=%s",
+			update.CallbackQuery.From.Id, update.CallbackQuery.Data))
 		handleTgCallback(update.CallbackQuery)
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 		return
@@ -77,6 +80,9 @@ func TgBotWebhook(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 		return
 	}
+
+	common.SysLog(fmt.Sprintf("TG Bot webhook: message from user %d in chat %d (type=%s): %s",
+		update.Message.From.Id, update.Message.Chat.Id, update.Message.Chat.Type, update.Message.Text))
 
 	msg := update.Message
 	chatId := msg.Chat.Id
@@ -487,11 +493,41 @@ func SetupTgBotWebhook(c *gin.Context) {
 	}
 
 	if ok, _ := result["ok"].(bool); ok {
+		// 注册机器人命令菜单（私聊+群组）
+		registerTgBotCommands(token)
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Webhook 设置成功", "data": gin.H{"url": webhookUrl}})
 	} else {
 		desc, _ := result["description"].(string)
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Telegram 返回错误: " + desc})
 	}
+}
+
+// registerTgBotCommands 向 Telegram 注册机器人命令菜单
+func registerTgBotCommands(token string) {
+	commands := []map[string]string{
+		{"command": "start", "description": "显示领取菜单"},
+		{"command": "claim", "description": "领取兑换码/邀请码"},
+		{"command": "myrecords", "description": "查看我的领取记录"},
+		{"command": "help", "description": "显示帮助信息"},
+	}
+
+	// 注册默认命令（私聊）
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/setMyCommands", token)
+	body := map[string]interface{}{
+		"commands": commands,
+	}
+	tgPost(apiUrl, body)
+
+	// 注册群组命令
+	groupBody := map[string]interface{}{
+		"commands": commands,
+		"scope": map[string]string{
+			"type": "all_group_chats",
+		},
+	}
+	tgPost(apiUrl, groupBody)
+
+	common.SysLog("TG Bot: commands registered for private and group chats")
 }
 
 func GetTgBotWebhookInfo(c *gin.Context) {
@@ -598,8 +634,14 @@ func tgPost(apiUrl string, body map[string]interface{}) {
 
 	// 读取并记录错误响应
 	respBody, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	if err := common.Unmarshal(respBody, &result); err == nil {
+		if ok, _ := result["ok"].(bool); !ok {
+			common.SysError(fmt.Sprintf("TG Bot: API error: %s", string(respBody)))
+		}
+	}
 	if resp.StatusCode != http.StatusOK {
-		common.SysError(fmt.Sprintf("TG Bot: API returned %d: %s", resp.StatusCode, string(respBody)))
+		common.SysError(fmt.Sprintf("TG Bot: API returned HTTP %d: %s", resp.StatusCode, string(respBody)))
 	}
 }
 
