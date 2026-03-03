@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"math/rand"
 
 	"github.com/QuantumNous/new-api/common"
