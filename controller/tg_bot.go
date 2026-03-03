@@ -85,20 +85,15 @@ func TgBotWebhook(c *gin.Context) {
 	case text == "/start":
 		handleTgStart(chatId)
 	case text == "/claim" || text == "/领取":
-		handleTgShowMenu(msg)
-	case text == "/myinfo" || text == "/我的信息":
-		handleTgMyInfo(msg)
-	case strings.HasPrefix(text, "/redeem ") || strings.HasPrefix(text, "/兑换 "):
-		parts := strings.SplitN(text, " ", 2)
-		if len(parts) == 2 {
-			handleTgRedeem(msg, strings.TrimSpace(parts[1]))
-		}
+		handleTgStart(chatId)
+	case text == "/myrecords" || text == "/我的记录":
+		handleTgMyRecords(chatId, msg.From)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// handleTgStart 发送欢迎消息 + 分类按钮
+// handleTgStart 发送欢迎消息 + 分类按钮菜单
 func handleTgStart(chatId int64) {
 	categories, err := model.GetEnabledTgBotCategories()
 	if err != nil || len(categories) == 0 {
@@ -108,22 +103,21 @@ func handleTgStart(chatId int64) {
 
 	var rows [][]TgInlineKeyboardButton
 	for _, cat := range categories {
+		label := cat.Name
+		if cat.Description != "" {
+			label = cat.Name + " - " + cat.Description
+		}
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: cat.Name, CallbackData: fmt.Sprintf("claim_%d", cat.Id)},
+			{Text: label, CallbackData: fmt.Sprintf("claim_%d", cat.Id)},
 		})
 	}
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "📊 我的信息", CallbackData: "myinfo"},
+		{Text: "� 我的领取记录", CallbackData: "myrecords"},
 	})
 
 	sendTgMessageWithKeyboard(chatId,
-		"👋 欢迎使用 "+common.SystemName+" 机器人！\n\n请点击下方按钮领取：",
+		"👋 欢迎使用 "+common.SystemName+" 机器人！\n\n请点击下方按钮领取对应的兑换码/邀请码：",
 		TgInlineKeyboardMarkup{InlineKeyboard: rows})
-}
-
-// handleTgShowMenu 显示领取菜单
-func handleTgShowMenu(msg *TgMsg) {
-	handleTgStart(msg.Chat.Id)
 }
 
 // handleTgCallback 处理按钮点击
@@ -133,8 +127,13 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	// 应答 callback 避免按钮转圈
 	answerCallbackQuery(cb.Id)
 
-	if cb.Data == "myinfo" {
-		handleTgMyInfoByUser(chatId, cb.From)
+	if cb.Data == "myrecords" {
+		handleTgMyRecords(chatId, cb.From)
+		return
+	}
+
+	if cb.Data == "menu" {
+		handleTgStart(chatId)
 		return
 	}
 
@@ -150,13 +149,9 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	}
 }
 
-// handleTgClaimCategory 处理分类领取
+// handleTgClaimCategory 处理分类领取（只发放兑换码，不创建平台账户）
 func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int) {
 	tgId := strconv.FormatInt(from.Id, 10)
-	tgUsername := from.Username
-	if tgUsername == "" {
-		tgUsername = from.FirstName
-	}
 
 	// 获取分类
 	category, err := model.GetTgBotCategoryById(categoryId)
@@ -176,164 +171,71 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int) {
 		return
 	}
 	if claimCount >= int64(category.MaxClaims) {
-		sendTgMessage(chatId, fmt.Sprintf("⚠️ 你在「%s」分类下已领取 %d/%d 次，已达上限。",
+		sendTgMessage(chatId, fmt.Sprintf("⚠️ 你在「%s」已领取 %d/%d 次，已达上限。",
 			category.Name, claimCount, category.MaxClaims))
 		return
 	}
 
-	// 确保用户存在，不存在则自动创建
-	user, created, password := ensureTgUser(tgId, tgUsername)
-	if user == nil {
-		sendTgMessage(chatId, "❌ 创建账户失败，请稍后再试。")
-		return
-	}
-
-	// 查找可用兑换码
+	// 查找可用兑换码（排除已通过机器人发放的）
 	code, err := model.FindAvailableRedemptionCode(category.Purpose)
 	if err != nil {
-		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无可用兑换码，请联系管理员添加。", category.Name))
+		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存，请联系管理员补充。", category.Name))
 		return
 	}
 
-	// 兑换
-	var quota int
-	if category.Purpose == common.RedemptionPurposeRegistration {
-		_, err = model.ConsumeRedemptionCodeForRegistration(code.Key, user.Id)
-	} else {
-		quota, err = model.Redeem(code.Key, user.Id)
+	// 记录领取（绑定 code_key 防止重复发放）
+	claim := &model.TgBotClaim{
+		TelegramId: tgId,
+		CategoryId: categoryId,
+		CodeKey:    code.Key,
 	}
-	if err != nil {
+	if err := model.CreateTgBotClaim(claim); err != nil {
 		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
 		return
 	}
 
-	// 记录领取
-	claim := &model.TgBotClaim{
-		TelegramId: tgId,
-		CategoryId: categoryId,
-		UserId:     user.Id,
-		Quota:      quota,
-	}
-	_ = model.CreateTgBotClaim(claim)
-
-	// 构建消息
-	var msgParts []string
-	msgParts = append(msgParts, fmt.Sprintf("✅ 「%s」领取成功！(%d/%d)", category.Name, claimCount+1, category.MaxClaims))
-
-	if created {
-		msgParts = append(msgParts, fmt.Sprintf("\n🆕 已为你创建账户：\n🔑 用户名：`%s`\n🔒 密码：`%s`\n⚠️ 请立即保存密码！", user.Username, password))
-	}
-
-	if quota > 0 {
-		msgParts = append(msgParts, fmt.Sprintf("\n💰 充值额度：%s", tgFormatQuota(quota)))
-	}
-
+	// 发送兑换码给用户
+	codeType := "兑换码"
 	if category.Purpose == common.RedemptionPurposeRegistration {
-		msgParts = append(msgParts, fmt.Sprintf("\n🎫 邀请码：`%s`", code.Key))
+		codeType = "邀请码"
 	}
 
-	sendTgMessage(chatId, strings.Join(msgParts, ""))
+	sendTgMessage(chatId, fmt.Sprintf(
+		"✅ 「%s」领取成功！(%d/%d)\n\n"+
+			"🎫 你的%s：\n`%s`\n\n"+
+			"请复制上方%s，前往网站使用。",
+		category.Name, claimCount+1, category.MaxClaims,
+		codeType, code.Key, codeType))
 }
 
-// ensureTgUser 确保TG用户在系统中存在，返回 (user, isNewlyCreated, plainPassword)
-func ensureTgUser(tgId string, tgUsername string) (*model.User, bool, string) {
-	var existingUser model.User
-	err := model.DB.Where("telegram_id = ?", tgId).First(&existingUser).Error
-	if err == nil {
-		return &existingUser, false, ""
-	}
-
-	displayName := tgUsername
-	if len(displayName) > 20 {
-		displayName = displayName[:20]
-	}
-
-	username := fmt.Sprintf("tg_%s", tgId)
-	password := common.GetRandomString(12)
-
-	user := &model.User{
-		Username:    username,
-		DisplayName: displayName,
-		Password:    password,
-		Role:        common.RoleCommonUser,
-		Status:      common.UserStatusEnabled,
-		TelegramId:  tgId,
-	}
-	if err := user.Insert(0); err != nil {
-		username = fmt.Sprintf("tg_%s_%s", tgId, common.GetRandomString(4))
-		user.Username = username
-		if err := user.Insert(0); err != nil {
-			return nil, false, ""
-		}
-	}
-	return user, true, password
-}
-
-// handleTgMyInfo 处理 /myinfo 命令
-func handleTgMyInfo(msg *TgMsg) {
-	handleTgMyInfoByUser(msg.Chat.Id, msg.From)
-}
-
-func handleTgMyInfoByUser(chatId int64, from *TgUser) {
+// handleTgMyRecords 查看领取记录
+func handleTgMyRecords(chatId int64, from *TgUser) {
 	tgId := strconv.FormatInt(from.Id, 10)
 
-	var user model.User
-	err := model.DB.Where("telegram_id = ?", tgId).First(&user).Error
-	if err != nil {
-		sendTgMessage(chatId, "❌ 你还没有领取过，请先点击分类按钮领取。")
-		return
-	}
-
-	// 获取领取记录
 	claims, _ := model.GetTgBotClaimsByTelegramId(tgId)
-	claimInfo := ""
-	if len(claims) > 0 {
-		claimInfo = "\n\n📋 领取记录："
-		for _, c := range claims {
-			cat, err := model.GetTgBotCategoryById(c.CategoryId)
-			catName := "未知分类"
-			if err == nil {
-				catName = cat.Name
-			}
-			claimInfo += fmt.Sprintf("\n  · %s", catName)
-			if c.Quota > 0 {
-				claimInfo += fmt.Sprintf("（%s）", tgFormatQuota(c.Quota))
-			}
+	if len(claims) == 0 {
+		sendTgMessageWithKeyboard(chatId,
+			"📋 你还没有领取过任何兑换码。\n\n点击下方按钮开始领取：",
+			TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回菜单", CallbackData: "menu"}},
+			}})
+		return
+	}
+
+	msg := "📋 你的领取记录：\n"
+	for _, c := range claims {
+		cat, err := model.GetTgBotCategoryById(c.CategoryId)
+		catName := "未知分类"
+		if err == nil {
+			catName = cat.Name
 		}
+		msg += fmt.Sprintf("\n· %s\n  %s", catName, c.CodeKey)
 	}
 
-	sendTgMessage(chatId, fmt.Sprintf("📊 你的账户信息：\n\n"+
-		"👤 用户名：`%s`\n"+
-		"💰 剩余额度：%s\n"+
-		"📈 已用额度：%s\n"+
-		"🔢 请求次数：%d%s",
-		user.Username,
-		tgFormatQuota(user.Quota),
-		tgFormatQuota(user.UsedQuota),
-		user.RequestCount,
-		claimInfo))
-}
-
-// handleTgRedeem 处理 /redeem 命令
-func handleTgRedeem(msg *TgMsg, code string) {
-	chatId := msg.Chat.Id
-	tgId := strconv.FormatInt(msg.From.Id, 10)
-
-	var user model.User
-	err := model.DB.Where("telegram_id = ?", tgId).First(&user).Error
-	if err != nil {
-		sendTgMessage(chatId, "❌ 你还没有账户，请先领取。")
-		return
-	}
-
-	quota, redeemErr := model.Redeem(code, user.Id)
-	if redeemErr != nil {
-		sendTgMessage(chatId, "❌ 兑换失败：兑换码无效或已被使用。")
-		return
-	}
-
-	sendTgMessage(chatId, fmt.Sprintf("✅ 兑换成功！\n\n💰 充值额度：%s\n💰 当前余额：%s",
-		tgFormatQuota(quota), tgFormatQuota(user.Quota+quota)))
+	sendTgMessageWithKeyboard(chatId, msg,
+		TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回菜单", CallbackData: "menu"}},
+		}})
 }
 
 // ========== Admin API for TG Bot Categories ==========
@@ -482,13 +384,6 @@ func GetTgBotWebhookInfo(c *gin.Context) {
 }
 
 // ========== Telegram API Helpers ==========
-
-func tgFormatQuota(quota int) string {
-	if common.DisplayInCurrencyEnabled {
-		return fmt.Sprintf("$%.4f", float64(quota)/common.QuotaPerUnit)
-	}
-	return fmt.Sprintf("%d", quota)
-}
 
 func sendTgMessage(chatId int64, text string) {
 	token := common.TelegramBotToken

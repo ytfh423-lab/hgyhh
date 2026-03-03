@@ -19,12 +19,11 @@ type TgBotCategory struct {
 
 // TgBotClaim 机器人领取记录
 type TgBotClaim struct {
-	Id         int   `json:"id" gorm:"primaryKey;autoIncrement"`
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
-	CategoryId int   `json:"category_id" gorm:"index"`
-	UserId     int   `json:"user_id" gorm:"index"`
-	Quota      int   `json:"quota" gorm:"default:0"`
-	CreatedAt  int64 `json:"created_at" gorm:"autoCreateTime"`
+	CategoryId int    `json:"category_id" gorm:"index"`
+	CodeKey    string `json:"code_key" gorm:"type:varchar(255);index"`
+	CreatedAt  int64  `json:"created_at" gorm:"autoCreateTime"`
 }
 
 // GetAllTgBotCategories 获取所有分类
@@ -82,12 +81,24 @@ func GetTgBotClaimsByTelegramId(telegramId string) ([]*TgBotClaim, error) {
 	return claims, err
 }
 
-// FindAvailableRedemptionCode 查找可用的兑换码
+// FindAvailableRedemptionCode 查找可用的兑换码（排除已通过机器人发放的）
 func FindAvailableRedemptionCode(purpose int) (*Redemption, error) {
 	var code Redemption
 	now := common.GetTimestamp()
-	err := DB.Where("purpose = ? AND status = ? AND (expired_time = 0 OR expired_time > ?)",
-		purpose, common.RedemptionCodeStatusEnabled, now).
-		Order("id asc").First(&code).Error
+
+	// 获取已发放的 code keys
+	var dispensedKeys []string
+	DB.Model(&TgBotClaim{}).Where("code_key != ''").Pluck("code_key", &dispensedKeys)
+
+	query := DB.Where("purpose = ? AND status = ? AND (expired_time = 0 OR expired_time > ?)",
+		purpose, common.RedemptionCodeStatusEnabled, now)
+	if len(dispensedKeys) > 0 {
+		keyCol := "`key`"
+		if common.UsingPostgreSQL {
+			keyCol = `"key"`
+		}
+		query = query.Where(keyCol+" NOT IN ?", dispensedKeys)
+	}
+	err := query.Order("id asc").First(&code).Error
 	return &code, err
 }
