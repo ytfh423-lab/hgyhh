@@ -286,9 +286,11 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	// 检查领取次数
 	claimCount, err := model.CountTgBotClaims(tgId, categoryId)
 	if err != nil {
+		common.SysError(fmt.Sprintf("TG Bot: count claims error for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
 		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。")
 		return
 	}
+	common.SysLog(fmt.Sprintf("TG Bot: user %s claim count for cat %d: %d/%d", tgId, categoryId, claimCount, category.MaxClaims))
 	if claimCount >= int64(category.MaxClaims) {
 		sendTgMessage(chatId, fmt.Sprintf("⚠️ 你在「%s」已领取 %d/%d 次，已达上限。",
 			category.Name, claimCount, category.MaxClaims))
@@ -302,13 +304,7 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 		return
 	}
 
-	// 标记库存码为已发放
-	if err := model.MarkInventoryCodeDispensed(invItem.Id, tgId); err != nil {
-		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
-		return
-	}
-
-	// 记录领取
+	// 先创建领取记录（确保记录存在后才发码）
 	claim := &model.TgBotClaim{
 		TelegramId: tgId,
 		CategoryId: categoryId,
@@ -316,6 +312,15 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	}
 	if err := model.CreateTgBotClaim(claim); err != nil {
 		common.SysError(fmt.Sprintf("TG Bot: failed to create claim record: %s", err.Error()))
+		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
+		return
+	}
+
+	// 标记库存码为已发放
+	if err := model.MarkInventoryCodeDispensed(invItem.Id, tgId); err != nil {
+		_ = model.DeleteTgBotClaim(claim.Id)
+		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
+		return
 	}
 
 	// 发送兑换码给用户
@@ -353,35 +358,50 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	}
 }
 
-// handleTgMyRecords 查看领取记录
+// handleTgMyRecords 查看领取记录（含抽奖中奖记录）
 func handleTgMyRecords(chatId int64, from *TgUser, isGroup bool) {
 	tgId := strconv.FormatInt(from.Id, 10)
 	privateChatId := from.Id
 
 	claims, _ := model.GetTgBotClaimsByTelegramId(tgId)
-	if len(claims) == 0 {
+	lotteryWins, _ := model.GetTgBotLotteryRecords(tgId)
+
+	if len(claims) == 0 && len(lotteryWins) == 0 {
 		sendTgMessageWithKeyboard(chatId,
-			"📋 你还没有领取过任何兑换码。\n\n点击下方按钮开始领取：",
+			"📋 你还没有任何领取或中奖记录。\n\n点击下方按钮开始领取：",
 			TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回菜单", CallbackData: "menu"}},
 			}})
 		return
 	}
 
-	msg := "📋 你的领取记录：\n"
-	for _, c := range claims {
-		cat, err := model.GetTgBotCategoryById(c.CategoryId)
-		catName := "未知分类"
-		if err == nil {
-			catName = cat.Name
+	msg := ""
+	if len(claims) > 0 {
+		msg += "📋 你的领取记录：\n"
+		for _, c := range claims {
+			cat, err := model.GetTgBotCategoryById(c.CategoryId)
+			catName := "未知分类"
+			if err == nil {
+				catName = cat.Name
+			}
+			msg += fmt.Sprintf("\n· %s\n  %s", catName, c.CodeKey)
 		}
-		msg += fmt.Sprintf("\n· %s\n  %s", catName, c.CodeKey)
+	}
+
+	if len(lotteryWins) > 0 {
+		if msg != "" {
+			msg += "\n\n"
+		}
+		msg += "🎉 你的中奖记录：\n"
+		for _, r := range lotteryWins {
+			msg += fmt.Sprintf("\n· %s\n  %s", r.PrizeName, r.PrizeCode)
+		}
 	}
 
 	if isGroup {
 		// 群组中：通过私聊发送记录（含敏感码）
 		if sendTgMessageReturnsOk(privateChatId, msg) {
-			sendTgMessage(chatId, "📋 你的领取记录已通过私聊发送，请查收。")
+			sendTgMessage(chatId, "📋 你的记录已通过私聊发送，请查收。")
 		} else {
 			sendTgMessage(chatId, "❌ 无法私聊发送记录，请先私聊机器人发送 /start 后再试。")
 		}
@@ -450,22 +470,30 @@ func handleGroupMessage(chatId int64, from *TgUser) {
 	}
 }
 
-// handleTgLotteryCallback 处理抽奖按钮点击（结果只有点击者可见）
+// handleTgLotteryCallback 处理抽奖按钮点击
 func handleTgLotteryCallback(cb *TgCallbackQuery) {
 	chatId := cb.Message.Chat.Id
 	tgId := strconv.FormatInt(cb.From.Id, 10)
+	privateChatId := cb.From.Id
+
+	displayName := cb.From.FirstName
+	if cb.From.Username != "" {
+		displayName = "@" + cb.From.Username
+	}
 
 	// 验证是否是本人的抽奖按钮
 	expectedData := fmt.Sprintf("lottery_%s", tgId)
 	if cb.Data != expectedData {
-		answerCallbackQueryWithAlert(cb.Id, "❌ 这不是你的抽奖机会哦！")
+		answerCallbackQuery(cb.Id)
+		sendTgMessage(chatId, "❌ 这不是你的抽奖机会哦！")
 		return
 	}
 
 	// 获取消息追踪器
 	tracker, err := model.GetOrCreateMessageTracker(chatId, tgId)
 	if err != nil {
-		answerCallbackQueryWithAlert(cb.Id, "❌ 系统错误，请稍后再试。")
+		answerCallbackQuery(cb.Id)
+		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。")
 		return
 	}
 
@@ -476,7 +504,8 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 	}
 	totalChances := tracker.MessageCount / required
 	if totalChances <= tracker.LotteryUsed {
-		answerCallbackQueryWithAlert(cb.Id, "❌ 你没有可用的抽奖次数了。继续聊天获取更多机会！")
+		answerCallbackQuery(cb.Id)
+		sendTgMessage(chatId, fmt.Sprintf("❌ %s 你没有可用的抽奖次数了。继续聊天获取更多机会！", displayName))
 		return
 	}
 
@@ -487,19 +516,37 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 	deleteTgMessage(chatId, cb.Message.MessageId)
 	_ = model.UpdateLastBotMsgId(tracker.Id, 0)
 
+	// 先应答 callback query（防止 Telegram 显示加载状态）
+	answerCallbackQuery(cb.Id)
+
 	// 抽奖：判断是否中奖
 	winRate := common.TgBotLotteryWinRate
 	roll := rand.Intn(100)
 	won := roll < winRate
 
+	// 计算剩余次数信息
+	newUsed := tracker.LotteryUsed + 1
+	remainChances := totalChances - newUsed
+	nextAt := (newUsed + 1) * required
+	needMore := nextAt - tracker.MessageCount
+	if needMore < 0 {
+		needMore = 0
+	}
+
 	if !won {
-		// 未中奖
+		// 未中奖 - 发送可见消息
 		_ = model.CreateTgBotLotteryRecord(&model.TgBotLotteryRecord{
 			TelegramId: tgId,
 			ChatId:     chatId,
 			Won:        false,
 		})
-		answerCallbackQueryWithAlert(cb.Id, "😢 很遗憾，没有中奖。\n继续在群里聊天，获取更多抽奖机会！")
+		loseMsg := fmt.Sprintf("😢 %s 很遗憾，没有中奖。", displayName)
+		if remainChances > 0 {
+			loseMsg += fmt.Sprintf("\n\n🎫 你还有 %d 次抽奖机会，发送 /lottery 继续抽奖！", remainChances)
+		} else {
+			loseMsg += fmt.Sprintf("\n\n💬 再发送 %d 条消息即可获得下一次抽奖机会！", needMore)
+		}
+		sendTgMessage(chatId, loseMsg)
 		return
 	}
 
@@ -512,7 +559,7 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 			ChatId:     chatId,
 			Won:        false,
 		})
-		answerCallbackQueryWithAlert(cb.Id, "😢 奖品已被领完，下次再来！")
+		sendTgMessage(chatId, fmt.Sprintf("😢 %s 奖品已被领完，下次再来！", displayName))
 		return
 	}
 
@@ -528,16 +575,15 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 		Won:        true,
 	})
 
-	// 通过 callback alert 弹窗显示中奖信息（只有点击者可见）
-	alertText := fmt.Sprintf("🎊 恭喜中奖！\n\n奖品：%s\n兑换码：%s\n\n请复制兑换码前往网站使用。", prize.Name, prize.Code)
-	answerCallbackQueryWithAlert(cb.Id, alertText)
-
-	// 在群里发一条通知（不含兑换码）
-	displayName := cb.From.FirstName
-	if cb.From.Username != "" {
-		displayName = "@" + cb.From.Username
+	// 通过私聊发送中奖兑换码（安全）
+	prizeMsg := fmt.Sprintf("🎊 恭喜中奖！\n\n奖品：%s\n兑换码：%s\n\n请复制兑换码前往网站使用。", prize.Name, prize.Code)
+	if sendTgMessageReturnsOk(privateChatId, prizeMsg) {
+		// 在群里发一条通知（不含兑换码）
+		sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！兑换码已通过私聊发送，请查收。", displayName, prize.Name))
+	} else {
+		// 私聊失败，直接在群里显示（用 alert 弹窗作为备选）
+		sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！\n\n⚠️ 无法私聊发送兑换码，请私聊机器人发送 /start 后使用 /myrecords 查看。", displayName, prize.Name))
 	}
-	sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！", displayName, prize.Name))
 }
 
 // ========== Admin API for TG Bot Categories ==========
