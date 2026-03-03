@@ -230,8 +230,8 @@ func handleTgHelp(chatId int64, from *TgUser) {
 		"/farm - 🌾 农场小游戏\n" +
 		"/bindaccount - 绑定平台账号\n" +
 		"/help - 显示此帮助信息\n\n" +
-		"� 绑定账号：私聊发送你的 API Key（sk-xxx）即可自动绑定\n" +
-		"� 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
+		"🔑 绑定账号：私聊发送你的 API Key（sk-xxx）即可自动绑定\n" +
+		"💡 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
 		"🎰 在群组中发送消息可累积抽奖次数！\n" +
 		"🌾 种菜、收菜、偷菜，收获直接变成账户额度！"
 	sendTgMessage(chatId, helpText, from)

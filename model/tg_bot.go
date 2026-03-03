@@ -313,53 +313,61 @@ func MarkInventoryCodeDispensed(id int, telegramId string) error {
 	}).Error
 }
 
-// DispenseRandomCode 随机取一个未使用的库存码并标记已发放，领取记录尽力写入不影响发放
+// DispenseRandomCode 随机取一个未使用的库存码，在事务中同时标记已发放并写入领取记录，任一步骤失败则整体回滚
 func DispenseRandomCode(categoryId int, telegramId string) (code string, err error) {
-	// 1. 随机取一个可用码
-	var items []TgBotInventory
-	err = DB.Where("category_id = ? AND status = 1", categoryId).Find(&items).Error
-	if err != nil || len(items) == 0 {
-		return "", gorm.ErrRecordNotFound
-	}
-	item := items[rand.Intn(len(items))]
-
-	// 2. 标记已发放（乐观锁）
-	result := DB.Model(&TgBotInventory{}).Where("id = ? AND status = 1", item.Id).Updates(map[string]interface{}{
-		"status":     2,
-		"claimed_by": telegramId,
-	})
-	if result.Error != nil {
-		return "", result.Error
-	}
-	if result.RowsAffected == 0 {
-		// 被并发抢走，再试一次顺序取
-		var fallback TgBotInventory
-		if e := DB.Where("category_id = ? AND status = 1", categoryId).First(&fallback).Error; e != nil {
-			return "", e
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 随机取一个可用码
+		var items []TgBotInventory
+		if e := tx.Where("category_id = ? AND status = 1", categoryId).Find(&items).Error; e != nil {
+			return e
 		}
-		r2 := DB.Model(&TgBotInventory{}).Where("id = ? AND status = 1", fallback.Id).Updates(map[string]interface{}{
+		if len(items) == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		item := items[rand.Intn(len(items))]
+
+		// 2. 标记已发放（乐观锁）
+		result := tx.Model(&TgBotInventory{}).Where("id = ? AND status = 1", item.Id).Updates(map[string]interface{}{
 			"status":     2,
 			"claimed_by": telegramId,
 		})
-		if r2.Error != nil || r2.RowsAffected == 0 {
-			return "", gorm.ErrRecordNotFound
+		if result.Error != nil {
+			return result.Error
 		}
-		item = fallback
-	}
+		if result.RowsAffected == 0 {
+			// 被并发抢走，再试一次顺序取
+			var fallback TgBotInventory
+			if e := tx.Where("category_id = ? AND status = 1", categoryId).First(&fallback).Error; e != nil {
+				return e
+			}
+			r2 := tx.Model(&TgBotInventory{}).Where("id = ? AND status = 1", fallback.Id).Updates(map[string]interface{}{
+				"status":     2,
+				"claimed_by": telegramId,
+			})
+			if r2.Error != nil {
+				return r2.Error
+			}
+			if r2.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+			item = fallback
+		}
 
-	code = item.Code
+		// 3. 写入领取记录（失败则回滚库存标记）
+		claim := &TgBotClaim{
+			TelegramId: telegramId,
+			CategoryId: categoryId,
+			CodeKey:    item.Code,
+		}
+		if e := tx.Create(claim).Error; e != nil {
+			common.SysError("TG Bot: write claim record failed, rolling back inventory: " + e.Error())
+			return e
+		}
 
-	// 3. 尽力写入领取记录（失败不影响发放）
-	claim := &TgBotClaim{
-		TelegramId: telegramId,
-		CategoryId: categoryId,
-		CodeKey:    item.Code,
-	}
-	if e := DB.Create(claim).Error; e != nil {
-		common.SysError("TG Bot: write claim record failed (code already dispensed): " + e.Error())
-	}
-
-	return code, nil
+		code = item.Code
+		return nil
+	})
+	return code, err
 }
 
 // DeleteTgBotInventoryByCategory 删除某分类的所有库存
