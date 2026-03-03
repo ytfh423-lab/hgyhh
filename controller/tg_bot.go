@@ -176,23 +176,26 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int) {
 		return
 	}
 
-	// 查找可用兑换码（排除已通过机器人发放的）
-	code, err := model.FindAvailableRedemptionCode(category.Purpose)
+	// 从分类库存中查找可用码
+	invItem, err := model.FindAvailableInventoryCode(categoryId)
 	if err != nil {
 		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存，请联系管理员补充。", category.Name))
 		return
 	}
 
-	// 记录领取（绑定 code_key 防止重复发放）
-	claim := &model.TgBotClaim{
-		TelegramId: tgId,
-		CategoryId: categoryId,
-		CodeKey:    code.Key,
-	}
-	if err := model.CreateTgBotClaim(claim); err != nil {
+	// 标记库存码为已发放
+	if err := model.MarkInventoryCodeDispensed(invItem.Id, tgId); err != nil {
 		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
 		return
 	}
+
+	// 记录领取
+	claim := &model.TgBotClaim{
+		TelegramId: tgId,
+		CategoryId: categoryId,
+		CodeKey:    invItem.Code,
+	}
+	_ = model.CreateTgBotClaim(claim)
 
 	// 发送兑换码给用户
 	codeType := "兑换码"
@@ -205,7 +208,7 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int) {
 			"🎫 你的%s：\n`%s`\n\n"+
 			"请复制上方%s，前往网站使用。",
 		category.Name, claimCount+1, category.MaxClaims,
-		codeType, code.Key, codeType))
+		codeType, invItem.Code, codeType))
 }
 
 // handleTgMyRecords 查看领取记录
@@ -246,7 +249,24 @@ func GetTgBotCategories(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": categories})
+
+	// 附带库存统计
+	stockMap, _ := model.CountAllTgBotInventory()
+	type categoryWithStock struct {
+		model.TgBotCategory
+		StockTotal     int64 `json:"stock_total"`
+		StockAvailable int64 `json:"stock_available"`
+	}
+	var result []categoryWithStock
+	for _, cat := range categories {
+		item := categoryWithStock{TgBotCategory: *cat}
+		if s, ok := stockMap[cat.Id]; ok {
+			item.StockTotal = s["total"]
+			item.StockAvailable = s["available"]
+		}
+		result = append(result, item)
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 
 func CreateTgBotCategory(c *gin.Context) {
@@ -296,6 +316,67 @@ func DeleteTgBotCategory(c *gin.Context) {
 		return
 	}
 	if err := model.DeleteTgBotCategory(id); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "删除成功"})
+}
+
+// ========== Admin API: Inventory Management ==========
+
+func AddTgBotInventory(c *gin.Context) {
+	var req struct {
+		CategoryId int    `json:"category_id"`
+		Codes      string `json:"codes"` // 换行分隔的多个码
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.CategoryId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	// 按换行分割
+	lines := strings.Split(req.Codes, "\n")
+	var codes []string
+	for _, line := range lines {
+		code := strings.TrimSpace(line)
+		if code != "" {
+			codes = append(codes, code)
+		}
+	}
+	if len(codes) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请输入至少一个兑换码"})
+		return
+	}
+
+	added, err := model.AddTgBotInventoryCodes(req.CategoryId, codes)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功添加 %d 个兑换码", added), "data": gin.H{"added": added}})
+}
+
+func GetTgBotInventory(c *gin.Context) {
+	categoryId, err := strconv.Atoi(c.Query("category_id"))
+	if err != nil || categoryId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+	items, err := model.GetTgBotInventoryByCategoryId(categoryId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+}
+
+func DeleteTgBotInventoryItem(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "无效的ID"})
+		return
+	}
+	if err := model.ClearTgBotInventoryItem(id); err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}

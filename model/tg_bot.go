@@ -17,6 +17,16 @@ type TgBotCategory struct {
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
+// TgBotInventory 机器人分类库存（每个分类独立的兑换码池）
+type TgBotInventory struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	CategoryId int    `json:"category_id" gorm:"index;not null"`
+	Code       string `json:"code" gorm:"type:varchar(255);not null"`
+	Status     int    `json:"status" gorm:"default:1"` // 1=可用 2=已发放
+	ClaimedBy  string `json:"claimed_by" gorm:"type:varchar(64)"` // telegram_id
+	CreatedAt  int64  `json:"created_at" gorm:"autoCreateTime"`
+}
+
 // TgBotClaim 机器人领取记录
 type TgBotClaim struct {
 	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -81,24 +91,91 @@ func GetTgBotClaimsByTelegramId(telegramId string) ([]*TgBotClaim, error) {
 	return claims, err
 }
 
-// FindAvailableRedemptionCode 查找可用的兑换码（排除已通过机器人发放的）
-func FindAvailableRedemptionCode(purpose int) (*Redemption, error) {
-	var code Redemption
-	now := common.GetTimestamp()
+// ========== TgBotInventory 库存管理 ==========
 
-	// 获取已发放的 code keys
-	var dispensedKeys []string
-	DB.Model(&TgBotClaim{}).Where("code_key != ''").Pluck("code_key", &dispensedKeys)
-
-	query := DB.Where("purpose = ? AND status = ? AND (expired_time = 0 OR expired_time > ?)",
-		purpose, common.RedemptionCodeStatusEnabled, now)
-	if len(dispensedKeys) > 0 {
-		keyCol := "`key`"
-		if common.UsingPostgreSQL {
-			keyCol = `"key"`
+// AddTgBotInventoryCodes 批量添加库存码
+func AddTgBotInventoryCodes(categoryId int, codes []string) (int, error) {
+	added := 0
+	for _, code := range codes {
+		if code == "" {
+			continue
 		}
-		query = query.Where(keyCol+" NOT IN ?", dispensedKeys)
+		item := &TgBotInventory{
+			CategoryId: categoryId,
+			Code:       code,
+			Status:     1,
+		}
+		if err := DB.Create(item).Error; err != nil {
+			continue
+		}
+		added++
 	}
-	err := query.Order("id asc").First(&code).Error
-	return &code, err
+	return added, nil
+}
+
+// GetTgBotInventoryByCategoryId 获取某分类的所有库存
+func GetTgBotInventoryByCategoryId(categoryId int) ([]*TgBotInventory, error) {
+	var items []*TgBotInventory
+	err := DB.Where("category_id = ?", categoryId).Order("id asc").Find(&items).Error
+	return items, err
+}
+
+// CountTgBotInventory 统计某分类的库存（总数和可用数）
+func CountTgBotInventory(categoryId int) (total int64, available int64, err error) {
+	err = DB.Model(&TgBotInventory{}).Where("category_id = ?", categoryId).Count(&total).Error
+	if err != nil {
+		return
+	}
+	err = DB.Model(&TgBotInventory{}).Where("category_id = ? AND status = 1", categoryId).Count(&available).Error
+	return
+}
+
+// CountAllTgBotInventory 批量统计所有分类的库存
+func CountAllTgBotInventory() (map[int]map[string]int64, error) {
+	type result struct {
+		CategoryId int
+		Status     int
+		Cnt        int64
+	}
+	var results []result
+	err := DB.Model(&TgBotInventory{}).Select("category_id, status, count(*) as cnt").Group("category_id, status").Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[int]map[string]int64)
+	for _, r := range results {
+		if m[r.CategoryId] == nil {
+			m[r.CategoryId] = map[string]int64{"total": 0, "available": 0}
+		}
+		m[r.CategoryId]["total"] += r.Cnt
+		if r.Status == 1 {
+			m[r.CategoryId]["available"] = r.Cnt
+		}
+	}
+	return m, nil
+}
+
+// FindAvailableInventoryCode 从库存中查找可用的兑换码
+func FindAvailableInventoryCode(categoryId int) (*TgBotInventory, error) {
+	var item TgBotInventory
+	err := DB.Where("category_id = ? AND status = 1", categoryId).Order("id asc").First(&item).Error
+	return &item, err
+}
+
+// MarkInventoryCodeDispensed 标记库存码为已发放
+func MarkInventoryCodeDispensed(id int, telegramId string) error {
+	return DB.Model(&TgBotInventory{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":     2,
+		"claimed_by": telegramId,
+	}).Error
+}
+
+// DeleteTgBotInventoryByCategory 删除某分类的所有库存
+func DeleteTgBotInventoryByCategory(categoryId int) error {
+	return DB.Where("category_id = ?", categoryId).Delete(&TgBotInventory{}).Error
+}
+
+// ClearTgBotInventoryItem 删除单个库存码
+func ClearTgBotInventoryItem(id int) error {
+	return DB.Delete(&TgBotInventory{}, id).Error
 }

@@ -10,6 +10,7 @@ import {
   Spin,
   Table,
   Tag,
+  TextArea,
   Typography,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from '../../helpers';
@@ -42,6 +43,14 @@ const TgBotPage = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // ===== 库存管理 =====
+  const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
+  const [inventoryCategory, setInventoryCategory] = useState(null);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [addCodesText, setAddCodesText] = useState('');
+  const [addingCodes, setAddingCodes] = useState(false);
 
   // 加载系统设置
   const loadSettings = useCallback(async () => {
@@ -230,6 +239,119 @@ const TgBotPage = () => {
     }
   };
 
+  // ===== 库存管理 API =====
+  const openInventoryModal = async (category) => {
+    setInventoryCategory(category);
+    setInventoryModalVisible(true);
+    setAddCodesText('');
+    await loadInventory(category.id);
+  };
+
+  const loadInventory = async (categoryId) => {
+    setInventoryLoading(true);
+    try {
+      const res = await API.get(`/api/tgbot/inventory/?category_id=${categoryId}`);
+      if (res.data.success) {
+        setInventoryItems(res.data.data || []);
+      } else {
+        showError(res.data.message);
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || t('加载库存失败'));
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
+
+  const handleAddCodes = async () => {
+    if (!addCodesText.trim() || !inventoryCategory) return;
+    setAddingCodes(true);
+    try {
+      const res = await API.post('/api/tgbot/inventory/', {
+        category_id: inventoryCategory.id,
+        codes: addCodesText,
+      });
+      if (res.data.success) {
+        showSuccess(res.data.message || t('添加成功'));
+        setAddCodesText('');
+        await loadInventory(inventoryCategory.id);
+        loadCategories();
+      } else {
+        showError(res.data.message);
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || t('添加失败'));
+    } finally {
+      setAddingCodes(false);
+    }
+  };
+
+  const handleDeleteInventoryItem = async (itemId) => {
+    Modal.confirm({
+      title: t('确认删除'),
+      content: t('确定要删除该兑换码吗？'),
+      onOk: async () => {
+        try {
+          const res = await API.delete(`/api/tgbot/inventory/${itemId}`);
+          if (res.data.success) {
+            showSuccess(t('删除成功'));
+            if (inventoryCategory) {
+              await loadInventory(inventoryCategory.id);
+            }
+            loadCategories();
+          } else {
+            showError(res.data.message);
+          }
+        } catch (err) {
+          showError(err.response?.data?.message || t('删除失败'));
+        }
+      },
+    });
+  };
+
+  const inventoryColumns = [
+    { title: 'ID', dataIndex: 'id', width: 60 },
+    {
+      title: t('兑换码/邀请码'),
+      dataIndex: 'code',
+      width: 250,
+      render: (text) => (
+        <Typography.Text copyable style={{ fontFamily: 'monospace' }}>
+          {text}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: t('状态'),
+      dataIndex: 'status',
+      width: 100,
+      render: (status) => (
+        <Tag color={status === 1 ? 'green' : 'grey'}>
+          {status === 1 ? t('可用') : t('已发放')}
+        </Tag>
+      ),
+    },
+    {
+      title: t('领取者'),
+      dataIndex: 'claimed_by',
+      width: 150,
+      render: (text) => text || '-',
+    },
+    {
+      title: t('操作'),
+      width: 80,
+      render: (_, record) => (
+        <Button
+          size='small'
+          type='danger'
+          onClick={() => handleDeleteInventoryItem(record.id)}
+        >
+          {t('删除')}
+        </Button>
+      ),
+    },
+  ];
+
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: t('分类名称'), dataIndex: 'name', width: 150 },
@@ -252,6 +374,20 @@ const TgBotPage = () => {
         );
       },
     },
+    {
+      title: t('库存(可用/总数)'),
+      width: 130,
+      render: (_, record) => {
+        const available = record.stock_available ?? 0;
+        const total = record.stock_total ?? 0;
+        const color = available === 0 ? 'red' : available <= 5 ? 'orange' : 'green';
+        return (
+          <Tag color={color}>
+            {available} / {total}
+          </Tag>
+        );
+      },
+    },
     { title: t('每人可领取次数'), dataIndex: 'max_claims', width: 130 },
     {
       title: t('状态'),
@@ -265,10 +401,18 @@ const TgBotPage = () => {
     },
     {
       title: t('操作'),
-      width: 220,
+      width: 300,
       fixed: 'right',
       render: (_, record) => (
         <Space>
+          <Button
+            size='small'
+            theme='light'
+            type='primary'
+            onClick={() => openInventoryModal(record)}
+          >
+            {t('管理库存')}
+          </Button>
           <Button size='small' onClick={() => openEditModal(record)}>
             {t('编辑')}
           </Button>
@@ -400,7 +544,7 @@ const TgBotPage = () => {
           loading={loading}
           rowKey='id'
           pagination={false}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1100 }}
           empty={
             <div className='py-8 text-center text-gray-400'>
               {t('暂无分类，请添加')}
@@ -478,6 +622,71 @@ const TgBotPage = () => {
             </Button>
           </div>
         </Form>
+      </Modal>
+
+      {/* ===== 库存管理弹窗 ===== */}
+      <Modal
+        title={
+          inventoryCategory
+            ? `${t('库存管理')} - ${inventoryCategory.name}（${inventoryCategory.purpose === 2 ? t('邀请码') : t('兑换码')}）`
+            : t('库存管理')
+        }
+        visible={inventoryModalVisible}
+        onCancel={() => setInventoryModalVisible(false)}
+        footer={null}
+        centered
+        width={700}
+      >
+        {/* 添加兑换码/邀请码 */}
+        <div className='mb-4'>
+          <Typography.Text strong className='mb-2 block'>
+            {inventoryCategory?.purpose === 2
+              ? t('添加邀请码')
+              : t('添加兑换码')}
+          </Typography.Text>
+          <TextArea
+            value={addCodesText}
+            onChange={setAddCodesText}
+            placeholder={t('每行一个兑换码/邀请码，支持批量添加')}
+            rows={4}
+            style={{ marginBottom: 8 }}
+          />
+          <Button
+            theme='solid'
+            type='primary'
+            loading={addingCodes}
+            onClick={handleAddCodes}
+            disabled={!addCodesText.trim()}
+          >
+            {t('批量添加')}
+          </Button>
+        </div>
+
+        {/* 库存列表 */}
+        <div className='mb-2'>
+          <Typography.Text strong>
+            {t('当前库存')}
+            {inventoryItems.length > 0 && (
+              <Tag color='blue' style={{ marginLeft: 8 }}>
+                {t('可用')} {inventoryItems.filter((i) => i.status === 1).length} / {t('总数')} {inventoryItems.length}
+              </Tag>
+            )}
+          </Typography.Text>
+        </div>
+        <Table
+          columns={inventoryColumns}
+          dataSource={inventoryItems}
+          loading={inventoryLoading}
+          rowKey='id'
+          pagination={{ pageSize: 10 }}
+          size='small'
+          scroll={{ y: 300 }}
+          empty={
+            <div className='py-4 text-center text-gray-400'>
+              {t('暂无库存，请添加')}
+            </div>
+          }
+        />
       </Modal>
     </div>
   );

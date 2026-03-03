@@ -156,6 +156,9 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.POST("/category/", controller.CreateTgBotCategory)
 			tgBotRoute.PUT("/category/", controller.UpdateTgBotCategory)
 			tgBotRoute.DELETE("/category/:id", controller.DeleteTgBotCategory)
+			tgBotRoute.POST("/inventory/", controller.AddTgBotInventory)
+			tgBotRoute.GET("/inventory/", controller.GetTgBotInventory)
+			tgBotRoute.DELETE("/inventory/:id", controller.DeleteTgBotInventoryItem)
 			tgBotRoute.POST("/setup-webhook", controller.SetupTgBotWebhook)
 			tgBotRoute.GET("/webhook-info", controller.GetTgBotWebhookInfo)
 		}
