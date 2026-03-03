@@ -49,6 +49,7 @@ import Subscription from './pages/Subscription';
 import InvitationCode from './pages/InvitationCode';
 import DeletionRequestPage from './pages/DeletionRequest';
 import CheckinLeaderboard from './pages/CheckinLeaderboard';
+import TgBotPage from './pages/TgBot';
 import OAuth2Callback from './components/auth/OAuth2Callback';
 import OAuthRegistrationForm from './components/auth/OAuthRegistrationForm';
 import PersonalSetting from './components/settings/PersonalSetting';
@@ -206,6 +207,14 @@ function App() {
             <PrivateRoute>
               <CheckinLeaderboard />
             </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/tgbot'
+          element={
+            <AdminRoute>
+              <TgBotPage />
+            </AdminRoute>
           }
         />
         <Route

@@ -75,6 +75,7 @@ import {
   Package,
   Server,
   CalendarClock,
+  Bot,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -145,6 +146,8 @@ export function getLucideIcon(key, selected = false) {
       return <Server {...commonProps} color={iconColor} />;
     case 'subscription':
       return <CalendarClock {...commonProps} color={iconColor} />;
+    case 'tgbot':
+      return <Bot {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
     default:

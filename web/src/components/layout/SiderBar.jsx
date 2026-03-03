@@ -53,6 +53,7 @@ const routerMap = {
   invitation_code: '/console/invitation-code',
   deletion_request: '/console/deletion-request',
   checkin_leaderboard: '/console/checkin-leaderboard',
+  tgbot: '/console/tgbot',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -207,6 +208,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('注销审核'),
         itemKey: 'deletion_request',
         to: '/console/deletion-request',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('TG 机器人'),
+        itemKey: 'tgbot',
+        to: '/console/tgbot',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
