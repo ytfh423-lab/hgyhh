@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 )
@@ -308,6 +310,45 @@ func MarkInventoryCodeDispensed(id int, telegramId string) error {
 		"status":     2,
 		"claimed_by": telegramId,
 	}).Error
+}
+
+// ClaimInventoryCode 事务性领取：查找可用码 + 标记已发放 + 创建领取记录
+// 返回领取到的兑换码和错误
+func ClaimInventoryCode(categoryId int, telegramId string) (code string, err error) {
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 查找可用库存码
+		var item TgBotInventory
+		if e := tx.Where("category_id = ? AND status = 1", categoryId).Order("id asc").First(&item).Error; e != nil {
+			return e
+		}
+
+		// 2. 标记为已发放（乐观锁：仅当 status=1 时更新）
+		result := tx.Model(&TgBotInventory{}).Where("id = ? AND status = 1", item.Id).Updates(map[string]interface{}{
+			"status":     2,
+			"claimed_by": telegramId,
+		})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound // 被并发抢走了
+		}
+
+		// 3. 创建领取记录
+		claim := &TgBotClaim{
+			TelegramId: telegramId,
+			CategoryId: categoryId,
+			CodeKey:    item.Code,
+		}
+		if e := tx.Create(claim).Error; e != nil {
+			return e
+		}
+
+		code = item.Code
+		common.SysLog("TG Bot: claim transaction success, claim_id=" + fmt.Sprintf("%d", claim.Id) + ", code=" + item.Code)
+		return nil
+	})
+	return
 }
 
 // DeleteTgBotInventoryByCategory 删除某分类的所有库存

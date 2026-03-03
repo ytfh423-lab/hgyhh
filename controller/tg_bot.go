@@ -364,10 +364,10 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	}
 }
 
-// handleTgClaimCategory 处理分类领取（只发放兑换码，不创建平台账户）
+// handleTgClaimCategory 处理分类领取（事务性：查码+标记+写记录一步完成）
 func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup bool) {
 	tgId := strconv.FormatInt(from.Id, 10)
-	privateChatId := from.Id // 用于私聊发送敏感信息
+	privateChatId := from.Id
 
 	// 获取分类
 	category, err := model.GetTgBotCategoryById(categoryId)
@@ -387,41 +387,21 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。", from)
 		return
 	}
-	common.SysLog(fmt.Sprintf("TG Bot: user %s claim count for cat %d: %d/%d", tgId, categoryId, claimCount, category.MaxClaims))
 	if claimCount >= int64(category.MaxClaims) {
 		sendTgMessage(chatId, fmt.Sprintf("⚠️ 你在「%s」已领取 %d/%d 次，已达上限。",
 			category.Name, claimCount, category.MaxClaims), from)
 		return
 	}
 
-	// 从分类库存中查找可用码
-	invItem, err := model.FindAvailableInventoryCode(categoryId)
+	// 事务性领取：查找可用码 + 标记已发放 + 创建领取记录（原子操作）
+	code, err := model.ClaimInventoryCode(categoryId, tgId)
 	if err != nil {
-		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存，请联系管理员补充。", category.Name), from)
+		common.SysError(fmt.Sprintf("TG Bot: ClaimInventoryCode failed for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
+		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存或领取失败，请联系管理员。", category.Name), from)
 		return
 	}
 
-	// 标记库存码为已发放（先锁定库存，防止并发领取同一码）
-	if err := model.MarkInventoryCodeDispensed(invItem.Id, tgId); err != nil {
-		common.SysError(fmt.Sprintf("TG Bot: mark inventory dispensed failed: %s", err.Error()))
-		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。", from)
-		return
-	}
-
-	// 创建领取记录
-	claim := &model.TgBotClaim{
-		TelegramId: tgId,
-		CategoryId: categoryId,
-		CodeKey:    invItem.Code,
-	}
-	if err := model.CreateTgBotClaim(claim); err != nil {
-		common.SysError(fmt.Sprintf("TG Bot: create claim record failed: %s", err.Error()))
-		_ = model.RollbackInventoryCode(invItem.Id)
-		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。", from)
-		return
-	}
-
-	common.SysLog(fmt.Sprintf("TG Bot: user %s claimed code from cat %d, claim_id=%d", tgId, categoryId, claim.Id))
+	common.SysLog(fmt.Sprintf("TG Bot: user %s claimed code from cat %d, code=%s", tgId, categoryId, code))
 
 	// 发送兑换码给用户
 	codeType := "兑换码"
@@ -434,7 +414,7 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 			"🎫 你的%s：\n%s\n\n"+
 			"请复制上方%s，前往网站使用。",
 		category.Name, claimCount+1, category.MaxClaims,
-		codeType, invItem.Code, codeType)
+		codeType, code, codeType)
 
 	displayName := from.FirstName
 	if from.Username != "" {
@@ -442,17 +422,14 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	}
 
 	if isGroup {
-		// 群组中：通过私聊发送兑换码，群里只提示
 		if sendTgMessageReturnsOk(privateChatId, codeMsg, from) {
 			sendTgMessage(chatId, fmt.Sprintf("✅ %s 领取「%s」成功！%s已通过私聊发送，请查收。",
 				displayName, category.Name, codeType), from)
 		} else {
-			// 私聊失败：不回滚！领取记录保留，用户可通过私聊 /myrecords 查看
 			sendTgMessage(chatId, fmt.Sprintf("✅ %s 领取「%s」成功！\n\n⚠️ 无法通过私聊发送%s，请先私聊机器人发送 /start，然后发送 /myrecords 查看你的%s。",
 				displayName, category.Name, codeType, codeType), from)
 		}
 	} else {
-		// 私聊中：直接发送
 		sendTgMessage(chatId, codeMsg, from)
 	}
 }
