@@ -261,8 +261,13 @@ func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string
 		return
 	}
 
-	// 通过 API Key 查找用户
-	token, err := model.GetTokenByKey(apiKey, true)
+	// 通过 API Key 查找用户（数据库中存储的 key 不含 sk- 前缀）
+	lookupKey := strings.TrimPrefix(apiKey, "sk-")
+	// 如果 key 中包含 -，只取第一段（与 auth 中间件一致）
+	if parts := strings.Split(lookupKey, "-"); len(parts) > 0 {
+		lookupKey = parts[0]
+	}
+	token, err := model.GetTokenByKey(lookupKey, true)
 	if err != nil || token == nil {
 		sendTgMessage(chatId, "❌ API Key 无效，请检查后重试。\n\n请发送正确的 API Key（以 sk- 开头）。")
 		return
