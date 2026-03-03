@@ -108,6 +108,8 @@ func TgBotWebhook(c *gin.Context) {
 		handleTgStart(chatId, isGroup)
 	case cmd == "/myrecords" || cmd == "/我的记录":
 		handleTgMyRecords(chatId, msg.From, isGroup)
+	case cmd == "/lottery" || cmd == "/抽奖":
+		handleTgLottery(chatId, msg.From, isGroup)
 	case cmd == "/help":
 		handleTgHelp(chatId)
 	}
@@ -136,6 +138,11 @@ func handleTgStart(chatId int64, isGroup bool) {
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "📋 我的领取记录", CallbackData: "myrecords"},
 	})
+	if isGroup && common.TgBotLotteryEnabled {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "🎰 抽奖", CallbackData: "lottery_info"},
+		})
+	}
 
 	welcome := "👋 欢迎使用 " + common.SystemName + " 机器人！\n\n请点击下方按钮领取对应的兑换码/邀请码："
 	if isGroup {
@@ -146,14 +153,74 @@ func handleTgStart(chatId int64, isGroup bool) {
 		TgInlineKeyboardMarkup{InlineKeyboard: rows})
 }
 
+// handleTgLottery 显示抽奖状态和入口
+func handleTgLottery(chatId int64, from *TgUser, isGroup bool) {
+	if !isGroup {
+		sendTgMessage(chatId, "🎰 抽奖功能仅在群组中可用，请在群组里使用此命令。")
+		return
+	}
+	if !common.TgBotLotteryEnabled {
+		sendTgMessage(chatId, "🎰 抽奖功能暂未开启。")
+		return
+	}
+
+	tgId := strconv.FormatInt(from.Id, 10)
+	tracker, err := model.GetOrCreateMessageTracker(chatId, tgId)
+	if err != nil {
+		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。")
+		return
+	}
+
+	required := common.TgBotLotteryMessagesRequired
+	if required <= 0 {
+		required = 10
+	}
+	totalChances := tracker.MessageCount / required
+	availableChances := totalChances - tracker.LotteryUsed
+	nextAt := (tracker.LotteryUsed + 1) * required
+	remaining := nextAt - tracker.MessageCount
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	displayName := from.FirstName
+	if from.Username != "" {
+		displayName = "@" + from.Username
+	}
+
+	text := fmt.Sprintf("🎰 %s 的抽奖信息\n\n"+
+		"📊 已发送消息：%d 条\n"+
+		"🎫 可用抽奖次数：%d\n"+
+		"📨 每 %d 条消息获得一次抽奖机会\n",
+		displayName, tracker.MessageCount, availableChances, required)
+
+	if availableChances > 0 {
+		text += "\n点击下方按钮立即抽奖！"
+		keyboard := TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🎰 点击抽奖", CallbackData: fmt.Sprintf("lottery_%s", tgId)}},
+			},
+		}
+		sentMsgId := sendTgMessageWithKeyboardAndGetId(chatId, text, keyboard)
+		if sentMsgId > 0 {
+			_ = model.UpdateLastBotMsgId(tracker.Id, sentMsgId)
+		}
+	} else {
+		text += fmt.Sprintf("\n💬 再发送 %d 条消息即可获得下一次抽奖机会！", remaining)
+		sendTgMessage(chatId, text)
+	}
+}
+
 // handleTgHelp 发送帮助信息
 func handleTgHelp(chatId int64) {
 	helpText := "📖 机器人命令帮助：\n\n" +
 		"/start - 显示领取菜单\n" +
 		"/claim - 领取兑换码/邀请码\n" +
 		"/myrecords - 查看我的领取记录\n" +
+		"/lottery - 查看抽奖状态（群组）\n" +
 		"/help - 显示此帮助信息\n\n" +
-		"💡 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。"
+		"💡 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
+		"🎰 在群组中发送消息可累积抽奖次数！"
 	sendTgMessage(chatId, helpText)
 }
 
@@ -161,6 +228,13 @@ func handleTgHelp(chatId int64) {
 func handleTgCallback(cb *TgCallbackQuery) {
 	chatId := cb.Message.Chat.Id
 	isGroup := cb.Message.Chat.Type == "group" || cb.Message.Chat.Type == "supergroup"
+
+	// 抽奖信息按钮（从 /start 菜单点击）
+	if cb.Data == "lottery_info" {
+		answerCallbackQuery(cb.Id)
+		handleTgLottery(chatId, cb.From, isGroup)
+		return
+	}
 
 	// 抽奖回调：不预先应答，由抽奖逻辑用 show_alert 应答
 	if strings.HasPrefix(cb.Data, "lottery_") {
@@ -746,6 +820,7 @@ func registerTgBotCommands(token string) {
 		{"command": "start", "description": "显示领取菜单"},
 		{"command": "claim", "description": "领取兑换码/邀请码"},
 		{"command": "myrecords", "description": "查看我的领取记录"},
+		{"command": "lottery", "description": "查看抽奖状态"},
 		{"command": "help", "description": "显示帮助信息"},
 	}
 
