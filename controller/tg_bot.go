@@ -400,6 +400,87 @@ func DeleteTgBotCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "删除成功"})
 }
 
+// ========== Admin API: Webhook Management ==========
+
+func SetupTgBotWebhook(c *gin.Context) {
+	token := common.TelegramBotToken
+	if token == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先保存 Bot Token"})
+		return
+	}
+
+	// 从请求头或 OptionMap 获取 ServerAddress
+	serverAddress := ""
+	if val, ok := common.OptionMap["ServerAddress"]; ok {
+		serverAddress = val
+	}
+	if serverAddress == "" {
+		scheme := "https"
+		serverAddress = scheme + "://" + c.Request.Host
+	}
+
+	webhookUrl := serverAddress + "/api/tgbot/webhook"
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", token)
+
+	body := map[string]interface{}{
+		"url": webhookUrl,
+	}
+	bodyBytes, err := common.Marshal(body)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "序列化失败"})
+		return
+	}
+
+	resp, err := http.Post(apiUrl, "application/json", strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请求 Telegram API 失败: " + err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := common.DecodeJson(resp.Body, &result); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "解析响应失败"})
+		return
+	}
+
+	if ok, _ := result["ok"].(bool); ok {
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Webhook 设置成功", "data": gin.H{"url": webhookUrl}})
+	} else {
+		desc, _ := result["description"].(string)
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Telegram 返回错误: " + desc})
+	}
+}
+
+func GetTgBotWebhookInfo(c *gin.Context) {
+	token := common.TelegramBotToken
+	if token == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Bot Token 未配置"})
+		return
+	}
+
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/getWebhookInfo", token)
+	resp, err := http.Get(apiUrl)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请求失败: " + err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := common.DecodeJson(resp.Body, &result); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "解析响应失败"})
+		return
+	}
+
+	if ok, _ := result["ok"].(bool); ok {
+		data, _ := result["result"].(map[string]interface{})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取失败"})
+	}
+}
+
 // ========== Telegram API Helpers ==========
 
 func tgFormatQuota(quota int) string {

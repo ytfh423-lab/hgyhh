@@ -149,13 +149,15 @@ func SetApiRouter(router *gin.Engine) {
 			delReqRoute.POST("/:id/reject", controller.RejectDeletionRequest)
 		}
 
-		tgBotRoute := apiRouter.Group("/tgbot/category")
+		tgBotRoute := apiRouter.Group("/tgbot")
 		tgBotRoute.Use(middleware.AdminAuth())
 		{
-			tgBotRoute.GET("/", controller.GetTgBotCategories)
-			tgBotRoute.POST("/", controller.CreateTgBotCategory)
-			tgBotRoute.PUT("/", controller.UpdateTgBotCategory)
-			tgBotRoute.DELETE("/:id", controller.DeleteTgBotCategory)
+			tgBotRoute.GET("/category/", controller.GetTgBotCategories)
+			tgBotRoute.POST("/category/", controller.CreateTgBotCategory)
+			tgBotRoute.PUT("/category/", controller.UpdateTgBotCategory)
+			tgBotRoute.DELETE("/category/:id", controller.DeleteTgBotCategory)
+			tgBotRoute.POST("/setup-webhook", controller.SetupTgBotWebhook)
+			tgBotRoute.GET("/webhook-info", controller.GetTgBotWebhookInfo)
 		}
 
 		// Subscription billing (plans, purchase, admin management)
