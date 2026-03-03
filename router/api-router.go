@@ -46,6 +46,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/oauth/:provider", middleware.CriticalRateLimit(), controller.HandleOAuth)
 		apiRouter.POST("/oauth/:provider/register", middleware.CriticalRateLimit(), controller.CompleteOAuthRegistration)
 		apiRouter.GET("/ratio_config", middleware.CriticalRateLimit(), controller.GetRatioConfig)
+		apiRouter.POST("/tgbot/webhook", controller.TgBotWebhook)
 
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", controller.CreemWebhook)
