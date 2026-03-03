@@ -32,15 +32,16 @@ type farmItemDef struct {
 	Cures string // event type it cures
 }
 
+// NOTE: all emojis below must be Unicode 6.0-11.0 for wide compatibility
 var farmCrops = []farmCropDef{
-	{"carrot", "car", "胡萝卜", "�", 50000, 1800, 2, 170000},     // 0.5h, 产量2, $0.34/个
-	{"tomato", "tom", "番茄", "🍅", 150000, 3600, 5, 135000},    // 1h,  产量5, $0.27/个
-	{"pumpkin", "pum", "南瓜", "🎃", 350000, 7200, 6, 250000},   // 2h,  产量6, $0.50/个
-	{"blueberry", "blu", "蓝莓", "�", 75000, 10800, 25, 10000},  // 3h,  产量25, $0.02/个
-	{"strawberry", "str", "草莓", "🍓", 750000, 14400, 6, 470000}, // 4h,  产量6, $0.94/个
-	{"watermelon", "wat", "西瓜", "�", 1250000, 21600, 8, 535000}, // 6h,  产量8, $1.07/个
-	{"mango", "man", "芒果", "🥭", 75000, 25200, 50, 5000},       // 7h,  产量50, $0.01/个
-	{"corn", "cor", "玉米", "�", 50000, 54000, 20, 10000},       // 15h, 产量20, $0.02/个
+	{"carrot", "car", "胡萝卜", "🌰", 50000, 1800, 2, 170000},
+	{"tomato", "tom", "番茄", "🍅", 150000, 3600, 5, 135000},
+	{"pumpkin", "pum", "南瓜", "🎃", 350000, 7200, 6, 250000},
+	{"blueberry", "blu", "蓝莓", "🍇", 75000, 10800, 25, 10000},
+	{"strawberry", "str", "草莓", "🍓", 750000, 14400, 6, 470000},
+	{"watermelon", "wat", "西瓜", "🍉", 1250000, 21600, 8, 535000},
+	{"mango", "man", "芒果", "🍊", 75000, 25200, 50, 5000},
+	{"corn", "cor", "玉米", "🌽", 50000, 54000, 20, 10000},
 }
 
 var farmItems = []farmItemDef{
@@ -233,11 +234,11 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 	idx := plot.PlotIndex + 1
 	switch plot.Status {
 	case 0:
-		return fmt.Sprintf("🟫 %d号地 - 空地", idx)
+		return fmt.Sprintf("⬜ %d号地 - 空地", idx)
 	case 1:
 		crop := farmCropMap[plot.CropType]
 		if crop == nil {
-			return fmt.Sprintf("🟫 %d号地 - 空地", idx)
+			return fmt.Sprintf("⬜ %d号地 - 空地", idx)
 		}
 		now := time.Now().Unix()
 		elapsed := now - plot.PlantedAt
@@ -337,7 +338,7 @@ func showFarmPlotSelection(chatId int64, editMsgId int, tgId string, cropShort s
 		if plot.Status == 0 {
 			hasEmpty = true
 			rows = append(rows, []TgInlineKeyboardButton{
-				{Text: fmt.Sprintf("🟫 %d号地", plot.PlotIndex+1),
+				{Text: fmt.Sprintf("⬜ %d号地", plot.PlotIndex+1),
 					CallbackData: fmt.Sprintf("farm_pp_%d_%s", plot.PlotIndex, cropShort)},
 			})
 		}
