@@ -747,6 +747,30 @@ func GetTgBotLotterySettings(c *gin.Context) {
 	})
 }
 
+func GetTgBotSettings(c *gin.Context) {
+	tokenSet := common.TelegramBotToken != ""
+	maskedToken := ""
+	if tokenSet {
+		token := common.TelegramBotToken
+		if len(token) > 8 {
+			maskedToken = token[:4] + "****" + token[len(token)-4:]
+		} else {
+			maskedToken = "****"
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"token_set":          tokenSet,
+			"masked_token":       maskedToken,
+			"bot_name":           common.TelegramBotName,
+			"lottery_enabled":    common.TgBotLotteryEnabled,
+			"messages_required":  common.TgBotLotteryMessagesRequired,
+			"win_rate":           common.TgBotLotteryWinRate,
+		},
+	})
+}
+
 // ========== Admin API: Bot Commands Registration ==========
 
 func RegisterTgBotCommands(c *gin.Context) {

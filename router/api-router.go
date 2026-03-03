@@ -165,6 +165,7 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.GET("/lottery/prizes", controller.GetTgBotLotteryPrizes)
 			tgBotRoute.POST("/lottery/prizes", controller.AddTgBotLotteryPrizes)
 			tgBotRoute.DELETE("/lottery/prizes/:id", controller.DeleteTgBotLotteryPrize)
+			tgBotRoute.GET("/settings", controller.GetTgBotSettings)
 			tgBotRoute.GET("/lottery/settings", controller.GetTgBotLotterySettings)
 		}
 

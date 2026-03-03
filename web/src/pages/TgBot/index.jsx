@@ -35,6 +35,8 @@ const TgBotPage = () => {
   // ===== Bot 设置 =====
   const [botToken, setBotToken] = useState('');
   const [botName, setBotName] = useState('');
+  const [tokenSet, setTokenSet] = useState(false);
+  const [maskedToken, setMaskedToken] = useState('');
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [webhookInfo, setWebhookInfo] = useState(null);
@@ -73,16 +75,16 @@ const TgBotPage = () => {
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
     try {
-      const res = await API.get('/api/option/');
+      const res = await API.get('/api/tgbot/settings');
       if (res.data.success) {
-        const data = res.data.data || [];
-        data.forEach((item) => {
-          if (item.key === 'TelegramBotToken') setBotToken(item.value || '');
-          if (item.key === 'TelegramBotName') setBotName(item.value || '');
-          if (item.key === 'TgBotLotteryEnabled') setLotteryEnabled(item.value === 'true');
-          if (item.key === 'TgBotLotteryMessagesRequired') setLotteryMessagesRequired(Number(item.value) || 10);
-          if (item.key === 'TgBotLotteryWinRate') setLotteryWinRate(Number(item.value) || 30);
-        });
+        const data = res.data.data;
+        setTokenSet(data.token_set || false);
+        setMaskedToken(data.masked_token || '');
+        setBotName(data.bot_name || '');
+        setLotteryEnabled(data.lottery_enabled || false);
+        setLotteryMessagesRequired(data.messages_required || 10);
+        setLotteryWinRate(data.win_rate || 30);
+        setBotToken('');
       }
     } catch (err) {
       showError(t('加载设置失败'));
@@ -96,9 +98,11 @@ const TgBotPage = () => {
     setSavingSettings(true);
     try {
       const options = [
-        { key: 'TelegramBotToken', value: botToken },
         { key: 'TelegramBotName', value: botName },
       ];
+      if (botToken.trim()) {
+        options.unshift({ key: 'TelegramBotToken', value: botToken });
+      }
       for (const opt of options) {
         const res = await API.put('/api/option/', opt);
         if (!res.data.success) {
@@ -108,6 +112,7 @@ const TgBotPage = () => {
         }
       }
       showSuccess(t('保存成功'));
+      await loadSettings();
     } catch (err) {
       showError(t('保存失败'));
     } finally {
@@ -117,7 +122,7 @@ const TgBotPage = () => {
 
   // 注册命令菜单
   const registerCommands = async () => {
-    if (!botToken) {
+    if (!botToken && !tokenSet) {
       showError(t('请先填写并保存 Bot Token'));
       return;
     }
@@ -138,7 +143,7 @@ const TgBotPage = () => {
 
   // 设置 Webhook
   const setupWebhook = async () => {
-    if (!botToken) {
+    if (!botToken && !tokenSet) {
       showError(t('请先填写并保存 Bot Token'));
       return;
     }
@@ -623,12 +628,12 @@ const TgBotPage = () => {
             <Form.Input
               field='TelegramBotToken'
               label='Bot Token'
-              placeholder={t('从 @BotFather 获取的 Bot Token')}
+              placeholder={tokenSet ? maskedToken : t('从 @BotFather 获取的 Bot Token')}
               type='password'
               mode='password'
               value={botToken}
               onChange={setBotToken}
-              extraText={t('在 Telegram 中找 @BotFather 创建机器人获取 Token')}
+              extraText={tokenSet ? t('Token 已配置，留空则保持不变，输入新值可更新') : t('在 Telegram 中找 @BotFather 创建机器人获取 Token')}
             />
             <Form.Input
               field='TelegramBotName'
