@@ -18,6 +18,7 @@ type TgFarmPlot struct {
 	EventType   string `json:"event_type" gorm:"type:varchar(32)"`
 	EventAt     int64  `json:"event_at"`
 	StolenCount int    `json:"stolen_count" gorm:"default:0"`
+	Fertilized  int    `json:"fertilized" gorm:"default:0"` // 0=未施肥 1=已施肥
 }
 
 // TgFarmItem 农场道具背包
@@ -38,7 +39,8 @@ type TgFarmStealLog struct {
 	CreatedAt int64  `json:"created_at" gorm:"autoCreateTime"`
 }
 
-const FarmMaxPlots = 6
+const FarmInitialPlots = 2  // 初始地块数
+const FarmMaxPlots = 12     // 最大可购买地块数
 
 // ========== TgFarmPlot ==========
 
@@ -48,14 +50,14 @@ func GetOrCreateFarmPlots(telegramId string) ([]*TgFarmPlot, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(plots) >= FarmMaxPlots {
+	if len(plots) >= FarmInitialPlots {
 		return plots, nil
 	}
 	existing := make(map[int]bool)
 	for _, p := range plots {
 		existing[p.PlotIndex] = true
 	}
-	for i := 0; i < FarmMaxPlots; i++ {
+	for i := 0; i < FarmInitialPlots; i++ {
 		if !existing[i] {
 			plot := &TgFarmPlot{TelegramId: telegramId, PlotIndex: i, Status: 0}
 			if err := DB.Create(plot).Error; err != nil {
@@ -68,6 +70,19 @@ func GetOrCreateFarmPlots(telegramId string) ([]*TgFarmPlot, error) {
 	return plots, nil
 }
 
+// GetFarmPlotCount 获取用户当前地块数量
+func GetFarmPlotCount(telegramId string) (int64, error) {
+	var count int64
+	err := DB.Model(&TgFarmPlot{}).Where("telegram_id = ?", telegramId).Count(&count).Error
+	return count, err
+}
+
+// CreateNewFarmPlot 创建新地块（购买）
+func CreateNewFarmPlot(telegramId string, plotIndex int) error {
+	plot := &TgFarmPlot{TelegramId: telegramId, PlotIndex: plotIndex, Status: 0}
+	return DB.Create(plot).Error
+}
+
 func UpdateFarmPlot(plot *TgFarmPlot) error {
 	return DB.Save(plot).Error
 }
@@ -75,7 +90,7 @@ func UpdateFarmPlot(plot *TgFarmPlot) error {
 func ClearFarmPlot(id int) error {
 	return DB.Model(&TgFarmPlot{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"crop_type": "", "planted_at": 0, "status": 0,
-		"event_type": "", "event_at": 0, "stolen_count": 0,
+		"event_type": "", "event_at": 0, "stolen_count": 0, "fertilized": 0,
 	}).Error
 }
 

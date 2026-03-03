@@ -63,6 +63,7 @@ const TgBotPage = () => {
   const [lotteryMessagesRequired, setLotteryMessagesRequired] = useState(10);
   const [lotteryWinRate, setLotteryWinRate] = useState(30);
   const [savingLottery, setSavingLottery] = useState(false);
+  const [farmPlotPrice, setFarmPlotPrice] = useState(2000000);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
   const [lotteryPrizeTotal, setLotteryPrizeTotal] = useState(0);
@@ -84,6 +85,7 @@ const TgBotPage = () => {
         setLotteryEnabled(data.lottery_enabled || false);
         setLotteryMessagesRequired(data.messages_required || 10);
         setLotteryWinRate(data.win_rate || 30);
+        setFarmPlotPrice(data.farm_plot_price || 2000000);
         setBotToken('');
       }
     } catch (err) {
@@ -216,6 +218,7 @@ const TgBotPage = () => {
         { key: 'TgBotLotteryEnabled', value: String(lotteryEnabled) },
         { key: 'TgBotLotteryMessagesRequired', value: String(lotteryMessagesRequired) },
         { key: 'TgBotLotteryWinRate', value: String(lotteryWinRate) },
+        { key: 'TgBotFarmPlotPrice', value: String(farmPlotPrice) },
       ];
       for (const opt of options) {
         const res = await API.put('/api/option/', opt);
@@ -760,6 +763,13 @@ const TgBotPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
             <Typography.Text style={{ width: 160 }}>{t('中奖概率(%)')}</Typography.Text>
             <InputNumber value={lotteryWinRate} onChange={setLotteryWinRate} min={0} max={100} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 160 }}>{t('农场土地价格(额度)')}</Typography.Text>
+            <InputNumber value={farmPlotPrice} onChange={setFarmPlotPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>
+              {'$' + (farmPlotPrice / 500000).toFixed(2)}
+            </Typography.Text>
           </div>
           <Button
             theme='solid'

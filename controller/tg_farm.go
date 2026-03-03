@@ -47,6 +47,7 @@ var farmCrops = []farmCropDef{
 var farmItems = []farmItemDef{
 	{"water", "水壶", "💧", 150000, "drought"},
 	{"pesticide", "杀虫剂", "🧪", 150000, "bugs"},
+	{"fertilizer", "化肥", "🧴", 200000, ""},
 }
 
 var farmCropMap map[string]*farmCropDef
@@ -176,6 +177,14 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		plotStr := strings.TrimPrefix(data, "farm_tr_")
 		plotIdx, _ := strconv.Atoi(plotStr)
 		doFarmTreat(chatId, msgId, tgId, plotIdx, from)
+	case data == "farm_fert":
+		showFarmFertSelection(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_ff_"):
+		plotStr := strings.TrimPrefix(data, "farm_ff_")
+		plotIdx, _ := strconv.Atoi(plotStr)
+		doFarmFertilize(chatId, msgId, tgId, plotIdx, from)
+	case data == "farm_buyland":
+		doFarmBuyLand(chatId, msgId, tgId, from)
 	}
 }
 
@@ -212,6 +221,13 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		text += "\n"
 	}
 
+	// 显示地块数量
+	text += fmt.Sprintf("\n📊 土地 %d/%d 块", len(plots), model.FarmMaxPlots)
+	if len(plots) < model.FarmMaxPlots {
+		text += fmt.Sprintf(" | 购买新地 %s", farmQuotaStr(common.TgBotFarmPlotPrice))
+	}
+	text += "\n"
+
 	var rows [][]TgInlineKeyboardButton
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🌱 种植", CallbackData: "farm_plant"},
@@ -221,9 +237,27 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		{Text: "🏪 商店", CallbackData: "farm_shop"},
 		{Text: "🕵️ 偷菜", CallbackData: "farm_steal"},
 	})
+	// 有生长中作物时显示施肥按钮
+	hasGrowing := false
+	for _, plot := range plots {
+		if plot.Status == 1 && plot.Fertilized == 0 {
+			hasGrowing = true
+			break
+		}
+	}
+	if hasGrowing {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "🧴 施肥", CallbackData: "farm_fert"},
+		})
+	}
 	if hasEvent {
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: "💊 治疗", CallbackData: "farm_treat"},
+		})
+	}
+	if len(plots) < model.FarmMaxPlots {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("🏗️ 购买土地 (%s)", farmQuotaStr(common.TgBotFarmPlotPrice)), CallbackData: "farm_buyland"},
 		})
 	}
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
@@ -248,7 +282,11 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 			pct = 99
 		}
 		remaining := total - elapsed
-		return fmt.Sprintf("%s %d号地 - %s 生长中 %d%% 剩余%s", crop.Emoji, idx, crop.Name, pct, formatDuration(remaining))
+		fertTag := ""
+		if plot.Fertilized == 1 {
+			fertTag = " 🧴"
+		}
+		return fmt.Sprintf("%s %d号地 - %s 生长中 %d%% 剩余%s%s", crop.Emoji, idx, crop.Name, pct, formatDuration(remaining), fertTag)
 	case 2:
 		crop := farmCropMap[plot.CropType]
 		if crop == nil {
@@ -447,7 +485,16 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			}
 			// 随机产量：1 ~ MaxYield
 			yield := 1 + rand.Intn(crop.MaxYield)
-			// 被偷损失：每次偷减少1~2个产量
+			// 化肥加成：+50%
+			fertBonus := 0
+			if plot.Fertilized == 1 {
+				fertBonus = yield / 2
+				if fertBonus < 1 {
+					fertBonus = 1
+				}
+				yield += fertBonus
+			}
+			// 被偷损失
 			loss := plot.StolenCount
 			realYield := yield - loss
 			if realYield < 0 {
@@ -457,7 +504,10 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			totalQuota += value
 			harvestedCount++
 
-			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield)
+			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield-fertBonus)
+			if fertBonus > 0 {
+				details += fmt.Sprintf(" +化肥%d", fertBonus)
+			}
 			if loss > 0 {
 				details += fmt.Sprintf(" -被偷%d", loss)
 			}
@@ -505,8 +555,12 @@ func showFarmShop(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text += "\n📌 道具：\n"
 	var rows [][]TgInlineKeyboardButton
 	for _, item := range farmItems {
-		cureLabel := farmEventLabel(item.Cures)
-		text += fmt.Sprintf("  %s %s - %s (治疗%s)\n", item.Emoji, item.Name, farmQuotaStr(item.Cost), cureLabel)
+		if item.Cures != "" {
+			cureLabel := farmEventLabel(item.Cures)
+			text += fmt.Sprintf("  %s %s - %s (治疗%s)\n", item.Emoji, item.Name, farmQuotaStr(item.Cost), cureLabel)
+		} else {
+			text += fmt.Sprintf("  %s %s - %s (施肥增产50%%)\n", item.Emoji, item.Name, farmQuotaStr(item.Cost))
+		}
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: fmt.Sprintf("%s 购买%s (%s)", item.Emoji, item.Name, farmQuotaStr(item.Cost)),
 				CallbackData: "farm_buy_" + item.Key},
@@ -774,6 +828,177 @@ func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int, from *Tg
 	}
 	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 使用 %s%s 治疗成功！\n%s 恢复生长中。",
 		cureItem.Emoji, cureItem.Name, cropName), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 施肥 ==========
+
+func showFarmFertSelection(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+	for _, plot := range plots {
+		updateFarmPlotStatus(plot)
+	}
+
+	// 检查背包化肥
+	items, _ := model.GetFarmItems(tgId)
+	hasFert := false
+	for _, item := range items {
+		if item.ItemType == "fertilizer" && item.Quantity > 0 {
+			hasFert = true
+			break
+		}
+	}
+	if !hasFert {
+		farmSend(chatId, editMsgId, "❌ 你没有化肥！请先到商店购买。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏪 去商店", CallbackData: "farm_shop"},
+					{Text: "🔙 返回", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	text := "🧴 选择要施肥的地块（生长中且未施肥）：\n\n"
+	var rows [][]TgInlineKeyboardButton
+	hasTarget := false
+	for _, plot := range plots {
+		if plot.Status == 1 && plot.Fertilized == 0 {
+			crop := farmCropMap[plot.CropType]
+			if crop == nil {
+				continue
+			}
+			hasTarget = true
+			rows = append(rows, []TgInlineKeyboardButton{
+				{Text: fmt.Sprintf("%s %d号地 - %s", crop.Emoji, plot.PlotIndex+1, crop.Name),
+					CallbackData: fmt.Sprintf("farm_ff_%d", plot.PlotIndex)},
+			})
+		}
+	}
+	if !hasTarget {
+		text += "没有可施肥的地块（需要生长中且未施肥）。"
+	}
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmFertilize(chatId int64, editMsgId int, tgId string, plotIdx int, from *TgUser) {
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+
+	var target *model.TgFarmPlot
+	for _, plot := range plots {
+		if plot.PlotIndex == plotIdx {
+			target = plot
+			break
+		}
+	}
+	if target == nil || target.Status != 1 || target.Fertilized == 1 {
+		farmSend(chatId, editMsgId, "❌ 该地块不可施肥。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	// 消耗化肥
+	if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
+		farmSend(chatId, editMsgId, "❌ 化肥不足！请先到商店购买。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏪 去商店", CallbackData: "farm_shop"},
+					{Text: "🔙 返回", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	// 标记已施肥
+	target.Fertilized = 1
+	_ = model.UpdateFarmPlot(target)
+
+	crop := farmCropMap[target.CropType]
+	cropName := "作物"
+	if crop != nil {
+		cropName = crop.Emoji + crop.Name
+	}
+
+	common.SysLog(fmt.Sprintf("TG Farm: user %s fertilized plot %d (%s)", tgId, plotIdx, cropName))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🧴 施肥成功！\n\n%d号地 %s 已施肥，收获时产量+50%%！", plotIdx+1, cropName), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🧴 继续施肥", CallbackData: "farm_fert"},
+				{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 购买土地 ==========
+
+func doFarmBuyLand(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	plotCount, err := model.GetFarmPlotCount(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+	if int(plotCount) >= model.FarmMaxPlots {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 你已拥有 %d 块土地，已达上限！", model.FarmMaxPlots), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	price := common.TgBotFarmPlotPrice
+	if user.Quota < price {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足！\n\n土地价格：%s\n你的余额：%s",
+			farmQuotaStr(price), farmQuotaStr(user.Quota)), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	// 扣费
+	err = model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 扣费失败，请稍后再试。", nil, from)
+		return
+	}
+
+	// 创建新地块
+	newIdx := int(plotCount)
+	err = model.CreateNewFarmPlot(tgId, newIdx)
+	if err != nil {
+		// 回滚扣费
+		_ = model.IncreaseUserQuota(user.Id, price, true)
+		farmSend(chatId, editMsgId, "❌ 创建地块失败，已退款。", nil, from)
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("TG Farm: user %s bought plot %d for %d quota", tgId, newIdx+1, price))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🏗️ 购买成功！\n\n你获得了 %d号地！\n💰 花费 %s\n📊 当前土地 %d/%d 块",
+		newIdx+1, farmQuotaStr(price), newIdx+1, model.FarmMaxPlots), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},

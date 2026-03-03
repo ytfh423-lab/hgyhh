@@ -876,6 +876,7 @@ func GetTgBotSettings(c *gin.Context) {
 			"lottery_enabled":    common.TgBotLotteryEnabled,
 			"messages_required":  common.TgBotLotteryMessagesRequired,
 			"win_rate":           common.TgBotLotteryWinRate,
+			"farm_plot_price":    common.TgBotFarmPlotPrice,
 		},
 	})
 }

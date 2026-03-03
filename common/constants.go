@@ -102,6 +102,7 @@ var TelegramBotName = ""
 var TgBotLotteryEnabled = false
 var TgBotLotteryMessagesRequired = 10
 var TgBotLotteryWinRate = 30 // 中奖概率百分比
+var TgBotFarmPlotPrice = 2000000 // 购买土地价格（quota单位，默认$4）
 
 var QuotaForNewUser = 0
 var QuotaForInviter = 0

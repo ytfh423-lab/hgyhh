@@ -101,6 +101,7 @@ func InitOptionMap() {
 	common.OptionMap["TgBotLotteryEnabled"] = "false"
 	common.OptionMap["TgBotLotteryMessagesRequired"] = "10"
 	common.OptionMap["TgBotLotteryWinRate"] = "30"
+	common.OptionMap["TgBotFarmPlotPrice"] = strconv.Itoa(common.TgBotFarmPlotPrice)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -410,6 +411,11 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 		if common.TgBotLotteryWinRate > 100 {
 			common.TgBotLotteryWinRate = 100
+		}
+	case "TgBotFarmPlotPrice":
+		common.TgBotFarmPlotPrice, _ = strconv.Atoi(value)
+		if common.TgBotFarmPlotPrice <= 0 {
+			common.TgBotFarmPlotPrice = 2000000
 		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
