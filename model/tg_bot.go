@@ -146,7 +146,7 @@ func GetOrCreateMessageTracker(chatId int64, telegramId string) (*TgBotMessageTr
 
 func IncrementMessageCount(id int) error {
 	return DB.Model(&TgBotMessageTracker{}).Where("id = ?", id).
-		Update("message_count", DB.Raw("message_count + 1")).Error
+		Update("message_count", gorm.Expr("message_count + 1")).Error
 }
 
 func UpdateLastBotMsgId(id int, msgId int) error {
@@ -156,7 +156,7 @@ func UpdateLastBotMsgId(id int, msgId int) error {
 
 func IncrementLotteryUsed(id int) error {
 	return DB.Model(&TgBotMessageTracker{}).Where("id = ?", id).
-		Update("lottery_used", DB.Raw("lottery_used + 1")).Error
+		Update("lottery_used", gorm.Expr("lottery_used + 1")).Error
 }
 
 // ========== TgBotLotteryRecord 抽奖记录 ==========

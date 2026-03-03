@@ -240,7 +240,9 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 		CategoryId: categoryId,
 		CodeKey:    invItem.Code,
 	}
-	_ = model.CreateTgBotClaim(claim)
+	if err := model.CreateTgBotClaim(claim); err != nil {
+		common.SysError(fmt.Sprintf("TG Bot: failed to create claim record: %s", err.Error()))
+	}
 
 	// 发送兑换码给用户
 	codeType := "兑换码"

@@ -6,9 +6,11 @@ import {
   Descriptions,
   Form,
   Input,
+  InputNumber,
   Modal,
   Space,
   Spin,
+  Switch,
   Table,
   Tag,
   TextArea,
@@ -742,36 +744,18 @@ const TgBotPage = () => {
         className='mt-4'
       >
         <div className='mb-4'>
-          <Form
-            layout='horizontal'
-            labelPosition='left'
-            labelWidth='140px'
-          >
-            <Form.Switch
-              field='lotteryEnabled'
-              label={t('开启群聊抽奖')}
-              initValue={lotteryEnabled}
-              onChange={setLotteryEnabled}
-            />
-            <Form.InputNumber
-              field='lotteryMessagesRequired'
-              label={t('每多少条消息抽一次')}
-              initValue={lotteryMessagesRequired}
-              onChange={setLotteryMessagesRequired}
-              min={1}
-              max={1000}
-              style={{ width: 120 }}
-            />
-            <Form.InputNumber
-              field='lotteryWinRate'
-              label={t('中奖概率(%)')}
-              initValue={lotteryWinRate}
-              onChange={setLotteryWinRate}
-              min={0}
-              max={100}
-              style={{ width: 120 }}
-            />
-          </Form>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 160 }}>{t('开启群聊抽奖')}</Typography.Text>
+            <Switch checked={lotteryEnabled} onChange={setLotteryEnabled} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 160 }}>{t('每多少条消息抽一次')}</Typography.Text>
+            <InputNumber value={lotteryMessagesRequired} onChange={setLotteryMessagesRequired} min={1} max={1000} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 160 }}>{t('中奖概率(%)')}</Typography.Text>
+            <InputNumber value={lotteryWinRate} onChange={setLotteryWinRate} min={0} max={100} style={{ width: 120 }} />
+          </div>
           <Button
             theme='solid'
             type='primary'
