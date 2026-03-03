@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, LayoutDashboard, Store, BookOpen, Info, Gift } from 'lucide-react';
+import { Home, LayoutDashboard, Store, BookOpen, Info, Gift, Wheat } from 'lucide-react';
 import SkeletonWrapper from '../components/SkeletonWrapper';
 
 const NAV_ICONS = {
@@ -27,6 +27,7 @@ const NAV_ICONS = {
   console: LayoutDashboard,
   pricing: Store,
   gift: Gift,
+  farm: Wheat,
   docs: BookOpen,
   about: Info,
 };

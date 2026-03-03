@@ -317,6 +317,26 @@ func SetApiRouter(router *gin.Engine) {
 			invCodeRoute.GET("/", controller.GetMyInvitationCodes)
 		}
 
+		farmRoute := apiRouter.Group("/farm")
+		farmRoute.Use(middleware.UserAuth())
+		{
+			farmRoute.GET("/view", controller.WebFarmView)
+			farmRoute.GET("/crops", controller.WebFarmCrops)
+			farmRoute.GET("/shop", controller.WebFarmShop)
+			farmRoute.POST("/plant", controller.WebFarmPlant)
+			farmRoute.POST("/harvest", controller.WebFarmHarvest)
+			farmRoute.POST("/buy", controller.WebFarmBuyItem)
+			farmRoute.GET("/steal/targets", controller.WebFarmStealTargets)
+			farmRoute.POST("/steal", controller.WebFarmSteal)
+			farmRoute.POST("/treat", controller.WebFarmTreat)
+			farmRoute.POST("/fertilize", controller.WebFarmFertilize)
+			farmRoute.POST("/buyland", controller.WebFarmBuyLand)
+			farmRoute.POST("/water", controller.WebFarmWater)
+			farmRoute.GET("/dog", controller.WebFarmDog)
+			farmRoute.POST("/buydog", controller.WebFarmBuyDog)
+			farmRoute.POST("/feeddog", controller.WebFarmFeedDog)
+		}
+
 		pubInvRoute := apiRouter.Group("/public_invcode")
 		{
 			pubInvRoute.GET("/", controller.GetPublicInviteCodes)

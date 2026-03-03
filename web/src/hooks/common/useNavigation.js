@@ -27,6 +27,7 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       console: true,
       pricing: true,
       invite_codes: true,
+      farm: true,
       docs: true,
       about: true,
     };
@@ -58,6 +59,12 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         itemKey: 'invite_codes',
         to: '/invite-codes',
         icon: 'gift',
+      },
+      {
+        text: t('农场'),
+        itemKey: 'farm',
+        to: '/farm',
+        icon: 'farm',
       },
       ...(docsLink
         ? [
@@ -91,6 +98,9 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       }
       if (link.itemKey === 'invite_codes') {
         return modules.invite_codes !== false;
+      }
+      if (link.itemKey === 'farm') {
+        return modules.farm !== false;
       }
       return modules[link.itemKey] === true;
     });
