@@ -279,6 +279,7 @@ func migrateDB() error {
 		&DeletionRequest{},
 		&TgBotCategory{},
 		&TgBotClaim{},
+		&TgBotInventory{},
 	)
 	if err != nil {
 		return err
