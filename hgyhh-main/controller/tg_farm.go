@@ -45,7 +45,6 @@ var farmCrops = []farmCropDef{
 }
 
 var farmItems = []farmItemDef{
-	{"water", "水壶", "💧", 150000, "drought"},
 	{"pesticide", "杀虫剂", "🧪", 150000, "bugs"},
 	{"fertilizer", "化肥", "🧴", 200000, ""},
 	{"dogfood", "狗粮", "🦴", 500000, ""},
@@ -124,6 +123,16 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 	if plot.Status == 1 && plot.EventAt > 0 && plot.EventType != "" && now >= plot.EventAt {
 		plot.Status = 3
 		changed = true
+	}
+	// 天灾(干旱)死亡检查：status=3 + drought + 超时未处理
+	if plot.Status == 3 && plot.EventType == "drought" {
+		wiltDuration := int64(common.TgBotFarmWiltDuration)
+		if now >= plot.EventAt+wiltDuration {
+			_ = model.ClearFarmPlot(plot.Id)
+			plot.Status = 0
+			plot.CropType = ""
+			return
+		}
 	}
 	// 成熟检查（无事件时）
 	if plot.Status == 1 {
@@ -250,10 +259,11 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	hasWiltOrGrowing := false
 	for _, plot := range plots {
 		text += farmPlotLine(plot) + "\n"
-		if plot.Status == 3 {
+		if plot.Status == 3 && plot.EventType != "drought" {
 			hasEvent = true
 		}
-		if plot.Status == 1 || plot.Status == 4 {
+		if plot.Status == 1 || plot.Status == 4 ||
+			(plot.Status == 3 && plot.EventType == "drought") {
 			hasWiltOrGrowing = true
 		}
 	}
@@ -394,15 +404,22 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 			emoji = crop.Emoji
 			name = crop.Name
 		}
+		if plot.EventType == "drought" {
+			now := time.Now().Unix()
+			wiltDuration := int64(common.TgBotFarmWiltDuration)
+			deathAt := plot.EventAt + wiltDuration
+			remaining := deathAt - now
+			if remaining < 0 {
+				remaining = 0
+			}
+			return fmt.Sprintf("🏜️ %d号地 - %s%s 天灾干旱！💧快浇水救命！%s后死亡", idx, emoji, name, formatDuration(remaining))
+		}
 		eventEmoji := "❌"
 		eventLabel := "未知事件"
 		switch plot.EventType {
 		case "bugs":
 			eventEmoji = "🐛"
 			eventLabel = "虫害"
-		case "drought":
-			eventEmoji = "🏜️"
-			eventLabel = "干旱"
 		}
 		return fmt.Sprintf("%s %d号地 - %s %s%s！需要治疗", emoji, idx, name, eventEmoji, eventLabel)
 	case 4:
@@ -552,9 +569,15 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 	targetPlot.StolenCount = 0
 	targetPlot.LastWateredAt = now
 
+	// 虫害事件
 	if rand.Intn(100) < common.TgBotFarmEventChance {
-		eventTypes := []string{"bugs", "drought"}
-		targetPlot.EventType = eventTypes[rand.Intn(2)]
+		targetPlot.EventType = "bugs"
+		offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+		targetPlot.EventAt = now + offset
+	}
+	// 天灾(干旱)：独立概率，不与虫害叠加
+	if targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
+		targetPlot.EventType = "drought"
 		offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
@@ -878,9 +901,9 @@ func showFarmTreatSelection(chatId int64, editMsgId int, tgId string, from *TgUs
 	text := "💊 选择要治疗的地块：\n\n"
 	var rows [][]TgInlineKeyboardButton
 	hasEvent := false
+	hasDrought := false
 	for _, plot := range plots {
 		if plot.Status == 3 {
-			hasEvent = true
 			crop := farmCropMap[plot.CropType]
 			cropName := "作物"
 			cropEmoji := "🌿"
@@ -888,24 +911,36 @@ func showFarmTreatSelection(chatId int64, editMsgId int, tgId string, from *TgUs
 				cropName = crop.Name
 				cropEmoji = crop.Emoji
 			}
-			evtLabel := farmEventLabel(plot.EventType)
-			var needItem string
-			for _, item := range farmItems {
-				if item.Cures == plot.EventType {
-					needItem = item.Emoji + item.Name
-					break
+			if plot.EventType == "drought" {
+				hasDrought = true
+				text += fmt.Sprintf("🏜️ %d号地 - %s 天灾干旱！（💧请去浇水救命）\n",
+					plot.PlotIndex+1, cropName)
+			} else {
+				hasEvent = true
+				evtLabel := farmEventLabel(plot.EventType)
+				var needItem string
+				for _, item := range farmItems {
+					if item.Cures == plot.EventType {
+						needItem = item.Emoji + item.Name
+						break
+					}
 				}
+				text += fmt.Sprintf("%s %d号地 - %s %s (需要%s)\n",
+					cropEmoji, plot.PlotIndex+1, cropName, evtLabel, needItem)
+				rows = append(rows, []TgInlineKeyboardButton{
+					{Text: fmt.Sprintf("💊 治疗 %d号地", plot.PlotIndex+1),
+						CallbackData: fmt.Sprintf("farm_tr_%d", plot.PlotIndex)},
+				})
 			}
-			text += fmt.Sprintf("%s %d号地 - %s %s (需要%s)\n",
-				cropEmoji, plot.PlotIndex+1, cropName, evtLabel, needItem)
-			rows = append(rows, []TgInlineKeyboardButton{
-				{Text: fmt.Sprintf("💊 治疗 %d号地", plot.PlotIndex+1),
-					CallbackData: fmt.Sprintf("farm_tr_%d", plot.PlotIndex)},
-			})
 		}
 	}
-	if !hasEvent {
+	if !hasEvent && !hasDrought {
 		text = "💊 没有需要治疗的地块。"
+	}
+	if hasDrought {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "💧 去浇水", CallbackData: "farm_water"},
+		})
 	}
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🏪 去商店", CallbackData: "farm_shop"},
@@ -1169,7 +1204,9 @@ func showFarmWaterSelection(chatId int64, editMsgId int, tgId string, from *TgUs
 	var rows [][]TgInlineKeyboardButton
 	hasTarget := false
 	for _, plot := range plots {
-		if plot.Status == 1 || plot.Status == 4 {
+		needsWater := plot.Status == 1 || plot.Status == 4 ||
+			(plot.Status == 3 && plot.EventType == "drought")
+		if needsWater {
 			crop := farmCropMap[plot.CropType]
 			if crop == nil {
 				continue
@@ -1178,6 +1215,8 @@ func showFarmWaterSelection(chatId int64, editMsgId int, tgId string, from *TgUs
 			statusLabel := "生长中"
 			if plot.Status == 4 {
 				statusLabel = "🥀枯萎中"
+			} else if plot.Status == 3 && plot.EventType == "drought" {
+				statusLabel = "🏜️天灾干旱"
 			}
 			rows = append(rows, []TgInlineKeyboardButton{
 				{Text: fmt.Sprintf("%s %d号地 - %s (%s)", crop.Emoji, plot.PlotIndex+1, crop.Name, statusLabel),
@@ -1208,7 +1247,17 @@ func doFarmWater(chatId int64, editMsgId int, tgId string, plotIdx int, from *Tg
 			break
 		}
 	}
-	if target == nil || (target.Status != 1 && target.Status != 4) {
+	if target == nil {
+		farmSend(chatId, editMsgId, "❌ 该地块不需要浇水。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+	canWater := target.Status == 1 || target.Status == 4 ||
+		(target.Status == 3 && target.EventType == "drought")
+	if !canWater {
 		farmSend(chatId, editMsgId, "❌ 该地块不需要浇水。", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回农场", CallbackData: "farm"}},
@@ -1218,6 +1267,7 @@ func doFarmWater(chatId int64, editMsgId int, tgId string, plotIdx int, from *Tg
 	}
 
 	wasWilting := target.Status == 4
+	wasDrought := target.Status == 3 && target.EventType == "drought"
 
 	// 如果是枯萎状态，恢复为生长中，补偿枯萎期间的时间
 	if wasWilting {
@@ -1230,6 +1280,17 @@ func doFarmWater(chatId int64, editMsgId int, tgId string, plotIdx int, from *Tg
 		_ = model.UpdateFarmPlot(target)
 	}
 
+	// 如果是天灾干旱，恢复为生长中，补偿干旱期间的时间
+	if wasDrought {
+		now := time.Now().Unix()
+		downtime := now - target.EventAt
+		target.PlantedAt += downtime
+		target.Status = 1
+		target.EventType = ""
+		target.EventAt = 0
+		_ = model.UpdateFarmPlot(target)
+	}
+
 	_ = model.WaterFarmPlot(target.Id)
 
 	crop := farmCropMap[target.CropType]
@@ -1239,7 +1300,9 @@ func doFarmWater(chatId int64, editMsgId int, tgId string, plotIdx int, from *Tg
 	}
 
 	msg := fmt.Sprintf("💧 浇水成功！\n\n%d号地 %s", plotIdx+1, cropName)
-	if wasWilting {
+	if wasDrought {
+		msg += " 天灾干旱已解除，恢复生长！"
+	} else if wasWilting {
 		msg += " 已从枯萎中恢复生长！"
 	} else {
 		msg += " 已浇水。"
@@ -1441,7 +1504,7 @@ func farmEventLabel(eventType string) string {
 	case "bugs":
 		return "虫害🐛"
 	case "drought":
-		return "干旱🏜️"
+		return "天灾干旱🏜️"
 	}
 	return "未知"
 }

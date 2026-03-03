@@ -71,6 +71,7 @@ const TgBotPage = () => {
   const [farmWaterInterval, setFarmWaterInterval] = useState(7200);
   const [farmWiltDuration, setFarmWiltDuration] = useState(3600);
   const [farmEventChance, setFarmEventChance] = useState(30);
+  const [farmDisasterChance, setFarmDisasterChance] = useState(15);
   const [farmStealCooldown, setFarmStealCooldown] = useState(1800);
   const [savingFarm, setSavingFarm] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
@@ -102,6 +103,7 @@ const TgBotPage = () => {
         setFarmWaterInterval(data.farm_water_interval || 7200);
         setFarmWiltDuration(data.farm_wilt_duration || 3600);
         setFarmEventChance(data.farm_event_chance || 30);
+        setFarmDisasterChance(data.farm_disaster_chance || 15);
         setFarmStealCooldown(data.farm_steal_cooldown || 1800);
         setBotToken('');
       }
@@ -798,8 +800,12 @@ const TgBotPage = () => {
             <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(farmWiltDuration / 3600).toFixed(1) + t('小时')}</Typography.Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            <Typography.Text style={{ width: 200 }}>{t('随机事件概率(%)')}</Typography.Text>
+            <Typography.Text style={{ width: 200 }}>{t('虫害概率(%)')}</Typography.Text>
             <InputNumber value={farmEventChance} onChange={setFarmEventChance} min={0} max={100} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('天灾干旱概率(%)')}</Typography.Text>
+            <InputNumber value={farmDisasterChance} onChange={setFarmDisasterChance} min={0} max={100} style={{ width: 120 }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
             <Typography.Text style={{ width: 200 }}>{t('偷菜冷却时间(秒)')}</Typography.Text>
@@ -822,6 +828,7 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmWaterInterval', value: String(farmWaterInterval) },
                   { key: 'TgBotFarmWiltDuration', value: String(farmWiltDuration) },
                   { key: 'TgBotFarmEventChance', value: String(farmEventChance) },
+                  { key: 'TgBotFarmDisasterChance', value: String(farmDisasterChance) },
                   { key: 'TgBotFarmStealCooldown', value: String(farmStealCooldown) },
                 ];
                 for (const opt of farmOptions) {

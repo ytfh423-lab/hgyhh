@@ -109,7 +109,8 @@ var TgBotFarmDogGrowHours = 24        // 小狗长大所需小时
 var TgBotFarmDogGuardRate = 50        // 看门狗拦截偷菜概率%
 var TgBotFarmWaterInterval = 7200     // 浇水间隔秒数（默认2小时）
 var TgBotFarmWiltDuration = 3600      // 枯萎到死亡秒数（默认1小时）
-var TgBotFarmEventChance = 30         // 随机事件概率%
+var TgBotFarmEventChance = 30         // 随机事件(虫害)概率%
+var TgBotFarmDisasterChance = 15      // 天灾(干旱)概率%，不处理会死亡
 var TgBotFarmStealCooldown = 1800     // 偷菜冷却秒数
 
 var QuotaForNewUser = 0

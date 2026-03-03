@@ -109,6 +109,7 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmWaterInterval"] = strconv.Itoa(common.TgBotFarmWaterInterval)
 	common.OptionMap["TgBotFarmWiltDuration"] = strconv.Itoa(common.TgBotFarmWiltDuration)
 	common.OptionMap["TgBotFarmEventChance"] = strconv.Itoa(common.TgBotFarmEventChance)
+	common.OptionMap["TgBotFarmDisasterChance"] = strconv.Itoa(common.TgBotFarmDisasterChance)
 	common.OptionMap["TgBotFarmStealCooldown"] = strconv.Itoa(common.TgBotFarmStealCooldown)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
@@ -465,6 +466,14 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 		if common.TgBotFarmEventChance > 100 {
 			common.TgBotFarmEventChance = 100
+		}
+	case "TgBotFarmDisasterChance":
+		common.TgBotFarmDisasterChance, _ = strconv.Atoi(value)
+		if common.TgBotFarmDisasterChance < 0 {
+			common.TgBotFarmDisasterChance = 0
+		}
+		if common.TgBotFarmDisasterChance > 100 {
+			common.TgBotFarmDisasterChance = 100
 		}
 	case "TgBotFarmStealCooldown":
 		common.TgBotFarmStealCooldown, _ = strconv.Atoi(value)

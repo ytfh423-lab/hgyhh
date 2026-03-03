@@ -884,6 +884,7 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_water_interval":  common.TgBotFarmWaterInterval,
 			"farm_wilt_duration":   common.TgBotFarmWiltDuration,
 			"farm_event_chance":    common.TgBotFarmEventChance,
+			"farm_disaster_chance": common.TgBotFarmDisasterChance,
 			"farm_steal_cooldown":  common.TgBotFarmStealCooldown,
 		},
 	})
