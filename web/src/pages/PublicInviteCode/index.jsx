@@ -334,7 +334,7 @@ const PublicInviteCode = () => {
             value={selectedCodeId}
             onChange={setSelectedCodeId}
             style={{ width: '100%' }}
-            renderOptionItem={({ disabled, selected, label, value, ...rest }) => {
+            renderOptionItem={({ disabled, selected, label, value, onMouseEnter, onClick, style: optionStyle, className: optionClassName }) => {
               const code = myCodes.find((c) => c.id === value);
               if (!code) return null;
               const statusColors = {
@@ -346,16 +346,18 @@ const PublicInviteCode = () => {
               };
               return (
                 <div
+                  className={optionClassName}
                   style={{
+                    ...optionStyle,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '8px 12px',
                     cursor: disabled ? 'not-allowed' : 'pointer',
                     opacity: disabled ? 0.5 : 1,
-                    background: selected ? 'var(--semi-color-primary-light-default)' : 'transparent',
                   }}
-                  {...rest}
+                  onClick={disabled ? undefined : onClick}
+                  onMouseEnter={onMouseEnter}
                 >
                   <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
                     {code.key.substring(0, 12)}...
