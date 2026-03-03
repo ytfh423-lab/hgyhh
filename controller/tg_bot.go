@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -95,6 +96,11 @@ func TgBotWebhook(c *gin.Context) {
 		cmd = cmd[:idx]
 	}
 
+	// 群组消息：追踪活跃度 + 自动删除上一条bot消息 + 抽奖触发
+	if isGroup {
+		handleGroupMessage(chatId, msg.From)
+	}
+
 	switch {
 	case cmd == "/start":
 		handleTgStart(chatId, isGroup)
@@ -156,7 +162,13 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	chatId := cb.Message.Chat.Id
 	isGroup := cb.Message.Chat.Type == "group" || cb.Message.Chat.Type == "supergroup"
 
-	// 应答 callback 避免按钮转圈
+	// 抽奖回调：不预先应答，由抽奖逻辑用 show_alert 应答
+	if strings.HasPrefix(cb.Data, "lottery_") {
+		handleTgLotteryCallback(cb)
+		return
+	}
+
+	// 其他回调：普通应答
 	answerCallbackQuery(cb.Id)
 
 	if cb.Data == "myrecords" {
@@ -305,6 +317,153 @@ func handleTgMyRecords(chatId int64, from *TgUser, isGroup bool) {
 	}
 }
 
+// ========== 群组消息追踪 + 抽奖逻辑 ==========
+
+// handleGroupMessage 处理群组消息：追踪活跃度、删除上一条bot消息、触发抽奖
+func handleGroupMessage(chatId int64, from *TgUser) {
+	if !common.TgBotLotteryEnabled {
+		return
+	}
+
+	tgId := strconv.FormatInt(from.Id, 10)
+
+	// 获取或创建消息追踪器
+	tracker, err := model.GetOrCreateMessageTracker(chatId, tgId)
+	if err != nil {
+		common.SysError("TG Bot: failed to get message tracker: " + err.Error())
+		return
+	}
+
+	// 删除上一条bot发给该用户的消息
+	if tracker.LastBotMsgId > 0 {
+		deleteTgMessage(chatId, tracker.LastBotMsgId)
+		_ = model.UpdateLastBotMsgId(tracker.Id, 0)
+	}
+
+	// 递增消息计数
+	_ = model.IncrementMessageCount(tracker.Id)
+	newCount := tracker.MessageCount + 1
+
+	// 检查是否达到抽奖条件
+	required := common.TgBotLotteryMessagesRequired
+	if required <= 0 {
+		required = 10
+	}
+	totalChances := newCount / required
+	usedChances := tracker.LotteryUsed
+	availableChances := totalChances - usedChances
+
+	if availableChances > 0 {
+		// 发送抽奖按钮
+		displayName := from.FirstName
+		if from.Username != "" {
+			displayName = "@" + from.Username
+		}
+		text := fmt.Sprintf("🎉 %s 你已发送 %d 条消息，获得一次抽奖机会！\n点击下方按钮抽奖：",
+			displayName, newCount)
+
+		keyboard := TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🎰 点击抽奖", CallbackData: fmt.Sprintf("lottery_%s", tgId)}},
+			},
+		}
+		sentMsgId := sendTgMessageWithKeyboardAndGetId(chatId, text, keyboard)
+		if sentMsgId > 0 {
+			_ = model.UpdateLastBotMsgId(tracker.Id, sentMsgId)
+		}
+	}
+}
+
+// handleTgLotteryCallback 处理抽奖按钮点击（结果只有点击者可见）
+func handleTgLotteryCallback(cb *TgCallbackQuery) {
+	chatId := cb.Message.Chat.Id
+	tgId := strconv.FormatInt(cb.From.Id, 10)
+
+	// 验证是否是本人的抽奖按钮
+	expectedData := fmt.Sprintf("lottery_%s", tgId)
+	if cb.Data != expectedData {
+		answerCallbackQueryWithAlert(cb.Id, "❌ 这不是你的抽奖机会哦！")
+		return
+	}
+
+	// 获取消息追踪器
+	tracker, err := model.GetOrCreateMessageTracker(chatId, tgId)
+	if err != nil {
+		answerCallbackQueryWithAlert(cb.Id, "❌ 系统错误，请稍后再试。")
+		return
+	}
+
+	// 检查是否有可用抽奖次数
+	required := common.TgBotLotteryMessagesRequired
+	if required <= 0 {
+		required = 10
+	}
+	totalChances := tracker.MessageCount / required
+	if totalChances <= tracker.LotteryUsed {
+		answerCallbackQueryWithAlert(cb.Id, "❌ 你没有可用的抽奖次数了。继续聊天获取更多机会！")
+		return
+	}
+
+	// 消耗一次抽奖次数
+	_ = model.IncrementLotteryUsed(tracker.Id)
+
+	// 删除抽奖按钮消息
+	deleteTgMessage(chatId, cb.Message.MessageId)
+	_ = model.UpdateLastBotMsgId(tracker.Id, 0)
+
+	// 抽奖：判断是否中奖
+	winRate := common.TgBotLotteryWinRate
+	roll := rand.Intn(100)
+	won := roll < winRate
+
+	if !won {
+		// 未中奖
+		_ = model.CreateTgBotLotteryRecord(&model.TgBotLotteryRecord{
+			TelegramId: tgId,
+			ChatId:     chatId,
+			Won:        false,
+		})
+		answerCallbackQueryWithAlert(cb.Id, "😢 很遗憾，没有中奖。\n继续在群里聊天，获取更多抽奖机会！")
+		return
+	}
+
+	// 中奖：从奖品池取一个
+	prize, err := model.GetAvailableTgBotLotteryPrize()
+	if err != nil {
+		// 奖品池空了
+		_ = model.CreateTgBotLotteryRecord(&model.TgBotLotteryRecord{
+			TelegramId: tgId,
+			ChatId:     chatId,
+			Won:        false,
+		})
+		answerCallbackQueryWithAlert(cb.Id, "😢 奖品已被领完，下次再来！")
+		return
+	}
+
+	// 标记奖品为已中奖
+	_ = model.MarkTgBotLotteryPrizeWon(prize.Id, tgId)
+
+	// 记录中奖
+	_ = model.CreateTgBotLotteryRecord(&model.TgBotLotteryRecord{
+		TelegramId: tgId,
+		ChatId:     chatId,
+		PrizeName:  prize.Name,
+		PrizeCode:  prize.Code,
+		Won:        true,
+	})
+
+	// 通过 callback alert 弹窗显示中奖信息（只有点击者可见）
+	alertText := fmt.Sprintf("🎊 恭喜中奖！\n\n奖品：%s\n兑换码：%s\n\n请复制兑换码前往网站使用。", prize.Name, prize.Code)
+	answerCallbackQueryWithAlert(cb.Id, alertText)
+
+	// 在群里发一条通知（不含兑换码）
+	displayName := cb.From.FirstName
+	if cb.From.Username != "" {
+		displayName = "@" + cb.From.Username
+	}
+	sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！", displayName, prize.Name))
+}
+
 // ========== Admin API for TG Bot Categories ==========
 
 func GetTgBotCategories(c *gin.Context) {
@@ -445,6 +604,71 @@ func DeleteTgBotInventoryItem(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "删除成功"})
+}
+
+// ========== Admin API: Lottery Prize Management ==========
+
+func GetTgBotLotteryPrizes(c *gin.Context) {
+	prizes, err := model.GetAllTgBotLotteryPrizes()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	total, available, _ := model.CountTgBotLotteryPrizes()
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": prizes, "total": total, "available": available})
+}
+
+func AddTgBotLotteryPrizes(c *gin.Context) {
+	var req struct {
+		Name  string `json:"name"`
+		Codes string `json:"codes"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Name == "" || req.Codes == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误：需要奖品名称和兑换码"})
+		return
+	}
+	lines := strings.Split(req.Codes, "\n")
+	var codes []string
+	for _, line := range lines {
+		code := strings.TrimSpace(line)
+		if code != "" {
+			codes = append(codes, code)
+		}
+	}
+	if len(codes) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请输入至少一个兑换码"})
+		return
+	}
+	added, err := model.AddTgBotLotteryPrizes(codes, req.Name)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功添加 %d 个奖品", added)})
+}
+
+func DeleteTgBotLotteryPrize(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "无效的ID"})
+		return
+	}
+	if err := model.DeleteTgBotLotteryPrize(id); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "删除成功"})
+}
+
+func GetTgBotLotterySettings(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"enabled":           common.TgBotLotteryEnabled,
+			"messages_required": common.TgBotLotteryMessagesRequired,
+			"win_rate":          common.TgBotLotteryWinRate,
+		},
+	})
 }
 
 // ========== Admin API: Bot Commands Registration ==========
@@ -615,6 +839,73 @@ func sendTgMessageWithKeyboard(chatId int64, text string, keyboard TgInlineKeybo
 		"chat_id":      chatId,
 		"text":         text,
 		"reply_markup": keyboard,
+	}
+	tgPost(apiUrl, body)
+}
+
+// sendTgMessageWithKeyboardAndGetId 发送带键盘的消息并返回消息ID
+func sendTgMessageWithKeyboardAndGetId(chatId int64, text string, keyboard TgInlineKeyboardMarkup) int {
+	token := common.TelegramBotToken
+	if token == "" {
+		return 0
+	}
+
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	body := map[string]interface{}{
+		"chat_id":      chatId,
+		"text":         text,
+		"reply_markup": keyboard,
+	}
+	bodyBytes, err := common.Marshal(body)
+	if err != nil {
+		return 0
+	}
+	resp, err := http.Post(apiUrl, "application/json", strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return 0
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	if err := common.Unmarshal(respBody, &result); err != nil {
+		return 0
+	}
+	if ok, _ := result["ok"].(bool); ok {
+		if msg, ok := result["result"].(map[string]interface{}); ok {
+			if msgId, ok := msg["message_id"].(float64); ok {
+				return int(msgId)
+			}
+		}
+	}
+	return 0
+}
+
+// deleteTgMessage 删除消息
+func deleteTgMessage(chatId int64, messageId int) {
+	token := common.TelegramBotToken
+	if token == "" {
+		return
+	}
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/deleteMessage", token)
+	body := map[string]interface{}{
+		"chat_id":    chatId,
+		"message_id": messageId,
+	}
+	tgPost(apiUrl, body)
+}
+
+// answerCallbackQueryWithAlert 用弹窗回复 callback（只有点击者可见）
+func answerCallbackQueryWithAlert(callbackQueryId string, text string) {
+	token := common.TelegramBotToken
+	if token == "" {
+		return
+	}
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/answerCallbackQuery", token)
+	body := map[string]interface{}{
+		"callback_query_id": callbackQueryId,
+		"text":              text,
+		"show_alert":        true,
 	}
 	tgPost(apiUrl, body)
 }

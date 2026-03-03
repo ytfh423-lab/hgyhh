@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 )
 
@@ -33,6 +34,141 @@ type TgBotClaim struct {
 	CategoryId int    `json:"category_id" gorm:"index"`
 	CodeKey    string `json:"code_key" gorm:"type:varchar(255);index"`
 	CreatedAt  int64  `json:"created_at" gorm:"autoCreateTime"`
+}
+
+// TgBotLotteryPrize 抽奖奖品
+type TgBotLotteryPrize struct {
+	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name      string `json:"name" gorm:"type:varchar(100);not null"`
+	Code      string `json:"code" gorm:"type:varchar(255);not null"`
+	Status    int    `json:"status" gorm:"default:1"` // 1=可用 2=已中奖
+	WonBy     string `json:"won_by" gorm:"type:varchar(64)"`
+	CreatedAt int64  `json:"created_at" gorm:"autoCreateTime"`
+}
+
+// TgBotMessageTracker 群组消息追踪（每用户每群组）
+type TgBotMessageTracker struct {
+	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	ChatId       int64  `json:"chat_id" gorm:"uniqueIndex:idx_chat_user"`
+	TelegramId   string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_chat_user"`
+	MessageCount int    `json:"message_count" gorm:"default:0"`
+	LotteryUsed  int    `json:"lottery_used" gorm:"default:0"`
+	LastBotMsgId int    `json:"last_bot_msg_id"`
+	UpdatedAt    int64  `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TgBotLotteryRecord 抽奖记录
+type TgBotLotteryRecord struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	ChatId     int64  `json:"chat_id"`
+	PrizeName  string `json:"prize_name" gorm:"type:varchar(100)"`
+	PrizeCode  string `json:"prize_code" gorm:"type:varchar(255)"`
+	Won        bool   `json:"won"`
+	CreatedAt  int64  `json:"created_at" gorm:"autoCreateTime"`
+}
+
+// ========== TgBotLotteryPrize 奖品管理 ==========
+
+func GetAllTgBotLotteryPrizes() ([]*TgBotLotteryPrize, error) {
+	var prizes []*TgBotLotteryPrize
+	err := DB.Order("id asc").Find(&prizes).Error
+	return prizes, err
+}
+
+func GetAvailableTgBotLotteryPrize() (*TgBotLotteryPrize, error) {
+	var prize TgBotLotteryPrize
+	orderFunc := "RANDOM()"
+	if common.UsingMySQL {
+		orderFunc = "RAND()"
+	}
+	err := DB.Where("status = 1").Order(orderFunc).First(&prize).Error
+	return &prize, err
+}
+
+func MarkTgBotLotteryPrizeWon(id int, telegramId string) error {
+	return DB.Model(&TgBotLotteryPrize{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status": 2,
+		"won_by": telegramId,
+	}).Error
+}
+
+func CreateTgBotLotteryPrize(prize *TgBotLotteryPrize) error {
+	return DB.Create(prize).Error
+}
+
+func AddTgBotLotteryPrizes(codes []string, name string) (int, error) {
+	added := 0
+	for _, code := range codes {
+		if code == "" {
+			continue
+		}
+		item := &TgBotLotteryPrize{
+			Name:   name,
+			Code:   code,
+			Status: 1,
+		}
+		if err := DB.Create(item).Error; err != nil {
+			continue
+		}
+		added++
+	}
+	return added, nil
+}
+
+func DeleteTgBotLotteryPrize(id int) error {
+	return DB.Delete(&TgBotLotteryPrize{}, id).Error
+}
+
+func CountTgBotLotteryPrizes() (total int64, available int64, err error) {
+	err = DB.Model(&TgBotLotteryPrize{}).Count(&total).Error
+	if err != nil {
+		return
+	}
+	err = DB.Model(&TgBotLotteryPrize{}).Where("status = 1").Count(&available).Error
+	return
+}
+
+// ========== TgBotMessageTracker 消息追踪 ==========
+
+func GetOrCreateMessageTracker(chatId int64, telegramId string) (*TgBotMessageTracker, error) {
+	var tracker TgBotMessageTracker
+	err := DB.Where("chat_id = ? AND telegram_id = ?", chatId, telegramId).First(&tracker).Error
+	if err != nil {
+		tracker = TgBotMessageTracker{
+			ChatId:     chatId,
+			TelegramId: telegramId,
+		}
+		err = DB.Create(&tracker).Error
+	}
+	return &tracker, err
+}
+
+func IncrementMessageCount(id int) error {
+	return DB.Model(&TgBotMessageTracker{}).Where("id = ?", id).
+		Update("message_count", DB.Raw("message_count + 1")).Error
+}
+
+func UpdateLastBotMsgId(id int, msgId int) error {
+	return DB.Model(&TgBotMessageTracker{}).Where("id = ?", id).
+		Update("last_bot_msg_id", msgId).Error
+}
+
+func IncrementLotteryUsed(id int) error {
+	return DB.Model(&TgBotMessageTracker{}).Where("id = ?", id).
+		Update("lottery_used", DB.Raw("lottery_used + 1")).Error
+}
+
+// ========== TgBotLotteryRecord 抽奖记录 ==========
+
+func CreateTgBotLotteryRecord(record *TgBotLotteryRecord) error {
+	return DB.Create(record).Error
+}
+
+func GetTgBotLotteryRecords(telegramId string) ([]*TgBotLotteryRecord, error) {
+	var records []*TgBotLotteryRecord
+	err := DB.Where("telegram_id = ? AND won = ?", telegramId, true).Order("id desc").Limit(20).Find(&records).Error
+	return records, err
 }
 
 // GetAllTgBotCategories 获取所有分类

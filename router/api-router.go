@@ -162,6 +162,10 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.POST("/setup-webhook", controller.SetupTgBotWebhook)
 			tgBotRoute.GET("/webhook-info", controller.GetTgBotWebhookInfo)
 			tgBotRoute.POST("/register-commands", controller.RegisterTgBotCommands)
+			tgBotRoute.GET("/lottery/prizes", controller.GetTgBotLotteryPrizes)
+			tgBotRoute.POST("/lottery/prizes", controller.AddTgBotLotteryPrizes)
+			tgBotRoute.DELETE("/lottery/prizes/:id", controller.DeleteTgBotLotteryPrize)
+			tgBotRoute.GET("/lottery/settings", controller.GetTgBotLotterySettings)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

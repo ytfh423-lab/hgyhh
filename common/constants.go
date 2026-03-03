@@ -99,6 +99,9 @@ var TurnstileSecretKey = ""
 
 var TelegramBotToken = ""
 var TelegramBotName = ""
+var TgBotLotteryEnabled = false
+var TgBotLotteryMessagesRequired = 10
+var TgBotLotteryWinRate = 30 // 中奖概率百分比
 
 var QuotaForNewUser = 0
 var QuotaForInviter = 0

@@ -5,6 +5,7 @@ import {
   Card,
   Descriptions,
   Form,
+  Input,
   Modal,
   Space,
   Spin,
@@ -53,6 +54,19 @@ const TgBotPage = () => {
   const [addCodesText, setAddCodesText] = useState('');
   const [addingCodes, setAddingCodes] = useState(false);
 
+  // ===== 抽奖管理 =====
+  const [lotteryEnabled, setLotteryEnabled] = useState(false);
+  const [lotteryMessagesRequired, setLotteryMessagesRequired] = useState(10);
+  const [lotteryWinRate, setLotteryWinRate] = useState(30);
+  const [savingLottery, setSavingLottery] = useState(false);
+  const [lotteryPrizes, setLotteryPrizes] = useState([]);
+  const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
+  const [lotteryPrizeTotal, setLotteryPrizeTotal] = useState(0);
+  const [lotteryPrizeAvailable, setLotteryPrizeAvailable] = useState(0);
+  const [addPrizeName, setAddPrizeName] = useState('');
+  const [addPrizeCodes, setAddPrizeCodes] = useState('');
+  const [addingPrizes, setAddingPrizes] = useState(false);
+
   // 加载系统设置
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
@@ -63,6 +77,9 @@ const TgBotPage = () => {
         data.forEach((item) => {
           if (item.key === 'TelegramBotToken') setBotToken(item.value || '');
           if (item.key === 'TelegramBotName') setBotName(item.value || '');
+          if (item.key === 'TgBotLotteryEnabled') setLotteryEnabled(item.value === 'true');
+          if (item.key === 'TgBotLotteryMessagesRequired') setLotteryMessagesRequired(Number(item.value) || 10);
+          if (item.key === 'TgBotLotteryWinRate') setLotteryWinRate(Number(item.value) || 30);
         });
       }
     } catch (err) {
@@ -168,10 +185,139 @@ const TgBotPage = () => {
     }
   };
 
+  // ===== 抽奖管理 API =====
+  const loadLotteryPrizes = async () => {
+    setLotteryPrizesLoading(true);
+    try {
+      const res = await API.get('/api/tgbot/lottery/prizes');
+      if (res.data.success) {
+        setLotteryPrizes(res.data.data || []);
+        setLotteryPrizeTotal(res.data.total || 0);
+        setLotteryPrizeAvailable(res.data.available || 0);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLotteryPrizesLoading(false);
+    }
+  };
+
+  const saveLotterySettings = async () => {
+    setSavingLottery(true);
+    try {
+      const options = [
+        { key: 'TgBotLotteryEnabled', value: String(lotteryEnabled) },
+        { key: 'TgBotLotteryMessagesRequired', value: String(lotteryMessagesRequired) },
+        { key: 'TgBotLotteryWinRate', value: String(lotteryWinRate) },
+      ];
+      for (const opt of options) {
+        const res = await API.put('/api/option/', opt);
+        if (!res.data.success) {
+          showError(res.data.message);
+          setSavingLottery(false);
+          return;
+        }
+      }
+      showSuccess(t('抽奖设置保存成功'));
+    } catch (err) {
+      showError(t('保存失败'));
+    } finally {
+      setSavingLottery(false);
+    }
+  };
+
+  const handleAddPrizes = async () => {
+    if (!addPrizeName.trim() || !addPrizeCodes.trim()) return;
+    setAddingPrizes(true);
+    try {
+      const res = await API.post('/api/tgbot/lottery/prizes', {
+        name: addPrizeName,
+        codes: addPrizeCodes,
+      });
+      if (res.data.success) {
+        showSuccess(res.data.message || t('添加成功'));
+        setAddPrizeName('');
+        setAddPrizeCodes('');
+        await loadLotteryPrizes();
+      } else {
+        showError(res.data.message);
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || t('添加失败'));
+    } finally {
+      setAddingPrizes(false);
+    }
+  };
+
+  const handleDeletePrize = async (prizeId) => {
+    Modal.confirm({
+      title: t('确认删除'),
+      content: t('确定要删除该奖品吗？'),
+      onOk: async () => {
+        try {
+          const res = await API.delete(`/api/tgbot/lottery/prizes/${prizeId}`);
+          if (res.data.success) {
+            showSuccess(t('删除成功'));
+            await loadLotteryPrizes();
+          } else {
+            showError(res.data.message);
+          }
+        } catch (err) {
+          showError(err.response?.data?.message || t('删除失败'));
+        }
+      },
+    });
+  };
+
+  const lotteryPrizeColumns = [
+    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: t('奖品名称'), dataIndex: 'name', width: 120 },
+    {
+      title: t('兑换码'),
+      dataIndex: 'code',
+      width: 200,
+      render: (text) => (
+        <Typography.Text copyable style={{ fontFamily: 'monospace' }}>
+          {text}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: t('状态'),
+      dataIndex: 'status',
+      width: 80,
+      render: (status) => (
+        <Tag color={status === 1 ? 'green' : 'grey'}>
+          {status === 1 ? t('可用') : t('已中奖')}
+        </Tag>
+      ),
+    },
+    {
+      title: t('中奖者'),
+      dataIndex: 'won_by',
+      width: 120,
+      render: (text) => text || '-',
+    },
+    {
+      title: t('操作'),
+      width: 80,
+      render: (_, record) => (
+        <Button
+          size='small'
+          type='danger'
+          onClick={() => handleDeletePrize(record.id)}
+        >
+          {t('删除')}
+        </Button>
+      ),
+    },
+  ];
+
   useEffect(() => {
     loadSettings();
     loadCategories();
     loadWebhookInfo();
+    loadLotteryPrizes();
   }, [loadSettings, loadWebhookInfo]);
 
   // ===== 分类 CRUD =====
@@ -578,6 +724,112 @@ const TgBotPage = () => {
           empty={
             <div className='py-8 text-center text-gray-400'>
               {t('暂无分类，请添加')}
+            </div>
+          }
+        />
+      </Card>
+
+      {/* ===== 抽奖设置 ===== */}
+      <Card
+        title={
+          <div className='flex items-center justify-between'>
+            <span>{t('抽奖管理')}</span>
+            <Tag color={lotteryEnabled ? 'green' : 'grey'}>
+              {lotteryEnabled ? t('已开启') : t('已关闭')}
+            </Tag>
+          </div>
+        }
+        className='mt-4'
+      >
+        <div className='mb-4'>
+          <Form
+            layout='horizontal'
+            labelPosition='left'
+            labelWidth='140px'
+          >
+            <Form.Switch
+              field='lotteryEnabled'
+              label={t('开启群聊抽奖')}
+              initValue={lotteryEnabled}
+              onChange={setLotteryEnabled}
+            />
+            <Form.InputNumber
+              field='lotteryMessagesRequired'
+              label={t('每多少条消息抽一次')}
+              initValue={lotteryMessagesRequired}
+              onChange={setLotteryMessagesRequired}
+              min={1}
+              max={1000}
+              style={{ width: 120 }}
+            />
+            <Form.InputNumber
+              field='lotteryWinRate'
+              label={t('中奖概率(%)')}
+              initValue={lotteryWinRate}
+              onChange={setLotteryWinRate}
+              min={0}
+              max={100}
+              style={{ width: 120 }}
+            />
+          </Form>
+          <Button
+            theme='solid'
+            type='primary'
+            loading={savingLottery}
+            onClick={saveLotterySettings}
+            style={{ marginTop: 8 }}
+          >
+            {t('保存抽奖设置')}
+          </Button>
+        </div>
+
+        <div className='mb-4' style={{ borderTop: '1px solid var(--semi-color-border)', paddingTop: 16 }}>
+          <Typography.Text strong className='mb-2 block'>
+            {t('添加奖品')}
+          </Typography.Text>
+          <Input
+            placeholder={t('奖品名称，如：VIP会员码、新手礼包')}
+            value={addPrizeName}
+            onChange={setAddPrizeName}
+            style={{ marginBottom: 8 }}
+          />
+          <TextArea
+            value={addPrizeCodes}
+            onChange={setAddPrizeCodes}
+            placeholder={t('每行一个兑换码，支持批量添加')}
+            rows={3}
+            style={{ marginBottom: 8 }}
+          />
+          <Button
+            theme='solid'
+            type='primary'
+            loading={addingPrizes}
+            onClick={handleAddPrizes}
+            disabled={!addPrizeName.trim() || !addPrizeCodes.trim()}
+          >
+            {t('批量添加奖品')}
+          </Button>
+        </div>
+
+        <div className='mb-2'>
+          <Typography.Text strong>
+            {t('奖品库存')}
+            <Tag color='blue' style={{ marginLeft: 8 }}>
+              {t('可用')} {lotteryPrizeAvailable} / {t('总数')} {lotteryPrizeTotal}
+            </Tag>
+          </Typography.Text>
+        </div>
+        <Table
+          columns={lotteryPrizeColumns}
+          dataSource={lotteryPrizes}
+          loading={lotteryPrizesLoading}
+          rowKey='id'
+          pagination={{ pageSize: 10 }}
+          size='small'
+          scroll={{ y: 300 }}
+          empty={
+            <div className='py-4 text-center text-gray-400'>
+              {t('暂无奖品，请添加')}
             </div>
           }
         />

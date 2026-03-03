@@ -98,6 +98,9 @@ func InitOptionMap() {
 	common.OptionMap["GitHubClientSecret"] = ""
 	common.OptionMap["TelegramBotToken"] = ""
 	common.OptionMap["TelegramBotName"] = ""
+	common.OptionMap["TgBotLotteryEnabled"] = "false"
+	common.OptionMap["TgBotLotteryMessagesRequired"] = "10"
+	common.OptionMap["TgBotLotteryWinRate"] = "30"
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -393,6 +396,21 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TelegramBotToken = value
 	case "TelegramBotName":
 		common.TelegramBotName = value
+	case "TgBotLotteryEnabled":
+		common.TgBotLotteryEnabled = value == "true"
+	case "TgBotLotteryMessagesRequired":
+		common.TgBotLotteryMessagesRequired, _ = strconv.Atoi(value)
+		if common.TgBotLotteryMessagesRequired <= 0 {
+			common.TgBotLotteryMessagesRequired = 10
+		}
+	case "TgBotLotteryWinRate":
+		common.TgBotLotteryWinRate, _ = strconv.Atoi(value)
+		if common.TgBotLotteryWinRate < 0 {
+			common.TgBotLotteryWinRate = 0
+		}
+		if common.TgBotLotteryWinRate > 100 {
+			common.TgBotLotteryWinRate = 100
+		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":
