@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -80,21 +81,30 @@ func TgBotWebhook(c *gin.Context) {
 	msg := update.Message
 	chatId := msg.Chat.Id
 	text := strings.TrimSpace(msg.Text)
+	isGroup := msg.Chat.Type == "group" || msg.Chat.Type == "supergroup"
+
+	// 去掉 @botname 后缀，例如 /start@my_bot -> /start
+	cmd := text
+	if idx := strings.Index(cmd, "@"); idx > 0 {
+		cmd = cmd[:idx]
+	}
 
 	switch {
-	case text == "/start":
-		handleTgStart(chatId)
-	case text == "/claim" || text == "/领取":
-		handleTgStart(chatId)
-	case text == "/myrecords" || text == "/我的记录":
-		handleTgMyRecords(chatId, msg.From)
+	case cmd == "/start":
+		handleTgStart(chatId, isGroup)
+	case cmd == "/claim" || cmd == "/领取":
+		handleTgStart(chatId, isGroup)
+	case cmd == "/myrecords" || cmd == "/我的记录":
+		handleTgMyRecords(chatId, msg.From, isGroup)
+	case cmd == "/help":
+		handleTgHelp(chatId)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // handleTgStart 发送欢迎消息 + 分类按钮菜单
-func handleTgStart(chatId int64) {
+func handleTgStart(chatId int64, isGroup bool) {
 	categories, err := model.GetEnabledTgBotCategories()
 	if err != nil || len(categories) == 0 {
 		sendTgMessage(chatId, "👋 欢迎使用 "+common.SystemName+" 机器人！\n\n暂无可领取的项目，请联系管理员。")
@@ -112,28 +122,44 @@ func handleTgStart(chatId int64) {
 		})
 	}
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "� 我的领取记录", CallbackData: "myrecords"},
+		{Text: "📋 我的领取记录", CallbackData: "myrecords"},
 	})
 
-	sendTgMessageWithKeyboard(chatId,
-		"👋 欢迎使用 "+common.SystemName+" 机器人！\n\n请点击下方按钮领取对应的兑换码/邀请码：",
+	welcome := "👋 欢迎使用 " + common.SystemName + " 机器人！\n\n请点击下方按钮领取对应的兑换码/邀请码："
+	if isGroup {
+		welcome += "\n\n💡 兑换码将通过私聊发送给你，请确保已先私聊机器人一次。"
+	}
+
+	sendTgMessageWithKeyboard(chatId, welcome,
 		TgInlineKeyboardMarkup{InlineKeyboard: rows})
+}
+
+// handleTgHelp 发送帮助信息
+func handleTgHelp(chatId int64) {
+	helpText := "📖 机器人命令帮助：\n\n" +
+		"/start - 显示领取菜单\n" +
+		"/claim - 领取兑换码/邀请码\n" +
+		"/myrecords - 查看我的领取记录\n" +
+		"/help - 显示此帮助信息\n\n" +
+		"💡 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。"
+	sendTgMessage(chatId, helpText)
 }
 
 // handleTgCallback 处理按钮点击
 func handleTgCallback(cb *TgCallbackQuery) {
 	chatId := cb.Message.Chat.Id
+	isGroup := cb.Message.Chat.Type == "group" || cb.Message.Chat.Type == "supergroup"
 
 	// 应答 callback 避免按钮转圈
 	answerCallbackQuery(cb.Id)
 
 	if cb.Data == "myrecords" {
-		handleTgMyRecords(chatId, cb.From)
+		handleTgMyRecords(chatId, cb.From, isGroup)
 		return
 	}
 
 	if cb.Data == "menu" {
-		handleTgStart(chatId)
+		handleTgStart(chatId, isGroup)
 		return
 	}
 
@@ -144,14 +170,15 @@ func handleTgCallback(cb *TgCallbackQuery) {
 			sendTgMessage(chatId, "❌ 无效的操作。")
 			return
 		}
-		handleTgClaimCategory(chatId, cb.From, catId)
+		handleTgClaimCategory(chatId, cb.From, catId, isGroup)
 		return
 	}
 }
 
 // handleTgClaimCategory 处理分类领取（只发放兑换码，不创建平台账户）
-func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int) {
+func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup bool) {
 	tgId := strconv.FormatInt(from.Id, 10)
+	privateChatId := from.Id // 用于私聊发送敏感信息
 
 	// 获取分类
 	category, err := model.GetTgBotCategoryById(categoryId)
@@ -203,17 +230,39 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int) {
 		codeType = "邀请码"
 	}
 
-	sendTgMessage(chatId, fmt.Sprintf(
+	codeMsg := fmt.Sprintf(
 		"✅ 「%s」领取成功！(%d/%d)\n\n"+
-			"🎫 你的%s：\n`%s`\n\n"+
+			"🎫 你的%s：\n%s\n\n"+
 			"请复制上方%s，前往网站使用。",
 		category.Name, claimCount+1, category.MaxClaims,
-		codeType, invItem.Code, codeType))
+		codeType, invItem.Code, codeType)
+
+	if isGroup {
+		// 群组中：通过私聊发送兑换码，群里只提示
+		if sendTgMessageReturnsOk(privateChatId, codeMsg) {
+			displayName := from.FirstName
+			if from.Username != "" {
+				displayName = "@" + from.Username
+			}
+			sendTgMessage(chatId, fmt.Sprintf("✅ %s 领取「%s」成功！%s已通过私聊发送，请查收。",
+				displayName, category.Name, codeType))
+		} else {
+			// 私聊发送失败，回滚库存码
+			_ = model.RollbackInventoryCode(invItem.Id)
+			// 同时删除领取记录
+			_ = model.DeleteTgBotClaim(claim.Id)
+			sendTgMessage(chatId, "❌ 无法私聊发送"+codeType+"，请先私聊机器人发送 /start 后再试。")
+		}
+	} else {
+		// 私聊中：直接发送
+		sendTgMessage(chatId, codeMsg)
+	}
 }
 
 // handleTgMyRecords 查看领取记录
-func handleTgMyRecords(chatId int64, from *TgUser) {
+func handleTgMyRecords(chatId int64, from *TgUser, isGroup bool) {
 	tgId := strconv.FormatInt(from.Id, 10)
+	privateChatId := from.Id
 
 	claims, _ := model.GetTgBotClaimsByTelegramId(tgId)
 	if len(claims) == 0 {
@@ -235,10 +284,19 @@ func handleTgMyRecords(chatId int64, from *TgUser) {
 		msg += fmt.Sprintf("\n· %s\n  %s", catName, c.CodeKey)
 	}
 
-	sendTgMessageWithKeyboard(chatId, msg,
-		TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
-			{{Text: "🔙 返回菜单", CallbackData: "menu"}},
-		}})
+	if isGroup {
+		// 群组中：通过私聊发送记录（含敏感码）
+		if sendTgMessageReturnsOk(privateChatId, msg) {
+			sendTgMessage(chatId, "📋 你的领取记录已通过私聊发送，请查收。")
+		} else {
+			sendTgMessage(chatId, "❌ 无法私聊发送记录，请先私聊机器人发送 /start 后再试。")
+		}
+	} else {
+		sendTgMessageWithKeyboard(chatId, msg,
+			TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回菜单", CallbackData: "menu"}},
+			}})
+	}
 }
 
 // ========== Admin API for TG Bot Categories ==========
@@ -406,7 +464,8 @@ func SetupTgBotWebhook(c *gin.Context) {
 	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", token)
 
 	body := map[string]interface{}{
-		"url": webhookUrl,
+		"url":             webhookUrl,
+		"allowed_updates": []string{"message", "callback_query"},
 	}
 	bodyBytes, err := common.Marshal(body)
 	if err != nil {
@@ -473,13 +532,27 @@ func sendTgMessage(chatId int64, text string) {
 		return
 	}
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	body := map[string]interface{}{
-		"chat_id":    chatId,
-		"text":       text,
-		"parse_mode": "Markdown",
+		"chat_id": chatId,
+		"text":    text,
 	}
-	tgPost(url, body)
+	tgPost(apiUrl, body)
+}
+
+// sendTgMessageReturnsOk 发送消息并返回是否成功（用于私聊尝试）
+func sendTgMessageReturnsOk(chatId int64, text string) bool {
+	token := common.TelegramBotToken
+	if token == "" {
+		return false
+	}
+
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	body := map[string]interface{}{
+		"chat_id": chatId,
+		"text":    text,
+	}
+	return tgPostReturnsOk(apiUrl, body)
 }
 
 func sendTgMessageWithKeyboard(chatId int64, text string, keyboard TgInlineKeyboardMarkup) {
@@ -489,14 +562,13 @@ func sendTgMessageWithKeyboard(chatId int64, text string, keyboard TgInlineKeybo
 		return
 	}
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	body := map[string]interface{}{
 		"chat_id":      chatId,
 		"text":         text,
-		"parse_mode":   "Markdown",
 		"reply_markup": keyboard,
 	}
-	tgPost(url, body)
+	tgPost(apiUrl, body)
 }
 
 func answerCallbackQuery(callbackQueryId string) {
@@ -504,23 +576,55 @@ func answerCallbackQuery(callbackQueryId string) {
 	if token == "" {
 		return
 	}
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/answerCallbackQuery", token)
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/answerCallbackQuery", token)
 	body := map[string]interface{}{
 		"callback_query_id": callbackQueryId,
 	}
-	tgPost(url, body)
+	tgPost(apiUrl, body)
 }
 
-func tgPost(url string, body map[string]interface{}) {
+func tgPost(apiUrl string, body map[string]interface{}) {
 	bodyBytes, err := common.Marshal(body)
 	if err != nil {
 		common.SysError("TG Bot: marshal failed: " + err.Error())
 		return
 	}
-	resp, err := http.Post(url, "application/json", strings.NewReader(string(bodyBytes)))
+	resp, err := http.Post(apiUrl, "application/json", strings.NewReader(string(bodyBytes)))
 	if err != nil {
 		common.SysError("TG Bot: request failed: " + err.Error())
 		return
 	}
 	defer resp.Body.Close()
+
+	// 读取并记录错误响应
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		common.SysError(fmt.Sprintf("TG Bot: API returned %d: %s", resp.StatusCode, string(respBody)))
+	}
+}
+
+// tgPostReturnsOk 发送请求并返回 Telegram API 是否返回 ok=true
+func tgPostReturnsOk(apiUrl string, body map[string]interface{}) bool {
+	bodyBytes, err := common.Marshal(body)
+	if err != nil {
+		common.SysError("TG Bot: marshal failed: " + err.Error())
+		return false
+	}
+	resp, err := http.Post(apiUrl, "application/json", strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		common.SysError("TG Bot: request failed: " + err.Error())
+		return false
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	if err := common.Unmarshal(respBody, &result); err != nil {
+		return false
+	}
+	ok, _ := result["ok"].(bool)
+	if !ok {
+		common.SysError(fmt.Sprintf("TG Bot: API error: %s", string(respBody)))
+	}
+	return ok
 }

@@ -83,6 +83,11 @@ func CreateTgBotClaim(claim *TgBotClaim) error {
 	return DB.Create(claim).Error
 }
 
+// DeleteTgBotClaim 删除领取记录（回滚时使用）
+func DeleteTgBotClaim(id int) error {
+	return DB.Delete(&TgBotClaim{}, id).Error
+}
+
 // GetTgBotClaimsByTelegramId 获取用户的所有领取记录
 func GetTgBotClaimsByTelegramId(telegramId string) ([]*TgBotClaim, error) {
 	var claims []*TgBotClaim
@@ -172,6 +177,14 @@ func MarkInventoryCodeDispensed(id int, telegramId string) error {
 // DeleteTgBotInventoryByCategory 删除某分类的所有库存
 func DeleteTgBotInventoryByCategory(categoryId int) error {
 	return DB.Where("category_id = ?", categoryId).Delete(&TgBotInventory{}).Error
+}
+
+// RollbackInventoryCode 回滚库存码为可用状态（私聊发送失败时使用）
+func RollbackInventoryCode(id int) error {
+	return DB.Model(&TgBotInventory{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":     1,
+		"claimed_by": "",
+	}).Error
 }
 
 // ClearTgBotInventoryItem 删除单个库存码
