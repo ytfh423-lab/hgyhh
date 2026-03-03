@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Text, Html, RoundedBox } from '@react-three/drei';
+import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==================== Constants ====================
@@ -181,10 +181,8 @@ const SoilPlot = ({ position, status, onClick }) => {
   return (
     <group position={position}>
       {/* Soil block */}
-      <RoundedBox
+      <mesh
         ref={meshRef}
-        args={[PLOT_SIZE, PLOT_HEIGHT, PLOT_SIZE]}
-        radius={0.05}
         position={[0, PLOT_HEIGHT / 2, 0]}
         castShadow
         receiveShadow
@@ -192,8 +190,9 @@ const SoilPlot = ({ position, status, onClick }) => {
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
+        <boxGeometry args={[PLOT_SIZE, PLOT_HEIGHT, PLOT_SIZE]} />
         <meshStandardMaterial color={soilColor} />
-      </RoundedBox>
+      </mesh>
       {/* Soil lines (furrows) */}
       {[-0.45, -0.15, 0.15, 0.45].map((offset, i) => (
         <mesh key={i} position={[0, PLOT_HEIGHT + 0.01, offset]} rotation={[-Math.PI / 2, 0, 0]}>
