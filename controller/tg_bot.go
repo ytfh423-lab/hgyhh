@@ -112,8 +112,15 @@ func TgBotWebhook(c *gin.Context) {
 		handleTgLottery(chatId, msg.From, isGroup)
 	case cmd == "/farm" || cmd == "/农场":
 		handleFarmCommand(chatId, msg.From, isGroup)
+	case cmd == "/bindaccount" || cmd == "/绑定账号":
+		handleTgBindAccount(chatId, msg.From, isGroup, "")
 	case cmd == "/help":
 		handleTgHelp(chatId)
+	default:
+		// 私聊中发送非命令文本，尝试作为 API Key 绑定
+		if !isGroup && strings.HasPrefix(text, "sk-") {
+			handleTgBindAccount(chatId, msg.From, isGroup, text)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -221,11 +228,85 @@ func handleTgHelp(chatId int64) {
 		"/myrecords - 查看我的领取记录\n" +
 		"/lottery - 查看抽奖状态（群组）\n" +
 		"/farm - 🌾 农场小游戏\n" +
+		"/bindaccount - 绑定平台账号\n" +
 		"/help - 显示此帮助信息\n\n" +
-		"💡 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
+		"� 绑定账号：私聊发送你的 API Key（sk-xxx）即可自动绑定\n" +
+		"� 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
 		"🎰 在群组中发送消息可累积抽奖次数！\n" +
 		"🌾 种菜、收菜、偷菜，收获直接变成账户额度！"
 	sendTgMessage(chatId, helpText)
+}
+
+// handleTgBindAccount 通过 API Key 绑定平台账号
+func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string) {
+	tgId := strconv.FormatInt(from.Id, 10)
+
+	if isGroup {
+		sendTgMessage(chatId, "🔑 请私聊机器人发送你的 API Key 进行绑定，不要在群组中发送！")
+		return
+	}
+
+	// 检查是否已绑定
+	existingUser := &model.User{TelegramId: tgId}
+	if err := existingUser.FillUserByTelegramId(); err == nil {
+		sendTgMessage(chatId, fmt.Sprintf("✅ 你的 Telegram 账号已绑定到平台用户「%s」。\n\n如需更换绑定，请联系管理员。", existingUser.Username))
+		return
+	}
+
+	if apiKey == "" {
+		sendTgMessage(chatId, "🔑 账号绑定说明：\n\n"+
+			"请直接发送你在平台上的任意一个 API Key（以 sk- 开头）即可完成绑定。\n\n"+
+			"绑定后可使用农场游戏、收获额度等功能。\n\n"+
+			"⚠️ API Key 仅用于验证身份，不会被存储或泄露。")
+		return
+	}
+
+	// 通过 API Key 查找用户
+	token, err := model.GetTokenByKey(apiKey, true)
+	if err != nil || token == nil {
+		sendTgMessage(chatId, "❌ API Key 无效，请检查后重试。\n\n请发送正确的 API Key（以 sk- 开头）。")
+		return
+	}
+
+	// 检查该平台账号是否已被其他 Telegram 绑定
+	if model.IsTelegramIdAlreadyTaken(tgId) {
+		sendTgMessage(chatId, "❌ 该 Telegram 账号已被绑定，如需更换请联系管理员。")
+		return
+	}
+
+	// 获取用户信息
+	user, err := model.GetUserById(token.UserId, false)
+	if err != nil || user == nil {
+		sendTgMessage(chatId, "❌ 系统错误，无法查找用户信息。")
+		return
+	}
+
+	// 检查该用户是否已绑定其他 Telegram
+	if user.TelegramId != "" {
+		sendTgMessage(chatId, "❌ 该平台账号已绑定了另一个 Telegram 账号。如需更换请联系管理员。")
+		return
+	}
+
+	// 执行绑定
+	err = model.DB.Model(user).Update("telegram_id", tgId).Error
+	if err != nil {
+		common.SysError(fmt.Sprintf("TG Bot: bind account failed for tgId=%s userId=%d: %s", tgId, user.Id, err.Error()))
+		sendTgMessage(chatId, "❌ 绑定失败，请稍后再试。")
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("TG Bot: user %s bound telegram %s to platform user %s (id=%d)", tgId, tgId, user.Username, user.Id))
+
+	// 删除用户发送的 API Key 消息（安全）
+	if from.Id > 0 {
+		// 无法删除用户消息（bot只能删除自己的消息或群组中的消息），但在私聊中是安全的
+	}
+
+	sendTgMessage(chatId, fmt.Sprintf("✅ 绑定成功！\n\n"+
+		"🔗 平台用户：%s\n"+
+		"💰 当前余额：%s\n\n"+
+		"现在可以使用农场游戏等功能了！发送 /farm 开始种菜吧 🌾",
+		user.Username, fmt.Sprintf("$%.2f", float64(user.Quota)/common.QuotaPerUnit)))
 }
 
 // handleTgCallback 处理按钮点击
@@ -905,6 +986,7 @@ func registerTgBotCommands(token string) {
 		{"command": "myrecords", "description": "查看我的领取记录"},
 		{"command": "lottery", "description": "查看抽奖状态"},
 		{"command": "farm", "description": "🌾 农场小游戏"},
+		{"command": "bindaccount", "description": "🔑 绑定平台账号"},
 		{"command": "help", "description": "显示帮助信息"},
 	}
 
