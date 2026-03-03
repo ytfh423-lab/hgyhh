@@ -109,10 +109,22 @@ func getFarmUser(tgId string) (*model.User, error) {
 	return user, err
 }
 
+func farmBindingError(chatId int64, editMsgId int) {
+	text := "🔑 你还没有绑定平台账号！\n\n" +
+		"请先私聊机器人发送你的 API Key（以 sk- 开头）完成绑定。\n" +
+		"绑定后才能使用农场功能。\n\n" +
+		"发送 /bindaccount 查看绑定说明。"
+	farmSend(chatId, editMsgId, text, nil)
+}
+
 // ========== 命令入口 ==========
 
 func handleFarmCommand(chatId int64, from *TgUser, isGroup bool) {
 	tgId := strconv.FormatInt(from.Id, 10)
+	if _, err := getFarmUser(tgId); err != nil {
+		farmBindingError(chatId, 0)
+		return
+	}
 	showFarmView(chatId, 0, tgId)
 }
 
@@ -121,6 +133,12 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	msgId := cb.Message.MessageId
 	tgId := strconv.FormatInt(cb.From.Id, 10)
 	data := cb.Data
+
+	// 统一绑定检查：所有农场操作都需要绑定账号
+	if _, err := getFarmUser(tgId); err != nil {
+		farmBindingError(chatId, msgId)
+		return
+	}
 
 	switch {
 	case data == "farm":
@@ -336,11 +354,7 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 请先将 Telegram 账号绑定到平台后再玩农场游戏。", &TgInlineKeyboardMarkup{
-			InlineKeyboard: [][]TgInlineKeyboardButton{
-				{{Text: "🔙 返回农场", CallbackData: "farm"}},
-			},
-		})
+		farmBindingError(chatId, editMsgId)
 		return
 	}
 	if user.Quota < crop.SeedCost {
@@ -403,11 +417,7 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 func doFarmHarvest(chatId int64, editMsgId int, tgId string) {
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 请先将 Telegram 账号绑定到平台后再玩农场游戏。", &TgInlineKeyboardMarkup{
-			InlineKeyboard: [][]TgInlineKeyboardButton{
-				{{Text: "🔙 返回农场", CallbackData: "farm"}},
-			},
-		})
+		farmBindingError(chatId, editMsgId)
 		return
 	}
 	plots, err := model.GetOrCreateFarmPlots(tgId)
@@ -504,7 +514,7 @@ func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string) {
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 请先绑定平台账户", nil)
+		farmBindingError(chatId, editMsgId)
 		return
 	}
 	if user.Quota < item.Cost {
@@ -571,7 +581,7 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string) {
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 请先绑定平台账户", nil)
+		farmBindingError(chatId, editMsgId)
 		return
 	}
 
