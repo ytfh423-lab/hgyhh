@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   API,
@@ -31,7 +31,11 @@ import {
   FlaskConical,
   LandPlot,
   Package,
+  Box,
+  List,
 } from 'lucide-react';
+
+const Farm3DView = lazy(() => import('./Farm3D'));
 
 const { Text, Title } = Typography;
 
@@ -56,6 +60,9 @@ const statusColors = { 0: 'default', 1: 'blue', 2: 'green', 3: 'red', 4: 'orange
 
 // ===================== Sub-page: Farm Overview =====================
 const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t }) => {
+  const [viewMode, setViewMode] = useState('3d');
+  const [selectedPlotIndex, setSelectedPlotIndex] = useState(null);
+
   if (!farmData) return null;
 
   const handleWater = (idx) => doAction('/api/farm/water', { plot_index: idx });
@@ -90,7 +97,12 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
           </Tag>
         )}
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button size='small' icon={viewMode === '3d' ? <List size={12} /> : <Box size={12} />}
+            theme='borderless' onClick={() => setViewMode(viewMode === '3d' ? 'list' : '3d')}
+            style={{ borderRadius: 6 }}>
+            {viewMode === '3d' ? t('列表') : '3D'}
+          </Button>
           <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadFarm} loading={loading} />
           {matureCount > 0 && (
             <Button size='small' icon={<Wheat size={12} />} theme='solid'
@@ -108,123 +120,157 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
         </div>
       </div>
 
-      {/* Active plots - card grid */}
-      {activePlots.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, marginBottom: emptyPlots.length > 0 ? 12 : 0 }}>
-          {activePlots.map((plot) => (
-            <div key={plot.plot_index} style={{
-              padding: '12px 14px', borderRadius: 10,
-              border: `1.5px solid ${plot.status === 3 || plot.status === 4 ? 'var(--semi-color-danger)' : plot.status === 2 ? 'var(--semi-color-success)' : 'var(--semi-color-border)'}`,
+      {/* 3D Farm View */}
+      {viewMode === '3d' && (
+        <div style={{ marginBottom: 12 }}>
+          <Suspense fallback={
+            <div style={{
+              width: '100%', height: 500, borderRadius: 12, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              background: 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)',
+              border: '2px solid var(--semi-color-border)',
             }}>
-              {/* Growing */}
-              {plot.status === 1 && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>
-                      {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
-                      {plot.fertilized === 1 && <Tag size='small' color='cyan' style={{ marginLeft: 4 }}>🧴</Tag>}
-                    </span>
-                    <Tag size='small' color='blue'>{plot.progress}%</Tag>
-                  </div>
-                  <Progress percent={plot.progress} size='small' style={{ marginBottom: 4 }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, fontSize: 12 }}>
-                    <Text type='tertiary' size='small'>⏳ {formatDuration(plot.remaining)}</Text>
-                    {plot.last_watered_at > 0 && (
-                      <Text type={plot.water_remain <= 0 ? 'danger' : 'tertiary'} size='small'>
-                        💧 {plot.water_remain > 0 ? formatDuration(plot.water_remain) : '⚠️ ' + t('需浇水')}
-                      </Text>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <Button size='small' icon={<Droplets size={11} />} onClick={() => handleWater(plot.plot_index)}
-                      loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
-                    {plot.fertilized === 0 && (
-                      <Button size='small' icon={<FlaskConical size={11} />} onClick={() => handleFertilize(plot.plot_index)}
-                        loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('施肥')}</Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Mature */}
-              {plot.status === 2 && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>
-                    {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {plot.stolen_count > 0 && (
-                      <Text type='warning' size='small'>⚠️ -{plot.stolen_count}</Text>
-                    )}
-                    <Tag size='small' color='green'>✅ {t('已成熟')}</Tag>
-                  </div>
-                </div>
-              )}
-
-              {/* Event */}
-              {plot.status === 3 && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>
-                      {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
-                    </span>
-                    <Tag size='small' color='red'>{plot.event_type === 'drought' ? '🏜️ ' + t('干旱') : '🐛 ' + t('虫害')}</Tag>
-                  </div>
-                  {plot.event_type === 'drought' ? (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text type='danger' size='small'>💀 {formatDuration(plot.death_remain)} {t('后死亡')}</Text>
-                      <Button size='small' type='danger' icon={<Droplets size={11} />}
-                        onClick={() => handleWater(plot.plot_index)} loading={actionLoading}
-                        style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button size='small' type='warning' icon={<Pill size={11} />}
-                        onClick={() => handleTreat(plot.plot_index)} loading={actionLoading}
-                        style={{ borderRadius: 6, fontSize: 12 }}>{t('治疗')}</Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Wilting */}
-              {plot.status === 4 && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>
-                      🥀 {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
-                    </span>
-                    <Tag size='small' color='orange'>{t('枯萎')}</Tag>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text type='danger' size='small'>💀 {formatDuration(plot.death_remain)} {t('后死亡')}</Text>
-                    <Button size='small' type='danger' icon={<Droplets size={11} />}
-                      onClick={() => handleWater(plot.plot_index)} loading={actionLoading}
-                      style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
-                  </div>
-                </div>
-              )}
+              <Spin size='large' />
             </div>
-          ))}
+          }>
+            <Farm3DView
+              farmData={farmData}
+              doAction={doAction}
+              t={t}
+              selectedPlotIndex={selectedPlotIndex}
+              setSelectedPlotIndex={setSelectedPlotIndex}
+            />
+          </Suspense>
+          <div style={{
+            textAlign: 'center', marginTop: 6,
+          }}>
+            <Text type='tertiary' size='small'>🖱️ {t('拖拽旋转 · 滚轮缩放 · 点击地块查看详情')}</Text>
+          </div>
         </div>
       )}
 
-      {/* Empty plots - compact inline list */}
-      {emptyPlots.length > 0 && (
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px',
-          borderRadius: 10, border: '1px dashed var(--semi-color-border)', background: 'var(--semi-color-fill-0)',
-        }}>
-          <Text type='tertiary' size='small' style={{ lineHeight: '24px', marginRight: 4 }}>⬜ {t('空地')}:</Text>
-          {emptyPlots.map((p) => (
-            <Tag key={p.plot_index} size='small' color='default' style={{ borderRadius: 4 }}>
-              {p.plot_index + 1}{t('号')}
-            </Tag>
-          ))}
-          <Text type='tertiary' size='small' style={{ lineHeight: '24px', marginLeft: 4 }}>
-            ({emptyPlots.length}{t('块')} — {t('去种植页种菜')})
-          </Text>
-        </div>
+      {/* List view (fallback / alternative) */}
+      {viewMode === 'list' && (
+        <>
+          {/* Active plots - card grid */}
+          {activePlots.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, marginBottom: emptyPlots.length > 0 ? 12 : 0 }}>
+              {activePlots.map((plot) => (
+                <div key={plot.plot_index} style={{
+                  padding: '12px 14px', borderRadius: 10,
+                  border: `1.5px solid ${plot.status === 3 || plot.status === 4 ? 'var(--semi-color-danger)' : plot.status === 2 ? 'var(--semi-color-success)' : 'var(--semi-color-border)'}`,
+                }}>
+                  {/* Growing */}
+                  {plot.status === 1 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>
+                          {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
+                          {plot.fertilized === 1 && <Tag size='small' color='cyan' style={{ marginLeft: 4 }}>🧴</Tag>}
+                        </span>
+                        <Tag size='small' color='blue'>{plot.progress}%</Tag>
+                      </div>
+                      <Progress percent={plot.progress} size='small' style={{ marginBottom: 4 }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, fontSize: 12 }}>
+                        <Text type='tertiary' size='small'>⏳ {formatDuration(plot.remaining)}</Text>
+                        {plot.last_watered_at > 0 && (
+                          <Text type={plot.water_remain <= 0 ? 'danger' : 'tertiary'} size='small'>
+                            💧 {plot.water_remain > 0 ? formatDuration(plot.water_remain) : '⚠️ ' + t('需浇水')}
+                          </Text>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Button size='small' icon={<Droplets size={11} />} onClick={() => handleWater(plot.plot_index)}
+                          loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
+                        {plot.fertilized === 0 && (
+                          <Button size='small' icon={<FlaskConical size={11} />} onClick={() => handleFertilize(plot.plot_index)}
+                            loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('施肥')}</Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mature */}
+                  {plot.status === 2 && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>
+                        {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {plot.stolen_count > 0 && (
+                          <Text type='warning' size='small'>⚠️ -{plot.stolen_count}</Text>
+                        )}
+                        <Tag size='small' color='green'>✅ {t('已成熟')}</Tag>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Event */}
+                  {plot.status === 3 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>
+                          {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
+                        </span>
+                        <Tag size='small' color='red'>{plot.event_type === 'drought' ? '🏜️ ' + t('干旱') : '🐛 ' + t('虫害')}</Tag>
+                      </div>
+                      {plot.event_type === 'drought' ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text type='danger' size='small'>💀 {formatDuration(plot.death_remain)} {t('后死亡')}</Text>
+                          <Button size='small' type='danger' icon={<Droplets size={11} />}
+                            onClick={() => handleWater(plot.plot_index)} loading={actionLoading}
+                            style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <Button size='small' type='warning' icon={<Pill size={11} />}
+                            onClick={() => handleTreat(plot.plot_index)} loading={actionLoading}
+                            style={{ borderRadius: 6, fontSize: 12 }}>{t('治疗')}</Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Wilting */}
+                  {plot.status === 4 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>
+                          🥀 {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
+                        </span>
+                        <Tag size='small' color='orange'>{t('枯萎')}</Tag>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text type='danger' size='small'>💀 {formatDuration(plot.death_remain)} {t('后死亡')}</Text>
+                        <Button size='small' type='danger' icon={<Droplets size={11} />}
+                          onClick={() => handleWater(plot.plot_index)} loading={actionLoading}
+                          style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty plots - compact inline list */}
+          {emptyPlots.length > 0 && (
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px',
+              borderRadius: 10, border: '1px dashed var(--semi-color-border)', background: 'var(--semi-color-fill-0)',
+            }}>
+              <Text type='tertiary' size='small' style={{ lineHeight: '24px', marginRight: 4 }}>⬜ {t('空地')}:</Text>
+              {emptyPlots.map((p) => (
+                <Tag key={p.plot_index} size='small' color='default' style={{ borderRadius: 4 }}>
+                  {p.plot_index + 1}{t('号')}
+                </Tag>
+              ))}
+              <Text type='tertiary' size='small' style={{ lineHeight: '24px', marginLeft: 4 }}>
+                ({emptyPlots.length}{t('块')} — {t('去种植页种菜')})
+              </Text>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
