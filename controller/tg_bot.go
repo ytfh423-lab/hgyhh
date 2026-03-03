@@ -103,9 +103,9 @@ func TgBotWebhook(c *gin.Context) {
 
 	switch {
 	case cmd == "/start":
-		handleTgStart(chatId, isGroup)
+		handleTgStart(chatId, isGroup, msg.From)
 	case cmd == "/claim" || cmd == "/领取":
-		handleTgStart(chatId, isGroup)
+		handleTgStart(chatId, isGroup, msg.From)
 	case cmd == "/myrecords" || cmd == "/我的记录":
 		handleTgMyRecords(chatId, msg.From, isGroup)
 	case cmd == "/lottery" || cmd == "/抽奖":
@@ -115,7 +115,7 @@ func TgBotWebhook(c *gin.Context) {
 	case cmd == "/bindaccount" || cmd == "/绑定账号":
 		handleTgBindAccount(chatId, msg.From, isGroup, "")
 	case cmd == "/help":
-		handleTgHelp(chatId)
+		handleTgHelp(chatId, msg.From)
 	default:
 		// 私聊中发送非命令文本，尝试作为 API Key 绑定
 		if !isGroup && strings.HasPrefix(text, "sk-") {
@@ -127,10 +127,10 @@ func TgBotWebhook(c *gin.Context) {
 }
 
 // handleTgStart 发送欢迎消息 + 分类按钮菜单
-func handleTgStart(chatId int64, isGroup bool) {
+func handleTgStart(chatId int64, isGroup bool, from *TgUser) {
 	categories, err := model.GetEnabledTgBotCategories()
 	if err != nil || len(categories) == 0 {
-		sendTgMessage(chatId, "👋 欢迎使用 "+common.SystemName+" 机器人！\n\n暂无可领取的项目，请联系管理员。")
+		sendTgMessage(chatId, "👋 欢迎使用 "+common.SystemName+" 机器人！\n\n暂无可领取的项目，请联系管理员。", from)
 		return
 	}
 
@@ -162,24 +162,24 @@ func handleTgStart(chatId int64, isGroup bool) {
 	}
 
 	sendTgMessageWithKeyboard(chatId, welcome,
-		TgInlineKeyboardMarkup{InlineKeyboard: rows})
+		TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
 }
 
 // handleTgLottery 显示抽奖状态和入口
 func handleTgLottery(chatId int64, from *TgUser, isGroup bool) {
 	if !isGroup {
-		sendTgMessage(chatId, "🎰 抽奖功能仅在群组中可用，请在群组里使用此命令。")
+		sendTgMessage(chatId, "🎰 抽奖功能仅在群组中可用，请在群组里使用此命令。", from)
 		return
 	}
 	if !common.TgBotLotteryEnabled {
-		sendTgMessage(chatId, "🎰 抽奖功能暂未开启。")
+		sendTgMessage(chatId, "🎰 抽奖功能暂未开启。", from)
 		return
 	}
 
 	tgId := strconv.FormatInt(from.Id, 10)
 	tracker, err := model.GetOrCreateMessageTracker(chatId, tgId)
 	if err != nil {
-		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。")
+		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。", from)
 		return
 	}
 
@@ -213,15 +213,15 @@ func handleTgLottery(chatId int64, from *TgUser, isGroup bool) {
 				{{Text: "🎰 点击抽奖", CallbackData: fmt.Sprintf("lottery_%s", tgId)}},
 			},
 		}
-		sendTgMessageWithKeyboard(chatId, text, keyboard)
+		sendTgMessageWithKeyboard(chatId, text, keyboard, from)
 	} else {
 		text += fmt.Sprintf("\n💬 再发送 %d 条消息即可获得下一次抽奖机会！", remaining)
-		sendTgMessage(chatId, text)
+		sendTgMessage(chatId, text, from)
 	}
 }
 
 // handleTgHelp 发送帮助信息
-func handleTgHelp(chatId int64) {
+func handleTgHelp(chatId int64, from *TgUser) {
 	helpText := "📖 机器人命令帮助：\n\n" +
 		"/start - 显示领取菜单\n" +
 		"/claim - 领取兑换码/邀请码\n" +
@@ -234,7 +234,7 @@ func handleTgHelp(chatId int64) {
 		"� 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
 		"🎰 在群组中发送消息可累积抽奖次数！\n" +
 		"🌾 种菜、收菜、偷菜，收获直接变成账户额度！"
-	sendTgMessage(chatId, helpText)
+	sendTgMessage(chatId, helpText, from)
 }
 
 // handleTgBindAccount 通过 API Key 绑定平台账号
@@ -242,14 +242,14 @@ func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string
 	tgId := strconv.FormatInt(from.Id, 10)
 
 	if isGroup {
-		sendTgMessage(chatId, "🔑 请私聊机器人发送你的 API Key 进行绑定，不要在群组中发送！")
+		sendTgMessage(chatId, "🔑 请私聊机器人发送你的 API Key 进行绑定，不要在群组中发送！", from)
 		return
 	}
 
 	// 检查是否已绑定
 	existingUser := &model.User{TelegramId: tgId}
 	if err := existingUser.FillUserByTelegramId(); err == nil {
-		sendTgMessage(chatId, fmt.Sprintf("✅ 你的 Telegram 账号已绑定到平台用户「%s」。\n\n如需更换绑定，请联系管理员。", existingUser.Username))
+		sendTgMessage(chatId, fmt.Sprintf("✅ 你的 Telegram 账号已绑定到平台用户「%s」。\n\n如需更换绑定，请联系管理员。", existingUser.Username), from)
 		return
 	}
 
@@ -257,7 +257,7 @@ func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string
 		sendTgMessage(chatId, "🔑 账号绑定说明：\n\n"+
 			"请直接发送你在平台上的任意一个 API Key（以 sk- 开头）即可完成绑定。\n\n"+
 			"绑定后可使用农场游戏、收获额度等功能。\n\n"+
-			"⚠️ API Key 仅用于验证身份，不会被存储或泄露。")
+			"⚠️ API Key 仅用于验证身份，不会被存储或泄露。", from)
 		return
 	}
 
@@ -269,26 +269,26 @@ func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string
 	}
 	token, err := model.GetTokenByKey(lookupKey, true)
 	if err != nil || token == nil {
-		sendTgMessage(chatId, "❌ API Key 无效，请检查后重试。\n\n请发送正确的 API Key（以 sk- 开头）。")
+		sendTgMessage(chatId, "❌ API Key 无效，请检查后重试。\n\n请发送正确的 API Key（以 sk- 开头）。", from)
 		return
 	}
 
 	// 检查该平台账号是否已被其他 Telegram 绑定
 	if model.IsTelegramIdAlreadyTaken(tgId) {
-		sendTgMessage(chatId, "❌ 该 Telegram 账号已被绑定，如需更换请联系管理员。")
+		sendTgMessage(chatId, "❌ 该 Telegram 账号已被绑定，如需更换请联系管理员。", from)
 		return
 	}
 
 	// 获取用户信息
 	user, err := model.GetUserById(token.UserId, false)
 	if err != nil || user == nil {
-		sendTgMessage(chatId, "❌ 系统错误，无法查找用户信息。")
+		sendTgMessage(chatId, "❌ 系统错误，无法查找用户信息。", from)
 		return
 	}
 
 	// 检查该用户是否已绑定其他 Telegram
 	if user.TelegramId != "" {
-		sendTgMessage(chatId, "❌ 该平台账号已绑定了另一个 Telegram 账号。如需更换请联系管理员。")
+		sendTgMessage(chatId, "❌ 该平台账号已绑定了另一个 Telegram 账号。如需更换请联系管理员。", from)
 		return
 	}
 
@@ -296,7 +296,7 @@ func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string
 	err = model.DB.Model(user).Update("telegram_id", tgId).Error
 	if err != nil {
 		common.SysError(fmt.Sprintf("TG Bot: bind account failed for tgId=%s userId=%d: %s", tgId, user.Id, err.Error()))
-		sendTgMessage(chatId, "❌ 绑定失败，请稍后再试。")
+		sendTgMessage(chatId, "❌ 绑定失败，请稍后再试。", from)
 		return
 	}
 
@@ -311,7 +311,7 @@ func handleTgBindAccount(chatId int64, from *TgUser, isGroup bool, apiKey string
 		"🔗 平台用户：%s\n"+
 		"💰 当前余额：%s\n\n"+
 		"现在可以使用农场游戏等功能了！发送 /farm 开始种菜吧 🌾",
-		user.Username, fmt.Sprintf("$%.2f", float64(user.Quota)/common.QuotaPerUnit)))
+		user.Username, fmt.Sprintf("$%.2f", float64(user.Quota)/common.QuotaPerUnit)), from)
 }
 
 // handleTgCallback 处理按钮点击
@@ -348,7 +348,7 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	}
 
 	if cb.Data == "menu" {
-		handleTgStart(chatId, isGroup)
+		handleTgStart(chatId, isGroup, cb.From)
 		return
 	}
 
@@ -356,7 +356,7 @@ func handleTgCallback(cb *TgCallbackQuery) {
 		catIdStr := strings.TrimPrefix(cb.Data, "claim_")
 		catId, err := strconv.Atoi(catIdStr)
 		if err != nil {
-			sendTgMessage(chatId, "❌ 无效的操作。")
+			sendTgMessage(chatId, "❌ 无效的操作。", cb.From)
 			return
 		}
 		handleTgClaimCategory(chatId, cb.From, catId, isGroup)
@@ -372,11 +372,11 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	// 获取分类
 	category, err := model.GetTgBotCategoryById(categoryId)
 	if err != nil {
-		sendTgMessage(chatId, "❌ 该分类不存在或已被删除。")
+		sendTgMessage(chatId, "❌ 该分类不存在或已被删除。", from)
 		return
 	}
 	if category.Status != 1 {
-		sendTgMessage(chatId, "❌ 该分类已被禁用。")
+		sendTgMessage(chatId, "❌ 该分类已被禁用。", from)
 		return
 	}
 
@@ -384,27 +384,27 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	claimCount, err := model.CountTgBotClaims(tgId, categoryId)
 	if err != nil {
 		common.SysError(fmt.Sprintf("TG Bot: count claims error for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
-		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。")
+		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。", from)
 		return
 	}
 	common.SysLog(fmt.Sprintf("TG Bot: user %s claim count for cat %d: %d/%d", tgId, categoryId, claimCount, category.MaxClaims))
 	if claimCount >= int64(category.MaxClaims) {
 		sendTgMessage(chatId, fmt.Sprintf("⚠️ 你在「%s」已领取 %d/%d 次，已达上限。",
-			category.Name, claimCount, category.MaxClaims))
+			category.Name, claimCount, category.MaxClaims), from)
 		return
 	}
 
 	// 从分类库存中查找可用码
 	invItem, err := model.FindAvailableInventoryCode(categoryId)
 	if err != nil {
-		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存，请联系管理员补充。", category.Name))
+		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存，请联系管理员补充。", category.Name), from)
 		return
 	}
 
 	// 标记库存码为已发放（先锁定库存，防止并发领取同一码）
 	if err := model.MarkInventoryCodeDispensed(invItem.Id, tgId); err != nil {
 		common.SysError(fmt.Sprintf("TG Bot: mark inventory dispensed failed: %s", err.Error()))
-		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
+		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。", from)
 		return
 	}
 
@@ -417,7 +417,7 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	if err := model.CreateTgBotClaim(claim); err != nil {
 		common.SysError(fmt.Sprintf("TG Bot: create claim record failed: %s", err.Error()))
 		_ = model.RollbackInventoryCode(invItem.Id)
-		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。")
+		sendTgMessage(chatId, "❌ 领取失败，请稍后再试。", from)
 		return
 	}
 
@@ -443,17 +443,17 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 
 	if isGroup {
 		// 群组中：通过私聊发送兑换码，群里只提示
-		if sendTgMessageReturnsOk(privateChatId, codeMsg) {
+		if sendTgMessageReturnsOk(privateChatId, codeMsg, from) {
 			sendTgMessage(chatId, fmt.Sprintf("✅ %s 领取「%s」成功！%s已通过私聊发送，请查收。",
-				displayName, category.Name, codeType))
+				displayName, category.Name, codeType), from)
 		} else {
 			// 私聊失败：不回滚！领取记录保留，用户可通过私聊 /myrecords 查看
 			sendTgMessage(chatId, fmt.Sprintf("✅ %s 领取「%s」成功！\n\n⚠️ 无法通过私聊发送%s，请先私聊机器人发送 /start，然后发送 /myrecords 查看你的%s。",
-				displayName, category.Name, codeType, codeType))
+				displayName, category.Name, codeType, codeType), from)
 		}
 	} else {
 		// 私聊中：直接发送
-		sendTgMessage(chatId, codeMsg)
+		sendTgMessage(chatId, codeMsg, from)
 	}
 }
 
@@ -470,7 +470,7 @@ func handleTgMyRecords(chatId int64, from *TgUser, isGroup bool) {
 			"📋 你还没有任何领取或中奖记录。\n\n点击下方按钮开始领取：",
 			TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回菜单", CallbackData: "menu"}},
-			}})
+			}}, from)
 		return
 	}
 
@@ -499,16 +499,16 @@ func handleTgMyRecords(chatId int64, from *TgUser, isGroup bool) {
 
 	if isGroup {
 		// 群组中：通过私聊发送记录（含敏感码）
-		if sendTgMessageReturnsOk(privateChatId, msg) {
-			sendTgMessage(chatId, "📋 你的记录已通过私聊发送，请查收。")
+		if sendTgMessageReturnsOk(privateChatId, msg, from) {
+			sendTgMessage(chatId, "📋 你的记录已通过私聊发送，请查收。", from)
 		} else {
-			sendTgMessage(chatId, "❌ 无法私聊发送记录，请先私聊机器人发送 /start 后再试。")
+			sendTgMessage(chatId, "❌ 无法私聊发送记录，请先私聊机器人发送 /start 后再试。", from)
 		}
 	} else {
 		sendTgMessageWithKeyboard(chatId, msg,
 			TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回菜单", CallbackData: "menu"}},
-			}})
+			}}, from)
 	}
 }
 
@@ -562,7 +562,7 @@ func handleGroupMessage(chatId int64, from *TgUser) {
 				{{Text: "🎰 点击抽奖", CallbackData: fmt.Sprintf("lottery_%s", tgId)}},
 			},
 		}
-		sentMsgId := sendTgMessageWithKeyboardAndGetId(chatId, text, keyboard)
+		sentMsgId := sendTgMessageWithKeyboardAndGetId(chatId, text, keyboard, from)
 		if sentMsgId > 0 {
 			_ = model.UpdateLastBotMsgId(tracker.Id, sentMsgId)
 		}
@@ -584,7 +584,7 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 	expectedData := fmt.Sprintf("lottery_%s", tgId)
 	if cb.Data != expectedData {
 		answerCallbackQuery(cb.Id)
-		sendTgMessage(chatId, "❌ 这不是你的抽奖机会哦！")
+		sendTgMessage(chatId, "❌ 这不是你的抽奖机会哦！", cb.From)
 		return
 	}
 
@@ -592,7 +592,7 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 	tracker, err := model.GetOrCreateMessageTracker(chatId, tgId)
 	if err != nil {
 		answerCallbackQuery(cb.Id)
-		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。")
+		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。", cb.From)
 		return
 	}
 
@@ -604,7 +604,7 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 	totalChances := tracker.MessageCount / required
 	if totalChances <= tracker.LotteryUsed {
 		answerCallbackQuery(cb.Id)
-		sendTgMessage(chatId, fmt.Sprintf("❌ %s 你没有可用的抽奖次数了。继续聊天获取更多机会！", displayName))
+		sendTgMessage(chatId, fmt.Sprintf("❌ %s 你没有可用的抽奖次数了。继续聊天获取更多机会！", displayName), cb.From)
 		return
 	}
 
@@ -645,7 +645,7 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 		} else {
 			loseMsg += fmt.Sprintf("\n\n💬 再发送 %d 条消息即可获得下一次抽奖机会！", needMore)
 		}
-		sendTgMessage(chatId, loseMsg)
+		sendTgMessage(chatId, loseMsg, cb.From)
 		return
 	}
 
@@ -658,7 +658,7 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 			ChatId:     chatId,
 			Won:        false,
 		})
-		sendTgMessage(chatId, fmt.Sprintf("😢 %s 奖品已被领完，下次再来！", displayName))
+		sendTgMessage(chatId, fmt.Sprintf("😢 %s 奖品已被领完，下次再来！", displayName), cb.From)
 		return
 	}
 
@@ -676,12 +676,12 @@ func handleTgLotteryCallback(cb *TgCallbackQuery) {
 
 	// 通过私聊发送中奖兑换码（安全）
 	prizeMsg := fmt.Sprintf("🎊 恭喜中奖！\n\n奖品：%s\n兑换码：%s\n\n请复制兑换码前往网站使用。", prize.Name, prize.Code)
-	if sendTgMessageReturnsOk(privateChatId, prizeMsg) {
+	if sendTgMessageReturnsOk(privateChatId, prizeMsg, cb.From) {
 		// 在群里发一条通知（不含兑换码）
-		sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！兑换码已通过私聊发送，请查收。", displayName, prize.Name))
+		sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！兑换码已通过私聊发送，请查收。", displayName, prize.Name), cb.From)
 	} else {
 		// 私聊失败，直接在群里显示（用 alert 弹窗作为备选）
-		sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！\n\n⚠️ 无法私聊发送兑换码，请私聊机器人发送 /start 后使用 /myrecords 查看。", displayName, prize.Name))
+		sendTgMessage(chatId, fmt.Sprintf("🎊 恭喜 %s 在抽奖中获得了「%s」！\n\n⚠️ 无法私聊发送兑换码，请私聊机器人发送 /start 后使用 /myrecords 查看。", displayName, prize.Name), cb.From)
 	}
 }
 
@@ -1045,7 +1045,40 @@ func GetTgBotWebhookInfo(c *gin.Context) {
 
 // ========== Telegram API Helpers ==========
 
-func sendTgMessage(chatId int64, text string) {
+// tgHTMLEscape 转义 HTML 特殊字符
+func tgHTMLEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}
+
+// tgMentionHTML 生成 HTML 格式的 @提及
+func tgMentionHTML(from *TgUser) string {
+	if from == nil {
+		return ""
+	}
+	name := from.FirstName
+	if name == "" {
+		name = from.Username
+	}
+	if name == "" {
+		name = fmt.Sprintf("%d", from.Id)
+	}
+	return fmt.Sprintf(`<a href="tg://user?id=%d">@%s</a>`, from.Id, tgHTMLEscape(name))
+}
+
+// tgFormatMsg 格式化消息文本（HTML转义 + @提及前缀）
+func tgFormatMsg(text string, from ...*TgUser) string {
+	escaped := tgHTMLEscape(text)
+	if len(from) > 0 && from[0] != nil {
+		mention := tgMentionHTML(from[0])
+		return mention + "\n" + escaped
+	}
+	return escaped
+}
+
+func sendTgMessage(chatId int64, text string, from ...*TgUser) {
 	token := common.TelegramBotToken
 	if token == "" {
 		common.SysError("TG Bot: token not configured")
@@ -1054,14 +1087,15 @@ func sendTgMessage(chatId int64, text string) {
 
 	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	body := map[string]interface{}{
-		"chat_id": chatId,
-		"text":    text,
+		"chat_id":    chatId,
+		"text":       tgFormatMsg(text, from...),
+		"parse_mode": "HTML",
 	}
 	tgPost(apiUrl, body)
 }
 
 // sendTgMessageReturnsOk 发送消息并返回是否成功（用于私聊尝试）
-func sendTgMessageReturnsOk(chatId int64, text string) bool {
+func sendTgMessageReturnsOk(chatId int64, text string, from ...*TgUser) bool {
 	token := common.TelegramBotToken
 	if token == "" {
 		return false
@@ -1069,13 +1103,14 @@ func sendTgMessageReturnsOk(chatId int64, text string) bool {
 
 	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	body := map[string]interface{}{
-		"chat_id": chatId,
-		"text":    text,
+		"chat_id":    chatId,
+		"text":       tgFormatMsg(text, from...),
+		"parse_mode": "HTML",
 	}
 	return tgPostReturnsOk(apiUrl, body)
 }
 
-func sendTgMessageWithKeyboard(chatId int64, text string, keyboard TgInlineKeyboardMarkup) {
+func sendTgMessageWithKeyboard(chatId int64, text string, keyboard TgInlineKeyboardMarkup, from ...*TgUser) {
 	token := common.TelegramBotToken
 	if token == "" {
 		common.SysError("TG Bot: token not configured")
@@ -1085,14 +1120,15 @@ func sendTgMessageWithKeyboard(chatId int64, text string, keyboard TgInlineKeybo
 	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	body := map[string]interface{}{
 		"chat_id":      chatId,
-		"text":         text,
+		"text":         tgFormatMsg(text, from...),
 		"reply_markup": keyboard,
+		"parse_mode":   "HTML",
 	}
 	tgPost(apiUrl, body)
 }
 
 // sendTgMessageWithKeyboardAndGetId 发送带键盘的消息并返回消息ID
-func sendTgMessageWithKeyboardAndGetId(chatId int64, text string, keyboard TgInlineKeyboardMarkup) int {
+func sendTgMessageWithKeyboardAndGetId(chatId int64, text string, keyboard TgInlineKeyboardMarkup, from ...*TgUser) int {
 	token := common.TelegramBotToken
 	if token == "" {
 		return 0
@@ -1101,8 +1137,9 @@ func sendTgMessageWithKeyboardAndGetId(chatId int64, text string, keyboard TgInl
 	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	body := map[string]interface{}{
 		"chat_id":      chatId,
-		"text":         text,
+		"text":         tgFormatMsg(text, from...),
 		"reply_markup": keyboard,
+		"parse_mode":   "HTML",
 	}
 	bodyBytes, err := common.Marshal(body)
 	if err != nil {
@@ -1130,7 +1167,7 @@ func sendTgMessageWithKeyboardAndGetId(chatId int64, text string, keyboard TgInl
 }
 
 // editTgMessage 编辑已有消息
-func editTgMessage(chatId int64, messageId int, text string, keyboard *TgInlineKeyboardMarkup) {
+func editTgMessage(chatId int64, messageId int, text string, keyboard *TgInlineKeyboardMarkup, from ...*TgUser) {
 	token := common.TelegramBotToken
 	if token == "" {
 		return
@@ -1139,7 +1176,8 @@ func editTgMessage(chatId int64, messageId int, text string, keyboard *TgInlineK
 	body := map[string]interface{}{
 		"chat_id":    chatId,
 		"message_id": messageId,
-		"text":       text,
+		"text":       tgFormatMsg(text, from...),
+		"parse_mode": "HTML",
 	}
 	if keyboard != nil {
 		body["reply_markup"] = *keyboard

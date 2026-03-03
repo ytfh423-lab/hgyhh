@@ -109,12 +109,12 @@ func getFarmUser(tgId string) (*model.User, error) {
 	return user, err
 }
 
-func farmBindingError(chatId int64, editMsgId int) {
+func farmBindingError(chatId int64, editMsgId int, from *TgUser) {
 	text := "🔑 你还没有绑定平台账号！\n\n" +
 		"请先私聊机器人发送你的 API Key（以 sk- 开头）完成绑定。\n" +
 		"绑定后才能使用农场功能。\n\n" +
 		"发送 /bindaccount 查看绑定说明。"
-	farmSend(chatId, editMsgId, text, nil)
+	farmSend(chatId, editMsgId, text, nil, from)
 }
 
 // ========== 命令入口 ==========
@@ -122,10 +122,10 @@ func farmBindingError(chatId int64, editMsgId int) {
 func handleFarmCommand(chatId int64, from *TgUser, isGroup bool) {
 	tgId := strconv.FormatInt(from.Id, 10)
 	if _, err := getFarmUser(tgId); err != nil {
-		farmBindingError(chatId, 0)
+		farmBindingError(chatId, 0, from)
 		return
 	}
-	showFarmView(chatId, 0, tgId)
+	showFarmView(chatId, 0, tgId, from)
 }
 
 func handleFarmCallback(cb *TgCallbackQuery) {
@@ -135,52 +135,53 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	data := cb.Data
 
 	// 统一绑定检查：所有农场操作都需要绑定账号
+	from := cb.From
 	if _, err := getFarmUser(tgId); err != nil {
-		farmBindingError(chatId, msgId)
+		farmBindingError(chatId, msgId, from)
 		return
 	}
 
 	switch {
 	case data == "farm":
-		showFarmView(chatId, msgId, tgId)
+		showFarmView(chatId, msgId, tgId, from)
 	case data == "farm_plant":
-		showFarmPlantCrops(chatId, msgId, tgId)
+		showFarmPlantCrops(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_p_"):
 		cropShort := strings.TrimPrefix(data, "farm_p_")
-		showFarmPlotSelection(chatId, msgId, tgId, cropShort)
+		showFarmPlotSelection(chatId, msgId, tgId, cropShort, from)
 	case strings.HasPrefix(data, "farm_pp_"):
 		parts := strings.SplitN(strings.TrimPrefix(data, "farm_pp_"), "_", 2)
 		if len(parts) == 2 {
 			plotIdx, _ := strconv.Atoi(parts[0])
-			doFarmPlant(chatId, msgId, tgId, plotIdx, parts[1])
+			doFarmPlant(chatId, msgId, tgId, plotIdx, parts[1], from)
 		}
 	case data == "farm_harvest":
-		doFarmHarvest(chatId, msgId, tgId)
+		doFarmHarvest(chatId, msgId, tgId, from)
 	case data == "farm_shop":
-		showFarmShop(chatId, msgId, tgId)
+		showFarmShop(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_buy_"):
 		itemKey := strings.TrimPrefix(data, "farm_buy_")
-		doFarmBuy(chatId, msgId, tgId, itemKey)
+		doFarmBuy(chatId, msgId, tgId, itemKey, from)
 	case data == "farm_steal":
-		showFarmStealTargets(chatId, msgId, tgId)
+		showFarmStealTargets(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_st_"):
 		victimId := strings.TrimPrefix(data, "farm_st_")
-		doFarmSteal(chatId, msgId, tgId, victimId)
+		doFarmSteal(chatId, msgId, tgId, victimId, from)
 	case data == "farm_treat":
-		showFarmTreatSelection(chatId, msgId, tgId)
+		showFarmTreatSelection(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_tr_"):
 		plotStr := strings.TrimPrefix(data, "farm_tr_")
 		plotIdx, _ := strconv.Atoi(plotStr)
-		doFarmTreat(chatId, msgId, tgId, plotIdx)
+		doFarmTreat(chatId, msgId, tgId, plotIdx, from)
 	}
 }
 
 // ========== 农场视图 ==========
 
-func showFarmView(chatId int64, editMsgId int, tgId string) {
+func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 系统错误", nil)
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
 		return
 	}
 	for _, plot := range plots {
@@ -223,7 +224,7 @@ func showFarmView(chatId int64, editMsgId int, tgId string) {
 		})
 	}
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
-	farmSend(chatId, editMsgId, text, &keyboard)
+	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
 func farmPlotLine(plot *model.TgFarmPlot) string {
@@ -292,7 +293,7 @@ func formatDuration(secs int64) string {
 
 // ========== 种植 ==========
 
-func showFarmPlantCrops(chatId int64, editMsgId int, tgId string) {
+func showFarmPlantCrops(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text := "🌱 选择要种植的作物：\n\n"
 	var rows [][]TgInlineKeyboardButton
 	for _, crop := range farmCrops {
@@ -307,18 +308,18 @@ func showFarmPlantCrops(chatId int64, editMsgId int, tgId string) {
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
-	farmSend(chatId, editMsgId, text, &keyboard)
+	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
-func showFarmPlotSelection(chatId int64, editMsgId int, tgId string, cropShort string) {
+func showFarmPlotSelection(chatId int64, editMsgId int, tgId string, cropShort string, from *TgUser) {
 	crop := farmCropByShort[cropShort]
 	if crop == nil {
-		farmSend(chatId, editMsgId, "❌ 未知作物", nil)
+		farmSend(chatId, editMsgId, "❌ 未知作物", nil, from)
 		return
 	}
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 系统错误", nil)
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
 		return
 	}
 	for _, plot := range plots {
@@ -343,18 +344,18 @@ func showFarmPlotSelection(chatId int64, editMsgId int, tgId string, cropShort s
 		{Text: "🔙 返回", CallbackData: "farm_plant"},
 	})
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
-	farmSend(chatId, editMsgId, text, &keyboard)
+	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
-func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShort string) {
+func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShort string, from *TgUser) {
 	crop := farmCropByShort[cropShort]
 	if crop == nil {
-		farmSend(chatId, editMsgId, "❌ 未知作物", nil)
+		farmSend(chatId, editMsgId, "❌ 未知作物", nil, from)
 		return
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmBindingError(chatId, editMsgId)
+		farmBindingError(chatId, editMsgId, from)
 		return
 	}
 	if user.Quota < crop.SeedCost {
@@ -363,12 +364,12 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回", CallbackData: "farm_plant"}},
 			},
-		})
+		}, from)
 		return
 	}
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 系统错误", nil)
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
 		return
 	}
 	var targetPlot *model.TgFarmPlot
@@ -383,12 +384,12 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回", CallbackData: "farm_plant"}},
 			},
-		})
+		}, from)
 		return
 	}
 	err = model.DecreaseUserQuota(user.Id, crop.SeedCost)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 扣费失败，请稍后再试", nil)
+		farmSend(chatId, editMsgId, "❌ 扣费失败，请稍后再试", nil, from)
 		return
 	}
 
@@ -409,20 +410,20 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 
 	_ = model.UpdateFarmPlot(targetPlot)
 	common.SysLog(fmt.Sprintf("TG Farm: user %s planted %s on plot %d, cost %d", tgId, crop.Key, plotIdx, crop.SeedCost))
-	showFarmView(chatId, editMsgId, tgId)
+	showFarmView(chatId, editMsgId, tgId, from)
 }
 
 // ========== 收获 ==========
 
-func doFarmHarvest(chatId int64, editMsgId int, tgId string) {
+func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmBindingError(chatId, editMsgId)
+		farmBindingError(chatId, editMsgId, from)
 		return
 	}
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 系统错误", nil)
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
 		return
 	}
 	for _, plot := range plots {
@@ -458,7 +459,7 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string) {
 				{{Text: "🌱 去种植", CallbackData: "farm_plant"},
 					{Text: "🔙 返回", CallbackData: "farm"}},
 			},
-		})
+		}, from)
 		return
 	}
 
@@ -473,12 +474,12 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string) {
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
-	})
+	}, from)
 }
 
 // ========== 商店 ==========
 
-func showFarmShop(chatId int64, editMsgId int, tgId string) {
+func showFarmShop(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text := "🏪 农场商店\n\n"
 	text += "📌 种子（在「种植」中直接购买并种下）：\n"
 	for _, crop := range farmCrops {
@@ -503,18 +504,18 @@ func showFarmShop(chatId int64, editMsgId int, tgId string) {
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
-	farmSend(chatId, editMsgId, text, &keyboard)
+	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
-func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string) {
+func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string, from *TgUser) {
 	item := farmItemMap[itemKey]
 	if item == nil {
-		farmSend(chatId, editMsgId, "❌ 未知道具", nil)
+		farmSend(chatId, editMsgId, "❌ 未知道具", nil, from)
 		return
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmBindingError(chatId, editMsgId)
+		farmBindingError(chatId, editMsgId, from)
 		return
 	}
 	if user.Quota < item.Cost {
@@ -522,18 +523,18 @@ func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string) {
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回商店", CallbackData: "farm_shop"}},
 			},
-		})
+		}, from)
 		return
 	}
 	err = model.DecreaseUserQuota(user.Id, item.Cost)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 扣费失败", nil)
+		farmSend(chatId, editMsgId, "❌ 扣费失败", nil, from)
 		return
 	}
 	err = model.IncrementFarmItem(tgId, itemKey, 1)
 	if err != nil {
 		_ = model.IncreaseUserQuota(user.Id, item.Cost, true)
-		farmSend(chatId, editMsgId, "❌ 购买失败", nil)
+		farmSend(chatId, editMsgId, "❌ 购买失败", nil, from)
 		return
 	}
 	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 购买 %s%s 成功！已扣除 %s",
@@ -542,19 +543,19 @@ func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string) {
 			{{Text: "🏪 继续购物", CallbackData: "farm_shop"},
 				{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
-	})
+	}, from)
 }
 
 // ========== 偷菜 ==========
 
-func showFarmStealTargets(chatId int64, editMsgId int, tgId string) {
+func showFarmStealTargets(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	targets, err := model.GetMatureFarmTargets(tgId)
 	if err != nil || len(targets) == 0 {
 		farmSend(chatId, editMsgId, "🕵️ 暂时没有可偷的菜地。\n\n等其他玩家的作物成熟后再来！", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回农场", CallbackData: "farm"}},
 			},
-		})
+		}, from)
 		return
 	}
 	text := "🕵️ 可偷菜的农场：\n\n"
@@ -571,17 +572,17 @@ func showFarmStealTargets(chatId int64, editMsgId int, tgId string) {
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
-	farmSend(chatId, editMsgId, text, &keyboard)
+	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
-func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string) {
+func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string, from *TgUser) {
 	if tgId == victimId {
-		farmSend(chatId, editMsgId, "❌ 不能偷自己的菜！", nil)
+		farmSend(chatId, editMsgId, "❌ 不能偷自己的菜！", nil, from)
 		return
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
-		farmBindingError(chatId, editMsgId)
+		farmBindingError(chatId, editMsgId, from)
 		return
 	}
 
@@ -593,7 +594,7 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string) {
 				{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
 					{Text: "🔙 返回", CallbackData: "farm"}},
 			},
-		})
+		}, from)
 		return
 	}
 
@@ -604,7 +605,7 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string) {
 				{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
 					{Text: "🔙 返回", CallbackData: "farm"}},
 			},
-		})
+		}, from)
 		return
 	}
 
@@ -635,15 +636,15 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string) {
 			{{Text: "🕵️ 继续偷菜", CallbackData: "farm_steal"},
 				{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
-	})
+	}, from)
 }
 
 // ========== 治疗 ==========
 
-func showFarmTreatSelection(chatId int64, editMsgId int, tgId string) {
+func showFarmTreatSelection(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 系统错误", nil)
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
 		return
 	}
 	for _, plot := range plots {
@@ -687,13 +688,13 @@ func showFarmTreatSelection(chatId int64, editMsgId int, tgId string) {
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
-	farmSend(chatId, editMsgId, text, &keyboard)
+	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
-func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int) {
+func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int, from *TgUser) {
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 系统错误", nil)
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
 		return
 	}
 	var targetPlot *model.TgFarmPlot
@@ -708,7 +709,7 @@ func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int) {
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回农场", CallbackData: "farm"}},
 			},
-		})
+		}, from)
 		return
 	}
 
@@ -720,7 +721,7 @@ func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int) {
 		}
 	}
 	if cureItem == nil {
-		farmSend(chatId, editMsgId, "❌ 无法治疗此事件", nil)
+		farmSend(chatId, editMsgId, "❌ 无法治疗此事件", nil, from)
 		return
 	}
 
@@ -732,7 +733,7 @@ func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int) {
 				{{Text: "🏪 去商店", CallbackData: "farm_shop"},
 					{Text: "🔙 返回", CallbackData: "farm"}},
 			},
-		})
+		}, from)
 		return
 	}
 
@@ -754,7 +755,7 @@ func doFarmTreat(chatId int64, editMsgId int, tgId string, plotIdx int) {
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
-	})
+	}, from)
 }
 
 // ========== 辅助函数 ==========
@@ -776,12 +777,12 @@ func maskTgId(tgId string) string {
 	return "***"
 }
 
-func farmSend(chatId int64, editMsgId int, text string, keyboard *TgInlineKeyboardMarkup) {
+func farmSend(chatId int64, editMsgId int, text string, keyboard *TgInlineKeyboardMarkup, from *TgUser) {
 	if editMsgId > 0 {
-		editTgMessage(chatId, editMsgId, text, keyboard)
+		editTgMessage(chatId, editMsgId, text, keyboard, from)
 	} else if keyboard != nil {
-		sendTgMessageWithKeyboard(chatId, text, *keyboard)
+		sendTgMessageWithKeyboard(chatId, text, *keyboard, from)
 	} else {
-		sendTgMessage(chatId, text)
+		sendTgMessage(chatId, text, from)
 	}
 }
