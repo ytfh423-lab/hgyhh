@@ -161,6 +161,7 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.DELETE("/inventory/:id", controller.DeleteTgBotInventoryItem)
 			tgBotRoute.POST("/setup-webhook", controller.SetupTgBotWebhook)
 			tgBotRoute.GET("/webhook-info", controller.GetTgBotWebhookInfo)
+			tgBotRoute.POST("/register-commands", controller.RegisterTgBotCommands)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

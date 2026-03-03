@@ -36,6 +36,7 @@ const TgBotPage = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [webhookInfo, setWebhookInfo] = useState(null);
   const [settingWebhook, setSettingWebhook] = useState(false);
+  const [registeringCommands, setRegisteringCommands] = useState(false);
 
   // ===== 分类管理 =====
   const [categories, setCategories] = useState([]);
@@ -92,6 +93,27 @@ const TgBotPage = () => {
       showError(t('保存失败'));
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  // 注册命令菜单
+  const registerCommands = async () => {
+    if (!botToken) {
+      showError(t('请先填写并保存 Bot Token'));
+      return;
+    }
+    setRegisteringCommands(true);
+    try {
+      const res = await API.post('/api/tgbot/register-commands');
+      if (res.data.success) {
+        showSuccess(res.data.message || t('命令菜单注册成功'));
+      } else {
+        showError(res.data.message || t('注册失败'));
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || t('注册失败'));
+    } finally {
+      setRegisteringCommands(false);
     }
   };
 
@@ -486,6 +508,14 @@ const TgBotPage = () => {
               onClick={setupWebhook}
             >
               {t('设置 Webhook')}
+            </Button>
+            <Button
+              theme='light'
+              type='tertiary'
+              loading={registeringCommands}
+              onClick={registerCommands}
+            >
+              {t('注册命令菜单')}
             </Button>
           </div>
 

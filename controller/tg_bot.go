@@ -447,6 +447,18 @@ func DeleteTgBotInventoryItem(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "删除成功"})
 }
 
+// ========== Admin API: Bot Commands Registration ==========
+
+func RegisterTgBotCommands(c *gin.Context) {
+	token := common.TelegramBotToken
+	if token == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先保存 Bot Token"})
+		return
+	}
+	registerTgBotCommands(token)
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "命令菜单注册成功（私聊+群组）"})
+}
+
 // ========== Admin API: Webhook Management ==========
 
 func SetupTgBotWebhook(c *gin.Context) {
