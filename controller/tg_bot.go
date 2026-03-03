@@ -110,6 +110,8 @@ func TgBotWebhook(c *gin.Context) {
 		handleTgMyRecords(chatId, msg.From, isGroup)
 	case cmd == "/lottery" || cmd == "/抽奖":
 		handleTgLottery(chatId, msg.From, isGroup)
+	case cmd == "/farm" || cmd == "/农场":
+		handleFarmCommand(chatId, msg.From, isGroup)
 	case cmd == "/help":
 		handleTgHelp(chatId)
 	}
@@ -143,6 +145,9 @@ func handleTgStart(chatId int64, isGroup bool) {
 			{Text: "🎰 抽奖", CallbackData: "lottery_info"},
 		})
 	}
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🌾 农场小游戏", CallbackData: "farm"},
+	})
 
 	welcome := "👋 欢迎使用 " + common.SystemName + " 机器人！\n\n请点击下方按钮领取对应的兑换码/邀请码："
 	if isGroup {
@@ -215,9 +220,11 @@ func handleTgHelp(chatId int64) {
 		"/claim - 领取兑换码/邀请码\n" +
 		"/myrecords - 查看我的领取记录\n" +
 		"/lottery - 查看抽奖状态（群组）\n" +
+		"/farm - 🌾 农场小游戏\n" +
 		"/help - 显示此帮助信息\n\n" +
 		"💡 在群组中使用时，兑换码会通过私聊发送，请确保已先私聊过机器人。\n" +
-		"🎰 在群组中发送消息可累积抽奖次数！"
+		"🎰 在群组中发送消息可累积抽奖次数！\n" +
+		"🌾 种菜、收菜、偷菜，收获直接变成账户额度！"
 	sendTgMessage(chatId, helpText)
 }
 
@@ -225,6 +232,13 @@ func handleTgHelp(chatId int64) {
 func handleTgCallback(cb *TgCallbackQuery) {
 	chatId := cb.Message.Chat.Id
 	isGroup := cb.Message.Chat.Type == "group" || cb.Message.Chat.Type == "supergroup"
+
+	// 农场游戏回调
+	if cb.Data == "farm" || strings.HasPrefix(cb.Data, "farm_") {
+		answerCallbackQuery(cb.Id)
+		handleFarmCallback(cb)
+		return
+	}
 
 	// 抽奖信息按钮（从 /start 菜单点击）
 	if cb.Data == "lottery_info" {
@@ -890,6 +904,7 @@ func registerTgBotCommands(token string) {
 		{"command": "claim", "description": "领取兑换码/邀请码"},
 		{"command": "myrecords", "description": "查看我的领取记录"},
 		{"command": "lottery", "description": "查看抽奖状态"},
+		{"command": "farm", "description": "🌾 农场小游戏"},
 		{"command": "help", "description": "显示帮助信息"},
 	}
 
@@ -1025,6 +1040,24 @@ func sendTgMessageWithKeyboardAndGetId(chatId int64, text string, keyboard TgInl
 		}
 	}
 	return 0
+}
+
+// editTgMessage 编辑已有消息
+func editTgMessage(chatId int64, messageId int, text string, keyboard *TgInlineKeyboardMarkup) {
+	token := common.TelegramBotToken
+	if token == "" {
+		return
+	}
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/editMessageText", token)
+	body := map[string]interface{}{
+		"chat_id":    chatId,
+		"message_id": messageId,
+		"text":       text,
+	}
+	if keyboard != nil {
+		body["reply_markup"] = *keyboard
+	}
+	tgPost(apiUrl, body)
 }
 
 // deleteTgMessage 删除消息
