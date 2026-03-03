@@ -19,13 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, LayoutDashboard, Store, BookOpen, Info } from 'lucide-react';
+import { Home, LayoutDashboard, Store, BookOpen, Info, Gift } from 'lucide-react';
 import SkeletonWrapper from '../components/SkeletonWrapper';
 
 const NAV_ICONS = {
   home: Home,
   console: LayoutDashboard,
   pricing: Store,
+  gift: Gift,
   docs: BookOpen,
   about: Info,
 };

@@ -26,6 +26,7 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       home: true,
       console: true,
       pricing: true,
+      invite_codes: true,
       docs: true,
       about: true,
     };
@@ -51,6 +52,12 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         itemKey: 'pricing',
         to: '/pricing',
         icon: 'pricing',
+      },
+      {
+        text: t('邀请码'),
+        itemKey: 'invite_codes',
+        to: '/invite-codes',
+        icon: 'gift',
       },
       ...(docsLink
         ? [
@@ -81,6 +88,9 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         return typeof modules.pricing === 'object'
           ? modules.pricing.enabled
           : modules.pricing;
+      }
+      if (link.itemKey === 'invite_codes') {
+        return modules.invite_codes !== false;
       }
       return modules[link.itemKey] === true;
     });

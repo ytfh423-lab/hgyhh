@@ -47,6 +47,7 @@ import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
 import Subscription from './pages/Subscription';
 import InvitationCode from './pages/InvitationCode';
+import PublicInviteCode from './pages/PublicInviteCode';
 import DeletionRequestPage from './pages/DeletionRequest';
 import CheckinLeaderboard from './pages/CheckinLeaderboard';
 import TgBotPage from './pages/TgBot';
@@ -367,6 +368,14 @@ function App() {
                 <Task />
               </Suspense>
             </PrivateRoute>
+          }
+        />
+        <Route
+          path='/invite-codes'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <PublicInviteCode />
+            </Suspense>
           }
         />
         <Route

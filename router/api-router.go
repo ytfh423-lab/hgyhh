@@ -317,6 +317,14 @@ func SetApiRouter(router *gin.Engine) {
 			invCodeRoute.GET("/", controller.GetMyInvitationCodes)
 		}
 
+		pubInvRoute := apiRouter.Group("/public_invcode")
+		{
+			pubInvRoute.GET("/", controller.GetPublicInviteCodes)
+			pubInvRoute.POST("/", middleware.UserAuth(), controller.SharePublicInviteCode)
+			pubInvRoute.DELETE("/:id", middleware.UserAuth(), controller.DeletePublicInviteCode)
+			pubInvRoute.GET("/my", middleware.UserAuth(), controller.GetMyShareableInviteCodes)
+		}
+
 		regCodeRoute := apiRouter.Group("/regcode")
 		regCodeRoute.Use(middleware.AdminAuth())
 		{
