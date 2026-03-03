@@ -121,7 +121,7 @@ func DeletePublicInviteCode(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "已删除"})
 }
 
-// GetMyShareableInviteCodes returns the user's invitation codes that can be shared
+// GetMyShareableInviteCodes returns all user's invitation codes with status and shared info
 func GetMyShareableInviteCodes(c *gin.Context) {
 	userId := c.GetInt("id")
 	if userId == 0 {
@@ -130,13 +130,58 @@ func GetMyShareableInviteCodes(c *gin.Context) {
 	}
 
 	var codes []*model.Redemption
-	now := common.GetTimestamp()
-	err := model.DB.Where("user_id = ? AND purpose = ? AND status = ? AND (expired_time = 0 OR expired_time > ?)",
-		userId, common.RedemptionPurposeRegistration, common.RedemptionCodeStatusEnabled, now).
+	err := model.DB.Where("user_id = ? AND purpose = ?",
+		userId, common.RedemptionPurposeRegistration).
 		Order("id desc").Find(&codes).Error
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": codes})
+
+	now := common.GetTimestamp()
+
+	type CodeInfo struct {
+		Id          int    `json:"id"`
+		Key         string `json:"key"`
+		Status      int    `json:"status"`
+		ExpiredTime int64  `json:"expired_time"`
+		UsedUserId  int    `json:"used_user_id"`
+		StatusLabel string `json:"status_label"` // 可用/已使用/已过期/已分享
+		Shareable   bool   `json:"shareable"`
+	}
+
+	var result []CodeInfo
+	for _, code := range codes {
+		info := CodeInfo{
+			Id:          code.Id,
+			Key:         code.Key,
+			Status:      code.Status,
+			ExpiredTime: code.ExpiredTime,
+			UsedUserId:  code.UsedUserId,
+		}
+
+		if code.Status == common.RedemptionCodeStatusUsed {
+			info.StatusLabel = "已使用"
+			info.Shareable = false
+		} else if code.Status == common.RedemptionCodeStatusDisabled {
+			info.StatusLabel = "已禁用"
+			info.Shareable = false
+		} else if code.ExpiredTime > 0 && now >= code.ExpiredTime {
+			info.StatusLabel = "已过期"
+			info.Shareable = false
+		} else {
+			// Check if already shared
+			shared, _ := model.IsCodeAlreadyShared(code.Key)
+			if shared {
+				info.StatusLabel = "已分享"
+				info.Shareable = false
+			} else {
+				info.StatusLabel = "可用"
+				info.Shareable = true
+			}
+		}
+		result = append(result, info)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }

@@ -334,13 +334,49 @@ const PublicInviteCode = () => {
             value={selectedCodeId}
             onChange={setSelectedCodeId}
             style={{ width: '100%' }}
+            renderOptionItem={({ disabled, selected, label, value, ...rest }) => {
+              const code = myCodes.find((c) => c.id === value);
+              if (!code) return null;
+              const statusColors = {
+                '可用': 'green',
+                '已使用': 'red',
+                '已过期': 'grey',
+                '已分享': 'blue',
+                '已禁用': 'orange',
+              };
+              return (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.5 : 1,
+                    background: selected ? 'var(--semi-color-primary-light-default)' : 'transparent',
+                  }}
+                  {...rest}
+                >
+                  <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                    {code.key.substring(0, 12)}...
+                  </span>
+                  <Space spacing={4}>
+                    <Tag size='small' color={statusColors[code.status_label] || 'grey'}>
+                      {t(code.status_label)}
+                    </Tag>
+                    <Text type='tertiary' size='small'>
+                      {code.expired_time && code.expired_time > 0
+                        ? timestamp2string(code.expired_time)
+                        : t('永不过期')}
+                    </Text>
+                  </Space>
+                </div>
+              );
+            }}
             optionList={myCodes.map((code) => ({
-              label: `${code.key.substring(0, 8)}... (${t('过期')}: ${
-                code.expired_time && code.expired_time > 0
-                  ? timestamp2string(code.expired_time)
-                  : t('永不过期')
-              })`,
+              label: `${code.key.substring(0, 12)}... [${code.status_label}]`,
               value: code.id,
+              disabled: !code.shareable,
             }))}
           />
         )}
