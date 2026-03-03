@@ -166,6 +166,10 @@ func farmBindingError(chatId int64, editMsgId int, from *TgUser) {
 // ========== 命令入口 ==========
 
 func handleFarmCommand(chatId int64, from *TgUser, isGroup bool) {
+	if !isGroup {
+		sendTgMessage(chatId, "🌾 农场游戏仅限群组中使用！\n\n请在群组里发送 /farm 开始种菜。\n私聊仅支持绑定账号功能。", from)
+		return
+	}
 	tgId := strconv.FormatInt(from.Id, 10)
 	if _, err := getFarmUser(tgId); err != nil {
 		farmBindingError(chatId, 0, from)

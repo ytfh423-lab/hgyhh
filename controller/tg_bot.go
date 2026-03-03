@@ -319,9 +319,13 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	chatId := cb.Message.Chat.Id
 	isGroup := cb.Message.Chat.Type == "group" || cb.Message.Chat.Type == "supergroup"
 
-	// 农场游戏回调
+	// 农场游戏回调（仅群组可用）
 	if cb.Data == "farm" || strings.HasPrefix(cb.Data, "farm_") {
 		answerCallbackQuery(cb.Id)
+		if !isGroup {
+			sendTgMessage(chatId, "🌾 农场游戏仅限群组中使用！\n\n请在群组里发送 /farm 开始种菜。\n私聊仅支持绑定账号功能。", cb.From)
+			return
+		}
 		handleFarmCallback(cb)
 		return
 	}
