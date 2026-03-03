@@ -380,19 +380,6 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 		return
 	}
 
-	// 检查领取次数
-	claimCount, err := model.CountTgBotClaims(tgId, categoryId)
-	if err != nil {
-		common.SysError(fmt.Sprintf("TG Bot: count claims error for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
-		sendTgMessage(chatId, "❌ 系统错误，请稍后再试。", from)
-		return
-	}
-	if claimCount >= int64(category.MaxClaims) {
-		sendTgMessage(chatId, fmt.Sprintf("⚠️ 你在「%s」已领取 %d/%d 次，已达上限。",
-			category.Name, claimCount, category.MaxClaims), from)
-		return
-	}
-
 	// 事务性领取：查找可用码 + 标记已发放 + 创建领取记录（原子操作）
 	code, err := model.ClaimInventoryCode(categoryId, tgId)
 	if err != nil {
@@ -410,10 +397,10 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 	}
 
 	codeMsg := fmt.Sprintf(
-		"✅ 「%s」领取成功！(%d/%d)\n\n"+
+		"✅ 「%s」领取成功！\n\n"+
 			"🎫 你的%s：\n%s\n\n"+
 			"请复制上方%s，前往网站使用。",
-		category.Name, claimCount+1, category.MaxClaims,
+		category.Name,
 		codeType, code, codeType)
 
 	displayName := from.FirstName

@@ -14,12 +14,14 @@ import (
 // ========== 农场游戏定义 ==========
 
 type farmCropDef struct {
-	Key      string
-	Short    string // callback abbreviation
-	Name     string
-	Emoji    string
-	SeedCost int   // quota units
-	GrowSecs int64 // seconds to grow
+	Key       string
+	Short     string // callback abbreviation
+	Name      string
+	Emoji     string
+	SeedCost  int   // quota units
+	GrowSecs  int64 // seconds to grow
+	MaxYield  int   // max harvest yield count
+	UnitPrice int   // quota per unit harvested
 }
 
 type farmItemDef struct {
@@ -31,12 +33,14 @@ type farmItemDef struct {
 }
 
 var farmCrops = []farmCropDef{
-	{"cabbage", "cab", "白菜", "🥬", 250000, 1800},
-	{"tomato", "tom", "番茄", "🍅", 500000, 3600},
-	{"carrot", "car", "胡萝卜", "🥕", 750000, 7200},
-	{"strawberry", "str", "草莓", "🍓", 1000000, 10800},
-	{"corn", "cor", "玉米", "🌽", 1250000, 14400},
-	{"watermelon", "wat", "西瓜", "🍉", 1500000, 21600},
+	{"carrot", "car", "胡萝卜", "�", 50000, 1800, 2, 170000},     // 0.5h, 产量2, $0.34/个
+	{"tomato", "tom", "番茄", "🍅", 150000, 3600, 5, 135000},    // 1h,  产量5, $0.27/个
+	{"pumpkin", "pum", "南瓜", "🎃", 350000, 7200, 6, 250000},   // 2h,  产量6, $0.50/个
+	{"blueberry", "blu", "蓝莓", "�", 75000, 10800, 25, 10000},  // 3h,  产量25, $0.02/个
+	{"strawberry", "str", "草莓", "🍓", 750000, 14400, 6, 470000}, // 4h,  产量6, $0.94/个
+	{"watermelon", "wat", "西瓜", "�", 1250000, 21600, 8, 535000}, // 6h,  产量8, $1.07/个
+	{"mango", "man", "芒果", "🥭", 75000, 25200, 50, 5000},       // 7h,  产量50, $0.01/个
+	{"corn", "cor", "玉米", "�", 50000, 54000, 20, 10000},       // 15h, 产量20, $0.02/个
 }
 
 var farmItems = []farmItemDef{
@@ -48,8 +52,6 @@ var farmCropMap map[string]*farmCropDef
 var farmCropByShort map[string]*farmCropDef
 var farmItemMap map[string]*farmItemDef
 
-const farmHarvestValue = 2500000 // $5
-const farmStealValue = 500000    // $1
 const farmMaxSteals = 2
 const farmStealCooldownSecs = 1800 // 30 min
 const farmEventChance = 30         // 30%
@@ -297,8 +299,11 @@ func showFarmPlantCrops(chatId int64, editMsgId int, tgId string, from *TgUser) 
 	text := "🌱 选择要种植的作物：\n\n"
 	var rows [][]TgInlineKeyboardButton
 	for _, crop := range farmCrops {
-		text += fmt.Sprintf("%s %s - 种子%s 生长%s 收获$5\n",
-			crop.Emoji, crop.Name, farmQuotaStr(crop.SeedCost), formatDuration(crop.GrowSecs))
+		maxValue := crop.MaxYield * crop.UnitPrice
+		text += fmt.Sprintf("%s %s - 种子%s | %s | 产量1~%d×%s | 最高%s\n",
+			crop.Emoji, crop.Name, farmQuotaStr(crop.SeedCost),
+			formatDuration(crop.GrowSecs), crop.MaxYield,
+			farmQuotaStr(crop.UnitPrice), farmQuotaStr(maxValue))
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: fmt.Sprintf("%s %s (%s)", crop.Emoji, crop.Name, farmQuotaStr(crop.SeedCost)),
 				CallbackData: "farm_p_" + crop.Short},
@@ -439,16 +444,25 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if crop == nil {
 				continue
 			}
-			value := farmHarvestValue - (plot.StolenCount * farmStealValue)
-			if value < 0 {
-				value = 0
+			// 随机产量：1 ~ MaxYield
+			yield := 1 + rand.Intn(crop.MaxYield)
+			// 被偷损失：每次偷减少1~2个产量
+			loss := plot.StolenCount
+			realYield := yield - loss
+			if realYield < 0 {
+				realYield = 0
 			}
+			value := realYield * crop.UnitPrice
 			totalQuota += value
 			harvestedCount++
-			details += fmt.Sprintf("\n%s %s → %s", crop.Emoji, crop.Name, farmQuotaStr(value))
-			if plot.StolenCount > 0 {
-				details += fmt.Sprintf(" (被偷%d次)", plot.StolenCount)
+
+			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield)
+			if loss > 0 {
+				details += fmt.Sprintf(" -被偷%d", loss)
 			}
+			details += fmt.Sprintf(" = 实收%d × %s = %s",
+				realYield, farmQuotaStr(crop.UnitPrice), farmQuotaStr(value))
+
 			_ = model.ClearFarmPlot(plot.Id)
 		}
 	}
@@ -483,8 +497,9 @@ func showFarmShop(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text := "🏪 农场商店\n\n"
 	text += "📌 种子（在「种植」中直接购买并种下）：\n"
 	for _, crop := range farmCrops {
-		text += fmt.Sprintf("  %s %s - %s (生长%s)\n",
-			crop.Emoji, crop.Name, farmQuotaStr(crop.SeedCost), formatDuration(crop.GrowSecs))
+		text += fmt.Sprintf("  %s %s - %s | %s | 产量1~%d×%s\n",
+			crop.Emoji, crop.Name, farmQuotaStr(crop.SeedCost),
+			formatDuration(crop.GrowSecs), crop.MaxYield, farmQuotaStr(crop.UnitPrice))
 	}
 	text += "\n📌 道具：\n"
 	var rows [][]TgInlineKeyboardButton
@@ -613,24 +628,30 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string, from
 	crop := farmCropMap[target.CropType]
 	cropName := "作物"
 	cropEmoji := "🌿"
+	unitPrice := 10000 // fallback
 	if crop != nil {
 		cropName = crop.Name
 		cropEmoji = crop.Emoji
+		unitPrice = crop.UnitPrice
 	}
+
+	// 偷取随机 1~3 个单位
+	stealUnits := 1 + rand.Intn(3)
+	stealValue := stealUnits * unitPrice
 
 	_ = model.IncrementPlotStolenCount(target.Id)
 	_ = model.CreateFarmStealLog(&model.TgFarmStealLog{
 		ThiefId:  tgId,
 		VictimId: victimId,
 		PlotId:   target.Id,
-		Amount:   farmStealValue,
+		Amount:   stealValue,
 	})
-	_ = model.IncreaseUserQuota(user.Id, farmStealValue, true)
+	_ = model.IncreaseUserQuota(user.Id, stealValue, true)
 
-	common.SysLog(fmt.Sprintf("TG Farm: user %s stole %s from %s, +%d quota", tgId, cropName, victimId, farmStealValue))
+	common.SysLog(fmt.Sprintf("TG Farm: user %s stole %s from %s, +%d quota", tgId, cropName, victimId, stealValue))
 
-	text := fmt.Sprintf("🕵️ 偷菜成功！\n\n你从 %s 的农场偷了 %s%s\n💰 获得 %s 额度",
-		maskTgId(victimId), cropEmoji, cropName, farmQuotaStr(farmStealValue))
+	text := fmt.Sprintf("🕵️ 偷菜成功！\n\n你从 %s 的农场偷了 %d个%s%s\n💰 获得 %s 额度",
+		maskTgId(victimId), stealUnits, cropEmoji, cropName, farmQuotaStr(stealValue))
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🕵️ 继续偷菜", CallbackData: "farm_steal"},
