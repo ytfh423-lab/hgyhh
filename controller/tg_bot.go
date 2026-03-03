@@ -380,10 +380,10 @@ func handleTgClaimCategory(chatId int64, from *TgUser, categoryId int, isGroup b
 		return
 	}
 
-	// 事务性领取：查找可用码 + 标记已发放 + 创建领取记录（原子操作）
-	code, err := model.ClaimInventoryCode(categoryId, tgId)
+	// 随机取一个未使用的库存码直接发放（无限制）
+	code, err := model.DispenseRandomCode(categoryId, tgId)
 	if err != nil {
-		common.SysError(fmt.Sprintf("TG Bot: ClaimInventoryCode failed for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
+		common.SysError(fmt.Sprintf("TG Bot: DispenseRandomCode failed for tgId=%s cat=%d: %s", tgId, categoryId, err.Error()))
 		sendTgMessage(chatId, fmt.Sprintf("❌ 「%s」暂无库存或领取失败，请联系管理员。", category.Name), from)
 		return
 	}
