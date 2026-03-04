@@ -524,10 +524,12 @@ func doRanchFeed(chatId int64, editMsgId int, tgId string, animalId int, from *T
 		return
 	}
 
+	now := time.Now().Unix()
+	target.LastFedAt = now
+	_ = model.UpdateRanchAnimal(target)
+
 	// 如果动物因饥饿状态需要恢复
 	if target.Status == 3 {
-		// 检查是否也口渴
-		now := time.Now().Unix()
 		waterInterval := int64(common.TgBotRanchWaterInterval)
 		if now > target.LastWateredAt+waterInterval {
 			target.Status = 4 // 还口渴
@@ -556,6 +558,7 @@ func doRanchFeed(chatId int64, editMsgId int, tgId string, animalId int, from *T
 				{Text: "🐄 返回牧场", CallbackData: "ranch"}},
 		},
 	}, from)
+	showRanchView(chatId, editMsgId, tgId, from)
 }
 
 // ========== 喂水 ==========
@@ -654,9 +657,12 @@ func doRanchWater(chatId int64, editMsgId int, tgId string, animalId int, from *
 		return
 	}
 
+	now := time.Now().Unix()
+	target.LastWateredAt = now
+	_ = model.UpdateRanchAnimal(target)
+
 	// 如果动物因口渴状态需要恢复
 	if target.Status == 4 {
-		now := time.Now().Unix()
 		feedInterval := int64(common.TgBotRanchFeedInterval)
 		if now > target.LastFedAt+feedInterval {
 			target.Status = 3 // 还饥饿
@@ -684,6 +690,7 @@ func doRanchWater(chatId int64, editMsgId int, tgId string, animalId int, from *
 				{Text: "🐄 返回牧场", CallbackData: "ranch"}},
 		},
 	}, from)
+	showRanchView(chatId, editMsgId, tgId, from)
 }
 
 // ========== 屠宰出售 ==========
