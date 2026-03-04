@@ -164,7 +164,6 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 
 	hasHungry := false
-	hasThirsty := false
 	hasMature := false
 	hasDead := false
 	for _, a := range animals {
@@ -172,10 +171,8 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		switch a.Status {
 		case 2:
 			hasMature = true
-		case 3:
+		case 3, 4:
 			hasHungry = true
-		case 4:
-			hasThirsty = true
 		case 5:
 			hasDead = true
 		}
