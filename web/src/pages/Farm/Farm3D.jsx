@@ -313,16 +313,20 @@ const Clouds = () => {
 };
 
 // ==================== Soil Plot ====================
-const SoilPlot = ({ position, status, onClick }) => {
+const SOIL_LEVEL_COLORS = ['#92400e', '#854d0e', '#713f12', '#4a2c0a', '#2d1a06'];
+const SOIL_LEVEL_BORDER = ['#d6d3d1', '#a3e635', '#22d3ee', '#a78bfa', '#f59e0b'];
+
+const SoilPlot = ({ position, status, onClick, soilLevel = 1 }) => {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
   const scaleRef = useRef(1);
+  const lvl = Math.max(1, Math.min(5, soilLevel)) - 1;
 
   const soilColor = useMemo(() => {
     if (status === 4) return COLORS.soilDry;
     if (status === 3) return COLORS.danger;
-    return hovered ? COLORS.soilLight : COLORS.soil;
-  }, [status, hovered]);
+    return hovered ? COLORS.soilLight : SOIL_LEVEL_COLORS[lvl];
+  }, [status, hovered, lvl]);
 
   useFrame(() => {
     if (meshRef.current) {
@@ -368,6 +372,32 @@ const SoilPlot = ({ position, status, onClick }) => {
           <meshStandardMaterial color={COLORS.water} transparent opacity={0.12} roughness={0.1} metalness={0.2} />
         </mesh>
       )}
+      {/* Soil level border glow */}
+      {lvl > 0 && (
+        <mesh position={[0, PLOT_HEIGHT + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[PLOT_SIZE * 0.48, PLOT_SIZE * 0.52, 4]} />
+          <meshStandardMaterial
+            color={SOIL_LEVEL_BORDER[lvl]}
+            emissive={SOIL_LEVEL_BORDER[lvl]}
+            emissiveIntensity={0.5}
+            transparent opacity={0.6}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+      {/* Soil level indicator dots */}
+      {lvl > 0 && Array.from({ length: lvl }, (_, i) => (
+        <mesh key={`dot-${i}`} position={[
+          -PLOT_SIZE * 0.35 + i * 0.18, PLOT_HEIGHT + 0.03, PLOT_SIZE * 0.42
+        ]}>
+          <sphereGeometry args={[0.04, 8, 8]} />
+          <meshStandardMaterial
+            color={SOIL_LEVEL_BORDER[lvl]}
+            emissive={SOIL_LEVEL_BORDER[lvl]}
+            emissiveIntensity={0.8}
+          />
+        </mesh>
+      ))}
     </group>
   );
 };
@@ -723,7 +753,7 @@ const SceneSetup = ({ totalPlots }) => {
 };
 
 // ==================== Plot Info Overlay (pure DOM) ====================
-const PlotInfoOverlay = ({ plot, t, onAction, onClose }) => {
+const PlotInfoOverlay = ({ plot, t, onAction, onClose, farmData }) => {
   if (!plot) return null;
   const statusText = {
     0: '空地',
@@ -765,6 +795,13 @@ const PlotInfoOverlay = ({ plot, t, onAction, onClose }) => {
       }}>
         {plot.crop_name ? `${plot.crop_name} · ` : ''}{statusText[plot.status] || ''}
       </div>
+      <div style={{ fontSize: 11, color: '#78716c', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>🌱 {t('泥土')} Lv.{plot.soil_level || 1}</span>
+        {(plot.soil_level || 1) > 1 && <span style={{ color: '#16a34a' }}>⚡ -{((plot.soil_level || 1) - 1) * (farmData?.soil_speed_bonus || 10)}%</span>}
+        {(plot.soil_level || 1) < (farmData?.soil_max_level || 5) && (
+          <span style={{ color: '#a78bfa' }}>→ Lv.{(plot.soil_level || 1) + 1}: ${farmData?.soil_upgrade_prices?.[String((plot.soil_level || 1) + 1)]?.toFixed(2) || '?'}</span>
+        )}
+      </div>
       {plot.status === 1 && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ background: '#e5e7eb', borderRadius: 6, height: 8, overflow: 'hidden' }}>
@@ -795,6 +832,9 @@ const PlotInfoOverlay = ({ plot, t, onAction, onClose }) => {
         {plot.status === 4 && (
           <button onClick={() => onAction('water', plot.plot_index)} style={btnSt('#ef4444')}>💧 {t('浇水')}</button>
         )}
+        {(plot.soil_level || 1) < (farmData?.soil_max_level || 5) && (
+          <button onClick={() => onAction('upgrade-soil', plot.plot_index)} style={btnSt('#8b5cf6')}>⬆️ {t('升级泥土')}</button>
+        )}
       </div>
     </div>
   );
@@ -809,6 +849,7 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
     if (action === 'water') doAction('/api/farm/water', { plot_index: plotIndex });
     else if (action === 'fertilize') doAction('/api/farm/fertilize', { plot_index: plotIndex });
     else if (action === 'treat') doAction('/api/farm/treat', { plot_index: plotIndex });
+    else if (action === 'upgrade-soil') doAction('/api/farm/upgrade-soil', { plot_index: plotIndex });
   };
 
   const handlePlotClick = (plotIndex) => {
@@ -843,6 +884,7 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
         plot={selectedPlot}
         t={t}
         onAction={handlePlotAction}
+        farmData={farmData}
         onClose={() => setSelectedPlotIndex(null)}
       />
 
@@ -873,7 +915,7 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
           const pos = getGridPos(i, totalPlots);
           return (
             <group key={plot.plot_index}>
-              <SoilPlot position={pos} status={plot.status} onClick={() => handlePlotClick(plot.plot_index)} />
+              <SoilPlot position={pos} status={plot.status} soilLevel={plot.soil_level} onClick={() => handlePlotClick(plot.plot_index)} />
               {plot.status === 0 && <EmptyPlotSign position={pos} />}
               {plot.status === 1 && (
                 <GrowingCrop position={pos} progress={plot.progress} cropType={plot.crop_name} fertilized={plot.fertilized} />

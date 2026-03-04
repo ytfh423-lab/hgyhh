@@ -73,6 +73,12 @@ const TgBotPage = () => {
   const [farmEventChance, setFarmEventChance] = useState(30);
   const [farmDisasterChance, setFarmDisasterChance] = useState(15);
   const [farmStealCooldown, setFarmStealCooldown] = useState(1800);
+  const [farmSoilMaxLevel, setFarmSoilMaxLevel] = useState(5);
+  const [farmSoilUpgradePrice2, setFarmSoilUpgradePrice2] = useState(1000000);
+  const [farmSoilUpgradePrice3, setFarmSoilUpgradePrice3] = useState(3000000);
+  const [farmSoilUpgradePrice4, setFarmSoilUpgradePrice4] = useState(6000000);
+  const [farmSoilUpgradePrice5, setFarmSoilUpgradePrice5] = useState(10000000);
+  const [farmSoilSpeedBonus, setFarmSoilSpeedBonus] = useState(10);
   const [savingFarm, setSavingFarm] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
@@ -105,6 +111,12 @@ const TgBotPage = () => {
         setFarmEventChance(data.farm_event_chance || 30);
         setFarmDisasterChance(data.farm_disaster_chance || 15);
         setFarmStealCooldown(data.farm_steal_cooldown || 1800);
+        setFarmSoilMaxLevel(data.farm_soil_max_level || 5);
+        setFarmSoilUpgradePrice2(data.farm_soil_upgrade_price_2 || 1000000);
+        setFarmSoilUpgradePrice3(data.farm_soil_upgrade_price_3 || 3000000);
+        setFarmSoilUpgradePrice4(data.farm_soil_upgrade_price_4 || 6000000);
+        setFarmSoilUpgradePrice5(data.farm_soil_upgrade_price_5 || 10000000);
+        setFarmSoilSpeedBonus(data.farm_soil_speed_bonus || 10);
         setBotToken('');
       }
     } catch (err) {
@@ -812,6 +824,39 @@ const TgBotPage = () => {
             <InputNumber value={farmStealCooldown} onChange={setFarmStealCooldown} min={0} step={60} style={{ width: 180 }} />
             <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(farmStealCooldown / 60).toFixed(0) + t('分钟')}</Typography.Text>
           </div>
+
+          <div style={{ borderTop: '1px solid var(--semi-color-border)', paddingTop: 16, marginTop: 16, marginBottom: 12 }}>
+            <Typography.Title heading={6} style={{ marginBottom: 12 }}>{t('泥土升级设置')}</Typography.Title>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('泥土最高等级')}</Typography.Text>
+            <InputNumber value={farmSoilMaxLevel} onChange={setFarmSoilMaxLevel} min={1} max={10} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('每级加速百分比(%)')}</Typography.Text>
+            <InputNumber value={farmSoilSpeedBonus} onChange={setFarmSoilSpeedBonus} min={0} max={50} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{t('满级加速') + ': ' + (farmSoilSpeedBonus * (farmSoilMaxLevel - 1)) + '%'}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('升级到2级价格(额度)')}</Typography.Text>
+            <InputNumber value={farmSoilUpgradePrice2} onChange={setFarmSoilUpgradePrice2} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmSoilUpgradePrice2 / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('升级到3级价格(额度)')}</Typography.Text>
+            <InputNumber value={farmSoilUpgradePrice3} onChange={setFarmSoilUpgradePrice3} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmSoilUpgradePrice3 / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('升级到4级价格(额度)')}</Typography.Text>
+            <InputNumber value={farmSoilUpgradePrice4} onChange={setFarmSoilUpgradePrice4} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmSoilUpgradePrice4 / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('升级到5级价格(额度)')}</Typography.Text>
+            <InputNumber value={farmSoilUpgradePrice5} onChange={setFarmSoilUpgradePrice5} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmSoilUpgradePrice5 / 500000).toFixed(2)}</Typography.Text>
+          </div>
           <Button
             theme='solid'
             type='primary'
@@ -830,6 +875,12 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmEventChance', value: String(farmEventChance) },
                   { key: 'TgBotFarmDisasterChance', value: String(farmDisasterChance) },
                   { key: 'TgBotFarmStealCooldown', value: String(farmStealCooldown) },
+                  { key: 'TgBotFarmSoilMaxLevel', value: String(farmSoilMaxLevel) },
+                  { key: 'TgBotFarmSoilUpgradePrice2', value: String(farmSoilUpgradePrice2) },
+                  { key: 'TgBotFarmSoilUpgradePrice3', value: String(farmSoilUpgradePrice3) },
+                  { key: 'TgBotFarmSoilUpgradePrice4', value: String(farmSoilUpgradePrice4) },
+                  { key: 'TgBotFarmSoilUpgradePrice5', value: String(farmSoilUpgradePrice5) },
+                  { key: 'TgBotFarmSoilSpeedBonus', value: String(farmSoilSpeedBonus) },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

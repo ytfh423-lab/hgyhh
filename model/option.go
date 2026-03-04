@@ -111,6 +111,12 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmEventChance"] = strconv.Itoa(common.TgBotFarmEventChance)
 	common.OptionMap["TgBotFarmDisasterChance"] = strconv.Itoa(common.TgBotFarmDisasterChance)
 	common.OptionMap["TgBotFarmStealCooldown"] = strconv.Itoa(common.TgBotFarmStealCooldown)
+	common.OptionMap["TgBotFarmSoilMaxLevel"] = strconv.Itoa(common.TgBotFarmSoilMaxLevel)
+	common.OptionMap["TgBotFarmSoilUpgradePrice2"] = strconv.Itoa(common.TgBotFarmSoilUpgradePrice2)
+	common.OptionMap["TgBotFarmSoilUpgradePrice3"] = strconv.Itoa(common.TgBotFarmSoilUpgradePrice3)
+	common.OptionMap["TgBotFarmSoilUpgradePrice4"] = strconv.Itoa(common.TgBotFarmSoilUpgradePrice4)
+	common.OptionMap["TgBotFarmSoilUpgradePrice5"] = strconv.Itoa(common.TgBotFarmSoilUpgradePrice5)
+	common.OptionMap["TgBotFarmSoilSpeedBonus"] = strconv.Itoa(common.TgBotFarmSoilSpeedBonus)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -479,6 +485,42 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmStealCooldown, _ = strconv.Atoi(value)
 		if common.TgBotFarmStealCooldown < 0 {
 			common.TgBotFarmStealCooldown = 0
+		}
+	case "TgBotFarmSoilMaxLevel":
+		common.TgBotFarmSoilMaxLevel, _ = strconv.Atoi(value)
+		if common.TgBotFarmSoilMaxLevel < 1 {
+			common.TgBotFarmSoilMaxLevel = 1
+		}
+		if common.TgBotFarmSoilMaxLevel > 10 {
+			common.TgBotFarmSoilMaxLevel = 10
+		}
+	case "TgBotFarmSoilUpgradePrice2":
+		common.TgBotFarmSoilUpgradePrice2, _ = strconv.Atoi(value)
+		if common.TgBotFarmSoilUpgradePrice2 <= 0 {
+			common.TgBotFarmSoilUpgradePrice2 = 1000000
+		}
+	case "TgBotFarmSoilUpgradePrice3":
+		common.TgBotFarmSoilUpgradePrice3, _ = strconv.Atoi(value)
+		if common.TgBotFarmSoilUpgradePrice3 <= 0 {
+			common.TgBotFarmSoilUpgradePrice3 = 3000000
+		}
+	case "TgBotFarmSoilUpgradePrice4":
+		common.TgBotFarmSoilUpgradePrice4, _ = strconv.Atoi(value)
+		if common.TgBotFarmSoilUpgradePrice4 <= 0 {
+			common.TgBotFarmSoilUpgradePrice4 = 6000000
+		}
+	case "TgBotFarmSoilUpgradePrice5":
+		common.TgBotFarmSoilUpgradePrice5, _ = strconv.Atoi(value)
+		if common.TgBotFarmSoilUpgradePrice5 <= 0 {
+			common.TgBotFarmSoilUpgradePrice5 = 10000000
+		}
+	case "TgBotFarmSoilSpeedBonus":
+		common.TgBotFarmSoilSpeedBonus, _ = strconv.Atoi(value)
+		if common.TgBotFarmSoilSpeedBonus < 0 {
+			common.TgBotFarmSoilSpeedBonus = 0
+		}
+		if common.TgBotFarmSoilSpeedBonus > 50 {
+			common.TgBotFarmSoilSpeedBonus = 50
 		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value

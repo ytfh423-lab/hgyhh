@@ -889,7 +889,13 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_wilt_duration":   common.TgBotFarmWiltDuration,
 			"farm_event_chance":    common.TgBotFarmEventChance,
 			"farm_disaster_chance": common.TgBotFarmDisasterChance,
-			"farm_steal_cooldown":  common.TgBotFarmStealCooldown,
+			"farm_steal_cooldown":        common.TgBotFarmStealCooldown,
+			"farm_soil_max_level":        common.TgBotFarmSoilMaxLevel,
+			"farm_soil_upgrade_price_2":  common.TgBotFarmSoilUpgradePrice2,
+			"farm_soil_upgrade_price_3":  common.TgBotFarmSoilUpgradePrice3,
+			"farm_soil_upgrade_price_4":  common.TgBotFarmSoilUpgradePrice4,
+			"farm_soil_upgrade_price_5":  common.TgBotFarmSoilUpgradePrice5,
+			"farm_soil_speed_bonus":      common.TgBotFarmSoilSpeedBonus,
 		},
 	})
 }

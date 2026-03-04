@@ -331,6 +331,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/treat", controller.WebFarmTreat)
 			farmRoute.POST("/fertilize", controller.WebFarmFertilize)
 			farmRoute.POST("/buyland", controller.WebFarmBuyLand)
+			farmRoute.POST("/upgrade-soil", controller.WebFarmUpgradeSoil)
 			farmRoute.POST("/water", controller.WebFarmWater)
 			farmRoute.GET("/dog", controller.WebFarmDog)
 			farmRoute.POST("/buydog", controller.WebFarmBuyDog)

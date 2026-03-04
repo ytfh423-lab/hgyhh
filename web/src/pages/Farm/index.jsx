@@ -33,6 +33,7 @@ import {
   Package,
   Box,
   List,
+  ArrowUp,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -70,6 +71,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
   const handleFertilize = (idx) => doAction('/api/farm/fertilize', { plot_index: idx });
   const handleHarvest = () => doAction('/api/farm/harvest', {});
   const handleBuyLand = () => doAction('/api/farm/buyland', {});
+  const handleUpgradeSoil = (idx) => doAction('/api/farm/upgrade-soil', { plot_index: idx });
 
   const plots = farmData.plots || [];
   const matureCount = plots.filter(p => p.status === 2).length;
@@ -167,6 +169,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
                         <span style={{ fontSize: 13, fontWeight: 600 }}>
                           {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
                           {plot.fertilized === 1 && <Tag size='small' color='cyan' style={{ marginLeft: 4 }}>🧴</Tag>}
+                          {(plot.soil_level || 1) > 1 && <Tag size='small' color='violet' style={{ marginLeft: 4 }}>🌱Lv.{plot.soil_level}</Tag>}
                         </span>
                         <Tag size='small' color='blue'>{plot.progress}%</Tag>
                       </div>
@@ -179,12 +182,16 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
                           </Text>
                         )}
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <Button size='small' icon={<Droplets size={11} />} onClick={() => handleWater(plot.plot_index)}
                           loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('浇水')}</Button>
                         {plot.fertilized === 0 && (
                           <Button size='small' icon={<FlaskConical size={11} />} onClick={() => handleFertilize(plot.plot_index)}
                             loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('施肥')}</Button>
+                        )}
+                        {(plot.soil_level || 1) < (farmData.soil_max_level || 5) && (
+                          <Button size='small' icon={<ArrowUp size={11} />} onClick={() => handleUpgradeSoil(plot.plot_index)}
+                            loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('升级泥土')} Lv.{(plot.soil_level || 1)+1}</Button>
                         )}
                       </div>
                     </div>
@@ -192,16 +199,25 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
 
                   {/* Mature */}
                   {plot.status === 2 && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>
-                        {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {plot.stolen_count > 0 && (
-                          <Text type='warning' size='small'>⚠️ -{plot.stolen_count}</Text>
-                        )}
-                        <Tag size='small' color='green'>✅ {t('已成熟')}</Tag>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>
+                          {plot.crop_emoji} {plot.plot_index + 1}{t('号地')} · {plot.crop_name}
+                          {(plot.soil_level || 1) > 1 && <Tag size='small' color='violet' style={{ marginLeft: 4 }}>🌱Lv.{plot.soil_level}</Tag>}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {plot.stolen_count > 0 && (
+                            <Text type='warning' size='small'>⚠️ -{plot.stolen_count}</Text>
+                          )}
+                          <Tag size='small' color='green'>✅ {t('已成熟')}</Tag>
+                        </div>
                       </div>
+                      {(plot.soil_level || 1) < (farmData.soil_max_level || 5) && (
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                          <Button size='small' icon={<ArrowUp size={11} />} onClick={() => handleUpgradeSoil(plot.plot_index)}
+                            loading={actionLoading} style={{ borderRadius: 6, fontSize: 12 }}>{t('升级泥土')} Lv.{(plot.soil_level || 1)+1}</Button>
+                        </div>
+                      )}
                     </div>
                   )}
 

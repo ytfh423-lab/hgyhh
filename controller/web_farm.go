@@ -53,11 +53,16 @@ type webPlotInfo struct {
 	WaterRemain   int64   `json:"water_remain"`
 	DeathRemain   int64   `json:"death_remain"`
 	StatusLabel   string  `json:"status_label"`
+	SoilLevel     int     `json:"soil_level"`
 }
 
 func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 	updateFarmPlotStatus(plot)
 	now := time.Now().Unix()
+	soilLevel := plot.SoilLevel
+	if soilLevel < 1 {
+		soilLevel = 1
+	}
 	info := webPlotInfo{
 		PlotIndex:     plot.PlotIndex,
 		Status:        plot.Status,
@@ -68,6 +73,7 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 		Fertilized:    plot.Fertilized,
 		LastWateredAt: plot.LastWateredAt,
 		PlantedAt:     plot.PlantedAt,
+		SoilLevel:     soilLevel,
 	}
 
 	crop := farmCropMap[plot.CropType]
@@ -83,13 +89,22 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 	case 1:
 		info.StatusLabel = "生长中"
 		if crop != nil {
+			growSecs := crop.GrowSecs
+			if soilLevel > 1 {
+				bonus := int64(common.TgBotFarmSoilSpeedBonus * (soilLevel - 1))
+				growSecs = growSecs * (100 - bonus) / 100
+				if growSecs < 60 {
+					growSecs = 60
+				}
+			}
+			info.GrowSecs = growSecs
 			elapsed := now - plot.PlantedAt
-			pct := int(elapsed * 100 / crop.GrowSecs)
+			pct := int(elapsed * 100 / growSecs)
 			if pct > 99 {
 				pct = 99
 			}
 			info.Progress = pct
-			info.Remaining = crop.GrowSecs - elapsed
+			info.Remaining = growSecs - elapsed
 			if info.Remaining < 0 {
 				info.Remaining = 0
 			}
@@ -205,8 +220,16 @@ func WebFarmView(c *gin.Context) {
 			"items":      itemInfos,
 			"plot_count": len(plots),
 			"max_plots":  model.FarmMaxPlots,
-			"plot_price": webFarmQuotaFloat(common.TgBotFarmPlotPrice),
-			"balance":    webFarmQuotaFloat(user.Quota),
+			"plot_price":            webFarmQuotaFloat(common.TgBotFarmPlotPrice),
+			"balance":               webFarmQuotaFloat(user.Quota),
+			"soil_max_level":        common.TgBotFarmSoilMaxLevel,
+			"soil_speed_bonus":      common.TgBotFarmSoilSpeedBonus,
+			"soil_upgrade_prices": map[string]interface{}{
+				"2": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice2),
+				"3": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice3),
+				"4": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice4),
+				"5": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice5),
+			},
 		},
 	})
 }
@@ -335,14 +358,28 @@ func WebFarmPlant(c *gin.Context) {
 	targetPlot.StolenCount = 0
 	targetPlot.LastWateredAt = now
 
+	// 计算实际生长时间（含泥土加速）
+	webActualGrowSecs := crop.GrowSecs
+	webSoilLvl := targetPlot.SoilLevel
+	if webSoilLvl < 1 {
+		webSoilLvl = 1
+	}
+	if webSoilLvl > 1 {
+		sBonus := int64(common.TgBotFarmSoilSpeedBonus * (webSoilLvl - 1))
+		webActualGrowSecs = webActualGrowSecs * (100 - sBonus) / 100
+		if webActualGrowSecs < 60 {
+			webActualGrowSecs = 60
+		}
+	}
+
 	if rand.Intn(100) < common.TgBotFarmEventChance {
 		targetPlot.EventType = "bugs"
-		offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
 	if targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
 		targetPlot.EventType = "drought"
-		offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
 
@@ -713,6 +750,90 @@ func WebFarmBuyLand(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("购买 %d号地 成功！", newIdx+1)})
+}
+
+// WebFarmUpgradeSoil upgrades the soil level of a plot
+func WebFarmUpgradeSoil(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		PlotIndex int `json:"plot_index"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+
+	var target *model.TgFarmPlot
+	for _, p := range plots {
+		if p.PlotIndex == req.PlotIndex {
+			target = p
+			break
+		}
+	}
+	if target == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "地块不存在"})
+		return
+	}
+
+	currentLevel := target.SoilLevel
+	if currentLevel < 1 {
+		currentLevel = 1
+	}
+	nextLevel := currentLevel + 1
+	if nextLevel > common.TgBotFarmSoilMaxLevel {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("泥土已达最高等级 %d", common.TgBotFarmSoilMaxLevel)})
+		return
+	}
+
+	// Get upgrade price based on target level
+	var price int
+	switch nextLevel {
+	case 2:
+		price = common.TgBotFarmSoilUpgradePrice2
+	case 3:
+		price = common.TgBotFarmSoilUpgradePrice3
+	case 4:
+		price = common.TgBotFarmSoilUpgradePrice4
+	case 5:
+		price = common.TgBotFarmSoilUpgradePrice5
+	default:
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "不支持的升级等级"})
+		return
+	}
+
+	if user.Quota < price {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！升级到%d级需要 $%.2f", nextLevel, webFarmQuotaFloat(price))})
+		return
+	}
+
+	err = model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
+		return
+	}
+
+	err = model.UpgradeFarmPlotSoil(target.Id, nextLevel)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, price, true)
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "升级失败，已退款"})
+		return
+	}
+
+	speedBonus := common.TgBotFarmSoilSpeedBonus * (nextLevel - 1)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("泥土升级到 %d 级成功！生长加速 %d%%", nextLevel, speedBonus),
+	})
 }
 
 // WebFarmWater waters a plot

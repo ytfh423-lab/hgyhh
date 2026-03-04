@@ -21,6 +21,7 @@ type TgFarmPlot struct {
 	StolenCount   int    `json:"stolen_count" gorm:"default:0"`
 	Fertilized    int    `json:"fertilized" gorm:"default:0"`    // 0=未施肥 1=已施肥
 	LastWateredAt int64  `json:"last_watered_at" gorm:"default:0"` // 上次浇水时间
+	SoilLevel     int    `json:"soil_level" gorm:"default:1"`     // 泥土等级 1-5
 }
 
 // TgFarmItem 农场道具背包
@@ -72,7 +73,7 @@ func GetOrCreateFarmPlots(telegramId string) ([]*TgFarmPlot, error) {
 	}
 	for i := 0; i < FarmInitialPlots; i++ {
 		if !existing[i] {
-			plot := &TgFarmPlot{TelegramId: telegramId, PlotIndex: i, Status: 0}
+			plot := &TgFarmPlot{TelegramId: telegramId, PlotIndex: i, Status: 0, SoilLevel: 1}
 			if err := DB.Create(plot).Error; err != nil {
 				return nil, err
 			}
@@ -92,8 +93,13 @@ func GetFarmPlotCount(telegramId string) (int64, error) {
 
 // CreateNewFarmPlot 创建新地块（购买）
 func CreateNewFarmPlot(telegramId string, plotIndex int) error {
-	plot := &TgFarmPlot{TelegramId: telegramId, PlotIndex: plotIndex, Status: 0}
+	plot := &TgFarmPlot{TelegramId: telegramId, PlotIndex: plotIndex, Status: 0, SoilLevel: 1}
 	return DB.Create(plot).Error
+}
+
+// UpgradeFarmPlotSoil 升级地块泥土等级
+func UpgradeFarmPlotSoil(plotId int, newLevel int) error {
+	return DB.Model(&TgFarmPlot{}).Where("id = ?", plotId).Update("soil_level", newLevel).Error
 }
 
 func UpdateFarmPlot(plot *TgFarmPlot) error {

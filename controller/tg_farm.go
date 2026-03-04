@@ -136,7 +136,19 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 	}
 	// 成熟检查（无事件时）
 	if plot.Status == 1 {
-		matureAt := plot.PlantedAt + crop.GrowSecs
+		growSecs := crop.GrowSecs
+		soilLevel := plot.SoilLevel
+		if soilLevel < 1 {
+			soilLevel = 1
+		}
+		if soilLevel > 1 {
+			bonus := int64(common.TgBotFarmSoilSpeedBonus * (soilLevel - 1))
+			growSecs = growSecs * (100 - bonus) / 100
+			if growSecs < 60 {
+				growSecs = 60
+			}
+		}
+		matureAt := plot.PlantedAt + growSecs
 		if now >= matureAt {
 			plot.Status = 2
 			changed = true
@@ -369,6 +381,17 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 		now := time.Now().Unix()
 		elapsed := now - plot.PlantedAt
 		total := crop.GrowSecs
+		soilLvl := plot.SoilLevel
+		if soilLvl < 1 {
+			soilLvl = 1
+		}
+		if soilLvl > 1 {
+			bonus := int64(common.TgBotFarmSoilSpeedBonus * (soilLvl - 1))
+			total = total * (100 - bonus) / 100
+			if total < 60 {
+				total = 60
+			}
+		}
 		pct := int(elapsed * 100 / total)
 		if pct > 99 {
 			pct = 99
@@ -573,16 +596,30 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 	targetPlot.StolenCount = 0
 	targetPlot.LastWateredAt = now
 
+	// 计算实际生长时间（含泥土加速）
+	actualGrowSecs := crop.GrowSecs
+	plotSoilLvl := targetPlot.SoilLevel
+	if plotSoilLvl < 1 {
+		plotSoilLvl = 1
+	}
+	if plotSoilLvl > 1 {
+		soilBonus := int64(common.TgBotFarmSoilSpeedBonus * (plotSoilLvl - 1))
+		actualGrowSecs = actualGrowSecs * (100 - soilBonus) / 100
+		if actualGrowSecs < 60 {
+			actualGrowSecs = 60
+		}
+	}
+
 	// 虫害事件
 	if rand.Intn(100) < common.TgBotFarmEventChance {
 		targetPlot.EventType = "bugs"
-		offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+		offset := actualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
 	// 天灾(干旱)：独立概率，不与虫害叠加
 	if targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
 		targetPlot.EventType = "drought"
-		offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+		offset := actualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
 
