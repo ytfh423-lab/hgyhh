@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import * as THREE from 'three';
 
 // ==================== Constants ====================
 const PLOT_SIZE = 1.6;
@@ -25,6 +26,10 @@ const COLORS = {
   wilt: '#a1a1aa',
   danger: '#ef4444',
   path: '#d6d3d1',
+  pathDark: '#a8a29e',
+  cloud: '#f0f9ff',
+  waterDeep: '#0ea5e9',
+  grassLight: '#86efac',
 };
 
 const CROP_COLORS = {
@@ -36,7 +41,7 @@ const CROP_COLORS = {
   potato: { body: '#22c55e', fruit: '#a16207' },
   tomato: { body: '#16a34a', fruit: '#ef4444' },
   pumpkin: { body: '#16a34a', fruit: '#f97316' },
-  default: { body: '#22c55e', fruit: '#84cc16' },
+  default: { body: '#22c55e', fruit: '#84cc16', stem: '#166534' },
 };
 
 // ==================== Helpers ====================
@@ -69,6 +74,11 @@ const CameraControls = () => {
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.enableRotate = true;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 0.9;
+    controls.panSpeed = 0.8;
     controls.minPolarAngle = Math.PI / 6;
     controls.maxPolarAngle = Math.PI / 2.5;
     controls.minDistance = 4;
@@ -91,20 +101,43 @@ const Ground = ({ totalPlots }) => {
   const w = cols * (PLOT_SIZE + PLOT_GAP) + 3;
   const h = rows * (PLOT_SIZE + PLOT_GAP) + 3;
 
+  const grassPatches = useMemo(() => {
+    const patches = [];
+    for (let i = 0; i < 24; i++) {
+      patches.push({
+        x: (Math.random() - 0.5) * (w + 4),
+        z: (Math.random() - 0.5) * (h + 4),
+        s: 0.25 + Math.random() * 0.45,
+        r: Math.random() * Math.PI,
+      });
+    }
+    return patches;
+  }, [w, h]);
+
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
         <planeGeometry args={[w + 4, h + 4]} />
-        <meshStandardMaterial color={COLORS.grass} />
+        <meshStandardMaterial color={COLORS.grass} roughness={0.9} metalness={0} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.06, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.06, 0]} receiveShadow>
         <planeGeometry args={[w + 6, h + 6]} />
-        <meshStandardMaterial color={COLORS.grassDark} />
+        <meshStandardMaterial color={COLORS.grassDark} roughness={0.95} metalness={0} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.045, h / 2 + 1.2]}>
+        <planeGeometry args={[2.8, 1.8]} />
+        <meshStandardMaterial color={COLORS.pathDark} roughness={1} metalness={0} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, h / 2 + 1.2]}>
         <planeGeometry args={[2.5, 1.5]} />
-        <meshStandardMaterial color={COLORS.path} />
+        <meshStandardMaterial color={COLORS.path} roughness={1} metalness={0} />
       </mesh>
+      {grassPatches.map((p, i) => (
+        <mesh key={i} rotation={[-Math.PI / 2, p.r, 0]} position={[p.x, -0.04, p.z]}>
+          <circleGeometry args={[p.s, 8]} />
+          <meshStandardMaterial color={COLORS.grassLight} roughness={0.9} transparent opacity={0.35} />
+        </mesh>
+      ))}
     </group>
   );
 };
@@ -141,12 +174,12 @@ const Fence = ({ totalPlots }) => {
       {posts.map((pos, i) => (
         <group key={`post-${i}`} position={pos}>
           <mesh castShadow>
-            <cylinderGeometry args={[0.06, 0.08, 0.7, 6]} />
-            <meshStandardMaterial color={COLORS.fencePost} />
+            <cylinderGeometry args={[0.06, 0.08, 0.7, 12]} />
+            <meshStandardMaterial color={COLORS.fencePost} roughness={0.8} metalness={0.1} />
           </mesh>
           <mesh position={[0, 0.38, 0]}>
-            <sphereGeometry args={[0.08, 6, 6]} />
-            <meshStandardMaterial color={COLORS.fence} />
+            <sphereGeometry args={[0.08, 12, 12]} />
+            <meshStandardMaterial color={COLORS.fence} roughness={0.6} metalness={0.15} />
           </mesh>
         </group>
       ))}
@@ -164,12 +197,12 @@ const Fence = ({ totalPlots }) => {
         return (
           <group key={`rail-${i}`}>
             <mesh position={[mx, 0.45, mz]} rotation={[0, angle, Math.PI / 2]}>
-              <cylinderGeometry args={[0.03, 0.03, dist, 4]} />
-              <meshStandardMaterial color={COLORS.fence} />
+              <cylinderGeometry args={[0.03, 0.03, dist, 8]} />
+              <meshStandardMaterial color={COLORS.fence} roughness={0.6} metalness={0.15} />
             </mesh>
             <mesh position={[mx, 0.2, mz]} rotation={[0, angle, Math.PI / 2]}>
-              <cylinderGeometry args={[0.03, 0.03, dist, 4]} />
-              <meshStandardMaterial color={COLORS.fence} />
+              <cylinderGeometry args={[0.03, 0.03, dist, 8]} />
+              <meshStandardMaterial color={COLORS.fence} roughness={0.6} metalness={0.15} />
             </mesh>
           </group>
         );
@@ -178,10 +211,112 @@ const Fence = ({ totalPlots }) => {
   );
 };
 
+// ==================== Water Ripple Effect ====================
+const WaterRipple = ({ position }) => {
+  const ref = useRef();
+  useFrame((state) => {
+    if (ref.current) {
+      const t = state.clock.elapsedTime;
+      const s = 1 + Math.sin(t * 3) * 0.15;
+      ref.current.scale.set(s, s, 1);
+      ref.current.material.opacity = 0.12 + Math.sin(t * 2) * 0.06;
+    }
+  });
+  return (
+    <mesh ref={ref} position={[position[0], PLOT_HEIGHT + 0.025, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[PLOT_SIZE * 0.15, PLOT_SIZE * 0.42, 24]} />
+      <meshStandardMaterial color={COLORS.waterDeep} transparent opacity={0.15} roughness={0.1} metalness={0.3} side={THREE.DoubleSide} />
+    </mesh>
+  );
+};
+
+// ==================== 3D Progress Ring ====================
+const ProgressRing = ({ progress, position }) => {
+  const ref = useRef();
+  const pct = Math.max(0, Math.min(100, progress)) / 100;
+
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.5;
+    }
+  });
+
+  return (
+    <group ref={ref} position={position}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.18, 0.018, 8, 32]} />
+        <meshStandardMaterial color='#e5e7eb' transparent opacity={0.35} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.18, 0.025, 8, 32, Math.PI * 2 * pct]} />
+        <meshStandardMaterial
+          color={pct > 0.7 ? '#22c55e' : pct > 0.3 ? '#eab308' : '#38bdf8'}
+          emissive={pct > 0.7 ? '#22c55e' : pct > 0.3 ? '#eab308' : '#38bdf8'}
+          emissiveIntensity={0.4}
+        />
+      </mesh>
+    </group>
+  );
+};
+
+// ==================== Clouds ====================
+const CloudMesh = ({ position, scale = 1 }) => {
+  const ref = useRef();
+  const speed = useMemo(() => 0.07 + Math.random() * 0.05, []);
+  const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.position.x = position[0] + Math.sin(state.clock.elapsedTime * speed + offset) * 2;
+      ref.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * speed * 0.5) * 0.3;
+    }
+  });
+
+  return (
+    <group ref={ref} position={position} scale={scale}>
+      <mesh>
+        <sphereGeometry args={[0.8, 16, 16]} />
+        <meshStandardMaterial color={COLORS.cloud} roughness={1} transparent opacity={0.8} />
+      </mesh>
+      <mesh position={[0.7, -0.1, 0]}>
+        <sphereGeometry args={[0.6, 16, 16]} />
+        <meshStandardMaterial color={COLORS.cloud} roughness={1} transparent opacity={0.8} />
+      </mesh>
+      <mesh position={[-0.6, -0.1, 0.2]}>
+        <sphereGeometry args={[0.55, 16, 16]} />
+        <meshStandardMaterial color={COLORS.cloud} roughness={1} transparent opacity={0.8} />
+      </mesh>
+      <mesh position={[0.3, 0.25, -0.2]}>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshStandardMaterial color={COLORS.cloud} roughness={1} transparent opacity={0.8} />
+      </mesh>
+    </group>
+  );
+};
+
+const Clouds = () => {
+  const positions = useMemo(() => [
+    [-6, 8, -4, 1.2],
+    [5, 9, -6, 0.9],
+    [8, 7.5, 3, 1.0],
+    [-4, 8.5, 5, 0.8],
+    [0, 9.5, -8, 1.1],
+  ], []);
+
+  return (
+    <group>
+      {positions.map(([x, y, z, s], i) => (
+        <CloudMesh key={i} position={[x, y, z]} scale={s} />
+      ))}
+    </group>
+  );
+};
+
 // ==================== Soil Plot ====================
 const SoilPlot = ({ position, status, onClick }) => {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
+  const scaleRef = useRef(1);
 
   const soilColor = useMemo(() => {
     if (status === 4) return COLORS.soilDry;
@@ -189,18 +324,37 @@ const SoilPlot = ({ position, status, onClick }) => {
     return hovered ? COLORS.soilLight : COLORS.soil;
   }, [status, hovered]);
 
+  useFrame(() => {
+    if (meshRef.current) {
+      const target = hovered ? 1.04 : 1;
+      scaleRef.current += (target - scaleRef.current) * 0.12;
+      meshRef.current.scale.set(scaleRef.current, 1, scaleRef.current);
+    }
+  });
+
+  const handlePointerOver = (e) => {
+    e.stopPropagation();
+    setHovered(true);
+    document.body.style.cursor = 'pointer';
+  };
+
+  const handlePointerOut = () => {
+    setHovered(false);
+    document.body.style.cursor = 'auto';
+  };
+
   return (
     <group position={position}>
       <mesh
         ref={meshRef}
         position={[0, PLOT_HEIGHT / 2, 0]}
         castShadow receiveShadow
-        onClick={onClick}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
       >
         <boxGeometry args={[PLOT_SIZE, PLOT_HEIGHT, PLOT_SIZE]} />
-        <meshStandardMaterial color={soilColor} />
+        <meshStandardMaterial color={soilColor} roughness={1} metalness={0} />
       </mesh>
       {[-0.45, -0.15, 0.15, 0.45].map((offset, i) => (
         <mesh key={i} position={[0, PLOT_HEIGHT + 0.01, offset]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -211,7 +365,7 @@ const SoilPlot = ({ position, status, onClick }) => {
       {status === 1 && (
         <mesh position={[0, PLOT_HEIGHT + 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[PLOT_SIZE - 0.1, PLOT_SIZE - 0.1]} />
-          <meshStandardMaterial color={COLORS.water} transparent opacity={0.1} />
+          <meshStandardMaterial color={COLORS.water} transparent opacity={0.12} roughness={0.1} metalness={0.2} />
         </mesh>
       )}
     </group>
@@ -223,11 +377,11 @@ const EmptyPlotSign = ({ position }) => (
   <group position={[position[0], PLOT_HEIGHT + 0.01, position[2]]}>
     <mesh position={[0, 0.25, 0]}>
       <boxGeometry args={[0.03, 0.5, 0.03]} />
-      <meshStandardMaterial color={COLORS.fencePost} />
+      <meshStandardMaterial color={COLORS.fencePost} roughness={0.8} />
     </mesh>
     <mesh position={[0, 0.5, 0]}>
       <boxGeometry args={[0.3, 0.2, 0.02]} />
-      <meshStandardMaterial color='#fef3c7' />
+      <meshStandardMaterial color='#fef3c7' roughness={0.5} />
     </mesh>
   </group>
 );
@@ -254,19 +408,20 @@ const GrowingCrop = ({ position, progress, cropType, fertilized }) => {
       {stems.map(({ ox, oz, s, h }, i) => (
         <group key={i} position={[ox * scale, 0, oz * scale]}>
           <mesh position={[0, h / 2, 0]} castShadow>
-            <cylinderGeometry args={[0.02 * s, 0.03 * s, h, 5]} />
-            <meshStandardMaterial color='#4d7c0f' />
+            <cylinderGeometry args={[0.02 * s, 0.03 * s, h, 8]} />
+            <meshStandardMaterial color={colors.stem || '#4d7c0f'} roughness={0.8} />
           </mesh>
           <mesh position={[0, h * 0.7, 0]} castShadow>
-            <sphereGeometry args={[0.12 * s, 6, 6]} />
-            <meshStandardMaterial color={colors.body} />
+            <sphereGeometry args={[0.12 * s, 12, 12]} />
+            <meshStandardMaterial color={colors.body} roughness={0.7} />
           </mesh>
           <mesh position={[0, h, 0]} castShadow>
-            <coneGeometry args={[0.08 * s, 0.15 * s, 5]} />
-            <meshStandardMaterial color={colors.body} />
+            <coneGeometry args={[0.08 * s, 0.15 * s, 8]} />
+            <meshStandardMaterial color={colors.body} roughness={0.7} />
           </mesh>
         </group>
       ))}
+      <ProgressRing progress={progress} position={[0, stemHeight + 0.35, 0]} />
       {fertilized === 1 && <FertilizerEffect position={[0, stemHeight + 0.2, 0]} />}
     </group>
   );
@@ -307,20 +462,20 @@ const MatureCrop = ({ position, cropType }) => {
       {[[-0.25, -0.2], [0.2, -0.25], [0, 0.2], [-0.3, 0.15], [0.25, 0.15]].map(([ox, oz], i) => (
         <group key={i} position={[ox, 0, oz]}>
           <mesh position={[0, 0.3, 0]} castShadow>
-            <cylinderGeometry args={[0.025, 0.04, 0.6, 5]} />
-            <meshStandardMaterial color='#4d7c0f' />
+            <cylinderGeometry args={[0.025, 0.04, 0.6, 10]} />
+            <meshStandardMaterial color='#4d7c0f' roughness={0.8} />
           </mesh>
           <mesh position={[0.08, 0.35, 0]} rotation={[0, 0, 0.5]} castShadow>
             <boxGeometry args={[0.18, 0.04, 0.08]} />
-            <meshStandardMaterial color={colors.body} />
+            <meshStandardMaterial color={colors.body} roughness={0.7} />
           </mesh>
           <mesh position={[-0.08, 0.28, 0]} rotation={[0, 0, -0.5]} castShadow>
             <boxGeometry args={[0.18, 0.04, 0.08]} />
-            <meshStandardMaterial color={colors.body} />
+            <meshStandardMaterial color={colors.body} roughness={0.7} />
           </mesh>
           <mesh position={[0, 0.55, 0]} castShadow>
-            <sphereGeometry args={[0.12, 8, 8]} />
-            <meshStandardMaterial color={colors.fruit} />
+            <sphereGeometry args={[0.12, 16, 16]} />
+            <meshStandardMaterial color={colors.fruit} roughness={0.5} metalness={0.05} />
           </mesh>
         </group>
       ))}
@@ -342,8 +497,8 @@ const HarvestSparkle = () => {
     <group ref={ref} position={[0, 0.8, 0]}>
       {[0, 1, 2, 3, 4, 5].map(i => (
         <mesh key={i} position={[Math.cos(i * Math.PI / 3) * 0.25, Math.sin(i * 2) * 0.1, Math.sin(i * Math.PI / 3) * 0.25]}>
-          <octahedronGeometry args={[0.03, 0]} />
-          <meshStandardMaterial color={COLORS.mature} emissive={COLORS.mature} emissiveIntensity={1} />
+          <octahedronGeometry args={[0.03, 1]} />
+          <meshStandardMaterial color={COLORS.mature} emissive={COLORS.mature} emissiveIntensity={1.2} />
         </mesh>
       ))}
     </group>
@@ -363,12 +518,12 @@ const EventCrop = ({ position, eventType }) => {
       {[[-0.2, -0.15], [0.15, -0.2], [0, 0.15]].map(([ox, oz], i) => (
         <group key={i} position={[ox, 0, oz]} rotation={[0.3, 0, i * 0.5]}>
           <mesh position={[0, 0.2, 0]} castShadow>
-            <cylinderGeometry args={[0.02, 0.03, 0.4, 5]} />
-            <meshStandardMaterial color={isDrought ? '#a16207' : '#4d7c0f'} />
+            <cylinderGeometry args={[0.02, 0.03, 0.4, 8]} />
+            <meshStandardMaterial color={isDrought ? '#a16207' : '#4d7c0f'} roughness={0.8} />
           </mesh>
           <mesh position={[0, 0.35, 0]} castShadow>
-            <sphereGeometry args={[0.08, 5, 5]} />
-            <meshStandardMaterial color={isDrought ? '#d97706' : '#84cc16'} />
+            <sphereGeometry args={[0.08, 10, 10]} />
+            <meshStandardMaterial color={isDrought ? '#d97706' : '#84cc16'} roughness={0.7} />
           </mesh>
         </group>
       ))}
@@ -384,7 +539,7 @@ const DroughtEffect = () => {
     <group ref={ref} position={[0, 0.6, 0]}>
       {[0, 1, 2].map(i => (
         <mesh key={i} position={[Math.cos(i * Math.PI * 2 / 3) * 0.2, i * 0.1, Math.sin(i * Math.PI * 2 / 3) * 0.2]}>
-          <torusGeometry args={[0.08, 0.02, 4, 8]} />
+          <torusGeometry args={[0.08, 0.02, 8, 16]} />
           <meshStandardMaterial color='#fbbf24' transparent opacity={0.6} emissive='#f59e0b' emissiveIntensity={0.5} />
         </mesh>
       ))}
@@ -407,7 +562,7 @@ const BugEffect = () => {
     <group ref={ref}>
       {[0, 1, 2, 3].map(i => (
         <mesh key={i}>
-          <sphereGeometry args={[0.03, 4, 4]} />
+          <sphereGeometry args={[0.03, 8, 8]} />
           <meshStandardMaterial color='#1a1a1a' />
         </mesh>
       ))}
@@ -420,12 +575,12 @@ const WiltCrop = ({ position }) => (
     {[[-0.2, -0.15], [0.15, -0.2], [0, 0.15]].map(([ox, oz], i) => (
       <group key={i} position={[ox, 0, oz]} rotation={[0.6, 0, i * 0.8]}>
         <mesh position={[0, 0.12, 0]} castShadow>
-          <cylinderGeometry args={[0.015, 0.025, 0.25, 4]} />
-          <meshStandardMaterial color='#78716c' />
+          <cylinderGeometry args={[0.015, 0.025, 0.25, 8]} />
+          <meshStandardMaterial color='#78716c' roughness={0.9} />
         </mesh>
         <mesh position={[0, 0.22, 0]} castShadow>
-          <sphereGeometry args={[0.06, 4, 4]} />
-          <meshStandardMaterial color={COLORS.wilt} />
+          <sphereGeometry args={[0.06, 10, 10]} />
+          <meshStandardMaterial color={COLORS.wilt} roughness={0.8} />
         </mesh>
       </group>
     ))}
@@ -441,8 +596,8 @@ const WarningSign = ({ position }) => {
   return (
     <group ref={ref} position={position}>
       <mesh>
-        <coneGeometry args={[0.08, 0.12, 3]} />
-        <meshStandardMaterial color={COLORS.danger} emissive={COLORS.danger} emissiveIntensity={0.3} />
+        <coneGeometry args={[0.08, 0.12, 6]} />
+        <meshStandardMaterial color={COLORS.danger} emissive={COLORS.danger} emissiveIntensity={0.5} />
       </mesh>
     </group>
   );
@@ -487,16 +642,16 @@ const FarmDog = ({ dogData, totalPlots }) => {
           <meshStandardMaterial color={isAdult ? '#78350f' : '#a16207'} />
         </mesh>
         <mesh position={[0, 0.33, 0.41]}>
-          <sphereGeometry args={[0.03, 6, 6]} />
-          <meshStandardMaterial color='#1c1917' />
+          <sphereGeometry args={[0.03, 10, 10]} />
+          <meshStandardMaterial color='#1c1917' metalness={0.3} roughness={0.2} />
         </mesh>
         <mesh position={[-0.06, 0.39, 0.32]}>
-          <sphereGeometry args={[0.025, 6, 6]} />
-          <meshStandardMaterial color='#1c1917' />
+          <sphereGeometry args={[0.025, 10, 10]} />
+          <meshStandardMaterial color='#1c1917' metalness={0.3} roughness={0.2} />
         </mesh>
         <mesh position={[0.06, 0.39, 0.32]}>
-          <sphereGeometry args={[0.025, 6, 6]} />
-          <meshStandardMaterial color='#1c1917' />
+          <sphereGeometry args={[0.025, 10, 10]} />
+          <meshStandardMaterial color='#1c1917' metalness={0.3} roughness={0.2} />
         </mesh>
         <mesh position={[-0.1, 0.44, 0.2]} rotation={[0, 0, -0.3]}>
           <boxGeometry args={[0.08, 0.12, 0.06]} />
@@ -514,8 +669,8 @@ const FarmDog = ({ dogData, totalPlots }) => {
         ))}
         <group ref={tailRef} position={[0, 0.35, -0.2]}>
           <mesh position={[0, 0.08, -0.05]} rotation={[0.5, 0, 0]}>
-            <cylinderGeometry args={[0.025, 0.015, 0.18, 5]} />
-            <meshStandardMaterial color={isAdult ? '#a16207' : '#eab308'} />
+            <cylinderGeometry args={[0.025, 0.015, 0.18, 8]} />
+            <meshStandardMaterial color={isAdult ? '#a16207' : '#eab308'} roughness={0.7} />
           </mesh>
         </group>
       </group>
@@ -532,20 +687,20 @@ const DecoTree = ({ position, scale = 1 }) => {
   return (
     <group ref={ref} position={position} scale={scale}>
       <mesh position={[0, 0.35, 0]} castShadow>
-        <cylinderGeometry args={[0.06, 0.1, 0.7, 6]} />
-        <meshStandardMaterial color={COLORS.trunk} />
+        <cylinderGeometry args={[0.06, 0.1, 0.7, 12]} />
+        <meshStandardMaterial color={COLORS.trunk} roughness={0.9} metalness={0} />
       </mesh>
       <mesh position={[0, 0.75, 0]} castShadow>
-        <coneGeometry args={[0.4, 0.5, 8]} />
-        <meshStandardMaterial color={COLORS.leaves} />
+        <coneGeometry args={[0.4, 0.5, 16]} />
+        <meshStandardMaterial color={COLORS.leaves} roughness={0.8} />
       </mesh>
       <mesh position={[0, 1.0, 0]} castShadow>
-        <coneGeometry args={[0.3, 0.4, 8]} />
-        <meshStandardMaterial color={COLORS.leavesDark} />
+        <coneGeometry args={[0.3, 0.4, 16]} />
+        <meshStandardMaterial color={COLORS.leavesDark} roughness={0.8} />
       </mesh>
       <mesh position={[0, 1.2, 0]} castShadow>
-        <coneGeometry args={[0.2, 0.35, 8]} />
-        <meshStandardMaterial color={COLORS.leaves} />
+        <coneGeometry args={[0.2, 0.35, 16]} />
+        <meshStandardMaterial color={COLORS.leaves} roughness={0.8} />
       </mesh>
     </group>
   );
@@ -578,49 +733,56 @@ const PlotInfoOverlay = ({ plot, t, onAction, onClose }) => {
     4: '枯萎!',
   };
   const borderColor = plot.status === 2 ? '#22c55e' : plot.status >= 3 ? '#ef4444' : '#e5e7eb';
+  const statusBg = plot.status === 2 ? 'rgba(34,197,94,0.08)' : plot.status >= 3 ? 'rgba(239,68,68,0.08)' : 'transparent';
   const btnSt = (bg) => ({
-    background: bg, border: 'none', borderRadius: 4, padding: '4px 10px',
+    background: bg, border: 'none', borderRadius: 6, padding: '5px 12px',
     fontSize: 12, cursor: 'pointer', color: 'white', fontWeight: 600,
+    transition: 'transform 0.1s, opacity 0.1s', boxShadow: `0 2px 8px ${bg}44`,
   });
 
   return (
     <div style={{
       position: 'absolute', top: 12, right: 12, zIndex: 10,
-      background: 'rgba(255,255,255,0.95)', borderRadius: 10, padding: '10px 14px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.15)', minWidth: 160,
-      border: `2px solid ${borderColor}`, backdropFilter: 'blur(8px)',
+      background: 'rgba(255,255,255,0.96)', borderRadius: 12, padding: '12px 16px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)', minWidth: 180,
+      border: `2px solid ${borderColor}`, backdropFilter: 'blur(12px)',
+      animation: 'fadeSlideIn 0.2s ease-out',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>
+      <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, fontSize: 14 }}>
           {plot.crop_emoji || '📍'} {plot.plot_index + 1}{t('号地')}
         </span>
         <button onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#9ca3af', padding: '0 2px',
-        }}>✕</button>
+          background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af', padding: '0 2px',
+          transition: 'color 0.15s',
+        }} onMouseOver={(e) => e.target.style.color = '#6b7280'} onMouseOut={(e) => e.target.style.color = '#9ca3af'}>✕</button>
       </div>
       <div style={{
-        fontSize: 12, fontWeight: 600, marginBottom: 6,
+        fontSize: 12, fontWeight: 600, marginBottom: 8, padding: '4px 8px', borderRadius: 6,
+        background: statusBg,
         color: plot.status === 2 ? '#16a34a' : plot.status >= 3 ? '#dc2626' : '#6b7280',
       }}>
         {plot.crop_name ? `${plot.crop_name} · ` : ''}{statusText[plot.status] || ''}
       </div>
       {plot.status === 1 && (
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ background: '#e5e7eb', borderRadius: 6, height: 8, overflow: 'hidden' }}>
             <div style={{
               background: 'linear-gradient(90deg, #22c55e, #84cc16)',
-              height: '100%', width: `${plot.progress}%`, borderRadius: 4,
+              height: '100%', width: `${plot.progress}%`, borderRadius: 6,
+              transition: 'width 0.3s ease',
             }} />
           </div>
-          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{plot.progress}%</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3, fontWeight: 500 }}>{plot.progress}%</div>
         </div>
       )}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {plot.status === 1 && (
           <>
-            <button onClick={() => onAction('water', plot.plot_index)} style={btnSt('#38bdf8')}>💧</button>
+            <button onClick={() => onAction('water', plot.plot_index)} style={btnSt('#38bdf8')}>💧 {t('浇水')}</button>
             {plot.fertilized === 0 && (
-              <button onClick={() => onAction('fertilize', plot.plot_index)} style={btnSt('#67e8f9')}>🧴</button>
+              <button onClick={() => onAction('fertilize', plot.plot_index)} style={btnSt('#06b6d4')}>🧴 {t('施肥')}</button>
             )}
           </>
         )}
@@ -684,23 +846,25 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
         onClose={() => setSelectedPlotIndex(null)}
       />
 
-      <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
+      <Canvas shadows dpr={[1, 2]} gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}>
         <SceneSetup totalPlots={totalPlots} />
         <CameraControls />
 
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={0.5} />
         <directionalLight
-          position={[8, 12, 8]} intensity={1.2} castShadow
-          shadow-mapSize={[1024, 1024]}
+          position={[8, 12, 8]} intensity={1.3} castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.0005}
           shadow-camera-near={0.5} shadow-camera-far={50}
           shadow-camera-left={-15} shadow-camera-right={15}
           shadow-camera-top={15} shadow-camera-bottom={-15}
         />
-        <directionalLight position={[-5, 8, -5]} intensity={0.3} />
-        <hemisphereLight args={['#87ceeb', '#4ade80', 0.3]} />
+        <directionalLight position={[-5, 8, -5]} intensity={0.35} />
+        <pointLight position={[0, 6, 0]} intensity={0.15} color='#fef3c7' />
+        <hemisphereLight args={['#87ceeb', '#4ade80', 0.35]} />
 
         <color attach='background' args={['#e0f2fe']} />
-        <fog attach='fog' args={['#e0f2fe', 20, 50]} />
+        <fog attach='fog' args={['#e0f2fe', 18, 45]} />
 
         <Ground totalPlots={totalPlots} />
         <Fence totalPlots={totalPlots} />
@@ -717,6 +881,7 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
               {plot.status === 2 && <MatureCrop position={pos} cropType={plot.crop_name} />}
               {plot.status === 3 && <EventCrop position={pos} eventType={plot.event_type} />}
               {plot.status === 4 && <WiltCrop position={pos} />}
+              {plot.status === 1 && <WaterRipple position={pos} />}
             </group>
           );
         })}
@@ -726,6 +891,8 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
         {treePositions.map((pos, i) => (
           <DecoTree key={i} position={pos} scale={0.7 + (i % 3) * 0.2} />
         ))}
+
+        <Clouds />
       </Canvas>
     </div>
   );
