@@ -261,6 +261,8 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		plotStr := strings.TrimPrefix(data, "farm_su_")
 		plotIdx, _ := strconv.Atoi(plotStr)
 		doFarmSoilUpgrade(chatId, msgId, tgId, plotIdx, from)
+	case strings.HasPrefix(data, "ranch"):
+		handleRanchCallback(cb)
 	}
 }
 
@@ -378,9 +380,10 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: "🌱 泥土升级", CallbackData: "farm_soil"},
 		})
 	}
-	// 狗狗按钮
+	// 狗狗 & 牧场按钮
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🐕 狗狗", CallbackData: "farm_dog"},
+		{Text: "🐄 牧场", CallbackData: "ranch"},
 	})
 	if len(plots) < model.FarmMaxPlots {
 		rows = append(rows, []TgInlineKeyboardButton{

@@ -338,6 +338,17 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/feeddog", controller.WebFarmFeedDog)
 		}
 
+		ranchRoute := apiRouter.Group("/ranch")
+		ranchRoute.Use(middleware.UserAuth())
+		{
+			ranchRoute.GET("/view", controller.WebRanchView)
+			ranchRoute.POST("/buy", controller.WebRanchBuy)
+			ranchRoute.POST("/feed", controller.WebRanchFeed)
+			ranchRoute.POST("/water", controller.WebRanchWater)
+			ranchRoute.POST("/slaughter", controller.WebRanchSlaughter)
+			ranchRoute.POST("/cleanup", controller.WebRanchCleanup)
+		}
+
 		pubInvRoute := apiRouter.Group("/public_invcode")
 		{
 			pubInvRoute.GET("/", controller.GetPublicInviteCodes)

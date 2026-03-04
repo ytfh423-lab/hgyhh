@@ -256,3 +256,51 @@ func WaterFarmPlot(plotId int) error {
 	now := time.Now().Unix()
 	return DB.Model(&TgFarmPlot{}).Where("id = ?", plotId).Update("last_watered_at", now).Error
 }
+
+// ========== TgRanchAnimal 牧场动物 ==========
+
+type TgRanchAnimal struct {
+	Id            int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId    string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	AnimalType    string `json:"animal_type" gorm:"type:varchar(32)"`
+	Status        int    `json:"status" gorm:"default:1"` // 1=growing 2=mature 3=hungry 4=thirsty 5=dead
+	PurchasedAt   int64  `json:"purchased_at"`
+	LastFedAt     int64  `json:"last_fed_at"`
+	LastWateredAt int64  `json:"last_watered_at"`
+}
+
+const RanchMaxAnimals = 6
+
+func GetRanchAnimals(telegramId string) ([]*TgRanchAnimal, error) {
+	var animals []*TgRanchAnimal
+	err := DB.Where("telegram_id = ?", telegramId).Order("id asc").Find(&animals).Error
+	return animals, err
+}
+
+func GetRanchAnimalCount(telegramId string) (int64, error) {
+	var count int64
+	err := DB.Model(&TgRanchAnimal{}).Where("telegram_id = ?", telegramId).Count(&count).Error
+	return count, err
+}
+
+func CreateRanchAnimal(animal *TgRanchAnimal) error {
+	return DB.Create(animal).Error
+}
+
+func UpdateRanchAnimal(animal *TgRanchAnimal) error {
+	return DB.Save(animal).Error
+}
+
+func DeleteRanchAnimal(animalId int) error {
+	return DB.Delete(&TgRanchAnimal{}, animalId).Error
+}
+
+func FeedRanchAnimal(animalId int) error {
+	now := time.Now().Unix()
+	return DB.Model(&TgRanchAnimal{}).Where("id = ?", animalId).Update("last_fed_at", now).Error
+}
+
+func WaterRanchAnimal(animalId int) error {
+	now := time.Now().Unix()
+	return DB.Model(&TgRanchAnimal{}).Where("id = ?", animalId).Update("last_watered_at", now).Error
+}

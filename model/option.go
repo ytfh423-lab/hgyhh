@@ -117,6 +117,32 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmSoilUpgradePrice4"] = strconv.Itoa(common.TgBotFarmSoilUpgradePrice4)
 	common.OptionMap["TgBotFarmSoilUpgradePrice5"] = strconv.Itoa(common.TgBotFarmSoilUpgradePrice5)
 	common.OptionMap["TgBotFarmSoilSpeedBonus"] = strconv.Itoa(common.TgBotFarmSoilSpeedBonus)
+	// 牧场
+	common.OptionMap["TgBotRanchMaxAnimals"] = strconv.Itoa(common.TgBotRanchMaxAnimals)
+	common.OptionMap["TgBotRanchFeedPrice"] = strconv.Itoa(common.TgBotRanchFeedPrice)
+	common.OptionMap["TgBotRanchWaterPrice"] = strconv.Itoa(common.TgBotRanchWaterPrice)
+	common.OptionMap["TgBotRanchFeedInterval"] = strconv.Itoa(common.TgBotRanchFeedInterval)
+	common.OptionMap["TgBotRanchWaterInterval"] = strconv.Itoa(common.TgBotRanchWaterInterval)
+	common.OptionMap["TgBotRanchHungerDeathHours"] = strconv.Itoa(common.TgBotRanchHungerDeathHours)
+	common.OptionMap["TgBotRanchThirstDeathHours"] = strconv.Itoa(common.TgBotRanchThirstDeathHours)
+	common.OptionMap["TgBotRanchChickenPrice"] = strconv.Itoa(common.TgBotRanchChickenPrice)
+	common.OptionMap["TgBotRanchDuckPrice"] = strconv.Itoa(common.TgBotRanchDuckPrice)
+	common.OptionMap["TgBotRanchGoosePrice"] = strconv.Itoa(common.TgBotRanchGoosePrice)
+	common.OptionMap["TgBotRanchPigPrice"] = strconv.Itoa(common.TgBotRanchPigPrice)
+	common.OptionMap["TgBotRanchSheepPrice"] = strconv.Itoa(common.TgBotRanchSheepPrice)
+	common.OptionMap["TgBotRanchCowPrice"] = strconv.Itoa(common.TgBotRanchCowPrice)
+	common.OptionMap["TgBotRanchChickenGrowSecs"] = strconv.FormatInt(common.TgBotRanchChickenGrowSecs, 10)
+	common.OptionMap["TgBotRanchDuckGrowSecs"] = strconv.FormatInt(common.TgBotRanchDuckGrowSecs, 10)
+	common.OptionMap["TgBotRanchGooseGrowSecs"] = strconv.FormatInt(common.TgBotRanchGooseGrowSecs, 10)
+	common.OptionMap["TgBotRanchPigGrowSecs"] = strconv.FormatInt(common.TgBotRanchPigGrowSecs, 10)
+	common.OptionMap["TgBotRanchSheepGrowSecs"] = strconv.FormatInt(common.TgBotRanchSheepGrowSecs, 10)
+	common.OptionMap["TgBotRanchCowGrowSecs"] = strconv.FormatInt(common.TgBotRanchCowGrowSecs, 10)
+	common.OptionMap["TgBotRanchChickenMeatPrice"] = strconv.Itoa(common.TgBotRanchChickenMeatPrice)
+	common.OptionMap["TgBotRanchDuckMeatPrice"] = strconv.Itoa(common.TgBotRanchDuckMeatPrice)
+	common.OptionMap["TgBotRanchGooseMeatPrice"] = strconv.Itoa(common.TgBotRanchGooseMeatPrice)
+	common.OptionMap["TgBotRanchPigMeatPrice"] = strconv.Itoa(common.TgBotRanchPigMeatPrice)
+	common.OptionMap["TgBotRanchSheepMeatPrice"] = strconv.Itoa(common.TgBotRanchSheepMeatPrice)
+	common.OptionMap["TgBotRanchCowMeatPrice"] = strconv.Itoa(common.TgBotRanchCowMeatPrice)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -522,6 +548,75 @@ func updateOptionMap(key string, value string) (err error) {
 		if common.TgBotFarmSoilSpeedBonus > 50 {
 			common.TgBotFarmSoilSpeedBonus = 50
 		}
+	// 牧场
+	case "TgBotRanchMaxAnimals":
+		common.TgBotRanchMaxAnimals, _ = strconv.Atoi(value)
+		if common.TgBotRanchMaxAnimals < 1 {
+			common.TgBotRanchMaxAnimals = 1
+		}
+		if common.TgBotRanchMaxAnimals > 20 {
+			common.TgBotRanchMaxAnimals = 20
+		}
+	case "TgBotRanchFeedPrice":
+		common.TgBotRanchFeedPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchWaterPrice":
+		common.TgBotRanchWaterPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchFeedInterval":
+		common.TgBotRanchFeedInterval, _ = strconv.Atoi(value)
+		if common.TgBotRanchFeedInterval < 60 {
+			common.TgBotRanchFeedInterval = 60
+		}
+	case "TgBotRanchWaterInterval":
+		common.TgBotRanchWaterInterval, _ = strconv.Atoi(value)
+		if common.TgBotRanchWaterInterval < 60 {
+			common.TgBotRanchWaterInterval = 60
+		}
+	case "TgBotRanchHungerDeathHours":
+		common.TgBotRanchHungerDeathHours, _ = strconv.Atoi(value)
+		if common.TgBotRanchHungerDeathHours < 1 {
+			common.TgBotRanchHungerDeathHours = 1
+		}
+	case "TgBotRanchThirstDeathHours":
+		common.TgBotRanchThirstDeathHours, _ = strconv.Atoi(value)
+		if common.TgBotRanchThirstDeathHours < 1 {
+			common.TgBotRanchThirstDeathHours = 1
+		}
+	case "TgBotRanchChickenPrice":
+		common.TgBotRanchChickenPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchDuckPrice":
+		common.TgBotRanchDuckPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchGoosePrice":
+		common.TgBotRanchGoosePrice, _ = strconv.Atoi(value)
+	case "TgBotRanchPigPrice":
+		common.TgBotRanchPigPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchSheepPrice":
+		common.TgBotRanchSheepPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchCowPrice":
+		common.TgBotRanchCowPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchChickenGrowSecs":
+		common.TgBotRanchChickenGrowSecs, _ = strconv.ParseInt(value, 10, 64)
+	case "TgBotRanchDuckGrowSecs":
+		common.TgBotRanchDuckGrowSecs, _ = strconv.ParseInt(value, 10, 64)
+	case "TgBotRanchGooseGrowSecs":
+		common.TgBotRanchGooseGrowSecs, _ = strconv.ParseInt(value, 10, 64)
+	case "TgBotRanchPigGrowSecs":
+		common.TgBotRanchPigGrowSecs, _ = strconv.ParseInt(value, 10, 64)
+	case "TgBotRanchSheepGrowSecs":
+		common.TgBotRanchSheepGrowSecs, _ = strconv.ParseInt(value, 10, 64)
+	case "TgBotRanchCowGrowSecs":
+		common.TgBotRanchCowGrowSecs, _ = strconv.ParseInt(value, 10, 64)
+	case "TgBotRanchChickenMeatPrice":
+		common.TgBotRanchChickenMeatPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchDuckMeatPrice":
+		common.TgBotRanchDuckMeatPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchGooseMeatPrice":
+		common.TgBotRanchGooseMeatPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchPigMeatPrice":
+		common.TgBotRanchPigMeatPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchSheepMeatPrice":
+		common.TgBotRanchSheepMeatPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchCowMeatPrice":
+		common.TgBotRanchCowMeatPrice, _ = strconv.Atoi(value)
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":

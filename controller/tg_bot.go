@@ -320,7 +320,7 @@ func handleTgCallback(cb *TgCallbackQuery) {
 	isGroup := cb.Message.Chat.Type == "group" || cb.Message.Chat.Type == "supergroup"
 
 	// 农场游戏回调（仅群组可用）
-	if cb.Data == "farm" || strings.HasPrefix(cb.Data, "farm_") {
+	if cb.Data == "farm" || strings.HasPrefix(cb.Data, "farm_") || strings.HasPrefix(cb.Data, "ranch") {
 		answerCallbackQuery(cb.Id)
 		if !isGroup {
 			sendTgMessage(chatId, "🌾 农场游戏仅限群组中使用！\n\n请在群组里发送 /farm 开始种菜。\n私聊仅支持绑定账号功能。", cb.From)
@@ -896,6 +896,32 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_soil_upgrade_price_4":  common.TgBotFarmSoilUpgradePrice4,
 			"farm_soil_upgrade_price_5":  common.TgBotFarmSoilUpgradePrice5,
 			"farm_soil_speed_bonus":      common.TgBotFarmSoilSpeedBonus,
+			// 牧场
+			"ranch_max_animals":          common.TgBotRanchMaxAnimals,
+			"ranch_feed_price":           common.TgBotRanchFeedPrice,
+			"ranch_water_price":          common.TgBotRanchWaterPrice,
+			"ranch_feed_interval":        common.TgBotRanchFeedInterval,
+			"ranch_water_interval":       common.TgBotRanchWaterInterval,
+			"ranch_hunger_death_hours":   common.TgBotRanchHungerDeathHours,
+			"ranch_thirst_death_hours":   common.TgBotRanchThirstDeathHours,
+			"ranch_chicken_price":        common.TgBotRanchChickenPrice,
+			"ranch_duck_price":           common.TgBotRanchDuckPrice,
+			"ranch_goose_price":          common.TgBotRanchGoosePrice,
+			"ranch_pig_price":            common.TgBotRanchPigPrice,
+			"ranch_sheep_price":          common.TgBotRanchSheepPrice,
+			"ranch_cow_price":            common.TgBotRanchCowPrice,
+			"ranch_chicken_grow_secs":    common.TgBotRanchChickenGrowSecs,
+			"ranch_duck_grow_secs":       common.TgBotRanchDuckGrowSecs,
+			"ranch_goose_grow_secs":      common.TgBotRanchGooseGrowSecs,
+			"ranch_pig_grow_secs":        common.TgBotRanchPigGrowSecs,
+			"ranch_sheep_grow_secs":      common.TgBotRanchSheepGrowSecs,
+			"ranch_cow_grow_secs":        common.TgBotRanchCowGrowSecs,
+			"ranch_chicken_meat_price":   common.TgBotRanchChickenMeatPrice,
+			"ranch_duck_meat_price":      common.TgBotRanchDuckMeatPrice,
+			"ranch_goose_meat_price":     common.TgBotRanchGooseMeatPrice,
+			"ranch_pig_meat_price":       common.TgBotRanchPigMeatPrice,
+			"ranch_sheep_meat_price":     common.TgBotRanchSheepMeatPrice,
+			"ranch_cow_meat_price":       common.TgBotRanchCowMeatPrice,
 		},
 	})
 }

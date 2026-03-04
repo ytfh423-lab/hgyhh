@@ -709,6 +709,169 @@ const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
   );
 };
 
+// ===================== Sub-page: Ranch =====================
+const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
+  const [ranchData, setRanchData] = useState(null);
+  const [ranchLoading, setRanchLoading] = useState(true);
+
+  const loadRanch = useCallback(async () => {
+    setRanchLoading(true);
+    try {
+      const { data: res } = await API.get('/api/ranch/view');
+      if (res.success) setRanchData(res.data);
+    } catch (err) { /* ignore */ }
+    finally { setRanchLoading(false); }
+  }, []);
+
+  useEffect(() => { loadRanch(); }, [loadRanch]);
+
+  useEffect(() => {
+    const interval = setInterval(loadRanch, 15000);
+    return () => clearInterval(interval);
+  }, [loadRanch]);
+
+  const doRanchAction = async (url, body) => {
+    const res = await doAction(url, body);
+    if (res) { loadRanch(); loadFarm(); }
+    return res;
+  };
+
+  if (ranchLoading && !ranchData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!ranchData) return null;
+
+  const animals = ranchData.animals || [];
+  const animalTypes = ranchData.animal_types || [];
+  const deadAnimals = animals.filter(a => a.status === 5);
+  const aliveAnimals = animals.filter(a => a.status !== 5);
+
+  const statusLabels = { 1: '生长中', 2: '已成熟', 3: '饥饿', 4: '口渴', 5: '已死亡' };
+  const statusTagColors = { 1: 'blue', 2: 'green', 3: 'orange', 4: 'red', 5: 'grey' };
+
+  return (
+    <div>
+      {/* Status bar */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
+        padding: '10px 14px', borderRadius: 10, marginBottom: 12,
+        background: 'var(--semi-color-fill-0)', border: '1px solid var(--semi-color-border)',
+      }}>
+        <Tag size='large' color='light-blue' style={{ borderRadius: 6 }}>💰 {formatBalance(ranchData.balance)}</Tag>
+        <Tag size='large' color='grey' style={{ borderRadius: 6 }}>🐄 {ranchData.alive_count}/{ranchData.max_animals}</Tag>
+        <Tag size='large' color='cyan' style={{ borderRadius: 6 }}>🌾 {formatBalance(ranchData.feed_price)}/次</Tag>
+        <Tag size='large' color='blue' style={{ borderRadius: 6 }}>💧 {formatBalance(ranchData.water_price)}/次</Tag>
+        <div style={{ flex: 1 }} />
+        <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadRanch} loading={ranchLoading} />
+        {deadAnimals.length > 0 && (
+          <Button size='small' theme='light' type='danger' onClick={() => doRanchAction('/api/ranch/cleanup', {})}
+            loading={actionLoading} style={{ borderRadius: 6 }}>
+            🗑️ {t('清理')}({deadAnimals.length})
+          </Button>
+        )}
+      </div>
+
+      {/* Animal list */}
+      {animals.length === 0 ? (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', textAlign: 'center', padding: 30, marginBottom: 12 }}>
+          <span style={{ fontSize: 36 }}>🏚️</span>
+          <Title heading={6} style={{ marginTop: 8 }}>{t('牧场空空如也')}</Title>
+          <Text type='tertiary' size='small'>{t('去下方购买动物开始养殖吧！')}</Text>
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {animals.map((animal) => (
+            <Card key={animal.id} className='!rounded-xl' bodyStyle={{ padding: '12px 16px' }}
+              style={{ border: '1px solid var(--semi-color-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 32 }}>{animal.animal_emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Text strong style={{ fontSize: 15 }}>{animal.animal_name}</Text>
+                    <Tag size='small' color={statusTagColors[animal.status] || 'grey'}>
+                      {statusLabels[animal.status] || animal.status_label}
+                    </Tag>
+                    {animal.needs_feed && animal.status !== 5 && (
+                      <Tag size='small' color='orange'>⚠️ {t('需喂食')}</Tag>
+                    )}
+                    {animal.needs_water && animal.status !== 5 && (
+                      <Tag size='small' color='red'>⚠️ {t('需喂水')}</Tag>
+                    )}
+                  </div>
+                  {animal.status === 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ flex: 1, maxWidth: 200 }}>
+                        <Progress percent={animal.progress} size='small' stroke='#3b82f6' />
+                      </div>
+                      <Text type='tertiary' size='small'>{animal.progress}% · {formatDuration(animal.remaining)}</Text>
+                    </div>
+                  )}
+                  {animal.status === 2 && (
+                    <Text type='success' size='small'>🥩 {t('肉价')} {formatBalance(animal.meat_price)}</Text>
+                  )}
+                  {(animal.status === 1 || animal.status === 2) && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                      {!animal.needs_feed && animal.feed_remaining > 0 && (
+                        <Text type='tertiary' size='small'>🌾 {formatDuration(animal.feed_remaining)}</Text>
+                      )}
+                      {!animal.needs_water && animal.water_remaining > 0 && (
+                        <Text type='tertiary' size='small'>💧 {formatDuration(animal.water_remaining)}</Text>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  {animal.status !== 5 && (
+                    <>
+                      <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/feed', { animal_id: animal.id })}
+                        loading={actionLoading} style={{ borderRadius: 6 }} disabled={!animal.needs_feed}>
+                        🌾
+                      </Button>
+                      <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/water', { animal_id: animal.id })}
+                        loading={actionLoading} style={{ borderRadius: 6 }} disabled={!animal.needs_water}>
+                        💧
+                      </Button>
+                    </>
+                  )}
+                  {animal.status === 2 && (
+                    <Button size='small' theme='solid' type='warning'
+                      onClick={() => doRanchAction('/api/ranch/slaughter', { animal_id: animal.id })}
+                      loading={actionLoading} style={{ borderRadius: 6 }}>
+                      🔪 {t('出售')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Buy animals section */}
+      {aliveAnimals.length < ranchData.max_animals && (
+        <Card className='!rounded-xl' bodyStyle={{ padding: '14px 18px' }}
+          style={{ border: '1px solid var(--semi-color-border)' }}
+          title={<span>🛒 {t('购买动物')}</span>}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+            {animalTypes.map((at) => (
+              <Card key={at.key} className='!rounded-lg' bodyStyle={{ padding: '10px 12px', textAlign: 'center' }}
+                style={{ border: '1px solid var(--semi-color-border)', cursor: 'pointer' }}
+                onClick={() => doRanchAction('/api/ranch/buy', { animal_type: at.key })}>
+                <span style={{ fontSize: 28, display: 'block', marginBottom: 4 }}>{at.emoji}</span>
+                <Text strong size='small' style={{ display: 'block' }}>{at.name}</Text>
+                <Text type='tertiary' size='small' style={{ display: 'block' }}>{formatBalance(at.buy_price)}</Text>
+                <Text type='tertiary' size='small' style={{ display: 'block' }}>⏱️ {Math.round(at.grow_secs / 3600)}h</Text>
+                <Text type='success' size='small' style={{ display: 'block' }}>🥩 {formatBalance(at.meat_price)}</Text>
+              </Card>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 // ===================== Main Farm Component =====================
 const Farm = () => {
   const { t } = useTranslation();
@@ -828,6 +991,10 @@ const Farm = () => {
         </TabPane>
         <TabPane tab={<span><Dog size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('狗狗')}</span>} itemKey='dog'>
           <DogPage actionLoading={actionLoading}
+            doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span>🐄 {t('牧场')}</span>} itemKey='ranch'>
+          <RanchPage actionLoading={actionLoading}
             doAction={doAction} loadFarm={loadFarm} t={t} />
         </TabPane>
       </Tabs>

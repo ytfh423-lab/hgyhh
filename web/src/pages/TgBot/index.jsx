@@ -79,6 +79,26 @@ const TgBotPage = () => {
   const [farmSoilUpgradePrice4, setFarmSoilUpgradePrice4] = useState(6000000);
   const [farmSoilUpgradePrice5, setFarmSoilUpgradePrice5] = useState(10000000);
   const [farmSoilSpeedBonus, setFarmSoilSpeedBonus] = useState(10);
+  // 牧场
+  const [ranchMaxAnimals, setRanchMaxAnimals] = useState(6);
+  const [ranchFeedPrice, setRanchFeedPrice] = useState(200000);
+  const [ranchWaterPrice, setRanchWaterPrice] = useState(100000);
+  const [ranchFeedInterval, setRanchFeedInterval] = useState(14400);
+  const [ranchWaterInterval, setRanchWaterInterval] = useState(10800);
+  const [ranchHungerDeathHours, setRanchHungerDeathHours] = useState(24);
+  const [ranchThirstDeathHours, setRanchThirstDeathHours] = useState(18);
+  const [ranchChickenPrice, setRanchChickenPrice] = useState(500000);
+  const [ranchDuckPrice, setRanchDuckPrice] = useState(800000);
+  const [ranchGoosePrice, setRanchGoosePrice] = useState(1200000);
+  const [ranchPigPrice, setRanchPigPrice] = useState(3000000);
+  const [ranchSheepPrice, setRanchSheepPrice] = useState(4000000);
+  const [ranchCowPrice, setRanchCowPrice] = useState(8000000);
+  const [ranchChickenMeatPrice, setRanchChickenMeatPrice] = useState(1500000);
+  const [ranchDuckMeatPrice, setRanchDuckMeatPrice] = useState(2500000);
+  const [ranchGooseMeatPrice, setRanchGooseMeatPrice] = useState(4000000);
+  const [ranchPigMeatPrice, setRanchPigMeatPrice] = useState(10000000);
+  const [ranchSheepMeatPrice, setRanchSheepMeatPrice] = useState(14000000);
+  const [ranchCowMeatPrice, setRanchCowMeatPrice] = useState(28000000);
   const [savingFarm, setSavingFarm] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
@@ -117,6 +137,26 @@ const TgBotPage = () => {
         setFarmSoilUpgradePrice4(data.farm_soil_upgrade_price_4 || 6000000);
         setFarmSoilUpgradePrice5(data.farm_soil_upgrade_price_5 || 10000000);
         setFarmSoilSpeedBonus(data.farm_soil_speed_bonus || 10);
+        // 牧场
+        setRanchMaxAnimals(data.ranch_max_animals || 6);
+        setRanchFeedPrice(data.ranch_feed_price || 200000);
+        setRanchWaterPrice(data.ranch_water_price || 100000);
+        setRanchFeedInterval(data.ranch_feed_interval || 14400);
+        setRanchWaterInterval(data.ranch_water_interval || 10800);
+        setRanchHungerDeathHours(data.ranch_hunger_death_hours || 24);
+        setRanchThirstDeathHours(data.ranch_thirst_death_hours || 18);
+        setRanchChickenPrice(data.ranch_chicken_price || 500000);
+        setRanchDuckPrice(data.ranch_duck_price || 800000);
+        setRanchGoosePrice(data.ranch_goose_price || 1200000);
+        setRanchPigPrice(data.ranch_pig_price || 3000000);
+        setRanchSheepPrice(data.ranch_sheep_price || 4000000);
+        setRanchCowPrice(data.ranch_cow_price || 8000000);
+        setRanchChickenMeatPrice(data.ranch_chicken_meat_price || 1500000);
+        setRanchDuckMeatPrice(data.ranch_duck_meat_price || 2500000);
+        setRanchGooseMeatPrice(data.ranch_goose_meat_price || 4000000);
+        setRanchPigMeatPrice(data.ranch_pig_meat_price || 10000000);
+        setRanchSheepMeatPrice(data.ranch_sheep_meat_price || 14000000);
+        setRanchCowMeatPrice(data.ranch_cow_meat_price || 28000000);
         setBotToken('');
       }
     } catch (err) {
@@ -857,6 +897,101 @@ const TgBotPage = () => {
             <InputNumber value={farmSoilUpgradePrice5} onChange={setFarmSoilUpgradePrice5} min={0} step={100000} style={{ width: 180 }} />
             <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (farmSoilUpgradePrice5 / 500000).toFixed(2)}</Typography.Text>
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 12 }}>🐄 {t('牧场设置')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('最大养殖数量')}</Typography.Text>
+            <InputNumber value={ranchMaxAnimals} onChange={setRanchMaxAnimals} min={1} max={20} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('饲料价格(额度)')}</Typography.Text>
+            <InputNumber value={ranchFeedPrice} onChange={setRanchFeedPrice} min={0} step={10000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchFeedPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('饮水价格(额度)')}</Typography.Text>
+            <InputNumber value={ranchWaterPrice} onChange={setRanchWaterPrice} min={0} step={10000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchWaterPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('喂食间隔(秒)')}</Typography.Text>
+            <InputNumber value={ranchFeedInterval} onChange={setRanchFeedInterval} min={60} step={3600} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(ranchFeedInterval / 3600).toFixed(1) + 'h'}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('喂水间隔(秒)')}</Typography.Text>
+            <InputNumber value={ranchWaterInterval} onChange={setRanchWaterInterval} min={60} step={3600} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(ranchWaterInterval / 3600).toFixed(1) + 'h'}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('断食死亡(小时)')}</Typography.Text>
+            <InputNumber value={ranchHungerDeathHours} onChange={setRanchHungerDeathHours} min={1} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Typography.Text style={{ width: 200 }}>{t('断水死亡(小时)')}</Typography.Text>
+            <InputNumber value={ranchThirstDeathHours} onChange={setRanchThirstDeathHours} min={1} style={{ width: 120 }} />
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('动物购买价格')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐔 {t('鸡(额度)')}</Typography.Text>
+            <InputNumber value={ranchChickenPrice} onChange={setRanchChickenPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchChickenPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🦆 {t('鸭(额度)')}</Typography.Text>
+            <InputNumber value={ranchDuckPrice} onChange={setRanchDuckPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchDuckPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🪿 {t('鹅(额度)')}</Typography.Text>
+            <InputNumber value={ranchGoosePrice} onChange={setRanchGoosePrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchGoosePrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐷 {t('猪(额度)')}</Typography.Text>
+            <InputNumber value={ranchPigPrice} onChange={setRanchPigPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchPigPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐑 {t('羊(额度)')}</Typography.Text>
+            <InputNumber value={ranchSheepPrice} onChange={setRanchSheepPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchSheepPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐄 {t('牛(额度)')}</Typography.Text>
+            <InputNumber value={ranchCowPrice} onChange={setRanchCowPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchCowPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('肉类出售价格')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐔 {t('鸡肉(额度)')}</Typography.Text>
+            <InputNumber value={ranchChickenMeatPrice} onChange={setRanchChickenMeatPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchChickenMeatPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🦆 {t('鸭肉(额度)')}</Typography.Text>
+            <InputNumber value={ranchDuckMeatPrice} onChange={setRanchDuckMeatPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchDuckMeatPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🪿 {t('鹅肉(额度)')}</Typography.Text>
+            <InputNumber value={ranchGooseMeatPrice} onChange={setRanchGooseMeatPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchGooseMeatPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐷 {t('猪肉(额度)')}</Typography.Text>
+            <InputNumber value={ranchPigMeatPrice} onChange={setRanchPigMeatPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchPigMeatPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐑 {t('羊肉(额度)')}</Typography.Text>
+            <InputNumber value={ranchSheepMeatPrice} onChange={setRanchSheepMeatPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchSheepMeatPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐄 {t('牛肉(额度)')}</Typography.Text>
+            <InputNumber value={ranchCowMeatPrice} onChange={setRanchCowMeatPrice} min={0} step={100000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchCowMeatPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
           <Button
             theme='solid'
             type='primary'
@@ -881,6 +1016,26 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmSoilUpgradePrice4', value: String(farmSoilUpgradePrice4) },
                   { key: 'TgBotFarmSoilUpgradePrice5', value: String(farmSoilUpgradePrice5) },
                   { key: 'TgBotFarmSoilSpeedBonus', value: String(farmSoilSpeedBonus) },
+                  // 牧场
+                  { key: 'TgBotRanchMaxAnimals', value: String(ranchMaxAnimals) },
+                  { key: 'TgBotRanchFeedPrice', value: String(ranchFeedPrice) },
+                  { key: 'TgBotRanchWaterPrice', value: String(ranchWaterPrice) },
+                  { key: 'TgBotRanchFeedInterval', value: String(ranchFeedInterval) },
+                  { key: 'TgBotRanchWaterInterval', value: String(ranchWaterInterval) },
+                  { key: 'TgBotRanchHungerDeathHours', value: String(ranchHungerDeathHours) },
+                  { key: 'TgBotRanchThirstDeathHours', value: String(ranchThirstDeathHours) },
+                  { key: 'TgBotRanchChickenPrice', value: String(ranchChickenPrice) },
+                  { key: 'TgBotRanchDuckPrice', value: String(ranchDuckPrice) },
+                  { key: 'TgBotRanchGoosePrice', value: String(ranchGoosePrice) },
+                  { key: 'TgBotRanchPigPrice', value: String(ranchPigPrice) },
+                  { key: 'TgBotRanchSheepPrice', value: String(ranchSheepPrice) },
+                  { key: 'TgBotRanchCowPrice', value: String(ranchCowPrice) },
+                  { key: 'TgBotRanchChickenMeatPrice', value: String(ranchChickenMeatPrice) },
+                  { key: 'TgBotRanchDuckMeatPrice', value: String(ranchDuckMeatPrice) },
+                  { key: 'TgBotRanchGooseMeatPrice', value: String(ranchGooseMeatPrice) },
+                  { key: 'TgBotRanchPigMeatPrice', value: String(ranchPigMeatPrice) },
+                  { key: 'TgBotRanchSheepMeatPrice', value: String(ranchSheepMeatPrice) },
+                  { key: 'TgBotRanchCowMeatPrice', value: String(ranchCowMeatPrice) },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);
