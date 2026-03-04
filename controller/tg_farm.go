@@ -255,6 +255,12 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmBuyDog(chatId, msgId, tgId, from)
 	case data == "farm_feeddog":
 		doFarmFeedDog(chatId, msgId, tgId, from)
+	case data == "farm_soil":
+		showFarmSoilUpgrade(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_su_"):
+		plotStr := strings.TrimPrefix(data, "farm_su_")
+		plotIdx, _ := strconv.Atoi(plotStr)
+		doFarmSoilUpgrade(chatId, msgId, tgId, plotIdx, from)
 	}
 }
 
@@ -355,6 +361,23 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: "💊 治疗", CallbackData: "farm_treat"},
 		})
 	}
+	// 泥土升级按钮
+	hasUpgradable := false
+	for _, plot := range plots {
+		sl := plot.SoilLevel
+		if sl < 1 {
+			sl = 1
+		}
+		if sl < common.TgBotFarmSoilMaxLevel {
+			hasUpgradable = true
+			break
+		}
+	}
+	if hasUpgradable {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "🌱 泥土升级", CallbackData: "farm_soil"},
+		})
+	}
 	// 狗狗按钮
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🐕 狗狗", CallbackData: "farm_dog"},
@@ -370,9 +393,18 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 func farmPlotLine(plot *model.TgFarmPlot) string {
 	idx := plot.PlotIndex + 1
+	soilTag := ""
+	sl := plot.SoilLevel
+	if sl < 1 {
+		sl = 1
+	}
+	if sl > 1 {
+		soilTag = fmt.Sprintf(" 🌱Lv.%d", sl)
+	}
+
 	switch plot.Status {
 	case 0:
-		return fmt.Sprintf("⬜ %d号地 - 空地", idx)
+		return fmt.Sprintf("⬜ %d号地 - 空地%s", idx, soilTag)
 	case 1:
 		crop := farmCropMap[plot.CropType]
 		if crop == nil {
@@ -412,7 +444,7 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 				waterTag = " 💧⚠️需浇水"
 			}
 		}
-		return fmt.Sprintf("%s %d号地 - %s 生长中 %d%% 剩余%s%s%s", crop.Emoji, idx, crop.Name, pct, formatDuration(remaining), fertTag, waterTag)
+		return fmt.Sprintf("%s %d号地 - %s 生长中 %d%% 剩余%s%s%s%s", crop.Emoji, idx, crop.Name, pct, formatDuration(remaining), fertTag, waterTag, soilTag)
 	case 2:
 		crop := farmCropMap[plot.CropType]
 		if crop == nil {
@@ -422,7 +454,7 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 		if plot.StolenCount > 0 {
 			stolen = fmt.Sprintf(" ⚠️被偷%d次", plot.StolenCount)
 		}
-		return fmt.Sprintf("✅ %d号地 - %s%s 已成熟！%s", crop.Emoji, crop.Name, stolen, "")
+		return fmt.Sprintf("✅ %d号地 - %s%s 已成熟！%s%s", crop.Emoji, crop.Name, stolen, soilTag, "")
 	case 3:
 		crop := farmCropMap[plot.CropType]
 		emoji := "❓"
@@ -439,7 +471,7 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 			if remaining < 0 {
 				remaining = 0
 			}
-			return fmt.Sprintf("🏜️ %d号地 - %s%s 天灾干旱！💧快浇水救命！%s后死亡", idx, emoji, name, formatDuration(remaining))
+			return fmt.Sprintf("🏜️ %d号地 - %s%s 天灾干旱！💧快浇水救命！%s后死亡%s", idx, emoji, name, formatDuration(remaining), soilTag)
 		}
 		eventEmoji := "❌"
 		eventLabel := "未知事件"
@@ -448,7 +480,7 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 			eventEmoji = "🐛"
 			eventLabel = "虫害"
 		}
-		return fmt.Sprintf("%s %d号地 - %s %s%s！需要治疗", emoji, idx, name, eventEmoji, eventLabel)
+		return fmt.Sprintf("%s %d号地 - %s %s%s！需要治疗%s", emoji, idx, name, eventEmoji, eventLabel, soilTag)
 	case 4:
 		crop := farmCropMap[plot.CropType]
 		emoji := "🥀"
@@ -465,7 +497,7 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 		if remaining < 0 {
 			remaining = 0
 		}
-		return fmt.Sprintf("🥀 %d号地 - %s%s 枯萎中！💧快浇水！%s后死亡", idx, emoji, name, formatDuration(remaining))
+		return fmt.Sprintf("🥀 %d号地 - %s%s 枯萎中！💧快浇水！%s后死亡%s", idx, emoji, name, formatDuration(remaining), soilTag)
 	}
 	return fmt.Sprintf("❓ %d号地", idx)
 }
@@ -1533,6 +1565,157 @@ func doFarmFeedDog(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	farmSend(chatId, editMsgId, fmt.Sprintf("🦴 喂食成功！「%s」吃饱了，饱食度恢复到 100%%！", dog.Name), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🐕 查看狗狗", CallbackData: "farm_dog"},
+				{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 泥土升级 ==========
+
+func showFarmSoilUpgrade(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+
+	text := "🌱 泥土升级\n\n"
+	text += fmt.Sprintf("📌 每级加速生长 %d%%\n", common.TgBotFarmSoilSpeedBonus)
+	text += fmt.Sprintf("📌 最高等级 Lv.%d\n\n", common.TgBotFarmSoilMaxLevel)
+	text += "升级价格：\n"
+	prices := map[int]int{
+		2: common.TgBotFarmSoilUpgradePrice2,
+		3: common.TgBotFarmSoilUpgradePrice3,
+		4: common.TgBotFarmSoilUpgradePrice4,
+		5: common.TgBotFarmSoilUpgradePrice5,
+	}
+	for lvl := 2; lvl <= common.TgBotFarmSoilMaxLevel && lvl <= 5; lvl++ {
+		text += fmt.Sprintf("  Lv.%d → %s (加速 %d%%)\n", lvl, farmQuotaStr(prices[lvl]), common.TgBotFarmSoilSpeedBonus*(lvl-1))
+	}
+	text += "\n选择要升级的地块：\n"
+
+	var rows [][]TgInlineKeyboardButton
+	hasUpgradable := false
+	for _, plot := range plots {
+		sl := plot.SoilLevel
+		if sl < 1 {
+			sl = 1
+		}
+		if sl >= common.TgBotFarmSoilMaxLevel {
+			continue
+		}
+		hasUpgradable = true
+		nextLvl := sl + 1
+		price := 0
+		if p, ok := prices[nextLvl]; ok {
+			price = p
+		}
+		label := fmt.Sprintf("%d号地 Lv.%d→%d (%s)", plot.PlotIndex+1, sl, nextLvl, farmQuotaStr(price))
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: label, CallbackData: fmt.Sprintf("farm_su_%d", plot.PlotIndex)},
+		})
+	}
+	if !hasUpgradable {
+		text += "所有地块已达最高等级！🎉\n"
+	}
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmSoilUpgrade(chatId int64, editMsgId int, tgId string, plotIdx int, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+
+	var target *model.TgFarmPlot
+	for _, plot := range plots {
+		if plot.PlotIndex == plotIdx {
+			target = plot
+			break
+		}
+	}
+	if target == nil {
+		farmSend(chatId, editMsgId, "❌ 地块不存在", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回", CallbackData: "farm_soil"}},
+			},
+		}, from)
+		return
+	}
+
+	currentLevel := target.SoilLevel
+	if currentLevel < 1 {
+		currentLevel = 1
+	}
+	nextLevel := currentLevel + 1
+	if nextLevel > common.TgBotFarmSoilMaxLevel {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ %d号地泥土已达最高等级 Lv.%d！", plotIdx+1, common.TgBotFarmSoilMaxLevel), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回", CallbackData: "farm_soil"}},
+			},
+		}, from)
+		return
+	}
+
+	var price int
+	switch nextLevel {
+	case 2:
+		price = common.TgBotFarmSoilUpgradePrice2
+	case 3:
+		price = common.TgBotFarmSoilUpgradePrice3
+	case 4:
+		price = common.TgBotFarmSoilUpgradePrice4
+	case 5:
+		price = common.TgBotFarmSoilUpgradePrice5
+	default:
+		farmSend(chatId, editMsgId, "❌ 不支持的升级等级", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回", CallbackData: "farm_soil"}},
+			},
+		}, from)
+		return
+	}
+
+	if user.Quota < price {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足！\n\n升级到 Lv.%d 需要：%s\n你的余额：%s",
+			nextLevel, farmQuotaStr(price), farmQuotaStr(user.Quota)), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回", CallbackData: "farm_soil"}},
+			},
+		}, from)
+		return
+	}
+
+	err = model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 扣费失败，请稍后再试。", nil, from)
+		return
+	}
+
+	err = model.UpgradeFarmPlotSoil(target.Id, nextLevel)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, price, true)
+		farmSend(chatId, editMsgId, "❌ 升级失败，已退款。", nil, from)
+		return
+	}
+
+	speedBonus := common.TgBotFarmSoilSpeedBonus * (nextLevel - 1)
+	common.SysLog(fmt.Sprintf("TG Farm: user %s upgraded plot %d soil to Lv.%d for %d quota", tgId, plotIdx+1, nextLevel, price))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🌱 升级成功！\n\n%d号地泥土升级到 Lv.%d\n⚡ 生长加速 %d%%\n💰 花费 %s",
+		plotIdx+1, nextLevel, speedBonus, farmQuotaStr(price)), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🌱 继续升级", CallbackData: "farm_soil"},
 				{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
 	}, from)
