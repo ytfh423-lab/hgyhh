@@ -267,6 +267,7 @@ type TgRanchAnimal struct {
 	PurchasedAt   int64  `json:"purchased_at"`
 	LastFedAt     int64  `json:"last_fed_at"`
 	LastWateredAt int64  `json:"last_watered_at"`
+	LastCleanedAt int64  `json:"last_cleaned_at"`
 }
 
 const RanchMaxAnimals = 6
@@ -303,4 +304,9 @@ func FeedRanchAnimal(animalId int) error {
 func WaterRanchAnimal(animalId int) error {
 	now := time.Now().Unix()
 	return DB.Model(&TgRanchAnimal{}).Where("id = ?", animalId).Update("last_watered_at", now).Error
+}
+
+func CleanRanchAnimals(telegramId string) error {
+	now := time.Now().Unix()
+	return DB.Model(&TgRanchAnimal{}).Where("telegram_id = ? AND status != 5", telegramId).Update("last_cleaned_at", now).Error
 }

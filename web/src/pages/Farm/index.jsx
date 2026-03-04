@@ -745,6 +745,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const animalTypes = ranchData.animal_types || [];
   const deadAnimals = animals.filter(a => a.status === 5);
   const aliveAnimals = animals.filter(a => a.status !== 5);
+  const dirtyAnimals = aliveAnimals.filter(a => a.is_dirty);
 
   const statusLabels = { 1: '生长中', 2: '已成熟', 3: '饥饿', 4: '口渴', 5: '已死亡' };
   const statusTagColors = { 1: 'blue', 2: 'green', 3: 'orange', 4: 'red', 5: 'grey' };
@@ -763,6 +764,12 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
         <Tag size='large' color='blue' style={{ borderRadius: 6 }}>💧 {formatBalance(ranchData.water_price)}/次</Tag>
         <div style={{ flex: 1 }} />
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadRanch} loading={ranchLoading} />
+        {dirtyAnimals.length > 0 && (
+          <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/clean', {})}
+            loading={actionLoading} style={{ borderRadius: 6, color: '#92400e', borderColor: '#f59e0b' }}>
+            🧹 {t('清理粪便')}({formatBalance(ranchData.manure_clean_price)})
+          </Button>
+        )}
         {deadAnimals.length > 0 && (
           <Button size='small' theme='light' type='danger' onClick={() => doRanchAction('/api/ranch/cleanup', {})}
             loading={actionLoading} style={{ borderRadius: 6 }}>
@@ -797,6 +804,9 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                     {animal.needs_water && animal.status !== 5 && (
                       <Tag size='small' color='red'>⚠️ {t('需喂水')}</Tag>
                     )}
+                    {animal.is_dirty && animal.status !== 5 && (
+                      <Tag size='small' color='amber'>💩 {t('脏污')}</Tag>
+                    )}
                   </div>
                   {animal.status === 1 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -816,6 +826,9 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                       )}
                       {!animal.needs_water && animal.water_remaining > 0 && (
                         <Text type='tertiary' size='small'>💧 {formatDuration(animal.water_remaining)}</Text>
+                      )}
+                      {!animal.is_dirty && animal.clean_remaining > 0 && (
+                        <Text type='tertiary' size='small'>🧹 {formatDuration(animal.clean_remaining)}</Text>
                       )}
                     </div>
                   )}

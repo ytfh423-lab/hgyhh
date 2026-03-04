@@ -143,6 +143,9 @@ func InitOptionMap() {
 	common.OptionMap["TgBotRanchPigMeatPrice"] = strconv.Itoa(common.TgBotRanchPigMeatPrice)
 	common.OptionMap["TgBotRanchSheepMeatPrice"] = strconv.Itoa(common.TgBotRanchSheepMeatPrice)
 	common.OptionMap["TgBotRanchCowMeatPrice"] = strconv.Itoa(common.TgBotRanchCowMeatPrice)
+	common.OptionMap["TgBotRanchManureInterval"] = strconv.Itoa(common.TgBotRanchManureInterval)
+	common.OptionMap["TgBotRanchManureCleanPrice"] = strconv.Itoa(common.TgBotRanchManureCleanPrice)
+	common.OptionMap["TgBotRanchManureGrowPenalty"] = strconv.Itoa(common.TgBotRanchManureGrowPenalty)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -617,6 +620,21 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotRanchSheepMeatPrice, _ = strconv.Atoi(value)
 	case "TgBotRanchCowMeatPrice":
 		common.TgBotRanchCowMeatPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchManureInterval":
+		common.TgBotRanchManureInterval, _ = strconv.Atoi(value)
+		if common.TgBotRanchManureInterval < 60 {
+			common.TgBotRanchManureInterval = 60
+		}
+	case "TgBotRanchManureCleanPrice":
+		common.TgBotRanchManureCleanPrice, _ = strconv.Atoi(value)
+	case "TgBotRanchManureGrowPenalty":
+		common.TgBotRanchManureGrowPenalty, _ = strconv.Atoi(value)
+		if common.TgBotRanchManureGrowPenalty < 0 {
+			common.TgBotRanchManureGrowPenalty = 0
+		}
+		if common.TgBotRanchManureGrowPenalty > 90 {
+			common.TgBotRanchManureGrowPenalty = 90
+		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":

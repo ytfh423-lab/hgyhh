@@ -28,8 +28,10 @@ type webAnimalInfo struct {
 	LastWateredAt int64   `json:"last_watered_at"`
 	FeedRemaining int64   `json:"feed_remaining"`
 	WaterRemaining int64  `json:"water_remaining"`
-	NeedsFeed     bool    `json:"needs_feed"`
-	NeedsWater    bool    `json:"needs_water"`
+	NeedsFeed      bool    `json:"needs_feed"`
+	NeedsWater     bool    `json:"needs_water"`
+	IsDirty        bool    `json:"is_dirty"`
+	CleanRemaining int64   `json:"clean_remaining"`
 }
 
 func buildAnimalInfo(animal *model.TgRanchAnimal) webAnimalInfo {
@@ -99,6 +101,18 @@ func buildAnimalInfo(animal *model.TgRanchAnimal) webAnimalInfo {
 		info.WaterRemaining = nextWater - now
 	}
 
+	// 粪便清理
+	manureInterval := int64(common.TgBotRanchManureInterval)
+	if animal.LastCleanedAt > 0 {
+		nextClean := animal.LastCleanedAt + manureInterval
+		if now >= nextClean {
+			info.IsDirty = true
+			info.CleanRemaining = 0
+		} else {
+			info.CleanRemaining = nextClean - now
+		}
+	}
+
 	return info
 }
 
@@ -151,9 +165,11 @@ func WebRanchView(c *gin.Context) {
 			"animal_types":  animalDefs,
 			"alive_count":   aliveCount,
 			"max_animals":   common.TgBotRanchMaxAnimals,
-			"feed_price":    webFarmQuotaFloat(common.TgBotRanchFeedPrice),
-			"water_price":   webFarmQuotaFloat(common.TgBotRanchWaterPrice),
-			"balance":       webFarmQuotaFloat(user.Quota),
+			"feed_price":         webFarmQuotaFloat(common.TgBotRanchFeedPrice),
+			"water_price":        webFarmQuotaFloat(common.TgBotRanchWaterPrice),
+			"manure_clean_price": webFarmQuotaFloat(common.TgBotRanchManureCleanPrice),
+			"manure_penalty":     common.TgBotRanchManureGrowPenalty,
+			"balance":            webFarmQuotaFloat(user.Quota),
 		},
 	})
 }
@@ -213,6 +229,7 @@ func WebRanchBuy(c *gin.Context) {
 		PurchasedAt:   now,
 		LastFedAt:     now,
 		LastWateredAt: now,
+		LastCleanedAt: now,
 	}
 	err = model.CreateRanchAnimal(animal)
 	if err != nil {
@@ -418,6 +435,58 @@ func WebRanchSlaughter(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("出售 %s%s 成功！收入 $%.2f", def.Emoji, def.Name, webFarmQuotaFloat(meatPrice)),
+	})
+}
+
+// WebRanchCleanManure cleans manure for all alive animals
+func WebRanchCleanManure(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	animals, err := model.GetRanchAnimals(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+
+	now := time.Now().Unix()
+	dirtyCount := 0
+	for _, a := range animals {
+		if a.Status != 5 && isAnimalDirty(a, now) {
+			dirtyCount++
+		}
+	}
+
+	if dirtyCount == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "牧场很干净，不需要清理"})
+		return
+	}
+
+	price := common.TgBotRanchManureCleanPrice
+	if user.Quota < price {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "余额不足"})
+		return
+	}
+
+	err = model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
+		return
+	}
+
+	err = model.CleanRanchAnimals(tgId)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, price, true)
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "清理失败，已退款"})
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("Web Ranch: user %s cleaned manure for %d animals, cost %d", tgId, dirtyCount, price))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("已清理 %d 只动物的粪便，生长速度恢复正常！", dirtyCount),
 	})
 }
 

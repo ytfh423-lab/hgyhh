@@ -346,6 +346,7 @@ func SetApiRouter(router *gin.Engine) {
 			ranchRoute.POST("/feed", controller.WebRanchFeed)
 			ranchRoute.POST("/water", controller.WebRanchWater)
 			ranchRoute.POST("/slaughter", controller.WebRanchSlaughter)
+			ranchRoute.POST("/clean", controller.WebRanchCleanManure)
 			ranchRoute.POST("/cleanup", controller.WebRanchCleanup)
 		}
 

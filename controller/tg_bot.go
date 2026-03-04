@@ -922,6 +922,9 @@ func GetTgBotSettings(c *gin.Context) {
 			"ranch_pig_meat_price":       common.TgBotRanchPigMeatPrice,
 			"ranch_sheep_meat_price":     common.TgBotRanchSheepMeatPrice,
 			"ranch_cow_meat_price":       common.TgBotRanchCowMeatPrice,
+			"ranch_manure_interval":      common.TgBotRanchManureInterval,
+			"ranch_manure_clean_price":   common.TgBotRanchManureCleanPrice,
+			"ranch_manure_grow_penalty":  common.TgBotRanchManureGrowPenalty,
 		},
 	})
 }

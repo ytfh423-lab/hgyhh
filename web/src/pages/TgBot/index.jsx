@@ -99,6 +99,9 @@ const TgBotPage = () => {
   const [ranchPigMeatPrice, setRanchPigMeatPrice] = useState(10000000);
   const [ranchSheepMeatPrice, setRanchSheepMeatPrice] = useState(14000000);
   const [ranchCowMeatPrice, setRanchCowMeatPrice] = useState(28000000);
+  const [ranchManureInterval, setRanchManureInterval] = useState(21600);
+  const [ranchManureCleanPrice, setRanchManureCleanPrice] = useState(150000);
+  const [ranchManureGrowPenalty, setRanchManureGrowPenalty] = useState(30);
   const [savingFarm, setSavingFarm] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
@@ -157,6 +160,9 @@ const TgBotPage = () => {
         setRanchPigMeatPrice(data.ranch_pig_meat_price || 10000000);
         setRanchSheepMeatPrice(data.ranch_sheep_meat_price || 14000000);
         setRanchCowMeatPrice(data.ranch_cow_meat_price || 28000000);
+        setRanchManureInterval(data.ranch_manure_interval || 21600);
+        setRanchManureCleanPrice(data.ranch_manure_clean_price || 150000);
+        setRanchManureGrowPenalty(data.ranch_manure_grow_penalty || 30);
         setBotToken('');
       }
     } catch (err) {
@@ -992,6 +998,21 @@ const TgBotPage = () => {
             <InputNumber value={ranchCowMeatPrice} onChange={setRanchCowMeatPrice} min={0} step={100000} style={{ width: 180 }} />
             <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchCowMeatPrice / 500000).toFixed(2)}</Typography.Text>
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>💩 {t('粪便清理')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('清理间隔(秒)')}</Typography.Text>
+            <InputNumber value={ranchManureInterval} onChange={setRanchManureInterval} min={60} step={3600} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(ranchManureInterval / 3600).toFixed(1) + 'h'}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('清理费用(额度)')}</Typography.Text>
+            <InputNumber value={ranchManureCleanPrice} onChange={setRanchManureCleanPrice} min={0} step={10000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (ranchManureCleanPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('脏污生长减速(%)')}</Typography.Text>
+            <InputNumber value={ranchManureGrowPenalty} onChange={setRanchManureGrowPenalty} min={0} max={90} style={{ width: 120 }} />
+          </div>
           <Button
             theme='solid'
             type='primary'
@@ -1036,6 +1057,9 @@ const TgBotPage = () => {
                   { key: 'TgBotRanchPigMeatPrice', value: String(ranchPigMeatPrice) },
                   { key: 'TgBotRanchSheepMeatPrice', value: String(ranchSheepMeatPrice) },
                   { key: 'TgBotRanchCowMeatPrice', value: String(ranchCowMeatPrice) },
+                  { key: 'TgBotRanchManureInterval', value: String(ranchManureInterval) },
+                  { key: 'TgBotRanchManureCleanPrice', value: String(ranchManureCleanPrice) },
+                  { key: 'TgBotRanchManureGrowPenalty', value: String(ranchManureGrowPenalty) },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

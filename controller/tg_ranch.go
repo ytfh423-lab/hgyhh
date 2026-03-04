@@ -59,10 +59,15 @@ func updateRanchAnimalStatus(animal *model.TgRanchAnimal) {
 
 	changed := false
 
-	// 检查是否成熟
+	// 检查是否成熟（脏污时生长减速）
 	if animal.Status == 1 {
 		elapsed := now - animal.PurchasedAt
-		if elapsed >= *def.GrowSecs {
+		actualGrowSecs := *def.GrowSecs
+		if isAnimalDirty(animal, now) {
+			penalty := int64(common.TgBotRanchManureGrowPenalty)
+			actualGrowSecs = actualGrowSecs * 100 / (100 - penalty)
+		}
+		if elapsed >= actualGrowSecs {
 			animal.Status = 2
 			changed = true
 		}
@@ -105,6 +110,15 @@ func updateRanchAnimalStatus(animal *model.TgRanchAnimal) {
 	}
 }
 
+// isAnimalDirty 检查动物是否需要清理粪便
+func isAnimalDirty(animal *model.TgRanchAnimal, now int64) bool {
+	if animal.LastCleanedAt <= 0 {
+		return false
+	}
+	interval := int64(common.TgBotRanchManureInterval)
+	return now >= animal.LastCleanedAt+interval
+}
+
 // ========== 回调路由 ==========
 
 func handleRanchCallback(cb *TgCallbackQuery) {
@@ -142,6 +156,8 @@ func handleRanchCallback(cb *TgCallbackQuery) {
 		doRanchSlaughter(chatId, msgId, tgId, animalId, from)
 	case data == "ranch_cleanup":
 		doRanchCleanup(chatId, msgId, tgId, from)
+	case data == "ranch_clean":
+		doRanchCleanManure(chatId, msgId, tgId, from)
 	}
 }
 
@@ -166,6 +182,8 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	hasHungry := false
 	hasMature := false
 	hasDead := false
+	dirtyCount := 0
+	now := time.Now().Unix()
 	for _, a := range animals {
 		text += ranchAnimalLine(a) + "\n"
 		switch a.Status {
@@ -176,10 +194,16 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		case 5:
 			hasDead = true
 		}
+		if a.Status != 5 && isAnimalDirty(a, now) {
+			dirtyCount++
+		}
 	}
 
 	text += fmt.Sprintf("\n📊 动物 %d/%d 只", len(animals), common.TgBotRanchMaxAnimals)
 	text += fmt.Sprintf("\n🌾 饲料 %s/次 | 💧 饮水 %s/次", farmQuotaStr(common.TgBotRanchFeedPrice), farmQuotaStr(common.TgBotRanchWaterPrice))
+	if dirtyCount > 0 {
+		text += fmt.Sprintf("\n💩 %d只动物需要清理粪便（生长减速%d%%）", dirtyCount, common.TgBotRanchManureGrowPenalty)
+	}
 	text += "\n"
 
 	var rows [][]TgInlineKeyboardButton
@@ -207,6 +231,11 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: "🔪 屠宰出售", CallbackData: "ranch_slaughter"},
 		})
 	}
+	if dirtyCount > 0 {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("🧹 清理粪便(%s)", farmQuotaStr(common.TgBotRanchManureCleanPrice)), CallbackData: "ranch_clean"},
+		})
+	}
 	if hasDead {
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: "🗑️ 清理死亡动物", CallbackData: "ranch_cleanup"},
@@ -230,6 +259,12 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 	case 1: // growing
 		elapsed := now - animal.PurchasedAt
 		total := *def.GrowSecs
+		dirtyTag := ""
+		if isAnimalDirty(animal, now) {
+			penalty := int64(common.TgBotRanchManureGrowPenalty)
+			total = total * 100 / (100 - penalty)
+			dirtyTag = "💩"
+		}
 		pct := int(elapsed * 100 / total)
 		if pct > 99 {
 			pct = 99
@@ -238,9 +273,13 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 		if remaining < 0 {
 			remaining = 0
 		}
-		return fmt.Sprintf("%s %s - 生长中 %d%% 剩余%s", def.Emoji, def.Name, pct, formatDuration(remaining))
+		return fmt.Sprintf("%s %s%s - 生长中 %d%% 剩余%s", def.Emoji, def.Name, dirtyTag, pct, formatDuration(remaining))
 	case 2: // mature
-		return fmt.Sprintf("✅ %s %s - 已成熟！可出售 %s", def.Emoji, def.Name, farmQuotaStr(*def.MeatPrice))
+		dirtyTag := ""
+		if isAnimalDirty(animal, now) {
+			dirtyTag = "💩"
+		}
+		return fmt.Sprintf("✅ %s %s%s - 已成熟！可出售 %s", def.Emoji, def.Name, dirtyTag, farmQuotaStr(*def.MeatPrice))
 	case 3: // hungry
 		feedInterval := int64(common.TgBotRanchFeedInterval)
 		hungerStart := animal.LastFedAt + feedInterval
@@ -368,6 +407,7 @@ func doRanchBuyAnimal(chatId int64, editMsgId int, tgId string, animalShort stri
 		PurchasedAt:   now,
 		LastFedAt:     now,
 		LastWateredAt: now,
+		LastCleanedAt: now,
 	}
 	err = model.CreateRanchAnimal(animal)
 	if err != nil {
@@ -783,6 +823,70 @@ func doRanchCleanup(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 
 	farmSend(chatId, editMsgId, fmt.Sprintf("🗑️ 已清理 %d 只死亡动物。", cleaned), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🐄 返回牧场", CallbackData: "ranch"}},
+		},
+	}, from)
+}
+
+// ========== 清理粪便 ==========
+
+func doRanchCleanManure(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	animals, err := model.GetRanchAnimals(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+
+	now := time.Now().Unix()
+	dirtyCount := 0
+	for _, a := range animals {
+		if a.Status != 5 && isAnimalDirty(a, now) {
+			dirtyCount++
+		}
+	}
+
+	if dirtyCount == 0 {
+		farmSend(chatId, editMsgId, "✨ 牧场很干净，不需要清理！", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🐄 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	price := common.TgBotRanchManureCleanPrice
+	if user.Quota < price {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足！清理粪便需要 %s", farmQuotaStr(price)), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	err = model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 扣费失败", nil, from)
+		return
+	}
+
+	err = model.CleanRanchAnimals(tgId)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, price, true)
+		farmSend(chatId, editMsgId, "❌ 清理失败，已退款。", nil, from)
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("TG Ranch: user %s cleaned manure for %d animals, cost %d", tgId, dirtyCount, price))
+	farmSend(chatId, editMsgId, fmt.Sprintf("🧹 清理完成！\n\n✨ 为 %d 只动物清理了粪便\n💰 花费 %s\n\n动物们生长速度恢复正常！",
+		dirtyCount, farmQuotaStr(price)), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🐄 返回牧场", CallbackData: "ranch"}},
 		},

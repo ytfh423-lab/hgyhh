@@ -148,6 +148,10 @@ var TgBotRanchGooseMeatPrice = 4000000        // 鹅肉 $8
 var TgBotRanchPigMeatPrice = 10000000         // 猪肉 $20
 var TgBotRanchSheepMeatPrice = 14000000       // 羊肉 $28
 var TgBotRanchCowMeatPrice = 28000000         // 牛肉 $56
+// 粪便清理
+var TgBotRanchManureInterval = 21600          // 粪便清理间隔秒数（默认6小时）
+var TgBotRanchManureCleanPrice = 150000       // 清理费用（quota单位，默认$0.3）
+var TgBotRanchManureGrowPenalty = 30          // 脏污时生长减速百分比（默认30%）
 
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
