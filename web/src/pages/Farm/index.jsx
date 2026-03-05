@@ -37,6 +37,7 @@ import {
   ScrollText,
   Fish,
   TrendingUp,
+  Factory,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -888,6 +889,159 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
   );
 };
 
+// ===================== Workshop Page =====================
+const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
+  const [wsData, setWsData] = useState(null);
+  const [wsLoading, setWsLoading] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  const loadWorkshop = useCallback(async () => {
+    setWsLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/workshop');
+      if (res.success) setWsData(res.data);
+    } catch (err) {
+      showError(t('加载失败'));
+    } finally {
+      setWsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadWorkshop(); }, [loadWorkshop]);
+
+  // Auto-refresh every 5s for progress
+  useEffect(() => {
+    const timer = setInterval(() => setTick(p => p + 1), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (tick > 0) loadWorkshop();
+  }, [tick, loadWorkshop]);
+
+  const doCraft = async (key) => {
+    setWsLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/workshop/craft', { recipe_key: key });
+      if (res.success) {
+        showSuccess(res.message);
+        loadWorkshop();
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setWsLoading(false);
+    }
+  };
+
+  const doCollect = async () => {
+    setWsLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/workshop/collect');
+      if (res.success) {
+        showSuccess(res.message);
+        loadWorkshop();
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setWsLoading(false);
+    }
+  };
+
+  if (wsLoading && !wsData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!wsData) return null;
+
+  const hasCollectable = (wsData.active || []).some(p => p.status === 2);
+  const slotsAvailable = wsData.used_slots < wsData.max_slots;
+
+  const profitColor = (v) => v >= 0 ? '#16a34a' : '#dc2626';
+
+  return (
+    <div>
+      {/* Slots info */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <Tag size='large' color='blue'>🏭 {t('槽位')}: {wsData.used_slots}/{wsData.max_slots}</Tag>
+        {hasCollectable && (
+          <Button theme='solid' type='warning' size='small' loading={wsLoading} onClick={doCollect}>
+            📥 {t('收取全部')}
+          </Button>
+        )}
+      </div>
+
+      {/* Active processes */}
+      {wsData.active && wsData.active.length > 0 && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>⏳ {t('加工中')}</Text>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {wsData.active.map((p) => (
+              <div key={p.id} style={{
+                padding: '8px 12px', borderRadius: 8,
+                background: 'var(--semi-color-fill-0)',
+                border: '1px solid var(--semi-color-border)',
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span style={{ fontSize: 24 }}>{p.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <Text strong>{p.name}</Text>
+                  {p.status === 2 ? (
+                    <Tag size='small' color='green' style={{ marginLeft: 6 }}>✅ {t('已完成')}</Tag>
+                  ) : (
+                    <Tag size='small' color='blue' style={{ marginLeft: 6 }}>{p.progress}% · {formatDuration(p.remaining)}</Tag>
+                  )}
+                  <Text size='small' type='tertiary' style={{ display: 'block' }}>{t('价值')}: ${p.sell_price.toFixed(2)}</Text>
+                </div>
+                {p.status === 1 && (
+                  <div style={{ width: 80, height: 6, background: 'var(--semi-color-fill-2)', borderRadius: 3 }}>
+                    <div style={{ width: `${p.progress}%`, height: '100%', background: '#3b82f6', borderRadius: 3 }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Recipes */}
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>📋 {t('配方列表')}</Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {(wsData.recipes || []).map((r) => (
+            <div key={r.key} style={{
+              padding: '8px 12px', borderRadius: 8,
+              background: 'var(--semi-color-fill-0)',
+              border: '1px solid var(--semi-color-border)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span style={{ fontSize: 22 }}>{r.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <Text strong>{r.name}</Text>
+                <Text size='small' type='tertiary' style={{ display: 'block' }}>
+                  {t('成本')} ${r.cost.toFixed(2)} → {t('售价')} ${r.sell_price.toFixed(2)} ({r.multiplier}%)
+                  · <span style={{ color: profitColor(r.profit), fontWeight: 600 }}>{r.profit >= 0 ? '+' : ''}${r.profit.toFixed(2)}</span>
+                  · {formatDuration(r.time_secs)}
+                </Text>
+              </div>
+              <Button size='small' theme='solid' disabled={!slotsAvailable || wsLoading}
+                onClick={() => doCraft(r.key)}>
+                {t('加工')}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 // ===================== Market Page =====================
 const MarketPage = ({ t }) => {
   const [marketData, setMarketData] = useState(null);
@@ -1218,6 +1372,7 @@ const LogsPage = ({ t }) => {
     ranch_buy: '🐄', ranch_feed: '🌾', ranch_water: '💧',
     ranch_sell: '🔪', ranch_clean: '🧹',
     fish: '🎣', fish_sell: '💰',
+    craft: '🏭', craft_sell: '📥',
   };
 
   const formatTime = (ts) => {
@@ -1415,6 +1570,10 @@ const Farm = () => {
         </TabPane>
         <TabPane tab={<span><Fish size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('钓鱼')}</span>} itemKey='fish'>
           <FishPage actionLoading={actionLoading}
+            doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Factory size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('加工')}</span>} itemKey='workshop'>
+          <WorkshopPage actionLoading={actionLoading}
             doAction={doAction} loadFarm={loadFarm} t={t} />
         </TabPane>
         <TabPane tab={<span><TrendingUp size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('市场')}</span>} itemKey='market'>

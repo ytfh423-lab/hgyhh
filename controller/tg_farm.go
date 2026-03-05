@@ -79,6 +79,29 @@ const fishNothingWeight = 15 // 空军概率权重
 var fishTypeMap map[string]*fishDef
 var fishTotalWeight int
 
+// ========== 加工坊配方 ==========
+
+type recipeDef struct {
+	Key       string
+	Name      string
+	Emoji     string
+	Cost      int   // quota to start
+	TimeSecs  int64 // processing time
+	SellPrice int   // sell price (before market multiplier)
+}
+
+var recipes = []recipeDef{
+	{"bread", "面包", "🍞", 500000, 1800, 900000},
+	{"juice", "果汁", "🧃", 750000, 2700, 1400000},
+	{"butter", "黄油", "🧈", 1000000, 2400, 1750000},
+	{"cake", "蛋糕", "🍰", 1500000, 3600, 2750000},
+	{"cheese", "奶酪", "🧀", 2000000, 5400, 3750000},
+	{"wine", "葡萄酒", "🍷", 2500000, 7200, 5000000},
+	{"chocolate", "巧克力", "🍫", 4000000, 10800, 8000000},
+}
+
+var recipeMap map[string]*recipeDef
+
 var farmCropMap map[string]*farmCropDef
 var farmCropByShort map[string]*farmCropDef
 var farmItemMap map[string]*farmItemDef
@@ -109,6 +132,10 @@ func init() {
 		fishTypeMap[fishTypes[i].Key] = &fishTypes[i]
 		fishTotalWeight += fishTypes[i].Weight
 	}
+	recipeMap = make(map[string]*recipeDef)
+	for i := range recipes {
+		recipeMap[recipes[i].Key] = &recipes[i]
+	}
 	marketPrices = make(map[string]int)
 	refreshMarketPrices()
 }
@@ -131,6 +158,10 @@ func refreshMarketPrices() {
 	// 肉价格
 	for _, key := range []string{"chicken", "duck", "goose", "pig", "sheep", "cow"} {
 		marketPrices["meat_"+key] = minM + rand.Intn(rng)
+	}
+	// 加工品价格
+	for _, r := range recipes {
+		marketPrices["recipe_"+r.Key] = minM + rand.Intn(rng)
 	}
 	marketLastUpdate = now
 	marketNextUpdate = now + int64(common.TgBotMarketRefreshHours*3600)
@@ -356,6 +387,13 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmSellFish(chatId, msgId, tgId, from)
 	case data == "farm_market":
 		showFarmMarket(chatId, msgId, tgId, from)
+	case data == "farm_workshop":
+		showFarmWorkshop(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_craft_"):
+		recipeKey := strings.TrimPrefix(data, "farm_craft_")
+		doFarmCraft(chatId, msgId, tgId, recipeKey, from)
+	case data == "farm_collect":
+		doFarmCollectAll(chatId, msgId, tgId, from)
 	case data == "farm_soil":
 		showFarmSoilUpgrade(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_su_"):
@@ -488,6 +526,9 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🎣 钓鱼", CallbackData: "farm_fish"},
+		{Text: "🏭 加工", CallbackData: "farm_workshop"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "� 市场", CallbackData: "farm_market"},
 		{Text: "� 记录", CallbackData: "farm_logs"},
 	})
@@ -1873,6 +1914,7 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		"ranch_buy": "买动物", "ranch_feed": "喂食", "ranch_water": "喂水",
 		"ranch_sell": "出售", "ranch_clean": "清粪",
 		"fish": "钓鱼", "fish_sell": "卖鱼",
+		"craft": "加工", "craft_sell": "收取",
 	}
 
 	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
@@ -2104,6 +2146,191 @@ func doFarmSellFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
 	}, from)
+}
+
+// ========== 加工坊 ==========
+
+func showFarmWorkshop(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	procs, _ := model.GetFarmProcesses(tgId)
+	now := time.Now().Unix()
+
+	// 更新状态
+	for _, p := range procs {
+		if p.Status == 1 && now >= p.FinishAt {
+			p.Status = 2
+		}
+	}
+
+	activeCount := int64(len(procs))
+	text := fmt.Sprintf("🏭 加工坊（%d/%d 槽位）\n\n", activeCount, model.FarmMaxProcessSlots)
+
+	// 当前加工
+	hasCollectable := false
+	if len(procs) == 0 {
+		text += "📭 暂无加工任务\n"
+	} else {
+		for _, p := range procs {
+			r := recipeMap[p.RecipeKey]
+			if r == nil {
+				continue
+			}
+			if p.Status == 2 {
+				sellPrice := applyMarket(r.SellPrice, "recipe_"+r.Key)
+				mPct := getMarketMultiplier("recipe_" + r.Key)
+				text += fmt.Sprintf("✅ %s %s - 已完成！可收取 %s(%d%%)\n", r.Emoji, r.Name, farmQuotaStr(sellPrice), mPct)
+				hasCollectable = true
+			} else {
+				remain := p.FinishAt - now
+				if remain < 0 {
+					remain = 0
+				}
+				pct := int((now - p.StartedAt) * 100 / (p.FinishAt - p.StartedAt))
+				if pct > 99 {
+					pct = 99
+				}
+				text += fmt.Sprintf("⏳ %s %s - 加工中 %d%% 剩余%s\n", r.Emoji, r.Name, pct, formatDuration(remain))
+			}
+		}
+	}
+
+	text += "\n📋 配方列表:\n"
+	for _, r := range recipes {
+		sellPrice := applyMarket(r.SellPrice, "recipe_"+r.Key)
+		mPct := getMarketMultiplier("recipe_" + r.Key)
+		profit := sellPrice - r.Cost
+		profitSign := "+"
+		if profit < 0 {
+			profitSign = ""
+		}
+		text += fmt.Sprintf("  %s %s 成本%s → 售价%s(%d%%) %s%s 耗时%s\n",
+			r.Emoji, r.Name, farmQuotaStr(r.Cost), farmQuotaStr(sellPrice), mPct,
+			profitSign, farmQuotaStr(profit), formatDuration(r.TimeSecs))
+	}
+
+	var rows [][]TgInlineKeyboardButton
+	if hasCollectable {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "📥 收取全部", CallbackData: "farm_collect"},
+		})
+	}
+	if activeCount < int64(model.FarmMaxProcessSlots) {
+		for _, r := range recipes {
+			rows = append(rows, []TgInlineKeyboardButton{
+				{Text: fmt.Sprintf("%s %s (%s)", r.Emoji, r.Name, farmQuotaStr(r.Cost)),
+					CallbackData: "farm_craft_" + r.Key},
+			})
+		}
+	}
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmCraft(chatId int64, editMsgId int, tgId string, recipeKey string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	r := recipeMap[recipeKey]
+	if r == nil {
+		farmSend(chatId, editMsgId, "❌ 未知配方", nil, from)
+		return
+	}
+
+	// 检查槽位
+	count := model.CountActiveProcesses(tgId)
+	if count >= int64(model.FarmMaxProcessSlots) {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 加工槽已满（%d/%d）", count, model.FarmMaxProcessSlots), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回加工坊", CallbackData: "farm_workshop"}},
+			},
+		}, from)
+		return
+	}
+
+	// 扣费
+	err = model.DecreaseUserQuota(user.Id, r.Cost)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 余额不足", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回加工坊", CallbackData: "farm_workshop"}},
+			},
+		}, from)
+		return
+	}
+
+	now := time.Now().Unix()
+	proc := &model.TgFarmProcess{
+		TelegramId: tgId,
+		RecipeKey:  recipeKey,
+		StartedAt:  now,
+		FinishAt:   now + r.TimeSecs,
+		Status:     1,
+	}
+	_ = model.CreateFarmProcess(proc)
+	model.AddFarmLog(tgId, "craft", -r.Cost, fmt.Sprintf("加工%s%s", r.Emoji, r.Name))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🏭 开始加工 %s %s！\n\n成本: %s\n耗时: %s\n预计产出: %s",
+		r.Emoji, r.Name, farmQuotaStr(r.Cost), formatDuration(r.TimeSecs),
+		farmQuotaStr(applyMarket(r.SellPrice, "recipe_"+r.Key))),
+		&TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏭 返回加工坊", CallbackData: "farm_workshop"}},
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+}
+
+func doFarmCollectAll(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	procs, _ := model.GetFarmProcesses(tgId)
+	now := time.Now().Unix()
+
+	totalValue := 0
+	collected := 0
+	for _, p := range procs {
+		if p.Status == 1 && now >= p.FinishAt {
+			p.Status = 2
+		}
+		if p.Status == 2 {
+			r := recipeMap[p.RecipeKey]
+			if r == nil {
+				continue
+			}
+			sellPrice := applyMarket(r.SellPrice, "recipe_"+r.Key)
+			totalValue += sellPrice
+			collected++
+			_ = model.CollectFarmProcess(p.Id)
+		}
+	}
+
+	if collected == 0 {
+		farmSend(chatId, editMsgId, "❌ 没有可收取的成品", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回加工坊", CallbackData: "farm_workshop"}},
+			},
+		}, from)
+		return
+	}
+
+	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.AddFarmLog(tgId, "craft_sell", totalValue, fmt.Sprintf("收取%d件加工品", collected))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("📥 收取成功！\n\n收取 %d 件成品\n💰 收入 %s", collected, farmQuotaStr(totalValue)),
+		&TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏭 返回加工坊", CallbackData: "farm_workshop"}},
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
 }
 
 // ========== 市场行情 ==========

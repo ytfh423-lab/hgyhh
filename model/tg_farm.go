@@ -311,6 +311,39 @@ func CleanRanchAnimals(telegramId string) error {
 	return DB.Model(&TgRanchAnimal{}).Where("telegram_id = ? AND status != 5", telegramId).Update("last_cleaned_at", now).Error
 }
 
+// ========== 加工坊 ==========
+
+type TgFarmProcess struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	RecipeKey  string `json:"recipe_key" gorm:"type:varchar(32)"`
+	StartedAt  int64  `json:"started_at"`
+	FinishAt   int64  `json:"finish_at"`
+	Status     int    `json:"status" gorm:"default:1"` // 1=processing, 2=done, 3=collected
+}
+
+const FarmMaxProcessSlots = 3
+
+func GetFarmProcesses(telegramId string) ([]*TgFarmProcess, error) {
+	var procs []*TgFarmProcess
+	err := DB.Where("telegram_id = ? AND status IN (1,2)", telegramId).Order("id asc").Find(&procs).Error
+	return procs, err
+}
+
+func CreateFarmProcess(p *TgFarmProcess) error {
+	return DB.Create(p).Error
+}
+
+func CollectFarmProcess(id int) error {
+	return DB.Model(&TgFarmProcess{}).Where("id = ?", id).Update("status", 3).Error
+}
+
+func CountActiveProcesses(telegramId string) int64 {
+	var count int64
+	DB.Model(&TgFarmProcess{}).Where("telegram_id = ? AND status IN (1,2)", telegramId).Count(&count)
+	return count
+}
+
 // ========== 钓鱼相关 ==========
 
 func GetLastFishTime(telegramId string) int64 {

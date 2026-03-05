@@ -1114,6 +1114,8 @@ func WebFarmLogs(c *gin.Context) {
 		"ranch_clean":  "清粪",
 		"fish":         "钓鱼",
 		"fish_sell":    "卖鱼",
+		"craft":        "加工",
+		"craft_sell":   "收取",
 	}
 
 	var items []logItem
@@ -1216,6 +1218,195 @@ func WebFarmMarket(c *gin.Context) {
 			"prices":       prices,
 			"next_refresh": nextRefresh,
 			"refresh_hours": common.TgBotMarketRefreshHours,
+		},
+	})
+}
+
+// ========== 加工坊 ==========
+
+// WebFarmWorkshopView returns workshop status and recipes
+func WebFarmWorkshopView(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	procs, _ := model.GetFarmProcesses(tgId)
+	now := time.Now().Unix()
+
+	type procInfo struct {
+		Id        int     `json:"id"`
+		RecipeKey string  `json:"recipe_key"`
+		Name      string  `json:"name"`
+		Emoji     string  `json:"emoji"`
+		Status    int     `json:"status"` // 1=processing, 2=done
+		Progress  int     `json:"progress"`
+		Remaining int64   `json:"remaining"`
+		SellPrice float64 `json:"sell_price"`
+	}
+	var active []procInfo
+	for _, p := range procs {
+		status := p.Status
+		if status == 1 && now >= p.FinishAt {
+			status = 2
+		}
+		r := recipeMap[p.RecipeKey]
+		if r == nil {
+			continue
+		}
+		pi := procInfo{
+			Id:        p.Id,
+			RecipeKey: p.RecipeKey,
+			Name:      r.Name,
+			Emoji:     r.Emoji,
+			Status:    status,
+			SellPrice: webFarmQuotaFloat(applyMarket(r.SellPrice, "recipe_"+r.Key)),
+		}
+		if status == 1 {
+			remain := p.FinishAt - now
+			if remain < 0 {
+				remain = 0
+			}
+			total := p.FinishAt - p.StartedAt
+			if total > 0 {
+				pi.Progress = int((now - p.StartedAt) * 100 / total)
+			}
+			pi.Remaining = remain
+		} else {
+			pi.Progress = 100
+		}
+		active = append(active, pi)
+	}
+
+	type recipeInfo struct {
+		Key        string  `json:"key"`
+		Name       string  `json:"name"`
+		Emoji      string  `json:"emoji"`
+		Cost       float64 `json:"cost"`
+		TimeSecs   int64   `json:"time_secs"`
+		SellPrice  float64 `json:"sell_price"`
+		Multiplier int     `json:"multiplier"`
+		Profit     float64 `json:"profit"`
+	}
+	var recipeList []recipeInfo
+	for _, r := range recipes {
+		sellPrice := applyMarket(r.SellPrice, "recipe_"+r.Key)
+		m := getMarketMultiplier("recipe_" + r.Key)
+		recipeList = append(recipeList, recipeInfo{
+			Key:        r.Key,
+			Name:       r.Name,
+			Emoji:      r.Emoji,
+			Cost:       webFarmQuotaFloat(r.Cost),
+			TimeSecs:   r.TimeSecs,
+			SellPrice:  webFarmQuotaFloat(sellPrice),
+			Multiplier: m,
+			Profit:     webFarmQuotaFloat(sellPrice - r.Cost),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"active":    active,
+			"recipes":   recipeList,
+			"max_slots": model.FarmMaxProcessSlots,
+			"used_slots": len(procs),
+		},
+	})
+}
+
+// WebFarmWorkshopCraft starts a crafting process
+func WebFarmWorkshopCraft(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		RecipeKey string `json:"recipe_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	r := recipeMap[req.RecipeKey]
+	if r == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知配方"})
+		return
+	}
+
+	count := model.CountActiveProcesses(tgId)
+	if count >= int64(model.FarmMaxProcessSlots) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("加工槽已满（%d/%d）", count, model.FarmMaxProcessSlots)})
+		return
+	}
+
+	err := model.DecreaseUserQuota(user.Id, r.Cost)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "余额不足"})
+		return
+	}
+
+	now := time.Now().Unix()
+	proc := &model.TgFarmProcess{
+		TelegramId: tgId,
+		RecipeKey:  req.RecipeKey,
+		StartedAt:  now,
+		FinishAt:   now + r.TimeSecs,
+		Status:     1,
+	}
+	_ = model.CreateFarmProcess(proc)
+	model.AddFarmLog(tgId, "craft", -r.Cost, fmt.Sprintf("加工%s%s", r.Emoji, r.Name))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("开始加工 %s %s", r.Emoji, r.Name),
+	})
+}
+
+// WebFarmWorkshopCollect collects all finished products
+func WebFarmWorkshopCollect(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	procs, _ := model.GetFarmProcesses(tgId)
+	now := time.Now().Unix()
+
+	totalValue := 0
+	collected := 0
+	for _, p := range procs {
+		if p.Status == 1 && now >= p.FinishAt {
+			p.Status = 2
+		}
+		if p.Status == 2 {
+			r := recipeMap[p.RecipeKey]
+			if r == nil {
+				continue
+			}
+			sellPrice := applyMarket(r.SellPrice, "recipe_"+r.Key)
+			totalValue += sellPrice
+			collected++
+			_ = model.CollectFarmProcess(p.Id)
+		}
+	}
+
+	if collected == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可收取的成品"})
+		return
+	}
+
+	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.AddFarmLog(tgId, "craft_sell", totalValue, fmt.Sprintf("收取%d件加工品", collected))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("收取 %d 件成品，收入 $%.2f", collected, webFarmQuotaFloat(totalValue)),
+		"data": gin.H{
+			"count": collected,
+			"total": webFarmQuotaFloat(totalValue),
 		},
 	})
 }
