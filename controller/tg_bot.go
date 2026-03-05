@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1312,6 +1314,43 @@ func tgPostReturnsOk(apiUrl string, body map[string]interface{}) bool {
 		common.SysError(fmt.Sprintf("TG Bot: API error: %s", string(respBody)))
 	}
 	return ok
+}
+
+// sendTgPhoto 发送图片到 Telegram（multipart upload）
+func sendTgPhoto(chatId int64, pngData []byte, caption string, keyboard *TgInlineKeyboardMarkup) {
+	token := common.TelegramBotToken
+	if token == "" {
+		return
+	}
+	apiUrl := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", token)
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("chat_id", fmt.Sprintf("%d", chatId))
+	if caption != "" {
+		_ = w.WriteField("caption", caption)
+	}
+	if keyboard != nil {
+		kbBytes, _ := common.Marshal(keyboard)
+		_ = w.WriteField("reply_markup", string(kbBytes))
+	}
+	part, _ := w.CreateFormFile("photo", "chart.png")
+	_, _ = part.Write(pngData)
+	_ = w.Close()
+
+	resp, err := http.Post(apiUrl, w.FormDataContentType(), &buf)
+	if err != nil {
+		common.SysError("TG Bot: sendPhoto failed: " + err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	if err := common.Unmarshal(respBody, &result); err == nil {
+		if ok, _ := result["ok"].(bool); !ok {
+			common.SysError(fmt.Sprintf("TG Bot: sendPhoto API error: %s", string(respBody)))
+		}
+	}
 }
 
 // ========== Admin API: Farm Management ==========

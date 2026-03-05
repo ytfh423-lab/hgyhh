@@ -334,6 +334,16 @@ var marketMu sync.RWMutex
 var marketLastUpdate int64
 var marketNextUpdate int64
 
+// 市场价格历史（用于波动图）
+type marketSnapshot struct {
+	Timestamp int64          `json:"timestamp"`
+	Prices    map[string]int `json:"prices"` // key -> multiplier%
+}
+
+var marketHistory []marketSnapshot
+
+const marketHistoryMaxLen = 48 // 保留最近48次快照
+
 func init() {
 	farmCropMap = make(map[string]*farmCropDef)
 	farmCropByShort = make(map[string]*farmCropDef)
@@ -384,6 +394,19 @@ func refreshMarketPrices() {
 	}
 	marketLastUpdate = now
 	marketNextUpdate = now + int64(common.TgBotMarketRefreshHours*3600)
+
+	// 保存快照到历史
+	snapshot := marketSnapshot{
+		Timestamp: now,
+		Prices:    make(map[string]int, len(marketPrices)),
+	}
+	for k, v := range marketPrices {
+		snapshot.Prices[k] = v
+	}
+	marketHistory = append(marketHistory, snapshot)
+	if len(marketHistory) > marketHistoryMaxLen {
+		marketHistory = marketHistory[len(marketHistory)-marketHistoryMaxLen:]
+	}
 }
 
 func ensureMarketFresh() {
@@ -635,6 +658,9 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	case data == "farm_market":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockMarket, "市场", chatId, msgId, from) { return }
 		showFarmMarket(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_chart_"):
+		cat := strings.TrimPrefix(data, "farm_chart_")
+		doFarmMarketChart(chatId, msgId, tgId, cat, from)
 	case data == "farm_levelup":
 		showFarmLevelUp(chatId, msgId, tgId, from)
 	case data == "farm_dolevelup":
@@ -3436,6 +3462,14 @@ func showFarmMarket(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{
+				{Text: "📊 作物波动图", CallbackData: "farm_chart_crop"},
+				{Text: "📊 鱼类波动图", CallbackData: "farm_chart_fish"},
+			},
+			{
+				{Text: "📊 肉类波动图", CallbackData: "farm_chart_meat"},
+				{Text: "📊 加工品波动图", CallbackData: "farm_chart_recipe"},
+			},
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
 	}, from)
@@ -3454,6 +3488,35 @@ func marketTag(m int) string {
 		return "📉跌"
 	}
 	return "📉暴跌"
+}
+
+// doFarmMarketChart 生成并发送市场波动图
+func doFarmMarketChart(chatId int64, editMsgId int, tgId string, category string, from *TgUser) {
+	ensureMarketFresh()
+
+	pngData, err := generateMarketChartPNG(category)
+	if err != nil {
+		farmSend(chatId, editMsgId, "📊 "+err.Error()+"\n\n市场需要至少刷新2次才能生成波动图。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回市场", CallbackData: "farm_market"}},
+			},
+		}, from)
+		return
+	}
+
+	sendTgPhoto(chatId, pngData, getCategoryTitle(category), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{
+				{Text: "📊 作物", CallbackData: "farm_chart_crop"},
+				{Text: "📊 鱼类", CallbackData: "farm_chart_fish"},
+			},
+			{
+				{Text: "📊 肉类", CallbackData: "farm_chart_meat"},
+				{Text: "📊 加工品", CallbackData: "farm_chart_recipe"},
+			},
+			{{Text: "📈 返回市场", CallbackData: "farm_market"}},
+		},
+	})
 }
 
 // ========== 银行贷款 ==========

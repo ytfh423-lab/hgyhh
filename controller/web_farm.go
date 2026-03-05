@@ -1259,6 +1259,58 @@ func WebFarmMarket(c *gin.Context) {
 	})
 }
 
+// WebFarmMarketHistory returns market price history for chart rendering
+func WebFarmMarketHistory(c *gin.Context) {
+	ensureMarketFresh()
+
+	marketMu.RLock()
+	history := make([]marketSnapshot, len(marketHistory))
+	copy(history, marketHistory)
+	marketMu.RUnlock()
+
+	type historyPoint struct {
+		Timestamp int64          `json:"timestamp"`
+		Prices    map[string]int `json:"prices"`
+	}
+
+	points := make([]historyPoint, len(history))
+	for i, snap := range history {
+		points[i] = historyPoint{
+			Timestamp: snap.Timestamp,
+			Prices:    snap.Prices,
+		}
+	}
+
+	// 构建物品元信息
+	type itemMeta struct {
+		Key      string `json:"key"`
+		Name     string `json:"name"`
+		Emoji    string `json:"emoji"`
+		Category string `json:"category"`
+	}
+	var items []itemMeta
+	for _, crop := range farmCrops {
+		items = append(items, itemMeta{"crop_" + crop.Key, crop.Name, crop.Emoji, "crop"})
+	}
+	for _, fish := range fishTypes {
+		items = append(items, itemMeta{"fish_" + fish.Key, fish.Name, fish.Emoji, "fish"})
+	}
+	for _, a := range ranchAnimals {
+		items = append(items, itemMeta{"meat_" + a.Key, a.Name + "肉", a.Emoji, "meat"})
+	}
+	for _, r := range recipes {
+		items = append(items, itemMeta{"recipe_" + r.Key, r.Name, r.Emoji, "recipe"})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"history": points,
+			"items":   items,
+		},
+	})
+}
+
 // ========== 等级系统 ==========
 
 // WebFarmLevelInfo returns current level, prices, feature unlock info

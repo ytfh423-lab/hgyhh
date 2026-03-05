@@ -46,6 +46,8 @@ import {
   Warehouse,
 } from 'lucide-react';
 
+import { VChart } from '@visactor/react-vchart';
+
 const Farm3DView = lazy(() => import('./Farm3D'));
 
 const { Text, Title } = Typography;
@@ -1598,6 +1600,111 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
   );
 };
 
+// ===================== Market Chart =====================
+const CHART_COLORS = [
+  '#22c55e', '#0ea5e9', '#f97316', '#ef4444', '#a855f7', '#eab308',
+  '#06b6d4', '#e11d48', '#14b8a6', '#8b5cf6', '#d97706', '#64748b',
+  '#84cc16', '#db2777', '#0d9488', '#c026d3', '#2563eb', '#dc2626',
+  '#65a30d', '#f43f5e', '#a3e635', '#7871c6', '#16a34a',
+];
+
+const MarketChart = ({ t }) => {
+  const [historyData, setHistoryData] = useState(null);
+  const [chartCat, setChartCat] = useState('crop');
+  const [loading, setLoading] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/market/history');
+      if (res.success) setHistoryData(res.data);
+    } catch (e) { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  if (loading && !historyData) return <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>;
+  if (!historyData || !historyData.history || historyData.history.length < 2) {
+    return (
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+        <Text type='tertiary' style={{ display: 'block', textAlign: 'center', padding: 20 }}>
+          📊 {t('市场需要至少刷新2次才能显示波动图')}
+        </Text>
+      </Card>
+    );
+  }
+
+  const catItems = (historyData.items || []).filter(it => it.category === chartCat);
+  const chartData = [];
+  for (const snap of historyData.history) {
+    const timeStr = new Date(snap.timestamp * 1000).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    for (const item of catItems) {
+      const val = snap.prices?.[item.key];
+      if (val !== undefined) {
+        chartData.push({ time: timeStr, name: item.emoji + item.name, value: val });
+      }
+    }
+  }
+
+  const spec = {
+    type: 'line',
+    data: { values: chartData },
+    xField: 'time',
+    yField: 'value',
+    seriesField: 'name',
+    point: { visible: true, size: 4 },
+    line: { style: { lineWidth: 2 } },
+    legends: { visible: true, orient: 'bottom', type: 'scroll', maxRow: 2 },
+    axes: [
+      { orient: 'left', title: { visible: true, text: t('倍率') + ' %' }, min: 0 },
+      { orient: 'bottom', title: { visible: false }, label: { autoRotate: true, autoRotateAngle: [-45] } },
+    ],
+    markLine: [{
+      y: 100,
+      line: { style: { stroke: '#ef4444', lineWidth: 1, lineDash: [4, 4] } },
+      label: { visible: true, text: '100%', style: { fill: '#ef4444', fontSize: 10 } },
+    }],
+    tooltip: {
+      mark: { content: [{ key: d => d.name, value: d => d.value + '%' }] },
+    },
+    color: CHART_COLORS.slice(0, catItems.length),
+    height: 340,
+    padding: { left: 10, right: 10, top: 10, bottom: 10 },
+  };
+
+  const cats = [
+    { key: 'crop', label: '🌾 ' + t('作物') },
+    { key: 'fish', label: '🐟 ' + t('鱼类') },
+    { key: 'meat', label: '🥩 ' + t('肉类') },
+    { key: 'recipe', label: '🏭 ' + t('加工品') },
+  ];
+
+  return (
+    <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text strong>📊 {t('市场波动图')}</Text>
+        <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadHistory} loading={loading} />
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+        {cats.map(c => (
+          <Tag key={c.key} size='large' color={chartCat === c.key ? 'blue' : 'grey'}
+            style={{ cursor: 'pointer' }} onClick={() => setChartCat(c.key)}>
+            {c.label}
+          </Tag>
+        ))}
+      </div>
+      {chartData.length > 0 ? (
+        <VChart spec={spec} />
+      ) : (
+        <Text type='tertiary' style={{ display: 'block', textAlign: 'center', padding: 20 }}>
+          {t('暂无数据')}
+        </Text>
+      )}
+    </Card>
+  );
+};
+
 // ===================== Market Page =====================
 const MarketPage = ({ t }) => {
   const [marketData, setMarketData] = useState(null);
@@ -1676,6 +1783,8 @@ const MarketPage = ({ t }) => {
         </div>
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadMarket} loading={marketLoading} />
       </div>
+
+      <MarketChart t={t} />
 
       {categories.map(cat => {
         const items = (marketData.prices || []).filter(p => p.category === cat.key);
