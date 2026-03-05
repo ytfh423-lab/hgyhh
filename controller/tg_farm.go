@@ -2435,7 +2435,6 @@ func doFarmLevelUp(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 	_ = model.DecreaseUserQuota(user.Id, price)
 
-	newLevel := level + 1
 	model.SetFarmLevel(tgId, newLevel)
 	model.AddFarmLog(tgId, "levelup", -price, fmt.Sprintf("升级到Lv.%d", newLevel))
 
