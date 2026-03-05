@@ -509,6 +509,7 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
 const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const [bankData, setBankData] = useState(null);
   const [bankLoading, setBankLoading] = useState(true);
+  const [mortgageAmount, setMortgageAmount] = useState(100);
 
   const loadBank = useCallback(async () => {
     setBankLoading(true);
@@ -524,6 +525,15 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
 
   const handleLoan = async () => {
     const res = await doAction('/api/farm/bank/loan', {});
+    if (res) { loadBank(); loadFarm(); }
+  };
+
+  const handleMortgage = async () => {
+    if (!mortgageAmount || mortgageAmount < 1 || mortgageAmount > 1000) {
+      showError(t('金额必须在 $1 ~ $1000 之间'));
+      return;
+    }
+    const res = await doAction('/api/farm/bank/mortgage', { amount: mortgageAmount });
     if (res) { loadBank(); loadFarm(); }
   };
 
@@ -545,6 +555,12 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
 
   return (
     <div>
+      {/* Mortgage blocked warning */}
+      {bankData.mortgage_blocked && (
+        <Banner type='danger' description={t('由于抵押贷款违约，你已被永久禁止升级到10级及以上等级')}
+          style={{ marginBottom: 12, borderRadius: 8 }} />
+      )}
+
       {/* Balance & Credit info */}
       <Card className='!rounded-xl' bodyStyle={{ padding: '12px 14px' }}
         style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
@@ -554,10 +570,10 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
           <Tag size='large' color='cyan' style={{ borderRadius: 6 }}>📊 {t('信用评分')}: {bankData.credit_score}/{bankData.max_score}</Tag>
         </div>
         <Descriptions size='small' row data={[
-          { key: t('可贷额度'), value: formatBalance(bankData.max_loan) },
-          { key: t('利率'), value: `${bankData.interest_rate}%` },
-          { key: t('利息'), value: formatBalance(bankData.interest) },
-          { key: t('应还总额'), value: formatBalance(bankData.total_due) },
+          { key: t('信用贷额度'), value: formatBalance(bankData.max_loan) },
+          { key: t('信用贷利率'), value: `${bankData.interest_rate}%` },
+          { key: t('抵押贷上限'), value: formatBalance(bankData.mortgage_max) },
+          { key: t('抵押贷利率'), value: `${bankData.mortgage_interest_rate}%` },
           { key: t('还款期限'), value: `${bankData.loan_days} ${t('天')}` },
         ]} />
       </Card>
@@ -567,9 +583,12 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
         style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
         {bankData.has_active_loan && loan ? (
           <div>
-            <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>📋 {t('当前贷款')}</Text>
+            <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>
+              📋 {t('当前贷款')} {loan.loan_type === 1 ? <Tag size='small' color='orange'>🏠 {t('抵押')}</Tag> : <Tag size='small' color='blue'>{t('信用')}</Tag>}
+            </Text>
             {loan.overdue && (
-              <Banner type='danger' description={t('贷款已逾期！请尽快还款')} style={{ marginBottom: 8, borderRadius: 8 }} />
+              <Banner type='danger' description={loan.loan_type === 1 ? t('抵押贷款已逾期！逾期将执行惩罚！') : t('贷款已逾期！请尽快还款')}
+                style={{ marginBottom: 8, borderRadius: 8 }} />
             )}
             <Descriptions size='small' row data={[
               { key: t('本金'), value: formatBalance(loan.principal) },
@@ -595,13 +614,39 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
         ) : (
           <div>
             <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>✅ {t('当前无贷款')}</Text>
-            <Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 12 }}>
-              {t('可申请贷款')} {formatBalance(bankData.max_loan)}，{t('利息')} {formatBalance(bankData.interest)}，{t('还款期限')} {bankData.loan_days}{t('天')}
-            </Text>
-            <Button theme='solid' type='primary' onClick={handleLoan}
-              loading={actionLoading} style={{ borderRadius: 8 }}>
-              💵 {t('申请贷款')} ({formatBalance(bankData.max_loan)})
-            </Button>
+
+            {/* Credit loan */}
+            <div style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--semi-color-border)',
+              background: 'var(--semi-color-fill-0)', marginBottom: 10 }}>
+              <Text strong size='small' style={{ display: 'block', marginBottom: 6 }}>💵 {t('信用贷款')}</Text>
+              <Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 8 }}>
+                {t('额度')} {formatBalance(bankData.max_loan)}，{t('利息')} {formatBalance(bankData.interest)}，{t('期限')} {bankData.loan_days}{t('天')}
+              </Text>
+              <Button theme='solid' type='primary' onClick={handleLoan}
+                loading={actionLoading} style={{ borderRadius: 8 }}>
+                💵 {t('申请信用贷款')} ({formatBalance(bankData.max_loan)})
+              </Button>
+            </div>
+
+            {/* Mortgage loan */}
+            <div style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--semi-color-border)',
+              background: 'var(--semi-color-fill-0)' }}>
+              <Text strong size='small' style={{ display: 'block', marginBottom: 6 }}>🏠 {t('抵押贷款')}</Text>
+              <Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 4 }}>
+                {t('以10级升级权为抵押，最高')} {formatBalance(bankData.mortgage_max)}，{t('利率')} {bankData.mortgage_interest_rate}%
+              </Text>
+              <Banner type='warning' style={{ marginBottom: 8, borderRadius: 6 }}
+                description={t('抵押贷款不能用于升级！逾期未还：10级以下永久禁升10级，10级以上封禁账号')} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Text size='small'>$</Text>
+                <InputNumber value={mortgageAmount} onChange={setMortgageAmount}
+                  min={1} max={1000} style={{ width: 120 }} />
+                <Button theme='solid' type='warning' onClick={handleMortgage}
+                  loading={actionLoading} style={{ borderRadius: 8 }}>
+                  🏠 {t('申请抵押贷款')}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </Card>
@@ -614,17 +659,22 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
           <Table dataSource={history} pagination={false} size='small' columns={[
             { title: t('日期'), dataIndex: 'created_at', width: 100,
               render: v => new Date(v * 1000).toLocaleDateString() },
+            { title: t('类型'), dataIndex: 'loan_type', width: 60,
+              render: v => v === 1
+                ? <Tag size='small' color='orange'>{t('抵押')}</Tag>
+                : <Tag size='small' color='blue'>{t('信用')}</Tag> },
             { title: t('本金'), dataIndex: 'principal', width: 90,
               render: v => formatBalance(v) },
             { title: t('应还'), dataIndex: 'total_due', width: 90,
               render: v => formatBalance(v) },
             { title: t('已还'), dataIndex: 'repaid', width: 90,
               render: v => formatBalance(v) },
-            { title: t('评分'), dataIndex: 'credit_score', width: 50 },
             { title: t('状态'), dataIndex: 'status', width: 70,
               render: v => v === 1
                 ? <Tag size='small' color='green'>{t('已还清')}</Tag>
-                : <Tag size='small' color='orange'>{t('还款中')}</Tag> },
+                : v === 2
+                  ? <Tag size='small' color='red'>{t('违约')}</Tag>
+                  : <Tag size='small' color='orange'>{t('还款中')}</Tag> },
           ]} />
         </Card>
       )}

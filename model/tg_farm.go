@@ -503,7 +503,8 @@ type TgFarmLoan struct {
 	Interest     int    `json:"interest"`                     // 利息(quota)
 	TotalDue     int    `json:"total_due"`                    // 应还总额
 	Repaid       int    `json:"repaid" gorm:"default:0"`      // 已还金额
-	Status       int    `json:"status" gorm:"default:0"`      // 0=未还清 1=已还清
+	Status       int    `json:"status" gorm:"default:0"`      // 0=未还清 1=已还清 2=违约
+	LoanType     int    `json:"loan_type" gorm:"default:0"`   // 0=普通贷款 1=抵押贷款
 	CreditScore  int    `json:"credit_score"`                 // 贷款时的信用评分
 	DueAt        int64  `json:"due_at"`                       // 到期时间
 	CreatedAt    int64  `json:"created_at"`
@@ -590,8 +591,13 @@ func GetCreditScore(telegramId string) int {
 	return score
 }
 
-// CreateLoan 创建贷款
+// CreateLoan 创建贷款 (loanType: 0=普通, 1=抵押)
 func CreateLoan(telegramId string, principal, interest, totalDue int, creditScore int, dueDays int) (*TgFarmLoan, error) {
+	return CreateLoanWithType(telegramId, principal, interest, totalDue, creditScore, dueDays, 0)
+}
+
+// CreateLoanWithType 创建指定类型贷款
+func CreateLoanWithType(telegramId string, principal, interest, totalDue int, creditScore int, dueDays int, loanType int) (*TgFarmLoan, error) {
 	now := time.Now().Unix()
 	loan := &TgFarmLoan{
 		TelegramId:  telegramId,
@@ -600,6 +606,7 @@ func CreateLoan(telegramId string, principal, interest, totalDue int, creditScor
 		TotalDue:    totalDue,
 		Repaid:      0,
 		Status:      0,
+		LoanType:    loanType,
 		CreditScore: creditScore,
 		DueAt:       now + int64(dueDays)*86400,
 		CreatedAt:   now,
@@ -635,6 +642,75 @@ func GetLoanHistory(telegramId string, limit int) ([]*TgFarmLoan, error) {
 	var loans []*TgFarmLoan
 	err := DB.Where("telegram_id = ?", telegramId).Order("id desc").Limit(limit).Find(&loans).Error
 	return loans, err
+}
+
+// HasActiveMortgageLoan 检查是否有未还清的抵押贷款
+func HasActiveMortgageLoan(telegramId string) bool {
+	var count int64
+	DB.Model(&TgFarmLoan{}).Where("telegram_id = ? AND loan_type = 1 AND status = 0", telegramId).Count(&count)
+	return count > 0
+}
+
+// HasMortgageBlocked 检查是否被永久禁止升级到10级+
+func HasMortgageBlocked(telegramId string) bool {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_mortgage_blocked").First(&item).Error
+	if err != nil {
+		return false
+	}
+	return item.Quantity > 0
+}
+
+// SetMortgageBlocked 设置永久禁止升级到10级+
+func SetMortgageBlocked(telegramId string) {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_mortgage_blocked").First(&item).Error
+	if err != nil {
+		DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_mortgage_blocked", Quantity: 1})
+	} else {
+		DB.Model(&TgFarmItem{}).Where("telegram_id = ? AND item_type = ?", telegramId, "_mortgage_blocked").Update("quantity", 1)
+	}
+}
+
+// BanUserByTelegramId 通过tgId封禁用户平台账号
+func BanUserByTelegramId(telegramId string) error {
+	var user User
+	err := DB.Where("telegram_id = ?", telegramId).First(&user).Error
+	if err != nil {
+		return err
+	}
+	return DB.Model(&User{}).Where("id = ?", user.Id).Update("status", common.UserStatusDisabled).Error
+}
+
+// CheckMortgageDefault 检查抵押贷款是否违约，执行惩罚
+// 返回: defaulted bool, penalty string
+func CheckMortgageDefault(telegramId string) (bool, string) {
+	var loans []TgFarmLoan
+	now := time.Now().Unix()
+	// 找到所有逾期的抵押贷款
+	DB.Where("telegram_id = ? AND loan_type = 1 AND status = 0 AND due_at < ?", telegramId, now).Find(&loans)
+	if len(loans) == 0 {
+		return false, ""
+	}
+
+	level := GetFarmLevel(telegramId)
+	for _, loan := range loans {
+		// 标记为违约
+		DB.Model(&TgFarmLoan{}).Where("id = ?", loan.Id).Update("status", 2)
+
+		if level >= 10 {
+			// 10级以上：封禁平台账号
+			_ = BanUserByTelegramId(telegramId)
+			AddFarmLog(telegramId, "mortgage_default", 0, "抵押贷款违约-账号封禁")
+			return true, "ban"
+		} else {
+			// 10级以下：永久禁止升级到10级+
+			SetMortgageBlocked(telegramId)
+			AddFarmLog(telegramId, "mortgage_default", 0, "抵押贷款违约-永久禁止10级")
+			return true, "block_level"
+		}
+	}
+	return false, ""
 }
 
 // ========== 管理员功能 ==========

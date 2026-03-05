@@ -518,6 +518,12 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		showFarmBank(chatId, msgId, tgId, from)
 	case data == "farm_doloan":
 		doFarmLoan(chatId, msgId, tgId, from)
+	case data == "farm_mortgage":
+		showFarmMortgage(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_domortgage_"):
+		amtStr := strings.TrimPrefix(data, "farm_domortgage_")
+		amt, _ := strconv.Atoi(amtStr)
+		doFarmMortgage(chatId, msgId, tgId, amt, from)
 	case data == "farm_repay":
 		doFarmRepay(chatId, msgId, tgId, from)
 	case data == "farm_repay_half":
@@ -2101,6 +2107,7 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		"task": "任务", "achieve": "成就",
 		"levelup": "升级",
 		"loan": "贷款", "repay": "还款",
+		"mortgage_default": "抵押违约",
 	}
 
 	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
@@ -2391,6 +2398,28 @@ func doFarmLevelUp(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	level := model.GetFarmLevel(tgId)
 	if level >= common.TgBotFarmMaxLevel {
 		farmSend(chatId, editMsgId, "❌ 已达最高等级", nil, from)
+		return
+	}
+
+	// 抵押贷款期间禁止升级
+	if model.HasActiveMortgageLoan(tgId) {
+		farmSend(chatId, editMsgId, "❌ 你有未还清的抵押贷款，还清后才能升级！\n\n抵押贷款的资金不能用于升级。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏦 去银行还款", CallbackData: "farm_bank"}},
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	// 抵押违约永久禁止10级+
+	newLevel := level + 1
+	if newLevel >= 10 && model.HasMortgageBlocked(tgId) {
+		farmSend(chatId, editMsgId, "🚫 由于抵押贷款违约，你已被永久禁止升级到10级及以上等级。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
 		return
 	}
 
@@ -2881,6 +2910,22 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
+	// 检查抵押贷款违约
+	defaulted, penalty := model.CheckMortgageDefault(tgId)
+	if defaulted {
+		if penalty == "ban" {
+			farmSend(chatId, editMsgId, "🚫 你的抵押贷款已逾期违约！\n\n由于你等级≥10级，你的平台账号已被封禁。", nil, from)
+			return
+		} else if penalty == "block_level" {
+			farmSend(chatId, editMsgId, "⚠️ 你的抵押贷款已逾期违约！\n\n你已被永久禁止升级到10级及以上等级。", &TgInlineKeyboardMarkup{
+				InlineKeyboard: [][]TgInlineKeyboardButton{
+					{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+				},
+			}, from)
+			return
+		}
+	}
+
 	creditScore := model.GetCreditScore(tgId)
 	baseAmount := common.TgBotFarmBankBaseAmount
 	maxLoan := baseAmount * creditScore
@@ -2903,6 +2948,14 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		farmQuotaStr(totalDue),
 		loanDays)
 
+	// 抵押贷款信息
+	mortgageBlocked := model.HasMortgageBlocked(tgId)
+	if mortgageBlocked {
+		text += "\n🚫 你已被永久禁止升级到10级及以上（抵押违约）\n"
+	}
+	text += fmt.Sprintf("\n🏠 抵押贷款: 最高 %s（利率%d%%）\n  以10级升级权为抵押，还不上将永久失去10级资格\n  10级以上违约将封禁账号\n  ⚠️ 抵押贷款不能用于升级\n",
+		farmQuotaStr(common.TgBotFarmMortgageMaxAmount), common.TgBotFarmMortgageInterestRate)
+
 	// 检查是否有未还贷款
 	activeLoan, loanErr := model.GetActiveLoan(tgId)
 	var rows [][]TgInlineKeyboardButton
@@ -2919,12 +2972,18 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			overdue = " ⚠️已逾期！"
 		}
 
-		text += fmt.Sprintf("\n📋 当前贷款:\n"+
+		loanTypeTag := "普通"
+		if activeLoan.LoanType == 1 {
+			loanTypeTag = "🏠抵押"
+		}
+
+		text += fmt.Sprintf("\n📋 当前贷款（%s）:\n"+
 			"  本金: %s\n"+
 			"  利息: %s\n"+
 			"  已还: %s\n"+
 			"  剩余: %s\n"+
 			"  剩余天数: %d天%s\n",
+			loanTypeTag,
 			farmQuotaStr(activeLoan.Principal),
 			farmQuotaStr(activeLoan.Interest),
 			farmQuotaStr(activeLoan.Repaid),
@@ -2943,7 +3002,10 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	} else {
 		text += "\n✅ 当前无贷款\n"
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("💵 申请贷款 (%s)", farmQuotaStr(maxLoan)), CallbackData: "farm_doloan"},
+			{Text: fmt.Sprintf("💵 信用贷款 (%s)", farmQuotaStr(maxLoan)), CallbackData: "farm_doloan"},
+		})
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "🏠 抵押贷款（$1~$1000）", CallbackData: "farm_mortgage"},
 		})
 	}
 
@@ -2955,10 +3017,16 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			statusTag := "⏳还款中"
 			if loan.Status == 1 {
 				statusTag = "✅已还清"
+			} else if loan.Status == 2 {
+				statusTag = "❌违约"
+			}
+			typeTag := ""
+			if loan.LoanType == 1 {
+				typeTag = "[抵押]"
 			}
 			ts := time.Unix(loan.CreatedAt, 0)
-			text += fmt.Sprintf("  %s 本金%s 评分%d %s\n",
-				ts.Format("01-02"), farmQuotaStr(loan.Principal), loan.CreditScore, statusTag)
+			text += fmt.Sprintf("  %s %s本金%s 评分%d %s\n",
+				ts.Format("01-02"), typeTag, farmQuotaStr(loan.Principal), loan.CreditScore, statusTag)
 		}
 	}
 
@@ -3095,6 +3163,128 @@ func doFarmRepayPartial(chatId int64, editMsgId int, tgId string, percent int, f
 
 	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 还款成功！\n\n💰 还款金额: %s%s",
 		farmQuotaStr(repayAmount), statusMsg), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 抵押贷款 ==========
+
+func showFarmMortgage(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	// 检查是否有未还贷款
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		farmSend(chatId, editMsgId, "❌ 你还有未还清的贷款！请先还清再申请。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			},
+		}, from)
+		return
+	}
+
+	interestRate := common.TgBotFarmMortgageInterestRate
+	loanDays := common.TgBotFarmBankMaxLoanDays
+	level := model.GetFarmLevel(tgId)
+
+	text := fmt.Sprintf("🏠 抵押贷款\n\n"+
+		"以你的10级升级权力为抵押物\n"+
+		"📈 利率: %d%%\n"+
+		"📅 还款期限: %d天\n"+
+		"💰 可贷金额: $1 ~ $1000\n\n"+
+		"⚠️ 注意事项:\n"+
+		"• 抵押贷款金额不能用于升级\n"+
+		"• 逾期未还: \n",
+		interestRate, loanDays)
+
+	if level >= 10 {
+		text += "  🚫 你等级≥10，违约将直接封禁平台账号！\n"
+	} else {
+		text += "  🚫 将永久失去升级到10级的资格\n"
+	}
+
+	text += "\n请选择贷款金额："
+
+	var rows [][]TgInlineKeyboardButton
+	// 常用金额快捷按钮
+	amounts := []int{100, 200, 500, 1000}
+	for _, amt := range amounts {
+		principal := amt * 500000 // $1 = 500000 quota
+		interest := principal * interestRate / 100
+		total := principal + interest
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("$%d（还%s）", amt, farmQuotaStr(total)), CallbackData: fmt.Sprintf("farm_domortgage_%d", amt)},
+		})
+	}
+
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🏦 返回银行", CallbackData: "farm_bank"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmMortgage(chatId int64, editMsgId int, tgId string, amountDollar int, from *TgUser) {
+	if amountDollar < 1 || amountDollar > 1000 {
+		farmSend(chatId, editMsgId, "❌ 金额必须在 $1 ~ $1000 之间", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏠 返回抵押贷款", CallbackData: "farm_mortgage"}},
+			},
+		}, from)
+		return
+	}
+
+	// 检查是否有未还贷款
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		farmSend(chatId, editMsgId, "❌ 你还有未还清的贷款！", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			},
+		}, from)
+		return
+	}
+
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	principal := amountDollar * 500000 // $1 = 500000 quota
+	if principal > common.TgBotFarmMortgageMaxAmount {
+		principal = common.TgBotFarmMortgageMaxAmount
+	}
+	interestRate := common.TgBotFarmMortgageInterestRate
+	interest := principal * interestRate / 100
+	totalDue := principal + interest
+	loanDays := common.TgBotFarmBankMaxLoanDays
+	creditScore := model.GetCreditScore(tgId)
+
+	// 创建抵押贷款 (loanType=1)
+	loan, err := model.CreateLoanWithType(tgId, principal, interest, totalDue, creditScore, loanDays, 1)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 抵押贷款申请失败", nil, from)
+		return
+	}
+
+	// 放款
+	_ = model.IncreaseUserQuota(user.Id, principal, true)
+	model.AddFarmLog(tgId, "loan", principal, fmt.Sprintf("抵押贷款$%d", amountDollar))
+	common.SysLog(fmt.Sprintf("TG Farm Mortgage: user %s loan $%d, due $%.2f", tgId, amountDollar, float64(totalDue)/500000.0))
+
+	dueTime := time.Unix(loan.DueAt, 0)
+	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 抵押贷款成功！\n\n"+
+		"💵 贷款金额: %s\n"+
+		"📈 利息: %s (%d%%)\n"+
+		"💸 应还总额: %s\n"+
+		"📅 还款期限: %s\n\n"+
+		"⚠️ 此贷款不能用于升级\n"+
+		"⚠️ 逾期未还将执行抵押惩罚",
+		farmQuotaStr(principal),
+		farmQuotaStr(interest), interestRate,
+		farmQuotaStr(totalDue),
+		dueTime.Format("2006-01-02")), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},

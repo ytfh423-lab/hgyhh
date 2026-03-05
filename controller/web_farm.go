@@ -1326,6 +1326,19 @@ func WebFarmLevelUp(c *gin.Context) {
 		return
 	}
 
+	// 抵押贷款期间禁止升级
+	if model.HasActiveMortgageLoan(tgId) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你有未还清的抵押贷款，还清后才能升级！抵押贷款的资金不能用于升级。"})
+		return
+	}
+
+	// 抵押违约永久禁止10级+
+	newLevel := level + 1
+	if newLevel >= 10 && model.HasMortgageBlocked(tgId) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "由于抵押贷款违约，你已被永久禁止升级到10级及以上等级。"})
+		return
+	}
+
 	price := getLevelUpPrice(level)
 	userQuota, _ := model.GetUserQuota(user.Id, false)
 	if userQuota < price {
@@ -1334,7 +1347,6 @@ func WebFarmLevelUp(c *gin.Context) {
 	}
 	_ = model.DecreaseUserQuota(user.Id, price)
 
-	newLevel := level + 1
 	model.SetFarmLevel(tgId, newLevel)
 	model.AddFarmLog(tgId, "levelup", -price, fmt.Sprintf("升级到Lv.%d", newLevel))
 
@@ -1950,6 +1962,13 @@ func WebFarmBankView(c *gin.Context) {
 		return
 	}
 
+	// 检查抵押贷款违约
+	defaulted, penalty := model.CheckMortgageDefault(tgId)
+	if defaulted && penalty == "ban" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！由于你等级≥10级，你的平台账号已被封禁。"})
+		return
+	}
+
 	creditScore := model.GetCreditScore(tgId)
 	baseAmount := common.TgBotFarmBankBaseAmount
 	maxLoan := baseAmount * creditScore
@@ -1959,16 +1978,19 @@ func WebFarmBankView(c *gin.Context) {
 	loanDays := common.TgBotFarmBankMaxLoanDays
 
 	data := gin.H{
-		"balance":        webFarmQuotaFloat(user.Quota),
-		"credit_score":   creditScore,
-		"max_score":      common.TgBotFarmBankMaxMultiplier,
-		"max_loan":       webFarmQuotaFloat(maxLoan),
-		"interest_rate":  interestRate,
-		"interest":       webFarmQuotaFloat(interest),
-		"total_due":      webFarmQuotaFloat(totalDue),
-		"loan_days":      loanDays,
-		"unlock_level":   common.TgBotFarmBankUnlockLevel,
-		"has_active_loan": false,
+		"balance":                webFarmQuotaFloat(user.Quota),
+		"credit_score":           creditScore,
+		"max_score":              common.TgBotFarmBankMaxMultiplier,
+		"max_loan":               webFarmQuotaFloat(maxLoan),
+		"interest_rate":          interestRate,
+		"interest":               webFarmQuotaFloat(interest),
+		"total_due":              webFarmQuotaFloat(totalDue),
+		"loan_days":              loanDays,
+		"unlock_level":           common.TgBotFarmBankUnlockLevel,
+		"has_active_loan":        false,
+		"mortgage_blocked":       model.HasMortgageBlocked(tgId),
+		"mortgage_max":           webFarmQuotaFloat(common.TgBotFarmMortgageMaxAmount),
+		"mortgage_interest_rate": common.TgBotFarmMortgageInterestRate,
 	}
 
 	activeLoan, loanErr := model.GetActiveLoan(tgId)
@@ -1990,6 +2012,7 @@ func WebFarmBankView(c *gin.Context) {
 			"due_at":    activeLoan.DueAt,
 			"days_left": daysLeft,
 			"overdue":   now > activeLoan.DueAt,
+			"loan_type": activeLoan.LoanType,
 		}
 	}
 
@@ -2003,6 +2026,7 @@ func WebFarmBankView(c *gin.Context) {
 			"total_due":    webFarmQuotaFloat(loan.TotalDue),
 			"repaid":       webFarmQuotaFloat(loan.Repaid),
 			"status":       loan.Status,
+			"loan_type":    loan.LoanType,
 			"credit_score": loan.CreditScore,
 			"created_at":   loan.CreatedAt,
 			"due_at":       loan.DueAt,
@@ -2011,6 +2035,62 @@ func WebFarmBankView(c *gin.Context) {
 	data["history"] = historyList
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+
+// WebFarmMortgageLoan applies for a mortgage loan
+func WebFarmMortgageLoan(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Amount int `json:"amount"` // dollar amount 1-1000
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Amount < 1 || req.Amount > 1000 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "金额必须在 $1 ~ $1000 之间"})
+		return
+	}
+
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你还有未还清的贷款！请先还清再申请。"})
+		return
+	}
+
+	principal := req.Amount * 500000
+	if principal > common.TgBotFarmMortgageMaxAmount {
+		principal = common.TgBotFarmMortgageMaxAmount
+	}
+	interestRate := common.TgBotFarmMortgageInterestRate
+	interest := principal * interestRate / 100
+	totalDue := principal + interest
+	loanDays := common.TgBotFarmBankMaxLoanDays
+	creditScore := model.GetCreditScore(tgId)
+
+	loan, err := model.CreateLoanWithType(tgId, principal, interest, totalDue, creditScore, loanDays, 1)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "抵押贷款申请失败"})
+		return
+	}
+
+	_ = model.IncreaseUserQuota(user.Id, principal, true)
+	model.AddFarmLog(tgId, "loan", principal, fmt.Sprintf("抵押贷款$%d", req.Amount))
+	common.SysLog(fmt.Sprintf("TG Farm Mortgage: user %s loan $%d", tgId, req.Amount))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("抵押贷款成功！获得 $%d", req.Amount),
+		"data": gin.H{
+			"loan_id":      loan.Id,
+			"principal":    webFarmQuotaFloat(principal),
+			"interest":     webFarmQuotaFloat(interest),
+			"total_due":    webFarmQuotaFloat(totalDue),
+			"credit_score": creditScore,
+			"due_at":       loan.DueAt,
+			"loan_type":    1,
+		},
+	})
 }
 
 // WebFarmBankLoan applies for a new loan
