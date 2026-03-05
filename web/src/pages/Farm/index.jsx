@@ -18,6 +18,7 @@ import {
   Table,
   Descriptions,
   Banner,
+  InputNumber,
 } from '@douyinfe/semi-ui';
 import {
   Sprout,

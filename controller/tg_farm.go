@@ -2401,9 +2401,10 @@ func doFarmLevelUp(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 抵押贷款期间禁止升级
-	if model.HasActiveMortgageLoan(tgId) {
-		farmSend(chatId, editMsgId, "❌ 你有未还清的抵押贷款，还清后才能升级！\n\n抵押贷款的资金不能用于升级。", &TgInlineKeyboardMarkup{
+	// 有未还贷款时禁止升级
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		farmSend(chatId, editMsgId, "❌ 你有未还清的贷款，还清后才能升级！\n\n贷款资金不能用于升级。", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🏦 去银行还款", CallbackData: "farm_bank"}},
 				{{Text: "🔙 返回农场", CallbackData: "farm"}},
