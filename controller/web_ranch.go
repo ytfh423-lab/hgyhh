@@ -458,6 +458,68 @@ func WebRanchSlaughter(c *gin.Context) {
 	})
 }
 
+// WebRanchSlaughterStore slaughters a mature animal and stores meat in warehouse
+func WebRanchSlaughterStore(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		AnimalId int `json:"animal_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	animals, _ := model.GetRanchAnimals(tgId)
+	var target *model.TgRanchAnimal
+	for _, a := range animals {
+		if a.Id == req.AnimalId {
+			target = a
+			break
+		}
+	}
+	if target == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该动物不存在"})
+		return
+	}
+
+	updateRanchAnimalStatus(target)
+	if target.Status != 2 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该动物尚未成熟，无法屠宰"})
+		return
+	}
+
+	def := ranchAnimalMap[target.AnimalType]
+	if def == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知动物类型"})
+		return
+	}
+
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	if currentTotal+1 > common.TgBotFarmWarehouseMaxSlots {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库已满！请先出售仓库物品"})
+		return
+	}
+
+	err := model.DeleteRanchAnimal(target.Id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "操作失败"})
+		return
+	}
+
+	_ = model.AddToWarehouseWithCategory(tgId, "meat_"+def.Key, 1, "meat")
+	model.AddFarmLog(tgId, "ranch_store", 0, fmt.Sprintf("%s%s肉存入仓库", def.Emoji, def.Name))
+	common.SysLog(fmt.Sprintf("Web Ranch: user %s stored %s meat to warehouse", tgId, def.Key))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("屠宰并存入仓库成功！%s%s肉 → 仓库（3天后变质）", def.Emoji, def.Name),
+	})
+}
+
 // WebRanchCleanManure cleans manure for all alive animals
 func WebRanchCleanManure(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)

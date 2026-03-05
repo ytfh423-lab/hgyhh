@@ -154,6 +154,10 @@ func handleRanchCallback(cb *TgCallbackQuery) {
 		idStr := strings.TrimPrefix(data, "ranch_sl_")
 		animalId, _ := strconv.Atoi(idStr)
 		doRanchSlaughter(chatId, msgId, tgId, animalId, from)
+	case strings.HasPrefix(data, "ranch_store_"):
+		idStr := strings.TrimPrefix(data, "ranch_store_")
+		animalId, _ := strconv.Atoi(idStr)
+		doRanchSlaughterStore(chatId, msgId, tgId, animalId, from)
 	case data == "ranch_cleanup":
 		doRanchCleanup(chatId, msgId, tgId, from)
 	case data == "ranch_clean":
@@ -697,7 +701,7 @@ func showRanchSlaughterSelection(chatId int64, editMsgId int, tgId string, from 
 		return
 	}
 
-	text := "🔪 屠宰出售\n\n选择要出售的成熟动物：\n"
+	text := "🔪 屠宰\n\n选择要处理的成熟动物：\n⚠️ 肉类存入仓库后3天会变质\n"
 	var rows [][]TgInlineKeyboardButton
 	hasTarget := false
 	for _, a := range animals {
@@ -712,8 +716,10 @@ func showRanchSlaughterSelection(chatId int64, editMsgId int, tgId string, from 
 		hasTarget = true
 		mPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("%s %s → %s", def.Emoji, def.Name, farmQuotaStr(mPrice)),
+			{Text: fmt.Sprintf("💰 %s%s → %s", def.Emoji, def.Name, farmQuotaStr(mPrice)),
 				CallbackData: fmt.Sprintf("ranch_sl_%d", a.Id)},
+			{Text: fmt.Sprintf("📦 %s%s → 仓库", def.Emoji, def.Name),
+				CallbackData: fmt.Sprintf("ranch_store_%d", a.Id)},
 		})
 	}
 	if !hasTarget {
@@ -794,6 +800,75 @@ func doRanchSlaughter(chatId int64, editMsgId int, tgId string, animalId int, fr
 		def.Emoji, def.Name, farmQuotaStr(meatPrice)), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🔪 继续出售", CallbackData: "ranch_slaughter"},
+				{Text: "🐄 返回牧场", CallbackData: "ranch"}},
+		},
+	}, from)
+}
+
+func doRanchSlaughterStore(chatId int64, editMsgId int, tgId string, animalId int, from *TgUser) {
+	animals, err := model.GetRanchAnimals(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+
+	var target *model.TgRanchAnimal
+	for _, a := range animals {
+		if a.Id == animalId {
+			target = a
+			break
+		}
+	}
+	if target == nil {
+		farmSend(chatId, editMsgId, "❌ 该动物不存在。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	updateRanchAnimalStatus(target)
+	if target.Status != 2 {
+		farmSend(chatId, editMsgId, "❌ 该动物尚未成熟，无法屠宰。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	def := ranchAnimalMap[target.AnimalType]
+	if def == nil {
+		farmSend(chatId, editMsgId, "❌ 未知动物类型", nil, from)
+		return
+	}
+
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	if currentTotal+1 > common.TgBotFarmWarehouseMaxSlots {
+		farmSend(chatId, editMsgId, "❌ 仓库已满！请先出售仓库物品", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "📦 查看仓库", CallbackData: "farm_warehouse"}},
+				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	err = model.DeleteRanchAnimal(target.Id)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 操作失败", nil, from)
+		return
+	}
+
+	_ = model.AddToWarehouseWithCategory(tgId, "meat_"+def.Key, 1, "meat")
+	model.AddFarmLog(tgId, "ranch_store", 0, fmt.Sprintf("%s%s肉存入仓库", def.Emoji, def.Name))
+	common.SysLog(fmt.Sprintf("TG Ranch: user %s stored %s meat to warehouse", tgId, def.Key))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("📦 屠宰并存入仓库成功！\n\n%s %s肉 → 📦仓库\n⚠️ 3天后变质", def.Emoji, def.Name), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "📦 查看仓库", CallbackData: "farm_warehouse"}},
+			{{Text: "🔪 继续屠宰", CallbackData: "ranch_slaughter"},
 				{Text: "🐄 返回牧场", CallbackData: "ranch"}},
 		},
 	}, from)

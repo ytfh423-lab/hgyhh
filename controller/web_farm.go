@@ -2263,41 +2263,59 @@ func WebFarmWarehouseView(c *gin.Context) {
 	items, _ := model.GetWarehouseItems(tgId)
 	totalCount := model.GetWarehouseTotalCount(tgId)
 	season := getCurrentSeason()
+	now := time.Now().Unix()
 
 	var itemList []gin.H
 	for _, item := range items {
-		crop := farmCropMap[item.CropType]
-		if crop == nil {
-			continue
+		emoji, name := warehouseItemName(item)
+		unitPrice := warehouseItemSellPrice(item)
+
+		entry := gin.H{
+			"item_key":    item.CropType,
+			"category":    item.Category,
+			"name":        name,
+			"emoji":       emoji,
+			"quantity":    item.Quantity,
+			"unit_price":  webFarmQuotaFloat(unitPrice),
+			"total_value": webFarmQuotaFloat(item.Quantity * unitPrice),
+			"stored_at":   item.StoredAt,
 		}
-		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
-		seasonPrice := applySeasonPrice(marketPrice, crop)
-		itemList = append(itemList, gin.H{
-			"crop_key":     item.CropType,
-			"crop_name":    crop.Name,
-			"emoji":        crop.Emoji,
-			"quantity":     item.Quantity,
-			"unit_price":   webFarmQuotaFloat(seasonPrice),
-			"total_value":  webFarmQuotaFloat(item.Quantity * seasonPrice),
-			"in_season":    isCropInSeason(crop),
-			"season_pct":   getSeasonPriceMultiplier(crop),
-		})
+
+		if item.Category == "crop" {
+			crop := farmCropMap[item.CropType]
+			if crop != nil {
+				entry["in_season"] = isCropInSeason(crop)
+				entry["season_pct"] = getSeasonPriceMultiplier(crop)
+			}
+		} else if item.Category == "meat" {
+			expiry := int64(common.TgBotFarmWarehouseMeatExpiry)
+			entry["expire_at"] = item.StoredAt + expiry
+			entry["expire_remain"] = item.StoredAt + expiry - now
+		} else if item.Category == "recipe" {
+			expiry := int64(common.TgBotFarmWarehouseRecipeExpiry)
+			entry["expire_at"] = item.StoredAt + expiry
+			entry["expire_remain"] = item.StoredAt + expiry - now
+		}
+
+		itemList = append(itemList, entry)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"items":      itemList,
-			"total":      totalCount,
-			"max_slots":  common.TgBotFarmWarehouseMaxSlots,
-			"season":     season,
-			"season_name": seasonNames[season],
-			"days_left":  getSeasonDaysLeft(),
+			"items":        itemList,
+			"total":        totalCount,
+			"max_slots":    common.TgBotFarmWarehouseMaxSlots,
+			"season":       season,
+			"season_name":  seasonNames[season],
+			"days_left":    getSeasonDaysLeft(),
+			"meat_expiry":  common.TgBotFarmWarehouseMeatExpiry,
+			"recipe_expiry": common.TgBotFarmWarehouseRecipeExpiry,
 		},
 	})
 }
 
-// WebFarmWarehouseSell 从仓库出售指定作物
+// WebFarmWarehouseSell 从仓库出售指定物品
 func WebFarmWarehouseSell(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
@@ -2305,38 +2323,32 @@ func WebFarmWarehouseSell(c *gin.Context) {
 	}
 
 	var req struct {
-		CropKey string `json:"crop_key"`
+		ItemKey string `json:"item_key"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.CropKey == "" {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请指定作物类型"})
+	if err := c.ShouldBindJSON(&req); err != nil || req.ItemKey == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请指定物品类型"})
 		return
 	}
 
-	crop := farmCropMap[req.CropKey]
-	if crop == nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知作物"})
-		return
-	}
-
-	item, err := model.GetWarehouseItem(tgId, req.CropKey)
+	item, err := model.GetWarehouseItem(tgId, req.ItemKey)
 	if err != nil || item.Quantity <= 0 {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库中没有该作物"})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库中没有该物品"})
 		return
 	}
 
-	marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
-	seasonPrice := applySeasonPrice(marketPrice, crop)
-	totalValue := item.Quantity * seasonPrice
+	unitPrice := warehouseItemSellPrice(item)
+	totalValue := item.Quantity * unitPrice
+	_, name := warehouseItemName(item)
 
-	_ = model.RemoveFromWarehouse(tgId, req.CropKey, item.Quantity)
+	_ = model.RemoveFromWarehouse(tgId, req.ItemKey, item.Quantity)
 	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
-	model.AddFarmLog(tgId, "warehouse_sell", totalValue, fmt.Sprintf("仓库出售%s×%d", crop.Name, item.Quantity))
+	model.AddFarmLog(tgId, "warehouse_sell", totalValue, fmt.Sprintf("仓库出售%s×%d", name, item.Quantity))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("出售成功！获得 $%.2f", webFarmQuotaFloat(totalValue)),
 		"data": gin.H{
-			"crop":     crop.Name,
+			"name":     name,
 			"quantity": item.Quantity,
 			"earned":   webFarmQuotaFloat(totalValue),
 		},
@@ -2358,13 +2370,8 @@ func WebFarmWarehouseSellAll(c *gin.Context) {
 
 	totalValue := 0
 	for _, item := range items {
-		crop := farmCropMap[item.CropType]
-		if crop == nil {
-			continue
-		}
-		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
-		seasonPrice := applySeasonPrice(marketPrice, crop)
-		totalValue += item.Quantity * seasonPrice
+		unitPrice := warehouseItemSellPrice(item)
+		totalValue += item.Quantity * unitPrice
 		_ = model.RemoveFromWarehouse(tgId, item.CropType, item.Quantity)
 	}
 
@@ -2377,6 +2384,99 @@ func WebFarmWarehouseSellAll(c *gin.Context) {
 		"data": gin.H{
 			"earned": webFarmQuotaFloat(totalValue),
 		},
+	})
+}
+
+// WebFarmFishStore 鱼存入仓库
+func WebFarmFishStore(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	fishItems, _ := model.GetFishItems(tgId)
+	if len(fishItems) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可存入的鱼"})
+		return
+	}
+
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	storedCount := 0
+	var stored []gin.H
+	for _, fi := range fishItems {
+		if len(fi.ItemType) <= 5 {
+			continue
+		}
+		fishKey := fi.ItemType[5:]
+		fd := fishTypeMap[fishKey]
+		if fd == nil {
+			continue
+		}
+		if currentTotal+storedCount+fi.Quantity > common.TgBotFarmWarehouseMaxSlots {
+			continue
+		}
+		_ = model.AddToWarehouseWithCategory(tgId, "fish_"+fishKey, fi.Quantity, "fish")
+		storedCount += fi.Quantity
+		stored = append(stored, gin.H{"name": fd.Name, "quantity": fi.Quantity})
+	}
+	if storedCount > 0 {
+		_, _ = model.SellAllFish(tgId)
+	}
+
+	if storedCount == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库已满，无法存入"})
+		return
+	}
+
+	model.AddFarmLog(tgId, "fish_store", 0, fmt.Sprintf("鱼存入仓库%d条", storedCount))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("存入仓库成功！共%d条鱼", storedCount),
+		"data":    gin.H{"stored": stored, "total": storedCount},
+	})
+}
+
+// WebFarmWorkshopCollectStore 加工品存入仓库
+func WebFarmWorkshopCollectStore(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	procs, _ := model.GetFarmProcesses(tgId)
+	now := time.Now().Unix()
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	stored := 0
+	var details []gin.H
+	for _, p := range procs {
+		if p.Status == 1 && now >= p.FinishAt {
+			p.Status = 2
+		}
+		if p.Status == 2 {
+			r := recipeMap[p.RecipeKey]
+			if r == nil {
+				continue
+			}
+			if currentTotal+stored+1 > common.TgBotFarmWarehouseMaxSlots {
+				continue
+			}
+			_ = model.AddToWarehouseWithCategory(tgId, "recipe_"+r.Key, 1, "recipe")
+			stored++
+			_ = model.CollectFarmProcess(p.Id)
+			details = append(details, gin.H{"name": r.Name, "quantity": 1})
+		}
+	}
+
+	if stored == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可收取的成品或仓库已满"})
+		return
+	}
+
+	model.AddFarmLog(tgId, "craft_store", 0, fmt.Sprintf("加工品存入仓库%d件", stored))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("存入仓库成功！共%d件加工品（5天后发霉）", stored),
+		"data":    gin.H{"stored": details, "total": stored},
 	})
 }
 

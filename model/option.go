@@ -181,6 +181,8 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmSeasonInBonus"] = strconv.Itoa(common.TgBotFarmSeasonInBonus)
 	common.OptionMap["TgBotFarmSeasonOffBonus"] = strconv.Itoa(common.TgBotFarmSeasonOffBonus)
 	common.OptionMap["TgBotFarmWarehouseMaxSlots"] = strconv.Itoa(common.TgBotFarmWarehouseMaxSlots)
+	common.OptionMap["TgBotFarmWarehouseMeatExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseMeatExpiry)
+	common.OptionMap["TgBotFarmWarehouseRecipeExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseRecipeExpiry)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -747,6 +749,16 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmSeasonOffBonus, _ = strconv.Atoi(value)
 	case "TgBotFarmWarehouseMaxSlots":
 		common.TgBotFarmWarehouseMaxSlots, _ = strconv.Atoi(value)
+	case "TgBotFarmWarehouseMeatExpiry":
+		common.TgBotFarmWarehouseMeatExpiry, _ = strconv.Atoi(value)
+		if common.TgBotFarmWarehouseMeatExpiry <= 0 {
+			common.TgBotFarmWarehouseMeatExpiry = 259200
+		}
+	case "TgBotFarmWarehouseRecipeExpiry":
+		common.TgBotFarmWarehouseRecipeExpiry, _ = strconv.Atoi(value)
+		if common.TgBotFarmWarehouseRecipeExpiry <= 0 {
+			common.TgBotFarmWarehouseRecipeExpiry = 432000
+		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":

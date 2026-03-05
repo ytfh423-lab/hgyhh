@@ -61,6 +61,8 @@ type TgFarmWarehouse struct {
 	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_farm_wh"`
 	CropType   string `json:"crop_type" gorm:"type:varchar(32);uniqueIndex:idx_farm_wh"`
 	Quantity   int    `json:"quantity" gorm:"default:0"`
+	Category   string `json:"category" gorm:"type:varchar(16);default:'crop'"`  // crop/fish/meat/recipe
+	StoredAt   int64  `json:"stored_at" gorm:"default:0"`                      // 存入时间戳
 }
 
 const FarmInitialPlots = 2  // 初始地块数
@@ -126,8 +128,20 @@ func ClearFarmPlot(id int) error {
 
 // ========== TgFarmWarehouse ==========
 
-// GetWarehouseItems 获取仓库所有物品
+// CleanSpoiledWarehouse 清理过期物品（肉类3天，加工食品5天）
+func CleanSpoiledWarehouse(telegramId string) {
+	now := time.Now().Unix()
+	meatExpiry := int64(common.TgBotFarmWarehouseMeatExpiry)
+	recipeExpiry := int64(common.TgBotFarmWarehouseRecipeExpiry)
+	// 删除过期肉类
+	DB.Where("telegram_id = ? AND category = ? AND stored_at > 0 AND stored_at + ? < ?", telegramId, "meat", meatExpiry, now).Delete(&TgFarmWarehouse{})
+	// 删除过期加工品
+	DB.Where("telegram_id = ? AND category = ? AND stored_at > 0 AND stored_at + ? < ?", telegramId, "recipe", recipeExpiry, now).Delete(&TgFarmWarehouse{})
+}
+
+// GetWarehouseItems 获取仓库所有物品（自动清理过期物品）
 func GetWarehouseItems(telegramId string) ([]*TgFarmWarehouse, error) {
+	CleanSpoiledWarehouse(telegramId)
 	var items []*TgFarmWarehouse
 	err := DB.Where("telegram_id = ? AND quantity > 0", telegramId).Find(&items).Error
 	return items, err
@@ -143,16 +157,21 @@ func GetWarehouseItem(telegramId, cropType string) (*TgFarmWarehouse, error) {
 	return &item, nil
 }
 
-// AddToWarehouse 添加作物到仓库
+// AddToWarehouse 添加物品到仓库（category: crop/fish/meat/recipe）
 func AddToWarehouse(telegramId, cropType string, quantity int) error {
+	return AddToWarehouseWithCategory(telegramId, cropType, quantity, "crop")
+}
+
+// AddToWarehouseWithCategory 添加物品到仓库（指定分类）
+func AddToWarehouseWithCategory(telegramId, cropType string, quantity int, category string) error {
 	var item TgFarmWarehouse
 	err := DB.Where("telegram_id = ? AND crop_type = ?", telegramId, cropType).First(&item).Error
 	if err != nil {
 		// 不存在则创建
-		item = TgFarmWarehouse{TelegramId: telegramId, CropType: cropType, Quantity: quantity}
+		item = TgFarmWarehouse{TelegramId: telegramId, CropType: cropType, Quantity: quantity, Category: category, StoredAt: time.Now().Unix()}
 		return DB.Create(&item).Error
 	}
-	// 已存在则增加
+	// 已存在则增加数量，不更新StoredAt（保留最早存入时间）
 	return DB.Model(&TgFarmWarehouse{}).Where("id = ?", item.Id).Update("quantity", item.Quantity+quantity).Error
 }
 
