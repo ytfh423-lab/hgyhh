@@ -108,6 +108,7 @@ type farmItemDef struct {
 // NOTE: all emojis below must be Unicode 6.0-11.0 for wide compatibility
 // Season: 0=春 1=夏 2=秋 3=冬
 var farmCrops = []farmCropDef{
+	// 原有作物
 	{"carrot", "car", "胡萝卜", "🌰", 50000, 1800, 2, 170000, SeasonSpring},
 	{"tomato", "tom", "番茄", "🍅", 150000, 3600, 5, 135000, SeasonSummer},
 	{"pumpkin", "pum", "南瓜", "🎃", 350000, 7200, 6, 250000, SeasonAutumn},
@@ -116,6 +117,23 @@ var farmCrops = []farmCropDef{
 	{"watermelon", "wat", "西瓜", "🍉", 1250000, 21600, 8, 535000, SeasonSummer},
 	{"mango", "man", "芒果", "🍊", 75000, 25200, 50, 5000, SeasonSummer},
 	{"corn", "cor", "玉米", "🌽", 50000, 54000, 20, 10000, SeasonAutumn},
+	// 蔬菜
+	{"potato", "pot", "土豆", "🥔", 40000, 1200, 3, 100000, SeasonSpring},
+	{"eggplant", "egg", "茄子", "🍆", 80000, 2400, 4, 120000, SeasonSummer},
+	{"pepper", "pep", "辣椒", "🌶️", 120000, 3000, 6, 90000, SeasonSummer},
+	{"cucumber", "cuc", "黄瓜", "🥒", 60000, 1500, 5, 80000, SeasonSpring},
+	{"broccoli", "bro", "西兰花", "🥦", 200000, 4800, 3, 280000, SeasonAutumn},
+	{"garlic", "gar", "大蒜", "🧄", 100000, 5400, 8, 60000, SeasonWinter},
+	{"onion", "oni", "洋葱", "🧅", 70000, 3600, 7, 55000, SeasonAutumn},
+	{"lettuce", "let", "生菜", "🥬", 30000, 900, 4, 60000, SeasonSpring},
+	// 水果
+	{"apple", "app", "苹果", "🍎", 300000, 7200, 4, 300000, SeasonAutumn},
+	{"peach", "pea", "桃子", "🍑", 450000, 10800, 5, 350000, SeasonSummer},
+	{"cherry", "che", "樱桃", "🍒", 500000, 9000, 10, 180000, SeasonSpring},
+	{"lemon", "lem", "柠檬", "🍋", 180000, 5400, 6, 130000, SeasonWinter},
+	{"pear", "par", "梨子", "🍐", 250000, 7200, 5, 220000, SeasonAutumn},
+	{"kiwi", "kiw", "猕猴桃", "🥝", 600000, 14400, 8, 280000, SeasonWinter},
+	{"banana", "ban", "香蕉", "🍌", 900000, 18000, 7, 480000, SeasonSummer},
 }
 
 var farmItems = []farmItemDef{
@@ -164,6 +182,7 @@ type recipeDef struct {
 }
 
 var recipes = []recipeDef{
+	// 原有加工品
 	{"bread", "面包", "🍞", 500000, 1800, 900000},
 	{"juice", "果汁", "🧃", 750000, 2700, 1400000},
 	{"butter", "黄油", "🧈", 1000000, 2400, 1750000},
@@ -171,6 +190,23 @@ var recipes = []recipeDef{
 	{"cheese", "奶酪", "🧀", 2000000, 5400, 3750000},
 	{"wine", "葡萄酒", "🍷", 2500000, 7200, 5000000},
 	{"chocolate", "巧克力", "🍫", 4000000, 10800, 8000000},
+	// 加工食品
+	{"salad", "沙拉", "🥗", 400000, 600, 700000},
+	{"popcorn", "爆米花", "🍿", 300000, 900, 550000},
+	{"cookie", "曲奇", "🍪", 650000, 1500, 1200000},
+	{"donut", "甜甜圈", "🍩", 800000, 1800, 1500000},
+	{"noodles", "面条", "🍜", 600000, 1200, 1050000},
+	{"pizza", "披萨", "🍕", 1200000, 2400, 2200000},
+	{"pie", "馅饼", "🥧", 1800000, 3000, 3200000},
+	{"icecream", "冰淇淋", "🍦", 3000000, 7200, 6000000},
+	// 肉制品
+	{"dumpling", "饺子", "🥟", 800000, 1800, 1450000},
+	{"drumstick", "炸鸡腿", "🍗", 1000000, 2400, 1800000},
+	{"sausage", "香肠", "🌭", 1500000, 3600, 2800000},
+	{"bacon", "培根", "🥓", 2000000, 4800, 3800000},
+	{"burger", "汉堡", "🍔", 2500000, 5400, 4800000},
+	{"ham", "火腿", "🍖", 3000000, 7200, 5500000},
+	{"steak", "牛排", "🥩", 5000000, 10800, 9500000},
 }
 
 var recipeMap map[string]*recipeDef
