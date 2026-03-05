@@ -190,6 +190,12 @@ var TgBotFarmBankUnlockLevel = 3          // 解锁银行功能的等级
 var TgBotFarmMortgageMaxAmount = 500000000 // 抵押贷款最高额度(quota) = $1000
 var TgBotFarmMortgageInterestRate = 15    // 抵押贷款利率百分比
 
+// 季节系统
+var TgBotFarmSeasonDays = 7               // 每个季节持续天数（默认7天）
+var TgBotFarmSeasonInBonus = 70           // 应季价格倍率%（默认70%=打7折）
+var TgBotFarmSeasonOffBonus = 140         // 反季价格倍率%（默认140%=涨40%）
+var TgBotFarmWarehouseMaxSlots = 100      // 仓库最大存储格数
+
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0

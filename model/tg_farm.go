@@ -54,6 +54,14 @@ type TgFarmStealLog struct {
 	CreatedAt int64  `json:"created_at" gorm:"autoCreateTime"`
 }
 
+// TgFarmWarehouse 农场仓库
+type TgFarmWarehouse struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_farm_wh"`
+	CropType   string `json:"crop_type" gorm:"type:varchar(32);uniqueIndex:idx_farm_wh"`
+	Quantity   int    `json:"quantity" gorm:"default:0"`
+}
+
 const FarmInitialPlots = 2  // 初始地块数
 const FarmMaxPlots = 12     // 最大可购买地块数
 
@@ -113,6 +121,62 @@ func ClearFarmPlot(id int) error {
 		"event_type": "", "event_at": 0, "stolen_count": 0, "fertilized": 0,
 		"last_watered_at": 0,
 	}).Error
+}
+
+// ========== TgFarmWarehouse ==========
+
+// GetWarehouseItems 获取仓库所有物品
+func GetWarehouseItems(telegramId string) ([]*TgFarmWarehouse, error) {
+	var items []*TgFarmWarehouse
+	err := DB.Where("telegram_id = ? AND quantity > 0", telegramId).Find(&items).Error
+	return items, err
+}
+
+// GetWarehouseItem 获取仓库中某种作物数量
+func GetWarehouseItem(telegramId, cropType string) (*TgFarmWarehouse, error) {
+	var item TgFarmWarehouse
+	err := DB.Where("telegram_id = ? AND crop_type = ?", telegramId, cropType).First(&item).Error
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+// AddToWarehouse 添加作物到仓库
+func AddToWarehouse(telegramId, cropType string, quantity int) error {
+	var item TgFarmWarehouse
+	err := DB.Where("telegram_id = ? AND crop_type = ?", telegramId, cropType).First(&item).Error
+	if err != nil {
+		// 不存在则创建
+		item = TgFarmWarehouse{TelegramId: telegramId, CropType: cropType, Quantity: quantity}
+		return DB.Create(&item).Error
+	}
+	// 已存在则增加
+	return DB.Model(&TgFarmWarehouse{}).Where("id = ?", item.Id).Update("quantity", item.Quantity+quantity).Error
+}
+
+// RemoveFromWarehouse 从仓库取出作物
+func RemoveFromWarehouse(telegramId, cropType string, quantity int) error {
+	var item TgFarmWarehouse
+	err := DB.Where("telegram_id = ? AND crop_type = ?", telegramId, cropType).First(&item).Error
+	if err != nil {
+		return err
+	}
+	if item.Quantity < quantity {
+		return fmt.Errorf("仓库数量不足")
+	}
+	newQty := item.Quantity - quantity
+	if newQty <= 0 {
+		return DB.Delete(&item).Error
+	}
+	return DB.Model(&TgFarmWarehouse{}).Where("id = ?", item.Id).Update("quantity", newQty).Error
+}
+
+// GetWarehouseTotalCount 获取仓库总存储数量
+func GetWarehouseTotalCount(telegramId string) int {
+	var total int64
+	DB.Model(&TgFarmWarehouse{}).Where("telegram_id = ?", telegramId).Select("COALESCE(SUM(quantity),0)").Scan(&total)
+	return int(total)
 }
 
 // FarmStealTarget 偷菜目标

@@ -433,18 +433,21 @@ func WebFarmHarvest(c *gin.Context) {
 				realYield = 0
 			}
 			marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
-			value := realYield * marketPrice
+			seasonPrice := applySeasonPrice(marketPrice, crop)
+			value := realYield * seasonPrice
 			totalQuota += value
 			harvestedCount++
 
 			details = append(details, map[string]interface{}{
-				"crop_name":  crop.Name,
-				"crop_emoji": crop.Emoji,
-				"yield":      yield - fertBonus,
-				"fert_bonus": fertBonus,
-				"stolen":     loss,
-				"real_yield": realYield,
-				"value":      webFarmQuotaFloat(value),
+				"crop_name":    crop.Name,
+				"crop_emoji":   crop.Emoji,
+				"yield":        yield - fertBonus,
+				"fert_bonus":   fertBonus,
+				"stolen":       loss,
+				"real_yield":   realYield,
+				"value":        webFarmQuotaFloat(value),
+				"in_season":    isCropInSeason(crop),
+				"season_pct":   getSeasonPriceMultiplier(crop),
 			})
 
 			_ = model.ClearFarmPlot(plot.Id)
@@ -2207,6 +2210,238 @@ func WebFarmBankRepay(c *gin.Context) {
 			"repaid":    webFarmQuotaFloat(repayAmount),
 			"remaining": webFarmQuotaFloat(newRemaining),
 			"cleared":   loan.Status == 1,
+		},
+	})
+}
+
+// ========== 季节 & 仓库 ==========
+
+// WebFarmSeasonInfo 获取当前季节信息
+func WebFarmSeasonInfo(c *gin.Context) {
+	season := getCurrentSeason()
+	daysLeft := getSeasonDaysLeft()
+	// 各作物季节和当前售价
+	var crops []gin.H
+	for _, crop := range farmCrops {
+		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
+		seasonPrice := applySeasonPrice(marketPrice, &crop)
+		crops = append(crops, gin.H{
+			"key":          crop.Key,
+			"name":         crop.Name,
+			"emoji":        crop.Emoji,
+			"season":       crop.Season,
+			"season_name":  seasonNames[crop.Season],
+			"in_season":    isCropInSeason(&crop),
+			"unit_price":   webFarmQuotaFloat(crop.UnitPrice),
+			"market_price": webFarmQuotaFloat(marketPrice),
+			"season_price": webFarmQuotaFloat(seasonPrice),
+			"season_pct":   getSeasonPriceMultiplier(&crop),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"season":       season,
+			"season_name":  seasonNames[season],
+			"season_emoji": seasonEmojis[season],
+			"days_left":    daysLeft,
+			"season_days":  common.TgBotFarmSeasonDays,
+			"in_bonus":     common.TgBotFarmSeasonInBonus,
+			"off_bonus":    common.TgBotFarmSeasonOffBonus,
+			"crops":        crops,
+		},
+	})
+}
+
+// WebFarmWarehouseView 查看仓库
+func WebFarmWarehouseView(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	items, _ := model.GetWarehouseItems(tgId)
+	totalCount := model.GetWarehouseTotalCount(tgId)
+	season := getCurrentSeason()
+
+	var itemList []gin.H
+	for _, item := range items {
+		crop := farmCropMap[item.CropType]
+		if crop == nil {
+			continue
+		}
+		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
+		seasonPrice := applySeasonPrice(marketPrice, crop)
+		itemList = append(itemList, gin.H{
+			"crop_key":     item.CropType,
+			"crop_name":    crop.Name,
+			"emoji":        crop.Emoji,
+			"quantity":     item.Quantity,
+			"unit_price":   webFarmQuotaFloat(seasonPrice),
+			"total_value":  webFarmQuotaFloat(item.Quantity * seasonPrice),
+			"in_season":    isCropInSeason(crop),
+			"season_pct":   getSeasonPriceMultiplier(crop),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"items":      itemList,
+			"total":      totalCount,
+			"max_slots":  common.TgBotFarmWarehouseMaxSlots,
+			"season":     season,
+			"season_name": seasonNames[season],
+			"days_left":  getSeasonDaysLeft(),
+		},
+	})
+}
+
+// WebFarmWarehouseSell 从仓库出售指定作物
+func WebFarmWarehouseSell(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		CropKey string `json:"crop_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.CropKey == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请指定作物类型"})
+		return
+	}
+
+	crop := farmCropMap[req.CropKey]
+	if crop == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知作物"})
+		return
+	}
+
+	item, err := model.GetWarehouseItem(tgId, req.CropKey)
+	if err != nil || item.Quantity <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库中没有该作物"})
+		return
+	}
+
+	marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
+	seasonPrice := applySeasonPrice(marketPrice, crop)
+	totalValue := item.Quantity * seasonPrice
+
+	_ = model.RemoveFromWarehouse(tgId, req.CropKey, item.Quantity)
+	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.AddFarmLog(tgId, "warehouse_sell", totalValue, fmt.Sprintf("仓库出售%s×%d", crop.Name, item.Quantity))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("出售成功！获得 $%.2f", webFarmQuotaFloat(totalValue)),
+		"data": gin.H{
+			"crop":     crop.Name,
+			"quantity": item.Quantity,
+			"earned":   webFarmQuotaFloat(totalValue),
+		},
+	})
+}
+
+// WebFarmWarehouseSellAll 从仓库出售全部
+func WebFarmWarehouseSellAll(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	items, err := model.GetWarehouseItems(tgId)
+	if err != nil || len(items) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库为空"})
+		return
+	}
+
+	totalValue := 0
+	for _, item := range items {
+		crop := farmCropMap[item.CropType]
+		if crop == nil {
+			continue
+		}
+		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
+		seasonPrice := applySeasonPrice(marketPrice, crop)
+		totalValue += item.Quantity * seasonPrice
+		_ = model.RemoveFromWarehouse(tgId, item.CropType, item.Quantity)
+	}
+
+	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.AddFarmLog(tgId, "warehouse_sell", totalValue, "仓库全部出售")
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("全部出售成功！获得 $%.2f", webFarmQuotaFloat(totalValue)),
+		"data": gin.H{
+			"earned": webFarmQuotaFloat(totalValue),
+		},
+	})
+}
+
+// WebFarmHarvestStore 收获到仓库
+func WebFarmHarvestStore(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	for _, plot := range plots {
+		updateFarmPlotStatus(plot)
+	}
+
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	harvestedCount := 0
+	storedTotal := 0
+	var stored []gin.H
+	for _, plot := range plots {
+		if plot.Status == 2 {
+			crop := farmCropMap[plot.CropType]
+			if crop == nil {
+				continue
+			}
+			yield := 1 + rand.Intn(crop.MaxYield)
+			if plot.Fertilized == 1 {
+				bonus := yield / 2
+				if bonus < 1 {
+					bonus = 1
+				}
+				yield += bonus
+			}
+			realYield := yield - plot.StolenCount
+			if realYield < 0 {
+				realYield = 0
+			}
+			if currentTotal+storedTotal+realYield > common.TgBotFarmWarehouseMaxSlots {
+				continue
+			}
+			_ = model.AddToWarehouse(tgId, crop.Key, realYield)
+			_ = model.ClearFarmPlot(plot.Id)
+			storedTotal += realYield
+			harvestedCount++
+			stored = append(stored, gin.H{"crop": crop.Name, "quantity": realYield})
+		}
+	}
+
+	if harvestedCount == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可收获的作物或仓库已满"})
+		return
+	}
+
+	model.AddFarmLog(tgId, "harvest", 0, fmt.Sprintf("收获入仓%d种共%d个", harvestedCount, storedTotal))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("收获入仓完成！存入%d个作物", storedTotal),
+		"data": gin.H{
+			"stored": stored,
+			"total":  storedTotal,
 		},
 	})
 }

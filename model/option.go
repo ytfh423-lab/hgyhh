@@ -177,6 +177,10 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmBankUnlockLevel"] = strconv.Itoa(common.TgBotFarmBankUnlockLevel)
 	common.OptionMap["TgBotFarmMortgageMaxAmount"] = strconv.Itoa(common.TgBotFarmMortgageMaxAmount)
 	common.OptionMap["TgBotFarmMortgageInterestRate"] = strconv.Itoa(common.TgBotFarmMortgageInterestRate)
+	common.OptionMap["TgBotFarmSeasonDays"] = strconv.Itoa(common.TgBotFarmSeasonDays)
+	common.OptionMap["TgBotFarmSeasonInBonus"] = strconv.Itoa(common.TgBotFarmSeasonInBonus)
+	common.OptionMap["TgBotFarmSeasonOffBonus"] = strconv.Itoa(common.TgBotFarmSeasonOffBonus)
+	common.OptionMap["TgBotFarmWarehouseMaxSlots"] = strconv.Itoa(common.TgBotFarmWarehouseMaxSlots)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -735,6 +739,14 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmMortgageMaxAmount, _ = strconv.Atoi(value)
 	case "TgBotFarmMortgageInterestRate":
 		common.TgBotFarmMortgageInterestRate, _ = strconv.Atoi(value)
+	case "TgBotFarmSeasonDays":
+		common.TgBotFarmSeasonDays, _ = strconv.Atoi(value)
+	case "TgBotFarmSeasonInBonus":
+		common.TgBotFarmSeasonInBonus, _ = strconv.Atoi(value)
+	case "TgBotFarmSeasonOffBonus":
+		common.TgBotFarmSeasonOffBonus, _ = strconv.Atoi(value)
+	case "TgBotFarmWarehouseMaxSlots":
+		common.TgBotFarmWarehouseMaxSlots, _ = strconv.Atoi(value)
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":

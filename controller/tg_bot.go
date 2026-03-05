@@ -944,6 +944,10 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_bank_unlock_level":    common.TgBotFarmBankUnlockLevel,
 			"farm_mortgage_max_amount":  common.TgBotFarmMortgageMaxAmount,
 			"farm_mortgage_interest_rate": common.TgBotFarmMortgageInterestRate,
+			"farm_season_days":          common.TgBotFarmSeasonDays,
+			"farm_season_in_bonus":      common.TgBotFarmSeasonInBonus,
+			"farm_season_off_bonus":     common.TgBotFarmSeasonOffBonus,
+			"farm_warehouse_max_slots":  common.TgBotFarmWarehouseMaxSlots,
 		},
 	})
 }

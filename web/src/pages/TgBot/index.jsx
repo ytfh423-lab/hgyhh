@@ -121,6 +121,11 @@ const TgBotPage = () => {
   const [farmBankUnlockLevel, setFarmBankUnlockLevel] = useState(3);
   const [farmMortgageMaxAmount, setFarmMortgageMaxAmount] = useState(500000000);
   const [farmMortgageInterestRate, setFarmMortgageInterestRate] = useState(15);
+  // 季节系统
+  const [farmSeasonDays, setFarmSeasonDays] = useState(7);
+  const [farmSeasonInBonus, setFarmSeasonInBonus] = useState(70);
+  const [farmSeasonOffBonus, setFarmSeasonOffBonus] = useState(140);
+  const [farmWarehouseMaxSlots, setFarmWarehouseMaxSlots] = useState(100);
   const [savingFarm, setSavingFarm] = useState(false);
   const [resetLevel, setResetLevel] = useState(1);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
@@ -202,6 +207,11 @@ const TgBotPage = () => {
         setFarmBankUnlockLevel(data.farm_bank_unlock_level ?? 3);
         setFarmMortgageMaxAmount(data.farm_mortgage_max_amount ?? 500000000);
         setFarmMortgageInterestRate(data.farm_mortgage_interest_rate ?? 15);
+        // 季节系统
+        setFarmSeasonDays(data.farm_season_days ?? 7);
+        setFarmSeasonInBonus(data.farm_season_in_bonus ?? 70);
+        setFarmSeasonOffBonus(data.farm_season_off_bonus ?? 140);
+        setFarmWarehouseMaxSlots(data.farm_warehouse_max_slots ?? 100);
         setBotToken('');
       }
     } catch (err) {
@@ -1129,6 +1139,25 @@ const TgBotPage = () => {
             <Typography.Text style={{ width: 200 }}>📈 {t('抵押贷利率(%)')}</Typography.Text>
             <InputNumber value={farmMortgageInterestRate} onChange={setFarmMortgageInterestRate} min={1} max={100} style={{ width: 120 }} />
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 8 }}>🌸 {t('季节系统设置')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📅 {t('每季天数')}</Typography.Text>
+            <InputNumber value={farmSeasonDays} onChange={setFarmSeasonDays} min={1} max={90} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🏷️ {t('应季价格倍率(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonInBonus} onChange={setFarmSeasonInBonus} min={10} max={100} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越低越便宜')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📈 {t('反季价格倍率(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonOffBonus} onChange={setFarmSeasonOffBonus} min={100} max={300} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越高越贵')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📦 {t('仓库最大容量')}</Typography.Text>
+            <InputNumber value={farmWarehouseMaxSlots} onChange={setFarmWarehouseMaxSlots} min={10} max={1000} style={{ width: 120 }} />
+          </div>
 
           <Button
             theme='solid'
@@ -1196,6 +1225,11 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmBankUnlockLevel', value: String(farmBankUnlockLevel) },
                   { key: 'TgBotFarmMortgageMaxAmount', value: String(farmMortgageMaxAmount) },
                   { key: 'TgBotFarmMortgageInterestRate', value: String(farmMortgageInterestRate) },
+                  // 季节系统
+                  { key: 'TgBotFarmSeasonDays', value: String(farmSeasonDays) },
+                  { key: 'TgBotFarmSeasonInBonus', value: String(farmSeasonInBonus) },
+                  { key: 'TgBotFarmSeasonOffBonus', value: String(farmSeasonOffBonus) },
+                  { key: 'TgBotFarmWarehouseMaxSlots', value: String(farmWarehouseMaxSlots) },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

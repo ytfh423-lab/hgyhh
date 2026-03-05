@@ -43,6 +43,7 @@ import {
   ClipboardList,
   Star,
   Landmark,
+  Warehouse,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -79,6 +80,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
   const handleTreat = (idx) => doAction('/api/farm/treat', { plot_index: idx });
   const handleFertilize = (idx) => doAction('/api/farm/fertilize', { plot_index: idx });
   const handleHarvest = () => doAction('/api/farm/harvest', {});
+  const handleHarvestStore = () => doAction('/api/farm/harvest/store', {});
   const handleBuyLand = () => doAction('/api/farm/buyland', {});
   const handleUpgradeSoil = (idx) => doAction('/api/farm/upgrade-soil', { plot_index: idx });
 
@@ -116,11 +118,18 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
           </Button>
           <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadFarm} loading={loading} />
           {matureCount > 0 && (
-            <Button size='small' icon={<Wheat size={12} />} theme='solid'
-              style={{ borderRadius: 6, background: '#f59e0b' }}
-              onClick={handleHarvest} loading={actionLoading}>
-              {t('收获')}({matureCount})
-            </Button>
+            <>
+              <Button size='small' icon={<Wheat size={12} />} theme='solid'
+                style={{ borderRadius: 6, background: '#f59e0b' }}
+                onClick={handleHarvest} loading={actionLoading}>
+                {t('收获出售')}({matureCount})
+              </Button>
+              <Button size='small' icon={<Package size={12} />} theme='solid'
+                style={{ borderRadius: 6, background: '#6366f1' }}
+                onClick={handleHarvestStore} loading={actionLoading}>
+                {t('收获入仓')}
+              </Button>
+            </>
           )}
           {farmData.plot_count < farmData.max_plots && (
             <Button size='small' icon={<LandPlot size={12} />} theme='light' onClick={handleBuyLand}
@@ -680,6 +689,82 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
                   : <Tag size='small' color='orange'>{t('还款中')}</Tag> },
           ]} />
         </Card>
+      )}
+    </div>
+  );
+};
+
+// ===================== Sub-page: Warehouse =====================
+const seasonNames = ['春', '夏', '秋', '冬'];
+const seasonEmojis = ['🌸', '☀️', '🍂', '❄️'];
+
+const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
+  const [whData, setWhData] = useState(null);
+  const [whLoading, setWhLoading] = useState(true);
+
+  const loadWarehouse = useCallback(async () => {
+    setWhLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/warehouse');
+      if (res.success) setWhData(res.data);
+    } catch (err) { /* ignore */ }
+    finally { setWhLoading(false); }
+  }, []);
+
+  useEffect(() => { loadWarehouse(); }, [loadWarehouse]);
+
+  const handleSell = async (cropKey) => {
+    const res = await doAction('/api/farm/warehouse/sell', { crop_key: cropKey });
+    if (res) { loadWarehouse(); loadFarm(); }
+  };
+
+  const handleSellAll = async () => {
+    const res = await doAction('/api/farm/warehouse/sellall', {});
+    if (res) { loadWarehouse(); loadFarm(); }
+  };
+
+  if (whLoading) return <Spin />;
+  if (!whData) return <Empty description={t('加载失败')} />;
+
+  const items = whData.items || [];
+  const season = whData.season ?? 0;
+
+  return (
+    <div>
+      <Card style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text strong>{seasonEmojis[season]} {t('当前')}: {seasonNames[season]}{t('季')} ({t('剩余')} {whData.days_left} {t('天')})</Text>
+          <Tag color='blue'>{t('容量')}: {whData.total}/{whData.max_slots}</Tag>
+        </div>
+        <Banner type='info' style={{ marginBottom: 8, borderRadius: 6 }}
+          description={t('应季作物价格低，反季价格高。建议应季存入仓库，等反季再出售！')} />
+      </Card>
+
+      {items.length === 0 ? (
+        <Empty description={t('仓库空空如也，收获时选择「收获到仓库」来存储作物')} />
+      ) : (
+        <>
+          <Table dataSource={items} pagination={false} size='small' rowKey='crop_key'
+            columns={[
+              { title: t('作物'), dataIndex: 'crop_name', render: (_, r) => `${r.emoji} ${r.crop_name}` },
+              { title: t('数量'), dataIndex: 'quantity' },
+              { title: t('单价'), dataIndex: 'unit_price', render: v => `$${v.toFixed(2)}` },
+              { title: t('季节'), dataIndex: 'in_season', render: (v, r) => (
+                <Tag color={v ? 'green' : 'orange'}>{v ? t('应季') : t('反季')} {r.season_pct}%</Tag>
+              )},
+              { title: t('总值'), dataIndex: 'total_value', render: v => `$${v.toFixed(2)}` },
+              { title: t('操作'), render: (_, r) => (
+                <Button size='small' theme='solid' type='warning' onClick={() => handleSell(r.crop_key)}
+                  loading={actionLoading}>{t('出售')}</Button>
+              )},
+            ]}
+          />
+          <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <Button theme='solid' type='warning' onClick={handleSellAll} loading={actionLoading}>
+              💰 {t('全部出售')}
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -2061,6 +2146,10 @@ const Farm = () => {
         </TabPane>
         <TabPane tab={<span><Landmark size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('银行')}</span>} itemKey='bank'>
           <BankPage farmData={farmData} actionLoading={actionLoading}
+            doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Warehouse size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('仓库')}</span>} itemKey='warehouse'>
+          <WarehousePage actionLoading={actionLoading}
             doAction={doAction} loadFarm={loadFarm} t={t} />
         </TabPane>
         <TabPane tab={<span><TrendingUp size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('市场')}</span>} itemKey='market'>
