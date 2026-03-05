@@ -288,6 +288,7 @@ func migrateDB() error {
 		&TgFarmStealLog{},
 		&TgFarmDog{},
 		&TgRanchAnimal{},
+		&TgFarmLog{},
 		&PublicInviteCode{},
 	)
 	if err != nil {

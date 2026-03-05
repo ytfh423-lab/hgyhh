@@ -310,3 +310,33 @@ func CleanRanchAnimals(telegramId string) error {
 	now := time.Now().Unix()
 	return DB.Model(&TgRanchAnimal{}).Where("telegram_id = ? AND status != 5", telegramId).Update("last_cleaned_at", now).Error
 }
+
+// ========== TgFarmLog 消费记录 ==========
+
+type TgFarmLog struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	Action     string `json:"action" gorm:"type:varchar(32)"`
+	Amount     int    `json:"amount"`
+	Detail     string `json:"detail" gorm:"type:varchar(255)"`
+	CreatedAt  int64  `json:"created_at"`
+}
+
+func AddFarmLog(telegramId, action string, amount int, detail string) {
+	log := &TgFarmLog{
+		TelegramId: telegramId,
+		Action:     action,
+		Amount:     amount,
+		Detail:     detail,
+		CreatedAt:  time.Now().Unix(),
+	}
+	_ = DB.Create(log).Error
+}
+
+func GetFarmLogs(telegramId string, limit, offset int) ([]*TgFarmLog, int64, error) {
+	var logs []*TgFarmLog
+	var total int64
+	DB.Model(&TgFarmLog{}).Where("telegram_id = ?", telegramId).Count(&total)
+	err := DB.Where("telegram_id = ?", telegramId).Order("id desc").Limit(limit).Offset(offset).Find(&logs).Error
+	return logs, total, err
+}

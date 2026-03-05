@@ -336,6 +336,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.GET("/dog", controller.WebFarmDog)
 			farmRoute.POST("/buydog", controller.WebFarmBuyDog)
 			farmRoute.POST("/feeddog", controller.WebFarmFeedDog)
+			farmRoute.GET("/logs", controller.WebFarmLogs)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

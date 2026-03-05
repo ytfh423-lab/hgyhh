@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -348,6 +349,7 @@ func WebFarmPlant(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
 		return
 	}
+	model.AddFarmLog(tgId, "plant", -crop.SeedCost, fmt.Sprintf("种植%s%s", crop.Emoji, crop.Name))
 
 	now := time.Now().Unix()
 	targetPlot.CropType = crop.Key
@@ -453,6 +455,7 @@ func WebFarmHarvest(c *gin.Context) {
 	}
 
 	_ = model.IncreaseUserQuota(user.Id, totalQuota, true)
+	model.AddFarmLog(tgId, "harvest", totalQuota, fmt.Sprintf("收获%d种作物", harvestedCount))
 	common.SysLog(fmt.Sprintf("Web Farm: user %s harvested %d crops, total %d quota", tgId, harvestedCount, totalQuota))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -503,6 +506,7 @@ func WebFarmBuyItem(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "购买失败"})
 		return
 	}
+	model.AddFarmLog(tgId, "shop", -cost, fmt.Sprintf("购买%s%s", item.Emoji, item.Name))
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("购买 %s%s 成功！", item.Emoji, item.Name)})
 }
 
@@ -593,6 +597,7 @@ func WebFarmSteal(c *gin.Context) {
 		Amount:   stealValue,
 	})
 	_ = model.IncreaseUserQuota(user.Id, stealValue, true)
+	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("偷取%s%s×%d", cropEmoji, cropName, stealUnits))
 
 	common.SysLog(fmt.Sprintf("Web Farm: user %s stole %s from %s, +%d quota", tgId, cropName, req.VictimId, stealValue))
 
@@ -748,6 +753,7 @@ func WebFarmBuyLand(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "创建地块失败，已退款"})
 		return
 	}
+	model.AddFarmLog(tgId, "buy_plot", -price, fmt.Sprintf("购买%d号地", newIdx+1))
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("购买 %d号地 成功！", newIdx+1)})
 }
@@ -830,6 +836,7 @@ func WebFarmUpgradeSoil(c *gin.Context) {
 	}
 
 	speedBonus := common.TgBotFarmSoilSpeedBonus * (nextLevel - 1)
+	model.AddFarmLog(tgId, "upgrade_soil", -price, fmt.Sprintf("%d号地泥土升级Lv.%d", req.PlotIndex+1, nextLevel))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("泥土升级到 %d 级成功！生长加速 %d%%", nextLevel, speedBonus),
@@ -1053,4 +1060,82 @@ func WebFarmFeedDog(c *gin.Context) {
 	_ = model.FeedFarmDog(dog.Id)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("喂食成功！「%s」饱食度恢复到100%%", dog.Name)})
+}
+
+// WebFarmLogs returns spending/income logs
+func WebFarmLogs(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	page := 1
+	pageSize := 20
+	if p := c.Query("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if ps := c.Query("page_size"); ps != "" {
+		if v, err := strconv.Atoi(ps); err == nil && v > 0 && v <= 100 {
+			pageSize = v
+		}
+	}
+
+	offset := (page - 1) * pageSize
+	logs, total, err := model.GetFarmLogs(tgId, pageSize, offset)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取记录失败"})
+		return
+	}
+
+	type logItem struct {
+		Id        int     `json:"id"`
+		Action    string  `json:"action"`
+		ActionLabel string `json:"action_label"`
+		Amount    float64 `json:"amount"`
+		Detail    string  `json:"detail"`
+		CreatedAt int64   `json:"created_at"`
+	}
+
+	actionLabels := map[string]string{
+		"plant":        "种植",
+		"harvest":      "收获",
+		"shop":         "商店",
+		"steal":        "偷菜",
+		"buy_plot":     "购地",
+		"buy_dog":      "买狗",
+		"upgrade_soil": "升级",
+		"ranch_buy":    "买动物",
+		"ranch_feed":   "喂食",
+		"ranch_water":  "喂水",
+		"ranch_sell":   "出售",
+		"ranch_clean":  "清粪",
+	}
+
+	var items []logItem
+	for _, l := range logs {
+		label := actionLabels[l.Action]
+		if label == "" {
+			label = l.Action
+		}
+		items = append(items, logItem{
+			Id:          l.Id,
+			Action:      l.Action,
+			ActionLabel: label,
+			Amount:      webFarmQuotaFloat(l.Amount),
+			Detail:      l.Detail,
+			CreatedAt:   l.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"logs":      items,
+			"total":     total,
+			"page":      page,
+			"page_size": pageSize,
+		},
+	})
 }

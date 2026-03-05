@@ -255,6 +255,8 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmBuyDog(chatId, msgId, tgId, from)
 	case data == "farm_feeddog":
 		doFarmFeedDog(chatId, msgId, tgId, from)
+	case data == "farm_logs":
+		showFarmLogs(chatId, msgId, tgId, from)
 	case data == "farm_soil":
 		showFarmSoilUpgrade(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_su_"):
@@ -380,10 +382,11 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: "🌱 泥土升级", CallbackData: "farm_soil"},
 		})
 	}
-	// 狗狗 & 牧场按钮
+	// 狗狗 & 牧场 & 记录按钮
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🐕 狗狗", CallbackData: "farm_dog"},
 		{Text: "🐄 牧场", CallbackData: "ranch"},
+		{Text: "📋 记录", CallbackData: "farm_logs"},
 	})
 	if len(plots) < model.FarmMaxPlots {
 		rows = append(rows, []TgInlineKeyboardButton{
@@ -621,6 +624,7 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 		farmSend(chatId, editMsgId, "❌ 扣费失败，请稍后再试", nil, from)
 		return
 	}
+	model.AddFarmLog(tgId, "plant", -crop.SeedCost, fmt.Sprintf("种植%s%s", crop.Emoji, crop.Name))
 
 	now := time.Now().Unix()
 	targetPlot.CropType = crop.Key
@@ -738,6 +742,7 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	if err != nil {
 		common.SysError(fmt.Sprintf("TG Farm: increase quota failed for user %d: %s", user.Id, err.Error()))
 	}
+	model.AddFarmLog(tgId, "harvest", totalQuota, fmt.Sprintf("收获%d种作物", harvestedCount))
 	common.SysLog(fmt.Sprintf("TG Farm: user %s harvested %d crops, total %d quota", tgId, harvestedCount, totalQuota))
 
 	text := fmt.Sprintf("🌾 收获完成！\n%s\n\n💰 共获得 %s 额度", details, farmQuotaStr(totalQuota))
@@ -834,6 +839,7 @@ func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string, from *T
 		farmSend(chatId, editMsgId, "❌ 购买失败", nil, from)
 		return
 	}
+	model.AddFarmLog(tgId, "shop", -cost, fmt.Sprintf("购买%s%s", item.Emoji, item.Name))
 	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 购买 %s%s 成功！已扣除 %s",
 		item.Emoji, item.Name, farmQuotaStr(cost)), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
@@ -949,6 +955,7 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string, from
 		Amount:   stealValue,
 	})
 	_ = model.IncreaseUserQuota(user.Id, stealValue, true)
+	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("偷取%s%s×%d", cropEmoji, cropName, stealUnits))
 
 	common.SysLog(fmt.Sprintf("TG Farm: user %s stole %s from %s, +%d quota", tgId, cropName, victimId, stealValue))
 
@@ -1254,6 +1261,7 @@ func doFarmBuyLand(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
+	model.AddFarmLog(tgId, "buy_plot", -price, fmt.Sprintf("购买%d号地", newIdx+1))
 	common.SysLog(fmt.Sprintf("TG Farm: user %s bought plot %d for %d quota", tgId, newIdx+1, price))
 
 	farmSend(chatId, editMsgId, fmt.Sprintf("🏗️ 购买成功！\n\n你获得了 %d号地！\n💰 花费 %s\n📊 当前土地 %d/%d 块",
@@ -1513,6 +1521,7 @@ func doFarmBuyDog(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
+	model.AddFarmLog(tgId, "buy_dog", -price, fmt.Sprintf("购买看门狗「%s」", dogName))
 	common.SysLog(fmt.Sprintf("TG Farm: user %s bought dog '%s' for %d quota", tgId, dogName, price))
 
 	farmSend(chatId, editMsgId, fmt.Sprintf("🐶 恭喜！你获得了一只小狗「%s」！\n\n"+
@@ -1713,6 +1722,7 @@ func doFarmSoilUpgrade(chatId int64, editMsgId int, tgId string, plotIdx int, fr
 	}
 
 	speedBonus := common.TgBotFarmSoilSpeedBonus * (nextLevel - 1)
+	model.AddFarmLog(tgId, "upgrade_soil", -price, fmt.Sprintf("%d号地泥土升级Lv.%d", plotIdx+1, nextLevel))
 	common.SysLog(fmt.Sprintf("TG Farm: user %s upgraded plot %d soil to Lv.%d for %d quota", tgId, plotIdx+1, nextLevel, price))
 
 	farmSend(chatId, editMsgId, fmt.Sprintf("🌱 升级成功！\n\n%d号地泥土升级到 Lv.%d\n⚡ 生长加速 %d%%\n💰 花费 %s",
@@ -1741,6 +1751,48 @@ func maskTgId(tgId string) string {
 		return tgId[:3] + "***" + tgId[len(tgId)-3:]
 	}
 	return "***"
+}
+
+// ========== 消费记录 ==========
+
+func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	logs, total, err := model.GetFarmLogs(tgId, 15, 0)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 获取记录失败", nil, from)
+		return
+	}
+
+	actionLabels := map[string]string{
+		"plant": "种植", "harvest": "收获", "shop": "商店", "steal": "偷菜",
+		"buy_plot": "购地", "buy_dog": "买狗", "upgrade_soil": "升级",
+		"ranch_buy": "买动物", "ranch_feed": "喂食", "ranch_water": "喂水",
+		"ranch_sell": "出售", "ranch_clean": "清粪",
+	}
+
+	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
+	if len(logs) == 0 {
+		text += "暂无记录\n"
+	}
+	for _, l := range logs {
+		label := actionLabels[l.Action]
+		if label == "" {
+			label = l.Action
+		}
+		sign := "+"
+		if l.Amount < 0 {
+			sign = ""
+		}
+		ts := time.Unix(l.CreatedAt, 0)
+		text += fmt.Sprintf("%s %s%s %s · %s\n",
+			label, sign, farmQuotaStr(l.Amount), l.Detail,
+			ts.Format("01-02 15:04"))
+	}
+
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
 }
 
 func farmSend(chatId int64, editMsgId int, text string, keyboard *TgInlineKeyboardMarkup, from *TgUser) {

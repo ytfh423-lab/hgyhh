@@ -417,6 +417,7 @@ func doRanchBuyAnimal(chatId int64, editMsgId int, tgId string, animalShort stri
 	}
 
 	growHours := *def.GrowSecs / 3600
+	model.AddFarmLog(tgId, "ranch_buy", -price, fmt.Sprintf("购买%s%s", def.Emoji, def.Name))
 	common.SysLog(fmt.Sprintf("TG Ranch: user %s bought %s for %d quota", tgId, def.Key, price))
 	farmSend(chatId, editMsgId, fmt.Sprintf("🎉 购买成功！\n\n%s %s 已入栏！\n⏱️ 预计 %d 小时后成熟\n💰 花费 %s\n\n⚠️ 记得定时喂食和喂水！",
 		def.Emoji, def.Name, growHours, farmQuotaStr(price)), &TgInlineKeyboardMarkup{
@@ -552,12 +553,7 @@ func doRanchFeed(chatId int64, editMsgId int, tgId string, animalId int, from *T
 		name = def.Name
 		emoji = def.Emoji
 	}
-	farmSend(chatId, editMsgId, fmt.Sprintf("🌾 喂食成功！\n\n%s %s 吃饱了！\n💰 花费 %s", emoji, name, farmQuotaStr(price)), &TgInlineKeyboardMarkup{
-		InlineKeyboard: [][]TgInlineKeyboardButton{
-			{{Text: "🌾 继续喂食", CallbackData: "ranch_feed"},
-				{Text: "🐄 返回牧场", CallbackData: "ranch"}},
-		},
-	}, from)
+	model.AddFarmLog(tgId, "ranch_feed", -price, fmt.Sprintf("喂食%s%s", emoji, name))
 	showRanchView(chatId, editMsgId, tgId, from)
 }
 
@@ -684,12 +680,7 @@ func doRanchWater(chatId int64, editMsgId int, tgId string, animalId int, from *
 		name = def.Name
 		emoji = def.Emoji
 	}
-	farmSend(chatId, editMsgId, fmt.Sprintf("💧 喂水成功！\n\n%s %s 喝饱了！\n💰 花费 %s", emoji, name, farmQuotaStr(price)), &TgInlineKeyboardMarkup{
-		InlineKeyboard: [][]TgInlineKeyboardButton{
-			{{Text: "💧 继续喂水", CallbackData: "ranch_water"},
-				{Text: "🐄 返回牧场", CallbackData: "ranch"}},
-		},
-	}, from)
+	model.AddFarmLog(tgId, "ranch_water", -price, fmt.Sprintf("喂水%s%s", emoji, name))
 	showRanchView(chatId, editMsgId, tgId, from)
 }
 
@@ -792,6 +783,7 @@ func doRanchSlaughter(chatId int64, editMsgId int, tgId string, animalId int, fr
 		return
 	}
 
+	model.AddFarmLog(tgId, "ranch_sell", meatPrice, fmt.Sprintf("出售%s%s", def.Emoji, def.Name))
 	common.SysLog(fmt.Sprintf("TG Ranch: user %s slaughtered %s for %d quota", tgId, def.Key, meatPrice))
 	farmSend(chatId, editMsgId, fmt.Sprintf("🔪 屠宰成功！\n\n%s %s 已出售！\n💰 收入 %s",
 		def.Emoji, def.Name, farmQuotaStr(meatPrice)), &TgInlineKeyboardMarkup{
@@ -891,6 +883,7 @@ func doRanchCleanManure(chatId int64, editMsgId int, tgId string, from *TgUser) 
 		return
 	}
 
+	model.AddFarmLog(tgId, "ranch_clean", -price, fmt.Sprintf("清理粪便%d只", dirtyCount))
 	common.SysLog(fmt.Sprintf("TG Ranch: user %s cleaned manure for %d animals, cost %d", tgId, dirtyCount, price))
 	farmSend(chatId, editMsgId, fmt.Sprintf("🧹 清理完成！\n\n✨ 为 %d 只动物清理了粪便\n💰 花费 %s\n\n动物们生长速度恢复正常！",
 		dirtyCount, farmQuotaStr(price)), &TgInlineKeyboardMarkup{

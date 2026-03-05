@@ -238,6 +238,7 @@ func WebRanchBuy(c *gin.Context) {
 		return
 	}
 
+	model.AddFarmLog(tgId, "ranch_buy", -price, fmt.Sprintf("购买%s%s", def.Emoji, def.Name))
 	common.SysLog(fmt.Sprintf("Web Ranch: user %s bought %s for %d quota", tgId, def.Key, price))
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("购买 %s%s 成功！", def.Emoji, def.Name)})
 }
@@ -306,6 +307,12 @@ func WebRanchFeed(c *gin.Context) {
 		_ = model.UpdateRanchAnimal(target)
 	}
 
+	def := ranchAnimalMap[target.AnimalType]
+	detail := "喂食动物"
+	if def != nil {
+		detail = fmt.Sprintf("喂食%s%s", def.Emoji, def.Name)
+	}
+	model.AddFarmLog(tgId, "ranch_feed", -price, detail)
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "喂食成功！"})
 }
 
@@ -373,6 +380,12 @@ func WebRanchWater(c *gin.Context) {
 		_ = model.UpdateRanchAnimal(target)
 	}
 
+	def := ranchAnimalMap[target.AnimalType]
+	detail := "喂水动物"
+	if def != nil {
+		detail = fmt.Sprintf("喂水%s%s", def.Emoji, def.Name)
+	}
+	model.AddFarmLog(tgId, "ranch_water", -price, detail)
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "喂水成功！"})
 }
 
@@ -431,6 +444,7 @@ func WebRanchSlaughter(c *gin.Context) {
 		return
 	}
 
+	model.AddFarmLog(tgId, "ranch_sell", meatPrice, fmt.Sprintf("出售%s%s", def.Emoji, def.Name))
 	common.SysLog(fmt.Sprintf("Web Ranch: user %s slaughtered %s for %d quota", tgId, def.Key, meatPrice))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -483,6 +497,7 @@ func WebRanchCleanManure(c *gin.Context) {
 		return
 	}
 
+	model.AddFarmLog(tgId, "ranch_clean", -price, fmt.Sprintf("清理粪便%d只", dirtyCount))
 	common.SysLog(fmt.Sprintf("Web Ranch: user %s cleaned manure for %d animals, cost %d", tgId, dirtyCount, price))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
