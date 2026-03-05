@@ -290,9 +290,12 @@ func WebRanchFeed(c *gin.Context) {
 		return
 	}
 
+	now := time.Now().Unix()
+	target.LastFedAt = now
+	_ = model.UpdateRanchAnimal(target)
+
 	// 恢复状态
 	if target.Status == 3 {
-		now := time.Now().Unix()
 		waterInterval := int64(common.TgBotRanchWaterInterval)
 		if now > target.LastWateredAt+waterInterval {
 			target.Status = 4
@@ -363,9 +366,12 @@ func WebRanchWater(c *gin.Context) {
 		return
 	}
 
+	now := time.Now().Unix()
+	target.LastWateredAt = now
+	_ = model.UpdateRanchAnimal(target)
+
 	// 恢复状态
 	if target.Status == 4 {
-		now := time.Now().Unix()
 		feedInterval := int64(common.TgBotRanchFeedInterval)
 		if now > target.LastFedAt+feedInterval {
 			target.Status = 3
