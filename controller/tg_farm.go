@@ -562,6 +562,8 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmTreat(chatId, msgId, tgId, plotIdx, from)
 	case data == "farm_fert":
 		showFarmFertSelection(chatId, msgId, tgId, from)
+	case data == "farm_fertall":
+		doFarmFertilizeAll(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_ff_"):
 		plotStr := strings.TrimPrefix(data, "farm_ff_")
 		plotIdx, _ := strconv.Atoi(plotStr)
@@ -570,6 +572,8 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmBuyLand(chatId, msgId, tgId, from)
 	case data == "farm_water":
 		showFarmWaterSelection(chatId, msgId, tgId, from)
+	case data == "farm_waterall":
+		doFarmWaterAll(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_ww_"):
 		plotStr := strings.TrimPrefix(data, "farm_ww_")
 		plotIdx, _ := strconv.Atoi(plotStr)
@@ -1723,11 +1727,89 @@ func showFarmFertSelection(chatId int64, editMsgId int, tgId string, from *TgUse
 	}
 	if !hasTarget {
 		text += "没有可施肥的地块（需要生长中且未施肥）。"
+	} else {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "🧴 一键全部施肥", CallbackData: "farm_fertall"},
+		})
 	}
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmFertilizeAll(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+	for _, plot := range plots {
+		updateFarmPlotStatus(plot)
+	}
+
+	// 统计需要施肥的地块数
+	var targets []*model.TgFarmPlot
+	for _, plot := range plots {
+		if plot.Status == 1 && plot.Fertilized == 0 {
+			targets = append(targets, plot)
+		}
+	}
+	if len(targets) == 0 {
+		farmSend(chatId, editMsgId, "🧴 没有可施肥的地块。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	// 检查化肥数量
+	items, _ := model.GetFarmItems(tgId)
+	fertQty := 0
+	for _, item := range items {
+		if item.ItemType == "fertilizer" {
+			fertQty = item.Quantity
+			break
+		}
+	}
+	if fertQty <= 0 {
+		farmSend(chatId, editMsgId, "❌ 你没有化肥！请先到商店购买。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏪 去商店", CallbackData: "farm_shop"},
+					{Text: "🔙 返回", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	fertilizedCount := 0
+	details := ""
+	for _, plot := range targets {
+		if fertQty <= 0 {
+			details += fmt.Sprintf("\n  ❌ 化肥不足，剩余地块未施肥")
+			break
+		}
+		crop := farmCropMap[plot.CropType]
+		if crop == nil {
+			continue
+		}
+		if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
+			break
+		}
+		plot.Fertilized = 1
+		_ = model.UpdateFarmPlot(plot)
+		fertilizedCount++
+		fertQty--
+		details += fmt.Sprintf("\n  %s %d号地 %s ✅", crop.Emoji, plot.PlotIndex+1, crop.Name)
+	}
+
+	text := fmt.Sprintf("🧴 一键施肥完成！共施肥 %d 块地（收获产量+50%%）\n%s", fertilizedCount, details)
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
 }
 
 func doFarmFertilize(chatId int64, editMsgId int, tgId string, plotIdx int, from *TgUser) {
@@ -1884,11 +1966,89 @@ func showFarmWaterSelection(chatId int64, editMsgId int, tgId string, from *TgUs
 	}
 	if !hasTarget {
 		text += "没有需要浇水的地块。"
+	} else {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: "💧 一键全部浇水", CallbackData: "farm_waterall"},
+		})
 	}
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmWaterAll(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 系统错误", nil, from)
+		return
+	}
+	for _, plot := range plots {
+		updateFarmPlotStatus(plot)
+	}
+
+	wateredCount := 0
+	details := ""
+	for _, plot := range plots {
+		needsWater := plot.Status == 1 || plot.Status == 4 ||
+			(plot.Status == 3 && plot.EventType == "drought")
+		if !needsWater {
+			continue
+		}
+		crop := farmCropMap[plot.CropType]
+		if crop == nil {
+			continue
+		}
+
+		wasWilting := plot.Status == 4
+		wasDrought := plot.Status == 3 && plot.EventType == "drought"
+
+		if wasWilting {
+			now := time.Now().Unix()
+			waterInterval := int64(common.TgBotFarmWaterInterval)
+			wiltStart := plot.LastWateredAt + waterInterval
+			downtime := now - wiltStart
+			plot.PlantedAt += downtime
+			plot.Status = 1
+			_ = model.UpdateFarmPlot(plot)
+		}
+		if wasDrought {
+			now := time.Now().Unix()
+			downtime := now - plot.EventAt
+			plot.PlantedAt += downtime
+			plot.Status = 1
+			plot.EventType = ""
+			plot.EventAt = 0
+			_ = model.UpdateFarmPlot(plot)
+		}
+
+		_ = model.WaterFarmPlot(plot.Id)
+		wateredCount++
+
+		tag := ""
+		if wasDrought {
+			tag = " (干旱已解除)"
+		} else if wasWilting {
+			tag = " (枯萎已恢复)"
+		}
+		details += fmt.Sprintf("\n  %s %d号地 %s%s", crop.Emoji, plot.PlotIndex+1, crop.Name, tag)
+	}
+
+	if wateredCount == 0 {
+		farmSend(chatId, editMsgId, "💧 没有需要浇水的地块。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	text := fmt.Sprintf("💧 一键浇水完成！共浇水 %d 块地\n%s", wateredCount, details)
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
 }
 
 func doFarmWater(chatId int64, editMsgId int, tgId string, plotIdx int, from *TgUser) {
