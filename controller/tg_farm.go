@@ -505,6 +505,15 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		showFarmLevelUp(chatId, msgId, tgId, from)
 	case data == "farm_dolevelup":
 		doFarmLevelUp(chatId, msgId, tgId, from)
+	case data == "farm_bank":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmBankUnlockLevel, "银行", chatId, msgId, from) { return }
+		showFarmBank(chatId, msgId, tgId, from)
+	case data == "farm_doloan":
+		doFarmLoan(chatId, msgId, tgId, from)
+	case data == "farm_repay":
+		doFarmRepay(chatId, msgId, tgId, from)
+	case data == "farm_repay_half":
+		doFarmRepayPartial(chatId, msgId, tgId, 50, from)
 	case data == "farm_tasks":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockTasks, "每日任务", chatId, msgId, from) { return }
 		showFarmTasks(chatId, msgId, tgId, from)
@@ -677,6 +686,9 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "� 市场", CallbackData: "farm_market"},
 		{Text: "� 记录", CallbackData: "farm_logs"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: lockTag("🏦 银行", common.TgBotFarmBankUnlockLevel), CallbackData: "farm_bank"},
 	})
 	if userLevel < common.TgBotFarmMaxLevel {
 		price := getLevelUpPrice(userLevel)
@@ -2069,6 +2081,7 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		"craft": "加工", "craft_sell": "收取",
 		"task": "任务", "achieve": "成就",
 		"levelup": "升级",
+		"loan": "贷款", "repay": "还款",
 	}
 
 	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
@@ -2838,6 +2851,236 @@ func marketTag(m int) string {
 		return "📉跌"
 	}
 	return "📉暴跌"
+}
+
+// ========== 银行贷款 ==========
+
+func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	creditScore := model.GetCreditScore(tgId)
+	baseAmount := common.TgBotFarmBankBaseAmount
+	maxLoan := baseAmount * creditScore
+	interestRate := common.TgBotFarmBankInterestRate
+	interest := maxLoan * interestRate / 100
+	totalDue := maxLoan + interest
+	loanDays := common.TgBotFarmBankMaxLoanDays
+
+	text := fmt.Sprintf("🏦 银行\n\n"+
+		"💰 余额: %s\n"+
+		"📊 信用评分: %d/%d\n"+
+		"💵 可贷额度: %s\n"+
+		"📈 利率: %d%%\n"+
+		"💸 应还总额: %s（本金+利息）\n"+
+		"📅 还款期限: %d天\n",
+		farmQuotaStr(user.Quota),
+		creditScore, common.TgBotFarmBankMaxMultiplier,
+		farmQuotaStr(maxLoan),
+		interestRate,
+		farmQuotaStr(totalDue),
+		loanDays)
+
+	// 检查是否有未还贷款
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	var rows [][]TgInlineKeyboardButton
+
+	if loanErr == nil && activeLoan != nil {
+		remaining := activeLoan.TotalDue - activeLoan.Repaid
+		now := time.Now().Unix()
+		daysLeft := (activeLoan.DueAt - now) / 86400
+		if daysLeft < 0 {
+			daysLeft = 0
+		}
+		overdue := ""
+		if now > activeLoan.DueAt {
+			overdue = " ⚠️已逾期！"
+		}
+
+		text += fmt.Sprintf("\n📋 当前贷款:\n"+
+			"  本金: %s\n"+
+			"  利息: %s\n"+
+			"  已还: %s\n"+
+			"  剩余: %s\n"+
+			"  剩余天数: %d天%s\n",
+			farmQuotaStr(activeLoan.Principal),
+			farmQuotaStr(activeLoan.Interest),
+			farmQuotaStr(activeLoan.Repaid),
+			farmQuotaStr(remaining),
+			daysLeft, overdue)
+
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("💰 全额还款 (%s)", farmQuotaStr(remaining)), CallbackData: "farm_repay"},
+		})
+		if remaining > 1 {
+			halfAmount := remaining / 2
+			rows = append(rows, []TgInlineKeyboardButton{
+				{Text: fmt.Sprintf("💰 还一半 (%s)", farmQuotaStr(halfAmount)), CallbackData: "farm_repay_half"},
+			})
+		}
+	} else {
+		text += "\n✅ 当前无贷款\n"
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("💵 申请贷款 (%s)", farmQuotaStr(maxLoan)), CallbackData: "farm_doloan"},
+		})
+	}
+
+	// 贷款历史
+	history, _ := model.GetLoanHistory(tgId, 5)
+	if len(history) > 0 {
+		text += "\n📜 贷款历史（最近5条）:\n"
+		for _, loan := range history {
+			statusTag := "⏳还款中"
+			if loan.Status == 1 {
+				statusTag = "✅已还清"
+			}
+			ts := time.Unix(loan.CreatedAt, 0)
+			text += fmt.Sprintf("  %s 本金%s 评分%d %s\n",
+				ts.Format("01-02"), farmQuotaStr(loan.Principal), loan.CreditScore, statusTag)
+		}
+	}
+
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmLoan(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	// 检查是否已有未还贷款
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		farmSend(chatId, editMsgId, "❌ 你还有未还清的贷款！请先还清再申请。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			},
+		}, from)
+		return
+	}
+
+	creditScore := model.GetCreditScore(tgId)
+	baseAmount := common.TgBotFarmBankBaseAmount
+	principal := baseAmount * creditScore
+	interestRate := common.TgBotFarmBankInterestRate
+	interest := principal * interestRate / 100
+	totalDue := principal + interest
+	loanDays := common.TgBotFarmBankMaxLoanDays
+
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	// 创建贷款
+	loan, err := model.CreateLoan(tgId, principal, interest, totalDue, creditScore, loanDays)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 贷款申请失败，请稍后再试。", nil, from)
+		return
+	}
+
+	// 放款到用户账户
+	_ = model.IncreaseUserQuota(user.Id, principal, true)
+	model.AddFarmLog(tgId, "loan", principal, fmt.Sprintf("银行贷款 评分%d", creditScore))
+
+	common.SysLog(fmt.Sprintf("TG Farm Bank: user %s loan %d quota, score %d, due %d", tgId, principal, creditScore, totalDue))
+
+	dueTime := time.Unix(loan.DueAt, 0)
+	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 贷款成功！\n\n"+
+		"💵 贷款金额: %s\n"+
+		"📈 利息: %s (%d%%)\n"+
+		"💸 应还总额: %s\n"+
+		"📅 还款期限: %s\n"+
+		"📊 信用评分: %d\n\n"+
+		"贷款已发放到你的账户！",
+		farmQuotaStr(principal),
+		farmQuotaStr(interest), interestRate,
+		farmQuotaStr(totalDue),
+		dueTime.Format("2006-01-02"),
+		creditScore), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+func doFarmRepay(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	doFarmRepayPartial(chatId, editMsgId, tgId, 100, from)
+}
+
+func doFarmRepayPartial(chatId int64, editMsgId int, tgId string, percent int, from *TgUser) {
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr != nil || activeLoan == nil {
+		farmSend(chatId, editMsgId, "❌ 你没有待还贷款。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			},
+		}, from)
+		return
+	}
+
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	remaining := activeLoan.TotalDue - activeLoan.Repaid
+	repayAmount := remaining
+	if percent < 100 {
+		repayAmount = remaining * percent / 100
+		if repayAmount < 1 {
+			repayAmount = 1
+		}
+	}
+
+	if user.Quota < repayAmount {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足！\n\n需要: %s\n余额: %s",
+			farmQuotaStr(repayAmount), farmQuotaStr(user.Quota)), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			},
+		}, from)
+		return
+	}
+
+	// 扣款
+	err = model.DecreaseUserQuota(user.Id, repayAmount)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 扣费失败，请稍后再试。", nil, from)
+		return
+	}
+
+	// 记录还款
+	loan, err := model.RepayLoan(activeLoan.Id, repayAmount)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, repayAmount, true)
+		farmSend(chatId, editMsgId, "❌ 还款失败，已退款。", nil, from)
+		return
+	}
+
+	model.AddFarmLog(tgId, "repay", -repayAmount, fmt.Sprintf("还款%d%%", percent))
+	common.SysLog(fmt.Sprintf("TG Farm Bank: user %s repaid %d quota, loan status %d", tgId, repayAmount, loan.Status))
+
+	statusMsg := ""
+	if loan.Status == 1 {
+		statusMsg = "\n\n🎉 贷款已全部还清！"
+	} else {
+		newRemaining := loan.TotalDue - loan.Repaid
+		statusMsg = fmt.Sprintf("\n\n剩余待还: %s", farmQuotaStr(newRemaining))
+	}
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 还款成功！\n\n💰 还款金额: %s%s",
+		farmQuotaStr(repayAmount), statusMsg), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🏦 返回银行", CallbackData: "farm_bank"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
 }
 
 func farmSend(chatId int64, editMsgId int, text string, keyboard *TgInlineKeyboardMarkup, from *TgUser) {

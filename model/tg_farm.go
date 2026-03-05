@@ -494,6 +494,164 @@ func AddFarmLog(telegramId, action string, amount int, detail string) {
 	_ = DB.Create(log).Error
 }
 
+// ========== 银行贷款 ==========
+
+type TgFarmLoan struct {
+	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId   string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	Principal    int    `json:"principal"`                    // 本金(quota)
+	Interest     int    `json:"interest"`                     // 利息(quota)
+	TotalDue     int    `json:"total_due"`                    // 应还总额
+	Repaid       int    `json:"repaid" gorm:"default:0"`      // 已还金额
+	Status       int    `json:"status" gorm:"default:0"`      // 0=未还清 1=已还清
+	CreditScore  int    `json:"credit_score"`                 // 贷款时的信用评分
+	DueAt        int64  `json:"due_at"`                       // 到期时间
+	CreatedAt    int64  `json:"created_at"`
+}
+
+// GetActiveLoan 获取用户当前未还清贷款
+func GetActiveLoan(telegramId string) (*TgFarmLoan, error) {
+	var loan TgFarmLoan
+	err := DB.Where("telegram_id = ? AND status = 0", telegramId).First(&loan).Error
+	if err != nil {
+		return nil, err
+	}
+	return &loan, nil
+}
+
+// GetCreditScore 根据消费记录计算信用评分(1~maxMultiplier)
+func GetCreditScore(telegramId string) int {
+	// 统计最近30天的正向收入记录数量和总额
+	thirtyDaysAgo := time.Now().Unix() - 30*86400
+	var count int64
+	var totalIncome int64
+
+	// 正向操作次数
+	DB.Model(&TgFarmLog{}).Where("telegram_id = ? AND created_at > ? AND amount > 0", telegramId, thirtyDaysAgo).Count(&count)
+
+	// 正向收入总额
+	type sumResult struct {
+		Total int64
+	}
+	var sr sumResult
+	DB.Model(&TgFarmLog{}).Select("COALESCE(SUM(amount),0) as total").Where("telegram_id = ? AND created_at > ? AND amount > 0", telegramId, thirtyDaysAgo).Scan(&sr)
+	totalIncome = sr.Total
+
+	// 检查历史贷款记录：是否有逾期未还
+	var overdueLoanCount int64
+	now := time.Now().Unix()
+	DB.Model(&TgFarmLoan{}).Where("telegram_id = ? AND status = 0 AND due_at < ?", telegramId, now).Count(&overdueLoanCount)
+
+	// 已还清的贷款数量加分
+	var repaidCount int64
+	DB.Model(&TgFarmLoan{}).Where("telegram_id = ? AND status = 1", telegramId).Count(&repaidCount)
+
+	// 评分算法: 基础1分 + 活跃度 + 收入 + 信用历史 - 逾期扣分
+	score := 1
+	// 活跃度: 每10次操作+1分, 最多+3
+	activityBonus := int(count / 10)
+	if activityBonus > 3 {
+		activityBonus = 3
+	}
+	score += activityBonus
+
+	// 收入: 每5000000(=$10)+1分, 最多+3
+	incomeBonus := int(totalIncome / 5000000)
+	if incomeBonus > 3 {
+		incomeBonus = 3
+	}
+	score += incomeBonus
+
+	// 信用历史: 每次还清+1, 最多+2
+	historyBonus := int(repaidCount)
+	if historyBonus > 2 {
+		historyBonus = 2
+	}
+	score += historyBonus
+
+	// 等级加分
+	level := GetFarmLevel(telegramId)
+	levelBonus := (level - 1) / 3 // 每3级+1
+	if levelBonus > 2 {
+		levelBonus = 2
+	}
+	score += levelBonus
+
+	// 逾期扣分
+	score -= int(overdueLoanCount) * 3
+
+	if score < 1 {
+		score = 1
+	}
+	maxMul := 10
+	if score > maxMul {
+		score = maxMul
+	}
+	return score
+}
+
+// CreateLoan 创建贷款
+func CreateLoan(telegramId string, principal, interest, totalDue int, creditScore int, dueDays int) (*TgFarmLoan, error) {
+	now := time.Now().Unix()
+	loan := &TgFarmLoan{
+		TelegramId:  telegramId,
+		Principal:   principal,
+		Interest:    interest,
+		TotalDue:    totalDue,
+		Repaid:      0,
+		Status:      0,
+		CreditScore: creditScore,
+		DueAt:       now + int64(dueDays)*86400,
+		CreatedAt:   now,
+	}
+	err := DB.Create(loan).Error
+	return loan, err
+}
+
+// RepayLoan 还款（部分或全部）
+func RepayLoan(loanId int, amount int) (*TgFarmLoan, error) {
+	var loan TgFarmLoan
+	err := DB.Where("id = ? AND status = 0", loanId).First(&loan).Error
+	if err != nil {
+		return nil, errors.New("未找到待还贷款")
+	}
+	remaining := loan.TotalDue - loan.Repaid
+	if amount > remaining {
+		amount = remaining
+	}
+	loan.Repaid += amount
+	if loan.Repaid >= loan.TotalDue {
+		loan.Status = 1
+	}
+	err = DB.Model(&TgFarmLoan{}).Where("id = ?", loanId).Updates(map[string]interface{}{
+		"repaid": loan.Repaid,
+		"status": loan.Status,
+	}).Error
+	return &loan, err
+}
+
+// GetLoanHistory 获取贷款历史
+func GetLoanHistory(telegramId string, limit int) ([]*TgFarmLoan, error) {
+	var loans []*TgFarmLoan
+	err := DB.Where("telegram_id = ?", telegramId).Order("id desc").Limit(limit).Find(&loans).Error
+	return loans, err
+}
+
+// ========== 管理员功能 ==========
+
+// ResetNegativeBalanceUsers 将所有余额为负数的用户重置为0
+func ResetNegativeBalanceUsers() (int64, error) {
+	result := DB.Model(&User{}).Where("quota < 0").Update("quota", 0)
+	return result.RowsAffected, result.Error
+}
+
+// ResetAllFarmLevels 将所有用户的农场等级重置为指定等级
+func ResetAllFarmLevels(level int) (int64, error) {
+	// 更新已有等级记录
+	result := DB.Model(&TgFarmItem{}).Where("item_type = ?", "_level").Update("quantity", level)
+	return result.RowsAffected, result.Error
+}
+
 func GetFarmLogs(telegramId string, limit, offset int) ([]*TgFarmLog, int64, error) {
 	var logs []*TgFarmLog
 	var total int64

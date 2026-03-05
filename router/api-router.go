@@ -167,6 +167,8 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.DELETE("/lottery/prizes/:id", controller.DeleteTgBotLotteryPrize)
 			tgBotRoute.GET("/settings", controller.GetTgBotSettings)
 			tgBotRoute.GET("/lottery/settings", controller.GetTgBotLotterySettings)
+			tgBotRoute.POST("/farm/reset-negative-balances", controller.AdminResetNegativeBalances)
+			tgBotRoute.POST("/farm/reset-all-levels", controller.AdminResetAllFarmLevels)
 		}
 
 		// Subscription billing (plans, purchase, admin management)
@@ -350,6 +352,9 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.GET("/fish", controller.WebFarmFishView)
 			farmRoute.POST("/fish", controller.WebFarmFishDo)
 			farmRoute.POST("/fish/sell", controller.WebFarmFishSell)
+			farmRoute.GET("/bank", controller.WebFarmBankView)
+			farmRoute.POST("/bank/loan", controller.WebFarmBankLoan)
+			farmRoute.POST("/bank/repay", controller.WebFarmBankRepay)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

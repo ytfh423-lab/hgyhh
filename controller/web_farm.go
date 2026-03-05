@@ -1918,3 +1918,197 @@ func WebFarmFishSell(c *gin.Context) {
 		},
 	})
 }
+
+// ========== 银行贷款 Web API ==========
+
+// WebFarmBankView returns bank info and active loan
+func WebFarmBankView(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	userLevel := model.GetFarmLevel(tgId)
+	if userLevel < common.TgBotFarmBankUnlockLevel {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("银行功能需要等级 %d 才能解锁（当前等级 %d）", common.TgBotFarmBankUnlockLevel, userLevel)})
+		return
+	}
+
+	creditScore := model.GetCreditScore(tgId)
+	baseAmount := common.TgBotFarmBankBaseAmount
+	maxLoan := baseAmount * creditScore
+	interestRate := common.TgBotFarmBankInterestRate
+	interest := maxLoan * interestRate / 100
+	totalDue := maxLoan + interest
+	loanDays := common.TgBotFarmBankMaxLoanDays
+
+	data := gin.H{
+		"balance":        webFarmQuotaFloat(user.Quota),
+		"credit_score":   creditScore,
+		"max_score":      common.TgBotFarmBankMaxMultiplier,
+		"max_loan":       webFarmQuotaFloat(maxLoan),
+		"interest_rate":  interestRate,
+		"interest":       webFarmQuotaFloat(interest),
+		"total_due":      webFarmQuotaFloat(totalDue),
+		"loan_days":      loanDays,
+		"unlock_level":   common.TgBotFarmBankUnlockLevel,
+		"has_active_loan": false,
+	}
+
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		remaining := activeLoan.TotalDue - activeLoan.Repaid
+		now := time.Now().Unix()
+		daysLeft := (activeLoan.DueAt - now) / 86400
+		if daysLeft < 0 {
+			daysLeft = 0
+		}
+		data["has_active_loan"] = true
+		data["active_loan"] = gin.H{
+			"id":        activeLoan.Id,
+			"principal": webFarmQuotaFloat(activeLoan.Principal),
+			"interest":  webFarmQuotaFloat(activeLoan.Interest),
+			"total_due": webFarmQuotaFloat(activeLoan.TotalDue),
+			"repaid":    webFarmQuotaFloat(activeLoan.Repaid),
+			"remaining": webFarmQuotaFloat(remaining),
+			"due_at":    activeLoan.DueAt,
+			"days_left": daysLeft,
+			"overdue":   now > activeLoan.DueAt,
+		}
+	}
+
+	history, _ := model.GetLoanHistory(tgId, 10)
+	var historyList []gin.H
+	for _, loan := range history {
+		historyList = append(historyList, gin.H{
+			"id":           loan.Id,
+			"principal":    webFarmQuotaFloat(loan.Principal),
+			"interest":     webFarmQuotaFloat(loan.Interest),
+			"total_due":    webFarmQuotaFloat(loan.TotalDue),
+			"repaid":       webFarmQuotaFloat(loan.Repaid),
+			"status":       loan.Status,
+			"credit_score": loan.CreditScore,
+			"created_at":   loan.CreatedAt,
+			"due_at":       loan.DueAt,
+		})
+	}
+	data["history"] = historyList
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+
+// WebFarmBankLoan applies for a new loan
+func WebFarmBankLoan(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	userLevel := model.GetFarmLevel(tgId)
+	if userLevel < common.TgBotFarmBankUnlockLevel {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "银行功能未解锁"})
+		return
+	}
+
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr == nil && activeLoan != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你还有未还清的贷款！请先还清再申请。"})
+		return
+	}
+
+	creditScore := model.GetCreditScore(tgId)
+	baseAmount := common.TgBotFarmBankBaseAmount
+	principal := baseAmount * creditScore
+	interestRate := common.TgBotFarmBankInterestRate
+	interest := principal * interestRate / 100
+	totalDue := principal + interest
+	loanDays := common.TgBotFarmBankMaxLoanDays
+
+	loan, err := model.CreateLoan(tgId, principal, interest, totalDue, creditScore, loanDays)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "贷款申请失败"})
+		return
+	}
+
+	_ = model.IncreaseUserQuota(user.Id, principal, true)
+	model.AddFarmLog(tgId, "loan", principal, fmt.Sprintf("银行贷款 评分%d", creditScore))
+	common.SysLog(fmt.Sprintf("TG Farm Bank: user %s loan %d quota, score %d", tgId, principal, creditScore))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("贷款成功！获得 $%.2f", webFarmQuotaFloat(principal)),
+		"data": gin.H{
+			"loan_id":      loan.Id,
+			"principal":    webFarmQuotaFloat(principal),
+			"interest":     webFarmQuotaFloat(interest),
+			"total_due":    webFarmQuotaFloat(totalDue),
+			"credit_score": creditScore,
+			"due_at":       loan.DueAt,
+		},
+	})
+}
+
+// WebFarmBankRepay repays a loan (percent: 50 or 100)
+func WebFarmBankRepay(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Percent int `json:"percent"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req.Percent = 100
+	}
+	if req.Percent <= 0 || req.Percent > 100 {
+		req.Percent = 100
+	}
+
+	activeLoan, loanErr := model.GetActiveLoan(tgId)
+	if loanErr != nil || activeLoan == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有待还贷款"})
+		return
+	}
+
+	remaining := activeLoan.TotalDue - activeLoan.Repaid
+	repayAmount := remaining
+	if req.Percent < 100 {
+		repayAmount = remaining * req.Percent / 100
+		if repayAmount < 1 {
+			repayAmount = 1
+		}
+	}
+
+	if user.Quota < repayAmount {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！需要 $%.2f，余额 $%.2f", webFarmQuotaFloat(repayAmount), webFarmQuotaFloat(user.Quota))})
+		return
+	}
+
+	err := model.DecreaseUserQuota(user.Id, repayAmount)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
+		return
+	}
+
+	loan, err := model.RepayLoan(activeLoan.Id, repayAmount)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, repayAmount, true)
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "还款失败，已退款"})
+		return
+	}
+
+	model.AddFarmLog(tgId, "repay", -repayAmount, fmt.Sprintf("还款%d%%", req.Percent))
+	common.SysLog(fmt.Sprintf("TG Farm Bank: user %s repaid %d quota", tgId, repayAmount))
+
+	newRemaining := loan.TotalDue - loan.Repaid
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("还款成功！还款 $%.2f", webFarmQuotaFloat(repayAmount)),
+		"data": gin.H{
+			"repaid":    webFarmQuotaFloat(repayAmount),
+			"remaining": webFarmQuotaFloat(newRemaining),
+			"cleared":   loan.Status == 1,
+		},
+	})
+}

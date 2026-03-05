@@ -935,6 +935,13 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_unlock_tasks":         common.TgBotFarmUnlockTasks,
 			"farm_unlock_achieve":       common.TgBotFarmUnlockAchieve,
 			"farm_level_prices":         common.OptionMap["TgBotFarmLevelPrices"],
+			// 银行贷款
+			"farm_bank_admin_id":        common.TgBotFarmBankAdminId,
+			"farm_bank_interest_rate":   common.TgBotFarmBankInterestRate,
+			"farm_bank_max_loan_days":   common.TgBotFarmBankMaxLoanDays,
+			"farm_bank_base_amount":     common.TgBotFarmBankBaseAmount,
+			"farm_bank_max_multiplier":  common.TgBotFarmBankMaxMultiplier,
+			"farm_bank_unlock_level":    common.TgBotFarmBankUnlockLevel,
 		},
 	})
 }
@@ -1299,4 +1306,48 @@ func tgPostReturnsOk(apiUrl string, body map[string]interface{}) bool {
 		common.SysError(fmt.Sprintf("TG Bot: API error: %s", string(respBody)))
 	}
 	return ok
+}
+
+// ========== Admin API: Farm Management ==========
+
+// AdminResetNegativeBalances resets all users with negative quota to 0
+func AdminResetNegativeBalances(c *gin.Context) {
+	affected, err := model.ResetNegativeBalanceUsers()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "重置失败: " + err.Error()})
+		return
+	}
+	common.SysLog(fmt.Sprintf("Admin: reset %d negative-balance users to 0", affected))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("已将 %d 个负余额用户重置为 0", affected),
+		"data":    gin.H{"affected": affected},
+	})
+}
+
+// AdminResetAllFarmLevels resets all users' farm level to a specified value
+func AdminResetAllFarmLevels(c *gin.Context) {
+	var req struct {
+		Level int `json:"level"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Level < 1 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请提供有效的等级（>=1）"})
+		return
+	}
+	if req.Level > common.TgBotFarmMaxLevel {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("等级不能超过最大值 %d", common.TgBotFarmMaxLevel)})
+		return
+	}
+
+	affected, err := model.ResetAllFarmLevels(req.Level)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "重置失败: " + err.Error()})
+		return
+	}
+	common.SysLog(fmt.Sprintf("Admin: reset %d users farm level to %d", affected, req.Level))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("已将 %d 个用户的农场等级重置为 Lv.%d", affected, req.Level),
+		"data":    gin.H{"affected": affected, "level": req.Level},
+	})
 }
