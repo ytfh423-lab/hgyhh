@@ -180,6 +180,14 @@ var TgBotFarmUnlockMarket = 2     // 市场
 var TgBotFarmUnlockTasks = 1      // 每日任务
 var TgBotFarmUnlockAchieve = 1    // 成就
 
+// 银行贷款系统
+var TgBotFarmBankAdminId = 1          // 管理员账户ID（放款从此扣，还款加回）
+var TgBotFarmBankInterestRate = 10    // 利率百分比（如10=10%）
+var TgBotFarmBankMaxLoanDays = 7      // 最长还款天数
+var TgBotFarmBankBaseAmount = 1000000 // 基础贷款额度(quota)
+var TgBotFarmBankMaxMultiplier = 10   // 信用评分最高倍率
+var TgBotFarmBankUnlockLevel = 3     // 解锁银行功能的等级
+
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0

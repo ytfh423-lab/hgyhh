@@ -168,6 +168,13 @@ func InitOptionMap() {
 		levelPriceStrs[i] = strconv.Itoa(p)
 	}
 	common.OptionMap["TgBotFarmLevelPrices"] = strings.Join(levelPriceStrs, ",")
+	// 银行贷款
+	common.OptionMap["TgBotFarmBankAdminId"] = strconv.Itoa(common.TgBotFarmBankAdminId)
+	common.OptionMap["TgBotFarmBankInterestRate"] = strconv.Itoa(common.TgBotFarmBankInterestRate)
+	common.OptionMap["TgBotFarmBankMaxLoanDays"] = strconv.Itoa(common.TgBotFarmBankMaxLoanDays)
+	common.OptionMap["TgBotFarmBankBaseAmount"] = strconv.Itoa(common.TgBotFarmBankBaseAmount)
+	common.OptionMap["TgBotFarmBankMaxMultiplier"] = strconv.Itoa(common.TgBotFarmBankMaxMultiplier)
+	common.OptionMap["TgBotFarmBankUnlockLevel"] = strconv.Itoa(common.TgBotFarmBankUnlockLevel)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -710,6 +717,18 @@ func updateOptionMap(key string, value string) (err error) {
 		if len(prices) > 0 {
 			common.TgBotFarmLevelPrices = prices
 		}
+	case "TgBotFarmBankAdminId":
+		common.TgBotFarmBankAdminId, _ = strconv.Atoi(value)
+	case "TgBotFarmBankInterestRate":
+		common.TgBotFarmBankInterestRate, _ = strconv.Atoi(value)
+	case "TgBotFarmBankMaxLoanDays":
+		common.TgBotFarmBankMaxLoanDays, _ = strconv.Atoi(value)
+	case "TgBotFarmBankBaseAmount":
+		common.TgBotFarmBankBaseAmount, _ = strconv.Atoi(value)
+	case "TgBotFarmBankMaxMultiplier":
+		common.TgBotFarmBankMaxMultiplier, _ = strconv.Atoi(value)
+	case "TgBotFarmBankUnlockLevel":
+		common.TgBotFarmBankUnlockLevel, _ = strconv.Atoi(value)
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":
