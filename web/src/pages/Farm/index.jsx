@@ -528,9 +528,11 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
     if (res) { loadBank(); loadFarm(); }
   };
 
+  const mortgageMaxDollar = bankData ? Math.floor(bankData.mortgage_max) : 1000;
+
   const handleMortgage = async () => {
-    if (!mortgageAmount || mortgageAmount < 1 || mortgageAmount > 1000) {
-      showError(t('金额必须在 $1 ~ $1000 之间'));
+    if (!mortgageAmount || mortgageAmount < 1 || mortgageAmount > mortgageMaxDollar) {
+      showError(t('金额必须在 $1 ~ $') + mortgageMaxDollar + t(' 之间'));
       return;
     }
     const res = await doAction('/api/farm/bank/mortgage', { amount: mortgageAmount });
@@ -640,7 +642,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Text size='small'>$</Text>
                 <InputNumber value={mortgageAmount} onChange={setMortgageAmount}
-                  min={1} max={1000} style={{ width: 120 }} />
+                  min={1} max={mortgageMaxDollar} style={{ width: 120 }} />
                 <Button theme='solid' type='warning' onClick={handleMortgage}
                   loading={actionLoading} style={{ borderRadius: 8 }}>
                   🏠 {t('申请抵押贷款')}

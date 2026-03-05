@@ -2045,10 +2045,11 @@ func WebFarmMortgageLoan(c *gin.Context) {
 	}
 
 	var req struct {
-		Amount int `json:"amount"` // dollar amount 1-1000
+		Amount int `json:"amount"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.Amount < 1 || req.Amount > 1000 {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "金额必须在 $1 ~ $1000 之间"})
+	maxDollar := common.TgBotFarmMortgageMaxAmount / 500000
+	if err := c.ShouldBindJSON(&req); err != nil || req.Amount < 1 || req.Amount > maxDollar {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("金额必须在 $1 ~ $%d 之间", maxDollar)})
 		return
 	}
 

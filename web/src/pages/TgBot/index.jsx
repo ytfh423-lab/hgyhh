@@ -112,6 +112,15 @@ const TgBotPage = () => {
   const [farmUnlockTasks, setFarmUnlockTasks] = useState(1);
   const [farmUnlockAchieve, setFarmUnlockAchieve] = useState(1);
   const [farmLevelPrices, setFarmLevelPrices] = useState('500000,1000000,2000000,3000000,5000000,8000000,12000000,18000000,25000000,35000000,50000000,70000000,100000000,150000000');
+  // 银行贷款
+  const [farmBankAdminId, setFarmBankAdminId] = useState(1);
+  const [farmBankInterestRate, setFarmBankInterestRate] = useState(10);
+  const [farmBankMaxLoanDays, setFarmBankMaxLoanDays] = useState(7);
+  const [farmBankBaseAmount, setFarmBankBaseAmount] = useState(50000000);
+  const [farmBankMaxMultiplier, setFarmBankMaxMultiplier] = useState(10);
+  const [farmBankUnlockLevel, setFarmBankUnlockLevel] = useState(3);
+  const [farmMortgageMaxAmount, setFarmMortgageMaxAmount] = useState(500000000);
+  const [farmMortgageInterestRate, setFarmMortgageInterestRate] = useState(15);
   const [savingFarm, setSavingFarm] = useState(false);
   const [resetLevel, setResetLevel] = useState(1);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
@@ -184,6 +193,15 @@ const TgBotPage = () => {
         setFarmUnlockTasks(data.farm_unlock_tasks ?? 1);
         setFarmUnlockAchieve(data.farm_unlock_achieve ?? 1);
         if (data.farm_level_prices) setFarmLevelPrices(data.farm_level_prices);
+        // 银行贷款
+        setFarmBankAdminId(data.farm_bank_admin_id ?? 1);
+        setFarmBankInterestRate(data.farm_bank_interest_rate ?? 10);
+        setFarmBankMaxLoanDays(data.farm_bank_max_loan_days ?? 7);
+        setFarmBankBaseAmount(data.farm_bank_base_amount ?? 50000000);
+        setFarmBankMaxMultiplier(data.farm_bank_max_multiplier ?? 10);
+        setFarmBankUnlockLevel(data.farm_bank_unlock_level ?? 3);
+        setFarmMortgageMaxAmount(data.farm_mortgage_max_amount ?? 500000000);
+        setFarmMortgageInterestRate(data.farm_mortgage_interest_rate ?? 15);
         setBotToken('');
       }
     } catch (err) {
@@ -1075,6 +1093,43 @@ const TgBotPage = () => {
               {farmLevelPrices.split(',').map((p, i) => `Lv${i+2}=$${(parseInt(p.trim()) / 500000 || 0).toFixed(2)}`).join(' | ')}
             </Typography.Text>
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 8 }}>🏦 {t('银行贷款设置')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>👤 {t('银行管理员ID')}</Typography.Text>
+            <InputNumber value={farmBankAdminId} onChange={setFarmBankAdminId} min={1} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>💰 {t('信用贷基础额度(quota)')}</Typography.Text>
+            <InputNumber value={farmBankBaseAmount} onChange={setFarmBankBaseAmount} min={1} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>= ${(farmBankBaseAmount / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📈 {t('信用贷利率(%)')}</Typography.Text>
+            <InputNumber value={farmBankInterestRate} onChange={setFarmBankInterestRate} min={1} max={100} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📅 {t('最长还款天数')}</Typography.Text>
+            <InputNumber value={farmBankMaxLoanDays} onChange={setFarmBankMaxLoanDays} min={1} max={30} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⭐ {t('信用评分最高倍率')}</Typography.Text>
+            <InputNumber value={farmBankMaxMultiplier} onChange={setFarmBankMaxMultiplier} min={1} max={20} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🔓 {t('银行解锁等级')}</Typography.Text>
+            <InputNumber value={farmBankUnlockLevel} onChange={setFarmBankUnlockLevel} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 8 }}>🏠 {t('抵押贷款设置')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>💰 {t('抵押贷最高额度(quota)')}</Typography.Text>
+            <InputNumber value={farmMortgageMaxAmount} onChange={setFarmMortgageMaxAmount} min={1} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>= ${(farmMortgageMaxAmount / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📈 {t('抵押贷利率(%)')}</Typography.Text>
+            <InputNumber value={farmMortgageInterestRate} onChange={setFarmMortgageInterestRate} min={1} max={100} style={{ width: 120 }} />
+          </div>
+
           <Button
             theme='solid'
             type='primary'
@@ -1132,6 +1187,15 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmUnlockTasks', value: String(farmUnlockTasks) },
                   { key: 'TgBotFarmUnlockAchieve', value: String(farmUnlockAchieve) },
                   { key: 'TgBotFarmLevelPrices', value: farmLevelPrices },
+                  // 银行贷款
+                  { key: 'TgBotFarmBankAdminId', value: String(farmBankAdminId) },
+                  { key: 'TgBotFarmBankInterestRate', value: String(farmBankInterestRate) },
+                  { key: 'TgBotFarmBankMaxLoanDays', value: String(farmBankMaxLoanDays) },
+                  { key: 'TgBotFarmBankBaseAmount', value: String(farmBankBaseAmount) },
+                  { key: 'TgBotFarmBankMaxMultiplier', value: String(farmBankMaxMultiplier) },
+                  { key: 'TgBotFarmBankUnlockLevel', value: String(farmBankUnlockLevel) },
+                  { key: 'TgBotFarmMortgageMaxAmount', value: String(farmMortgageMaxAmount) },
+                  { key: 'TgBotFarmMortgageInterestRate', value: String(farmMortgageInterestRate) },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

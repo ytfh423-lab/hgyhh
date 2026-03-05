@@ -175,6 +175,8 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmBankBaseAmount"] = strconv.Itoa(common.TgBotFarmBankBaseAmount)
 	common.OptionMap["TgBotFarmBankMaxMultiplier"] = strconv.Itoa(common.TgBotFarmBankMaxMultiplier)
 	common.OptionMap["TgBotFarmBankUnlockLevel"] = strconv.Itoa(common.TgBotFarmBankUnlockLevel)
+	common.OptionMap["TgBotFarmMortgageMaxAmount"] = strconv.Itoa(common.TgBotFarmMortgageMaxAmount)
+	common.OptionMap["TgBotFarmMortgageInterestRate"] = strconv.Itoa(common.TgBotFarmMortgageInterestRate)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -729,6 +731,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmBankMaxMultiplier, _ = strconv.Atoi(value)
 	case "TgBotFarmBankUnlockLevel":
 		common.TgBotFarmBankUnlockLevel, _ = strconv.Atoi(value)
+	case "TgBotFarmMortgageMaxAmount":
+		common.TgBotFarmMortgageMaxAmount, _ = strconv.Atoi(value)
+	case "TgBotFarmMortgageInterestRate":
+		common.TgBotFarmMortgageInterestRate, _ = strconv.Atoi(value)
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":

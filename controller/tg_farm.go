@@ -3004,7 +3004,7 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: fmt.Sprintf("💵 信用贷款 (%s)", farmQuotaStr(maxLoan)), CallbackData: "farm_doloan"},
 		})
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: "🏠 抵押贷款（$1~$1000）", CallbackData: "farm_mortgage"},
+			{Text: fmt.Sprintf("🏠 抵押贷款（$1~$%d）", common.TgBotFarmMortgageMaxAmount/500000), CallbackData: "farm_mortgage"},
 		})
 	}
 
@@ -3187,15 +3187,16 @@ func showFarmMortgage(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	loanDays := common.TgBotFarmBankMaxLoanDays
 	level := model.GetFarmLevel(tgId)
 
+	maxDollar := common.TgBotFarmMortgageMaxAmount / 500000
 	text := fmt.Sprintf("🏠 抵押贷款\n\n"+
 		"以你的10级升级权力为抵押物\n"+
 		"📈 利率: %d%%\n"+
 		"📅 还款期限: %d天\n"+
-		"💰 可贷金额: $1 ~ $1000\n\n"+
+		"💰 可贷金额: $1 ~ $%d\n\n"+
 		"⚠️ 注意事项:\n"+
 		"• 抵押贷款金额不能用于升级\n"+
 		"• 逾期未还: \n",
-		interestRate, loanDays)
+		interestRate, loanDays, maxDollar)
 
 	if level >= 10 {
 		text += "  🚫 你等级≥10，违约将直接封禁平台账号！\n"
@@ -3207,7 +3208,15 @@ func showFarmMortgage(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	var rows [][]TgInlineKeyboardButton
 	// 常用金额快捷按钮
-	amounts := []int{100, 200, 500, 1000}
+	amounts := []int{}
+	for _, a := range []int{100, 200, 500, 1000} {
+		if a <= maxDollar {
+			amounts = append(amounts, a)
+		}
+	}
+	if len(amounts) == 0 || amounts[len(amounts)-1] != maxDollar {
+		amounts = append(amounts, maxDollar)
+	}
 	for _, amt := range amounts {
 		principal := amt * 500000 // $1 = 500000 quota
 		interest := principal * interestRate / 100
@@ -3224,8 +3233,9 @@ func showFarmMortgage(chatId int64, editMsgId int, tgId string, from *TgUser) {
 }
 
 func doFarmMortgage(chatId int64, editMsgId int, tgId string, amountDollar int, from *TgUser) {
-	if amountDollar < 1 || amountDollar > 1000 {
-		farmSend(chatId, editMsgId, "❌ 金额必须在 $1 ~ $1000 之间", &TgInlineKeyboardMarkup{
+	maxDollar := common.TgBotFarmMortgageMaxAmount / 500000
+	if amountDollar < 1 || amountDollar > maxDollar {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 金额必须在 $1 ~ $%d 之间", maxDollar), &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🏠 返回抵押贷款", CallbackData: "farm_mortgage"}},
 			},
