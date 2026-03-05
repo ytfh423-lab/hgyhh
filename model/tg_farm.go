@@ -527,13 +527,13 @@ func SetLastFishTime(telegramId string, ts int64) {
 
 func GetFishItems(telegramId string) ([]*TgFarmItem, error) {
 	var items []*TgFarmItem
-	err := DB.Where("telegram_id = ? AND item_type LIKE ? AND quantity > 0", telegramId, "fish_%").Find(&items).Error
+	err := DB.Where("telegram_id = ? AND item_type LIKE ? AND item_type != ? AND quantity > 0", telegramId, "fish_%", "fishbait").Find(&items).Error
 	return items, err
 }
 
 func SellAllFish(telegramId string) (int, error) {
 	result := DB.Model(&TgFarmItem{}).
-		Where("telegram_id = ? AND item_type LIKE ? AND quantity > 0", telegramId, "fish_%").
+		Where("telegram_id = ? AND item_type LIKE ? AND item_type != ? AND quantity > 0", telegramId, "fish_%", "fishbait").
 		Update("quantity", 0)
 	return int(result.RowsAffected), result.Error
 }
