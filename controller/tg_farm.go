@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -48,13 +49,48 @@ var farmItems = []farmItemDef{
 	{"pesticide", "杀虫剂", "🧪", 150000, "bugs"},
 	{"fertilizer", "化肥", "🧴", 200000, ""},
 	{"dogfood", "狗粮", "🦴", 500000, ""},
+	{"fishbait", "鱼饵", "🪱", 250000, ""},
 }
+
+// ========== 钓鱼定义 ==========
+
+type fishDef struct {
+	Key       string
+	Name      string
+	Emoji     string
+	Rarity    string
+	Weight    int // probability weight (higher = more common)
+	SellPrice int // quota units
+}
+
+var fishTypes = []fishDef{
+	{"crucian", "鲫鱼", "🐟", "普通", 30, 100000},
+	{"tropical", "热带鱼", "🐠", "普通", 20, 200000},
+	{"shrimp", "虾", "🦐", "优良", 13, 400000},
+	{"puffer", "河豚", "🐡", "优良", 9, 750000},
+	{"lobster", "龙虾", "🦞", "稀有", 7, 1500000},
+	{"octopus", "章鱼", "🐙", "稀有", 3, 3000000},
+	{"shark", "鲨鱼", "🦈", "史诗", 2, 7500000},
+	{"whale", "鲸鱼", "🐋", "传说", 1, 20000000},
+}
+
+const fishNothingWeight = 15 // 空军概率权重
+
+var fishTypeMap map[string]*fishDef
+var fishTotalWeight int
 
 var farmCropMap map[string]*farmCropDef
 var farmCropByShort map[string]*farmCropDef
 var farmItemMap map[string]*farmItemDef
 
 const farmMaxSteals = 2
+
+// ========== 市场价格波动 ==========
+
+var marketPrices map[string]int // key -> multiplier percentage (e.g. 150 = 150%)
+var marketMu sync.RWMutex
+var marketLastUpdate int64
+var marketNextUpdate int64
 
 func init() {
 	farmCropMap = make(map[string]*farmCropDef)
@@ -67,6 +103,61 @@ func init() {
 	for i := range farmItems {
 		farmItemMap[farmItems[i].Key] = &farmItems[i]
 	}
+	fishTypeMap = make(map[string]*fishDef)
+	fishTotalWeight = fishNothingWeight
+	for i := range fishTypes {
+		fishTypeMap[fishTypes[i].Key] = &fishTypes[i]
+		fishTotalWeight += fishTypes[i].Weight
+	}
+	marketPrices = make(map[string]int)
+	refreshMarketPrices()
+}
+
+func refreshMarketPrices() {
+	marketMu.Lock()
+	defer marketMu.Unlock()
+	now := time.Now().Unix()
+	minM := common.TgBotMarketMinMultiplier
+	maxM := common.TgBotMarketMaxMultiplier
+	rng := maxM - minM + 1
+	// 作物价格
+	for _, crop := range farmCrops {
+		marketPrices["crop_"+crop.Key] = minM + rand.Intn(rng)
+	}
+	// 鱼价格
+	for _, fish := range fishTypes {
+		marketPrices["fish_"+fish.Key] = minM + rand.Intn(rng)
+	}
+	// 肉价格
+	for _, key := range []string{"chicken", "duck", "goose", "pig", "sheep", "cow"} {
+		marketPrices["meat_"+key] = minM + rand.Intn(rng)
+	}
+	marketLastUpdate = now
+	marketNextUpdate = now + int64(common.TgBotMarketRefreshHours*3600)
+}
+
+func ensureMarketFresh() {
+	marketMu.RLock()
+	next := marketNextUpdate
+	marketMu.RUnlock()
+	if time.Now().Unix() >= next {
+		refreshMarketPrices()
+	}
+}
+
+func getMarketMultiplier(key string) int {
+	ensureMarketFresh()
+	marketMu.RLock()
+	defer marketMu.RUnlock()
+	if m, ok := marketPrices[key]; ok {
+		return m
+	}
+	return 100 // default 100%
+}
+
+func applyMarket(basePrice int, marketKey string) int {
+	m := getMarketMultiplier(marketKey)
+	return basePrice * m / 100
 }
 
 func farmQuotaStr(quota int) string {
@@ -257,6 +348,14 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmFeedDog(chatId, msgId, tgId, from)
 	case data == "farm_logs":
 		showFarmLogs(chatId, msgId, tgId, from)
+	case data == "farm_fish":
+		showFarmFish(chatId, msgId, tgId, from)
+	case data == "farm_dofish":
+		doFarmFish(chatId, msgId, tgId, from)
+	case data == "farm_sellfish":
+		doFarmSellFish(chatId, msgId, tgId, from)
+	case data == "farm_market":
+		showFarmMarket(chatId, msgId, tgId, from)
 	case data == "farm_soil":
 		showFarmSoilUpgrade(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_su_"):
@@ -382,11 +481,15 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: "🌱 泥土升级", CallbackData: "farm_soil"},
 		})
 	}
-	// 狗狗 & 牧场 & 记录按钮
+	// 狗狗 & 牧场 & 钓鱼 & 记录按钮
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🐕 狗狗", CallbackData: "farm_dog"},
 		{Text: "🐄 牧场", CallbackData: "ranch"},
-		{Text: "📋 记录", CallbackData: "farm_logs"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🎣 钓鱼", CallbackData: "farm_fish"},
+		{Text: "� 市场", CallbackData: "farm_market"},
+		{Text: "� 记录", CallbackData: "farm_logs"},
 	})
 	if len(plots) < model.FarmMaxPlots {
 		rows = append(rows, []TgInlineKeyboardButton{
@@ -710,10 +813,12 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if realYield < 0 {
 				realYield = 0
 			}
-			value := realYield * crop.UnitPrice
+			marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
+			value := realYield * marketPrice
 			totalQuota += value
 			harvestedCount++
 
+			mPct := getMarketMultiplier("crop_" + crop.Key)
 			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield-fertBonus)
 			if fertBonus > 0 {
 				details += fmt.Sprintf(" +化肥%d", fertBonus)
@@ -721,8 +826,8 @@ func doFarmHarvest(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if loss > 0 {
 				details += fmt.Sprintf(" -被偷%d", loss)
 			}
-			details += fmt.Sprintf(" = 实收%d × %s = %s",
-				realYield, farmQuotaStr(crop.UnitPrice), farmQuotaStr(value))
+			details += fmt.Sprintf(" = 实收%d × %s(%d%%) = %s",
+				realYield, farmQuotaStr(marketPrice), mPct, farmQuotaStr(value))
 
 			_ = model.ClearFarmPlot(plot.Id)
 		}
@@ -1767,6 +1872,7 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		"buy_plot": "购地", "buy_dog": "买狗", "upgrade_soil": "升级",
 		"ranch_buy": "买动物", "ranch_feed": "喂食", "ranch_water": "喂水",
 		"ranch_sell": "出售", "ranch_clean": "清粪",
+		"fish": "钓鱼", "fish_sell": "卖鱼",
 	}
 
 	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
@@ -1793,6 +1899,269 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
 	}, from)
+}
+
+// ========== 钓鱼 ==========
+
+func randomFish() *fishDef {
+	r := rand.Intn(fishTotalWeight)
+	cumulative := fishNothingWeight
+	if r < cumulative {
+		return nil // 空军
+	}
+	for i := range fishTypes {
+		cumulative += fishTypes[i].Weight
+		if r < cumulative {
+			return &fishTypes[i]
+		}
+	}
+	return &fishTypes[len(fishTypes)-1]
+}
+
+func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	// 鱼饵数量
+	items, _ := model.GetFarmItems(tgId)
+	baitCount := 0
+	for _, item := range items {
+		if item.ItemType == "fishbait" {
+			baitCount = item.Quantity
+			break
+		}
+	}
+
+	// 鱼仓库
+	fishItems, _ := model.GetFishItems(tgId)
+	totalValue := 0
+
+	text := "🎣 钓鱼\n\n"
+	text += fmt.Sprintf("🪱 鱼饵: %d个\n", baitCount)
+
+	// 冷却时间
+	lastFish := model.GetLastFishTime(tgId)
+	now := time.Now().Unix()
+	cd := int64(common.TgBotFishCooldown)
+	cdRemain := lastFish + cd - now
+	if cdRemain > 0 {
+		text += fmt.Sprintf("⏱️ 冷却中: %d秒\n", cdRemain)
+	} else {
+		text += "✅ 可以钓鱼\n"
+	}
+
+	text += "\n📦 鱼仓库:\n"
+	if len(fishItems) == 0 {
+		text += "  (空)\n"
+	} else {
+		for _, fi := range fishItems {
+			fishKey := fi.ItemType[5:] // remove "fish_" prefix
+			fd := fishTypeMap[fishKey]
+			if fd != nil {
+				mPrice := applyMarket(fd.SellPrice, "fish_"+fishKey)
+				val := mPrice * fi.Quantity
+				totalValue += val
+				mPct := getMarketMultiplier("fish_" + fishKey)
+				text += fmt.Sprintf("  %s %s ×%d [%s] %s(%d%%)\n", fd.Emoji, fd.Name, fi.Quantity, fd.Rarity, farmQuotaStr(val), mPct)
+			}
+		}
+		text += fmt.Sprintf("\n💰 总价值: %s\n", farmQuotaStr(totalValue))
+	}
+
+	// 市场倒计时
+	ensureMarketFresh()
+	marketMu.RLock()
+	nextRefresh := marketNextUpdate - now
+	marketMu.RUnlock()
+	if nextRefresh > 0 {
+		text += fmt.Sprintf("\n📈 市场%dh后刷新\n", nextRefresh/3600+1)
+	}
+
+	text += "\n📊 鱼种概率:\n"
+	for _, ft := range fishTypes {
+		mPrice := applyMarket(ft.SellPrice, "fish_"+ft.Key)
+		mPct := getMarketMultiplier("fish_" + ft.Key)
+		text += fmt.Sprintf("  %s %s [%s] %d%% %s(%d%%)\n", ft.Emoji, ft.Name, ft.Rarity, ft.Weight*100/fishTotalWeight, farmQuotaStr(mPrice), mPct)
+	}
+	text += fmt.Sprintf("  🗑️ 空军 %d%%\n", fishNothingWeight*100/fishTotalWeight)
+
+	var rows [][]TgInlineKeyboardButton
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🎣 开始钓鱼", CallbackData: "farm_dofish"},
+	})
+	if totalValue > 0 {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("💰 出售全部 (%s)", farmQuotaStr(totalValue)), CallbackData: "farm_sellfish"},
+		})
+	}
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	// 冷却检查
+	lastFish := model.GetLastFishTime(tgId)
+	now := time.Now().Unix()
+	cd := int64(common.TgBotFishCooldown)
+	if now < lastFish+cd {
+		remain := lastFish + cd - now
+		farmSend(chatId, editMsgId, fmt.Sprintf("⏱️ 钓鱼冷却中，还需等待 %d 秒", remain), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+
+	// 扣鱼饵
+	err := model.DecrementFarmItem(tgId, "fishbait")
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 没有鱼饵！请先到商店购买🪱鱼饵", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🏪 去商店", CallbackData: "farm_shop"}},
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+
+	// 记录冷却
+	model.SetLastFishTime(tgId, now)
+
+	// 随机钓鱼
+	fish := randomFish()
+	if fish == nil {
+		// 空军
+		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
+		farmSend(chatId, editMsgId, "🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n\n消耗了1个鱼饵", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🎣 再钓一次", CallbackData: "farm_dofish"}},
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+
+	// 钓到鱼了
+	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
+	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
+
+	rarityMsg := ""
+	if fish.Rarity == "稀有" {
+		rarityMsg = "🎉 不错！"
+	} else if fish.Rarity == "史诗" {
+		rarityMsg = "🎊 太棒了！！"
+	} else if fish.Rarity == "传说" {
+		rarityMsg = "🏆🎊 传说级！！！"
+	}
+
+	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s",
+		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(fish.SellPrice), rarityMsg)
+
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🎣 再钓一次", CallbackData: "farm_dofish"}},
+			{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+		},
+	}, from)
+}
+
+func doFarmSellFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 用户不存在", nil, from)
+		return
+	}
+
+	fishItems, _ := model.GetFishItems(tgId)
+	if len(fishItems) == 0 {
+		farmSend(chatId, editMsgId, "❌ 鱼仓库为空", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+
+	totalValue := 0
+	totalCount := 0
+	for _, fi := range fishItems {
+		fishKey := fi.ItemType[5:]
+		fd := fishTypeMap[fishKey]
+		if fd != nil {
+			totalValue += applyMarket(fd.SellPrice, "fish_"+fishKey) * fi.Quantity
+			totalCount += fi.Quantity
+		}
+	}
+
+	_, _ = model.SellAllFish(tgId)
+	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.AddFarmLog(tgId, "fish_sell", totalValue, fmt.Sprintf("出售%d条鱼", totalCount))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("💰 出售成功！\n\n卖出 %d 条鱼\n收入 %s（含市场波动）", totalCount, farmQuotaStr(totalValue)), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🎣 继续钓鱼", CallbackData: "farm_fish"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 市场行情 ==========
+
+func showFarmMarket(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	ensureMarketFresh()
+
+	now := time.Now().Unix()
+	marketMu.RLock()
+	nextRefresh := marketNextUpdate - now
+	marketMu.RUnlock()
+	if nextRefresh < 0 {
+		nextRefresh = 0
+	}
+
+	text := fmt.Sprintf("📈 市场行情（%dh刷新一次，%dh后刷新）\n\n", common.TgBotMarketRefreshHours, nextRefresh/3600+1)
+
+	text += "🌾 作物:\n"
+	for _, crop := range farmCrops {
+		m := getMarketMultiplier("crop_" + crop.Key)
+		tag := marketTag(m)
+		text += fmt.Sprintf("  %s %s %d%% %s %s\n", crop.Emoji, crop.Name, m, tag, farmQuotaStr(applyMarket(crop.UnitPrice, "crop_"+crop.Key)))
+	}
+
+	text += "\n🐟 鱼类:\n"
+	for _, fish := range fishTypes {
+		m := getMarketMultiplier("fish_" + fish.Key)
+		tag := marketTag(m)
+		text += fmt.Sprintf("  %s %s %d%% %s %s\n", fish.Emoji, fish.Name, m, tag, farmQuotaStr(applyMarket(fish.SellPrice, "fish_"+fish.Key)))
+	}
+
+	text += "\n🥩 肉类:\n"
+	for _, a := range ranchAnimals {
+		m := getMarketMultiplier("meat_" + a.Key)
+		tag := marketTag(m)
+		text += fmt.Sprintf("  %s %s肉 %d%% %s %s\n", a.Emoji, a.Name, m, tag, farmQuotaStr(applyMarket(*a.MeatPrice, "meat_"+a.Key)))
+	}
+
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+func marketTag(m int) string {
+	if m >= 180 {
+		return "🔥暴涨"
+	} else if m >= 140 {
+		return "📈大涨"
+	} else if m >= 110 {
+		return "📈涨"
+	} else if m >= 90 {
+		return "➡️稳"
+	} else if m >= 60 {
+		return "📉跌"
+	}
+	return "📉暴跌"
 }
 
 func farmSend(chatId int64, editMsgId int, text string, keyboard *TgInlineKeyboardMarkup, from *TgUser) {

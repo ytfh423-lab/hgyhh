@@ -49,7 +49,7 @@ func buildAnimalInfo(animal *model.TgRanchAnimal) webAnimalInfo {
 		info.AnimalName = def.Name
 		info.AnimalEmoji = def.Emoji
 		info.GrowSecs = *def.GrowSecs
-		info.MeatPrice = webFarmQuotaFloat(*def.MeatPrice)
+		info.MeatPrice = webFarmQuotaFloat(applyMarket(*def.MeatPrice, "meat_"+def.Key))
 	}
 
 	now := time.Now().Unix()
@@ -147,7 +147,7 @@ func WebRanchView(c *gin.Context) {
 			"emoji":      a.Emoji,
 			"buy_price":  webFarmQuotaFloat(*a.BuyPrice),
 			"grow_secs":  *a.GrowSecs,
-			"meat_price": webFarmQuotaFloat(*a.MeatPrice),
+			"meat_price": webFarmQuotaFloat(applyMarket(*a.MeatPrice, "meat_"+a.Key)),
 		})
 	}
 
@@ -435,7 +435,7 @@ func WebRanchSlaughter(c *gin.Context) {
 		return
 	}
 
-	meatPrice := *def.MeatPrice
+	meatPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
 
 	err := model.DeleteRanchAnimal(target.Id)
 	if err != nil {

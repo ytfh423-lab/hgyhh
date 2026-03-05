@@ -431,7 +431,8 @@ func WebFarmHarvest(c *gin.Context) {
 			if realYield < 0 {
 				realYield = 0
 			}
-			value := realYield * crop.UnitPrice
+			marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
+			value := realYield * marketPrice
 			totalQuota += value
 			harvestedCount++
 
@@ -1111,6 +1112,8 @@ func WebFarmLogs(c *gin.Context) {
 		"ranch_water":  "喂水",
 		"ranch_sell":   "出售",
 		"ranch_clean":  "清粪",
+		"fish":         "钓鱼",
+		"fish_sell":    "卖鱼",
 	}
 
 	var items []logItem
@@ -1136,6 +1139,273 @@ func WebFarmLogs(c *gin.Context) {
 			"total":     total,
 			"page":      page,
 			"page_size": pageSize,
+		},
+	})
+}
+
+// ========== 市场 ==========
+
+// WebFarmMarket returns current market prices
+func WebFarmMarket(c *gin.Context) {
+	ensureMarketFresh()
+
+	type priceInfo struct {
+		Key        string  `json:"key"`
+		Name       string  `json:"name"`
+		Emoji      string  `json:"emoji"`
+		Category   string  `json:"category"`
+		BasePrice  float64 `json:"base_price"`
+		Multiplier int     `json:"multiplier"`
+		CurPrice   float64 `json:"cur_price"`
+	}
+
+	var prices []priceInfo
+
+	// 作物
+	for _, crop := range farmCrops {
+		m := getMarketMultiplier("crop_" + crop.Key)
+		prices = append(prices, priceInfo{
+			Key:        "crop_" + crop.Key,
+			Name:       crop.Name,
+			Emoji:      crop.Emoji,
+			Category:   "crop",
+			BasePrice:  webFarmQuotaFloat(crop.UnitPrice),
+			Multiplier: m,
+			CurPrice:   webFarmQuotaFloat(applyMarket(crop.UnitPrice, "crop_"+crop.Key)),
+		})
+	}
+
+	// 鱼
+	for _, fish := range fishTypes {
+		m := getMarketMultiplier("fish_" + fish.Key)
+		prices = append(prices, priceInfo{
+			Key:        "fish_" + fish.Key,
+			Name:       fish.Name,
+			Emoji:      fish.Emoji,
+			Category:   "fish",
+			BasePrice:  webFarmQuotaFloat(fish.SellPrice),
+			Multiplier: m,
+			CurPrice:   webFarmQuotaFloat(applyMarket(fish.SellPrice, "fish_"+fish.Key)),
+		})
+	}
+
+	// 肉类
+	for _, a := range ranchAnimals {
+		m := getMarketMultiplier("meat_" + a.Key)
+		prices = append(prices, priceInfo{
+			Key:        "meat_" + a.Key,
+			Name:       a.Name + "肉",
+			Emoji:      a.Emoji,
+			Category:   "meat",
+			BasePrice:  webFarmQuotaFloat(*a.MeatPrice),
+			Multiplier: m,
+			CurPrice:   webFarmQuotaFloat(applyMarket(*a.MeatPrice, "meat_"+a.Key)),
+		})
+	}
+
+	marketMu.RLock()
+	nextRefresh := marketNextUpdate - time.Now().Unix()
+	marketMu.RUnlock()
+	if nextRefresh < 0 {
+		nextRefresh = 0
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"prices":       prices,
+			"next_refresh": nextRefresh,
+			"refresh_hours": common.TgBotMarketRefreshHours,
+		},
+	})
+}
+
+// ========== 钓鱼 ==========
+
+// WebFarmFishView returns fish inventory and status
+func WebFarmFishView(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	// 鱼饵数量
+	allItems, _ := model.GetFarmItems(tgId)
+	baitCount := 0
+	for _, item := range allItems {
+		if item.ItemType == "fishbait" {
+			baitCount = item.Quantity
+			break
+		}
+	}
+
+	// 冷却
+	lastFish := model.GetLastFishTime(tgId)
+	now := time.Now().Unix()
+	cd := int64(common.TgBotFishCooldown)
+	cdRemain := lastFish + cd - now
+	if cdRemain < 0 {
+		cdRemain = 0
+	}
+
+	// 鱼仓库
+	fishItems, _ := model.GetFishItems(tgId)
+	type fishInfo struct {
+		Key       string  `json:"key"`
+		Name      string  `json:"name"`
+		Emoji     string  `json:"emoji"`
+		Rarity    string  `json:"rarity"`
+		Quantity  int     `json:"quantity"`
+		UnitPrice float64 `json:"unit_price"`
+		TotalVal  float64 `json:"total_value"`
+	}
+	var inventory []fishInfo
+	totalValue := 0
+	for _, fi := range fishItems {
+		fishKey := fi.ItemType[5:]
+		fd := fishTypeMap[fishKey]
+		if fd != nil {
+			val := fd.SellPrice * fi.Quantity
+			totalValue += val
+			inventory = append(inventory, fishInfo{
+				Key:       fd.Key,
+				Name:      fd.Name,
+				Emoji:     fd.Emoji,
+				Rarity:    fd.Rarity,
+				Quantity:  fi.Quantity,
+				UnitPrice: webFarmQuotaFloat(fd.SellPrice),
+				TotalVal:  webFarmQuotaFloat(val),
+			})
+		}
+	}
+
+	// 鱼种列表
+	type fishTypeInfo struct {
+		Key       string  `json:"key"`
+		Name      string  `json:"name"`
+		Emoji     string  `json:"emoji"`
+		Rarity    string  `json:"rarity"`
+		Chance    int     `json:"chance"`
+		SellPrice float64 `json:"sell_price"`
+	}
+	var types []fishTypeInfo
+	for _, ft := range fishTypes {
+		types = append(types, fishTypeInfo{
+			Key:       ft.Key,
+			Name:      ft.Name,
+			Emoji:     ft.Emoji,
+			Rarity:    ft.Rarity,
+			Chance:    ft.Weight * 100 / fishTotalWeight,
+			SellPrice: webFarmQuotaFloat(ft.SellPrice),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"bait_count":    baitCount,
+			"cooldown":      cdRemain,
+			"inventory":     inventory,
+			"total_value":   webFarmQuotaFloat(totalValue),
+			"fish_types":    types,
+			"nothing_chance": fishNothingWeight * 100 / fishTotalWeight,
+			"bait_price":    webFarmQuotaFloat(common.TgBotFishBaitPrice),
+		},
+	})
+}
+
+// WebFarmFishDo performs a fishing action
+func WebFarmFishDo(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	// 冷却检查
+	lastFish := model.GetLastFishTime(tgId)
+	now := time.Now().Unix()
+	cd := int64(common.TgBotFishCooldown)
+	if now < lastFish+cd {
+		remain := lastFish + cd - now
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("冷却中，还需等待 %d 秒", remain)})
+		return
+	}
+
+	// 扣鱼饵
+	err := model.DecrementFarmItem(tgId, "fishbait")
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有鱼饵！请先到商店购买"})
+		return
+	}
+
+	// 记录冷却
+	model.SetLastFishTime(tgId, now)
+
+	// 随机钓鱼
+	fish := randomFish()
+	if fish == nil {
+		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "空军！什么都没钓到...",
+			"data": gin.H{
+				"caught": false,
+			},
+		})
+		return
+	}
+
+	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
+	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("钓到了 %s %s！", fish.Emoji, fish.Name),
+		"data": gin.H{
+			"caught":     true,
+			"fish_key":   fish.Key,
+			"fish_name":  fish.Name,
+			"fish_emoji": fish.Emoji,
+			"rarity":     fish.Rarity,
+			"sell_price": webFarmQuotaFloat(fish.SellPrice),
+		},
+	})
+}
+
+// WebFarmFishSell sells all fish in inventory
+func WebFarmFishSell(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	fishItems, _ := model.GetFishItems(tgId)
+	if len(fishItems) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "鱼仓库为空"})
+		return
+	}
+
+	totalValue := 0
+	totalCount := 0
+	for _, fi := range fishItems {
+		fishKey := fi.ItemType[5:]
+		fd := fishTypeMap[fishKey]
+		if fd != nil {
+			totalValue += applyMarket(fd.SellPrice, "fish_"+fishKey) * fi.Quantity
+			totalCount += fi.Quantity
+		}
+	}
+
+	_, _ = model.SellAllFish(tgId)
+	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.AddFarmLog(tgId, "fish_sell", totalValue, fmt.Sprintf("出售%d条鱼", totalCount))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("卖出 %d 条鱼，收入 $%.2f（含市场波动）", totalCount, webFarmQuotaFloat(totalValue)),
+		"data": gin.H{
+			"count": totalCount,
+			"total": webFarmQuotaFloat(totalValue),
 		},
 	})
 }

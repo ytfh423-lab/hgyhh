@@ -35,6 +35,8 @@ import {
   List,
   ArrowUp,
   ScrollText,
+  Fish,
+  TrendingUp,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -886,6 +888,305 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
   );
 };
 
+// ===================== Market Page =====================
+const MarketPage = ({ t }) => {
+  const [marketData, setMarketData] = useState(null);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  const loadMarket = useCallback(async () => {
+    setMarketLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/market');
+      if (res.success) {
+        setMarketData(res.data);
+        setCountdown(res.data.next_refresh || 0);
+      }
+    } catch (err) {
+      showError(t('加载失败'));
+    } finally {
+      setMarketLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadMarket(); }, [loadMarket]);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); loadMarket(); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown, loadMarket]);
+
+  if (marketLoading && !marketData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!marketData) return null;
+
+  const formatCountdown = (s) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h${m}m` : `${m}m`;
+  };
+
+  const mColor = (m) => {
+    if (m >= 150) return '#16a34a';
+    if (m >= 120) return '#65a30d';
+    if (m >= 80) return '#ca8a04';
+    if (m >= 50) return '#dc2626';
+    return '#991b1b';
+  };
+
+  const mLabel = (m) => {
+    if (m >= 180) return '🔥暴涨';
+    if (m >= 140) return '📈大涨';
+    if (m >= 110) return '📈上涨';
+    if (m >= 90) return '➡️平稳';
+    if (m >= 60) return '📉下跌';
+    return '📉暴跌';
+  };
+
+  const categories = [
+    { key: 'crop', label: '🌾 ' + t('作物') },
+    { key: 'fish', label: '🐟 ' + t('鱼类') },
+    { key: 'meat', label: '🥩 ' + t('肉类') },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Tag size='large' color='blue'>⏱️ {t('下次刷新')}: {formatCountdown(countdown)}</Tag>
+          <Tag size='large' color='grey'>🔄 {t('每')} {marketData.refresh_hours}h</Tag>
+        </div>
+        <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadMarket} loading={marketLoading} />
+      </div>
+
+      {categories.map(cat => {
+        const items = (marketData.prices || []).filter(p => p.category === cat.key);
+        if (items.length === 0) return null;
+        return (
+          <Card key={cat.key} className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 10 }}>
+            <Text strong style={{ display: 'block', marginBottom: 8 }}>{cat.label}</Text>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {items.map(p => (
+                <div key={p.key} style={{
+                  padding: '6px 12px', borderRadius: 8, minWidth: 140,
+                  background: 'var(--semi-color-fill-0)',
+                  border: '1px solid var(--semi-color-border)',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ fontSize: 20 }}>{p.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <Text size='small' strong>{p.name}</Text>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text size='small' style={{ color: mColor(p.multiplier), fontWeight: 700 }}>
+                        {p.multiplier}%
+                      </Text>
+                      <Text size='small' type='tertiary'>{mLabel(p.multiplier)}</Text>
+                    </div>
+                    <Text size='small' type='tertiary'>
+                      ${p.base_price.toFixed(2)} → <span style={{ color: mColor(p.multiplier), fontWeight: 600 }}>${p.cur_price.toFixed(2)}</span>
+                    </Text>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+};
+
+// ===================== Fish Page =====================
+const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
+  const [fishData, setFishData] = useState(null);
+  const [fishLoading, setFishLoading] = useState(false);
+  const [lastCatch, setLastCatch] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  const loadFish = useCallback(async () => {
+    setFishLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/fish');
+      if (res.success) {
+        setFishData(res.data);
+        setCooldown(res.data.cooldown || 0);
+      }
+    } catch (err) {
+      showError(t('加载失败'));
+    } finally {
+      setFishLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadFish(); }, [loadFish]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const doFish = async () => {
+    setFishLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/fish');
+      if (res.success) {
+        setLastCatch(res.data);
+        if (res.data.caught) {
+          showSuccess(res.message);
+        }
+        loadFish();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setFishLoading(false);
+    }
+  };
+
+  const doSellAll = async () => {
+    setFishLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/fish/sell');
+      if (res.success) {
+        showSuccess(res.message);
+        setLastCatch(null);
+        loadFish();
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setFishLoading(false);
+    }
+  };
+
+  if (fishLoading && !fishData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!fishData) return null;
+
+  const rarityColors = {
+    '普通': 'grey', '优良': 'green', '稀有': 'blue', '史诗': 'purple', '传说': 'orange',
+  };
+
+  return (
+    <div>
+      {/* Status bar */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <Tag size='large' color='amber'>🪱 {t('鱼饵')}: {fishData.bait_count}</Tag>
+        <Tag size='large' color={cooldown > 0 ? 'red' : 'green'}>
+          {cooldown > 0 ? `⏱️ ${cooldown}s` : `✅ ${t('可以钓鱼')}`}
+        </Tag>
+        {fishData.total_value > 0 && (
+          <Tag size='large' color='cyan'>💰 {t('鱼仓价值')}: ${fishData.total_value.toFixed(2)}</Tag>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Button theme='solid' type='primary' loading={fishLoading}
+          disabled={cooldown > 0 || fishData.bait_count === 0}
+          onClick={doFish}
+          icon={<Fish size={14} />}>
+          {cooldown > 0 ? `${t('冷却中')} ${cooldown}s` : fishData.bait_count === 0 ? t('没有鱼饵') : t('开始钓鱼')}
+        </Button>
+        {fishData.total_value > 0 && (
+          <Button theme='light' type='warning' loading={fishLoading} onClick={doSellAll}>
+            💰 {t('出售全部')} (${fishData.total_value.toFixed(2)})
+          </Button>
+        )}
+      </div>
+
+      {/* Last catch result */}
+      {lastCatch && (
+        <Banner type={lastCatch.caught ? 'success' : 'warning'} closeIcon={null}
+          style={{ marginBottom: 12, borderRadius: 8 }}
+          description={lastCatch.caught
+            ? <span style={{ fontSize: 16 }}>{lastCatch.fish_emoji} {t('钓到了')} <strong>{lastCatch.fish_name}</strong> <Tag size='small' color={rarityColors[lastCatch.rarity]}>[{lastCatch.rarity}]</Tag> {t('价值')} ${lastCatch.sell_price.toFixed(2)}</span>
+            : <span style={{ fontSize: 16 }}>🗑️ {t('空军！什么都没钓到...')}</span>
+          }
+        />
+      )}
+
+      {/* Fish inventory */}
+      {fishData.inventory && fishData.inventory.length > 0 && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>📦 {t('鱼仓库')}</Text>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {fishData.inventory.map((fish) => (
+              <div key={fish.key} style={{
+                padding: '6px 12px', borderRadius: 8,
+                background: 'var(--semi-color-fill-0)',
+                border: '1px solid var(--semi-color-border)',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <span style={{ fontSize: 20 }}>{fish.emoji}</span>
+                <div>
+                  <Text size='small' strong>{fish.name} ×{fish.quantity}</Text>
+                  <Tag size='small' color={rarityColors[fish.rarity]} style={{ marginLeft: 4 }}>{fish.rarity}</Tag>
+                  <Text size='small' type='tertiary' style={{ display: 'block' }}>${fish.total_value.toFixed(2)}</Text>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Fish types reference */}
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>📊 {t('鱼种图鉴')}</Text>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {fishData.fish_types && fishData.fish_types.map((ft) => (
+            <div key={ft.key} style={{
+              padding: '4px 10px', borderRadius: 6, minWidth: 120,
+              background: 'var(--semi-color-fill-0)',
+              border: '1px solid var(--semi-color-border)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ fontSize: 18 }}>{ft.emoji}</span>
+              <div>
+                <Text size='small'>{ft.name}</Text>
+                <Tag size='small' color={rarityColors[ft.rarity]} style={{ marginLeft: 4 }}>{ft.rarity}</Tag>
+                <Text size='small' type='tertiary' style={{ display: 'block' }}>{ft.chance}% · ${ft.sell_price.toFixed(2)}</Text>
+              </div>
+            </div>
+          ))}
+          <div style={{
+            padding: '4px 10px', borderRadius: 6, minWidth: 120,
+            background: 'var(--semi-color-fill-0)',
+            border: '1px solid var(--semi-color-border)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <span style={{ fontSize: 18 }}>🗑️</span>
+            <div>
+              <Text size='small'>{t('空军')}</Text>
+              <Text size='small' type='tertiary' style={{ display: 'block' }}>{fishData.nothing_chance}%</Text>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 // ===================== Logs Page =====================
 const LogsPage = ({ t }) => {
   const [logs, setLogs] = useState([]);
@@ -916,6 +1217,7 @@ const LogsPage = ({ t }) => {
     buy_plot: '🏗️', buy_dog: '🐶', upgrade_soil: '⬆️',
     ranch_buy: '🐄', ranch_feed: '🌾', ranch_water: '💧',
     ranch_sell: '🔪', ranch_clean: '🧹',
+    fish: '🎣', fish_sell: '💰',
   };
 
   const formatTime = (ts) => {
@@ -1110,6 +1412,13 @@ const Farm = () => {
         <TabPane tab={<span>🐄 {t('牧场')}</span>} itemKey='ranch'>
           <RanchPage actionLoading={actionLoading}
             doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Fish size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('钓鱼')}</span>} itemKey='fish'>
+          <FishPage actionLoading={actionLoading}
+            doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><TrendingUp size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('市场')}</span>} itemKey='market'>
+          <MarketPage t={t} />
         </TabPane>
         <TabPane tab={<span><ScrollText size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('记录')}</span>} itemKey='logs'>
           <LogsPage t={t} />

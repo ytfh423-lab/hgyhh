@@ -311,6 +311,41 @@ func CleanRanchAnimals(telegramId string) error {
 	return DB.Model(&TgRanchAnimal{}).Where("telegram_id = ? AND status != 5", telegramId).Update("last_cleaned_at", now).Error
 }
 
+// ========== 钓鱼相关 ==========
+
+func GetLastFishTime(telegramId string) int64 {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_last_fish").First(&item).Error
+	if err != nil {
+		return 0
+	}
+	return int64(item.Quantity)
+}
+
+func SetLastFishTime(telegramId string, ts int64) {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_last_fish").First(&item).Error
+	if err != nil {
+		item = TgFarmItem{TelegramId: telegramId, ItemType: "_last_fish", Quantity: int(ts)}
+		_ = DB.Create(&item).Error
+		return
+	}
+	_ = DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", int(ts)).Error
+}
+
+func GetFishItems(telegramId string) ([]*TgFarmItem, error) {
+	var items []*TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type LIKE ? AND quantity > 0", telegramId, "fish_%").Find(&items).Error
+	return items, err
+}
+
+func SellAllFish(telegramId string) (int, error) {
+	result := DB.Model(&TgFarmItem{}).
+		Where("telegram_id = ? AND item_type LIKE ? AND quantity > 0", telegramId, "fish_%").
+		Update("quantity", 0)
+	return int(result.RowsAffected), result.Error
+}
+
 // ========== TgFarmLog 消费记录 ==========
 
 type TgFarmLog struct {

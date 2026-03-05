@@ -146,6 +146,13 @@ func InitOptionMap() {
 	common.OptionMap["TgBotRanchManureInterval"] = strconv.Itoa(common.TgBotRanchManureInterval)
 	common.OptionMap["TgBotRanchManureCleanPrice"] = strconv.Itoa(common.TgBotRanchManureCleanPrice)
 	common.OptionMap["TgBotRanchManureGrowPenalty"] = strconv.Itoa(common.TgBotRanchManureGrowPenalty)
+	// 钓鱼
+	common.OptionMap["TgBotFishBaitPrice"] = strconv.Itoa(common.TgBotFishBaitPrice)
+	common.OptionMap["TgBotFishCooldown"] = strconv.Itoa(common.TgBotFishCooldown)
+	// 市场
+	common.OptionMap["TgBotMarketRefreshHours"] = strconv.Itoa(common.TgBotMarketRefreshHours)
+	common.OptionMap["TgBotMarketMinMultiplier"] = strconv.Itoa(common.TgBotMarketMinMultiplier)
+	common.OptionMap["TgBotMarketMaxMultiplier"] = strconv.Itoa(common.TgBotMarketMaxMultiplier)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -634,6 +641,31 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 		if common.TgBotRanchManureGrowPenalty > 90 {
 			common.TgBotRanchManureGrowPenalty = 90
+		}
+	case "TgBotFishBaitPrice":
+		common.TgBotFishBaitPrice, _ = strconv.Atoi(value)
+		if common.TgBotFishBaitPrice <= 0 {
+			common.TgBotFishBaitPrice = 250000
+		}
+	case "TgBotFishCooldown":
+		common.TgBotFishCooldown, _ = strconv.Atoi(value)
+		if common.TgBotFishCooldown < 0 {
+			common.TgBotFishCooldown = 0
+		}
+	case "TgBotMarketRefreshHours":
+		common.TgBotMarketRefreshHours, _ = strconv.Atoi(value)
+		if common.TgBotMarketRefreshHours < 1 {
+			common.TgBotMarketRefreshHours = 1
+		}
+	case "TgBotMarketMinMultiplier":
+		common.TgBotMarketMinMultiplier, _ = strconv.Atoi(value)
+		if common.TgBotMarketMinMultiplier < 10 {
+			common.TgBotMarketMinMultiplier = 10
+		}
+	case "TgBotMarketMaxMultiplier":
+		common.TgBotMarketMaxMultiplier, _ = strconv.Atoi(value)
+		if common.TgBotMarketMaxMultiplier < 100 {
+			common.TgBotMarketMaxMultiplier = 100
 		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value

@@ -279,7 +279,9 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 		if isAnimalDirty(animal, now) {
 			dirtyTag = "💩"
 		}
-		return fmt.Sprintf("✅ %s %s%s - 已成熟！可出售 %s", def.Emoji, def.Name, dirtyTag, farmQuotaStr(*def.MeatPrice))
+		mPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
+		mPct := getMarketMultiplier("meat_" + def.Key)
+		return fmt.Sprintf("✅ %s %s%s - 已成熟！可出售 %s(%d%%)", def.Emoji, def.Name, dirtyTag, farmQuotaStr(mPrice), mPct)
 	case 3: // hungry
 		feedInterval := int64(common.TgBotRanchFeedInterval)
 		hungerStart := animal.LastFedAt + feedInterval
@@ -337,8 +339,10 @@ func showRanchBuyAnimals(chatId int64, editMsgId int, tgId string, from *TgUser)
 	var rows [][]TgInlineKeyboardButton
 	for _, a := range ranchAnimals {
 		growHours := *a.GrowSecs / 3600
-		text += fmt.Sprintf("%s %s - %s | 生长%d小时 | 肉价%s\n",
-			a.Emoji, a.Name, farmQuotaStr(*a.BuyPrice), growHours, farmQuotaStr(*a.MeatPrice))
+		mPrice := applyMarket(*a.MeatPrice, "meat_"+a.Key)
+		mPct := getMarketMultiplier("meat_" + a.Key)
+		text += fmt.Sprintf("%s %s - %s | 生长%d小时 | 肉价%s(%d%%)\n",
+			a.Emoji, a.Name, farmQuotaStr(*a.BuyPrice), growHours, farmQuotaStr(mPrice), mPct)
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: fmt.Sprintf("%s %s (%s)", a.Emoji, a.Name, farmQuotaStr(*a.BuyPrice)),
 				CallbackData: "ranch_ba_" + a.Short},
@@ -706,8 +710,9 @@ func showRanchSlaughterSelection(chatId int64, editMsgId int, tgId string, from 
 			continue
 		}
 		hasTarget = true
+		mPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("%s %s → %s", def.Emoji, def.Name, farmQuotaStr(*def.MeatPrice)),
+			{Text: fmt.Sprintf("%s %s → %s", def.Emoji, def.Name, farmQuotaStr(mPrice)),
 				CallbackData: fmt.Sprintf("ranch_sl_%d", a.Id)},
 		})
 	}
@@ -765,7 +770,7 @@ func doRanchSlaughter(chatId int64, editMsgId int, tgId string, animalId int, fr
 		return
 	}
 
-	meatPrice := *def.MeatPrice
+	meatPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
 
 	// 删除动物
 	err = model.DeleteRanchAnimal(target.Id)
