@@ -1311,11 +1311,12 @@ func WebFarmLevelUp(c *gin.Context) {
 	}
 
 	price := getLevelUpPrice(level)
-	err := model.DecreaseUserQuota(user.Id, price)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "余额不足"})
+	userQuota, _ := model.GetUserQuota(user.Id, false)
+	if userQuota < price {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足，需要$%.2f，当前$%.2f", float64(price)/500000.0, float64(userQuota)/500000.0)})
 		return
 	}
+	_ = model.DecreaseUserQuota(user.Id, price)
 
 	newLevel := level + 1
 	model.SetFarmLevel(tgId, newLevel)

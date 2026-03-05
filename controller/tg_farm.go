@@ -2363,15 +2363,16 @@ func doFarmLevelUp(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 
 	price := getLevelUpPrice(level)
-	err = model.DecreaseUserQuota(user.Id, price)
-	if err != nil {
-		farmSend(chatId, editMsgId, "❌ 余额不足", &TgInlineKeyboardMarkup{
+	userQuota, _ := model.GetUserQuota(user.Id, false)
+	if userQuota < price {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足\n\n需要 %s，当前余额 %s", farmQuotaStr(price), farmQuotaStr(userQuota)), &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回农场", CallbackData: "farm"}},
 			},
 		}, from)
 		return
 	}
+	_ = model.DecreaseUserQuota(user.Id, price)
 
 	newLevel := level + 1
 	model.SetFarmLevel(tgId, newLevel)
