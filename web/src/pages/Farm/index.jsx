@@ -40,6 +40,7 @@ import {
   Factory,
   Trophy,
   ClipboardList,
+  Star,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -891,6 +892,113 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
   );
 };
 
+// ===================== Level Page =====================
+const LevelPage = ({ actionLoading, loadFarm, t }) => {
+  const [lvData, setLvData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadLevel = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/level');
+      if (res.success) setLvData(res.data);
+    } catch (err) {
+      showError(t('加载失败'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadLevel(); }, [loadLevel]);
+
+  const doLevelUp = async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/levelup');
+      if (res.success) {
+        showSuccess(res.message);
+        loadLevel();
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !lvData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!lvData) return null;
+
+  const isMax = lvData.level >= lvData.max_level;
+  const pct = Math.round((lvData.level / lvData.max_level) * 100);
+
+  return (
+    <div>
+      {/* Level header */}
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 36 }}>⭐</span>
+          <div style={{ flex: 1 }}>
+            <Title heading={4} style={{ margin: 0 }}>Lv.{lvData.level}</Title>
+            <div style={{ width: '100%', height: 8, background: 'var(--semi-color-fill-2)', borderRadius: 4, marginTop: 4 }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: isMax ? '#16a34a' : '#f59e0b', borderRadius: 4 }} />
+            </div>
+            <Text size='small' type='tertiary'>{lvData.level}/{lvData.max_level}</Text>
+          </div>
+          {!isMax && (
+            <Button theme='solid' type='warning' loading={loading} onClick={doLevelUp}>
+              ⬆️ {t('升级')} ${lvData.next_price.toFixed(2)}
+            </Button>
+          )}
+          {isMax && <Tag size='large' color='green'>MAX</Tag>}
+        </div>
+      </Card>
+
+      {/* Feature unlocks */}
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>🔓 {t('功能解锁')}</Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {(lvData.unlocks || []).map((u) => (
+            <div key={u.key} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px',
+              borderRadius: 6, background: u.unlocked ? 'var(--semi-color-success-light-default)' : 'var(--semi-color-fill-0)',
+            }}>
+              <span>{u.unlocked ? '✅' : '🔒'}</span>
+              <Text style={{ flex: 1 }}>{u.name}</Text>
+              <Tag size='small' color={u.unlocked ? 'green' : 'grey'}>Lv.{u.level}</Tag>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Price table */}
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+        <Text strong style={{ display: 'block', marginBottom: 8 }}>📊 {t('升级价格表')}</Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {(lvData.prices || []).map((p) => (
+            <div key={p.level} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '3px 8px',
+              borderRadius: 6,
+              background: p.level === lvData.level + 1 ? 'var(--semi-color-warning-light-default)' : 'transparent',
+              fontWeight: p.level === lvData.level + 1 ? 600 : 400,
+            }}>
+              <Text style={{ width: 50 }}>Lv.{p.level}</Text>
+              <Text>${p.price.toFixed(2)}</Text>
+              {p.level <= lvData.level && <Tag size='small' color='green' style={{ marginLeft: 'auto' }}>✅</Tag>}
+              {p.level === lvData.level + 1 && <Tag size='small' color='orange' style={{ marginLeft: 'auto' }}>👉 {t('下一级')}</Tag>}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 // ===================== Tasks Page =====================
 const TasksPage = ({ actionLoading, loadFarm, t }) => {
   const [taskData, setTaskData] = useState(null);
@@ -1552,6 +1660,7 @@ const LogsPage = ({ t }) => {
     fish: '🎣', fish_sell: '💰',
     craft: '🏭', craft_sell: '📥',
     task: '📝', achieve: '🏆',
+    levelup: '⬆️',
   };
 
   const formatTime = (ts) => {
@@ -1754,6 +1863,9 @@ const Farm = () => {
         <TabPane tab={<span><Factory size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('加工')}</span>} itemKey='workshop'>
           <WorkshopPage actionLoading={actionLoading}
             doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Star size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('等级')}</span>} itemKey='level'>
+          <LevelPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />
         </TabPane>
         <TabPane tab={<span><ClipboardList size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('任务')}</span>} itemKey='tasks'>
           <TasksPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />

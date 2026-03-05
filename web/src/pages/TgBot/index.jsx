@@ -102,6 +102,16 @@ const TgBotPage = () => {
   const [ranchManureInterval, setRanchManureInterval] = useState(21600);
   const [ranchManureCleanPrice, setRanchManureCleanPrice] = useState(150000);
   const [ranchManureGrowPenalty, setRanchManureGrowPenalty] = useState(30);
+  // 等级系统
+  const [farmUnlockSteal, setFarmUnlockSteal] = useState(2);
+  const [farmUnlockDog, setFarmUnlockDog] = useState(2);
+  const [farmUnlockRanch, setFarmUnlockRanch] = useState(3);
+  const [farmUnlockFish, setFarmUnlockFish] = useState(3);
+  const [farmUnlockWorkshop, setFarmUnlockWorkshop] = useState(4);
+  const [farmUnlockMarket, setFarmUnlockMarket] = useState(2);
+  const [farmUnlockTasks, setFarmUnlockTasks] = useState(1);
+  const [farmUnlockAchieve, setFarmUnlockAchieve] = useState(1);
+  const [farmLevelPrices, setFarmLevelPrices] = useState('500000,1000000,2000000,3000000,5000000,8000000,12000000,18000000,25000000,35000000,50000000,70000000,100000000,150000000');
   const [savingFarm, setSavingFarm] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
@@ -163,6 +173,16 @@ const TgBotPage = () => {
         setRanchManureInterval(data.ranch_manure_interval || 21600);
         setRanchManureCleanPrice(data.ranch_manure_clean_price || 150000);
         setRanchManureGrowPenalty(data.ranch_manure_grow_penalty || 30);
+        // 等级系统
+        setFarmUnlockSteal(data.farm_unlock_steal ?? 2);
+        setFarmUnlockDog(data.farm_unlock_dog ?? 2);
+        setFarmUnlockRanch(data.farm_unlock_ranch ?? 3);
+        setFarmUnlockFish(data.farm_unlock_fish ?? 3);
+        setFarmUnlockWorkshop(data.farm_unlock_workshop ?? 4);
+        setFarmUnlockMarket(data.farm_unlock_market ?? 2);
+        setFarmUnlockTasks(data.farm_unlock_tasks ?? 1);
+        setFarmUnlockAchieve(data.farm_unlock_achieve ?? 1);
+        if (data.farm_level_prices) setFarmLevelPrices(data.farm_level_prices);
         setBotToken('');
       }
     } catch (err) {
@@ -1013,6 +1033,47 @@ const TgBotPage = () => {
             <Typography.Text style={{ width: 200 }}>{t('脏污生长减速(%)')}</Typography.Text>
             <InputNumber value={ranchManureGrowPenalty} onChange={setRanchManureGrowPenalty} min={0} max={90} style={{ width: 120 }} />
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 12 }}>⭐ {t('等级系统')}</Typography.Title>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('功能解锁等级')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🕵️ {t('偷菜解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockSteal} onChange={setFarmUnlockSteal} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐕 {t('狗狗解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockDog} onChange={setFarmUnlockDog} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🐄 {t('牧场解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockRanch} onChange={setFarmUnlockRanch} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🎣 {t('钓鱼解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockFish} onChange={setFarmUnlockFish} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🏭 {t('加工坊解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockWorkshop} onChange={setFarmUnlockWorkshop} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📈 {t('市场解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockMarket} onChange={setFarmUnlockMarket} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>📝 {t('任务解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockTasks} onChange={setFarmUnlockTasks} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🏆 {t('成就解锁等级')}</Typography.Text>
+            <InputNumber value={farmUnlockAchieve} onChange={setFarmUnlockAchieve} min={1} max={15} style={{ width: 120 }} />
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('升级价格(额度,逗号分隔,Lv2~Lv15)')}</Typography.Title>
+          <div style={{ marginBottom: 12 }}>
+            <Input value={farmLevelPrices} onChange={setFarmLevelPrices} placeholder='500000,1000000,...' style={{ width: '100%' }} />
+            <Typography.Text type='tertiary' size='small'>
+              {farmLevelPrices.split(',').map((p, i) => `Lv${i+2}=$${(parseInt(p.trim()) / 500000 || 0).toFixed(2)}`).join(' | ')}
+            </Typography.Text>
+          </div>
           <Button
             theme='solid'
             type='primary'
@@ -1060,6 +1121,16 @@ const TgBotPage = () => {
                   { key: 'TgBotRanchManureInterval', value: String(ranchManureInterval) },
                   { key: 'TgBotRanchManureCleanPrice', value: String(ranchManureCleanPrice) },
                   { key: 'TgBotRanchManureGrowPenalty', value: String(ranchManureGrowPenalty) },
+                  // 等级系统
+                  { key: 'TgBotFarmUnlockSteal', value: String(farmUnlockSteal) },
+                  { key: 'TgBotFarmUnlockDog', value: String(farmUnlockDog) },
+                  { key: 'TgBotFarmUnlockRanch', value: String(farmUnlockRanch) },
+                  { key: 'TgBotFarmUnlockFish', value: String(farmUnlockFish) },
+                  { key: 'TgBotFarmUnlockWorkshop', value: String(farmUnlockWorkshop) },
+                  { key: 'TgBotFarmUnlockMarket', value: String(farmUnlockMarket) },
+                  { key: 'TgBotFarmUnlockTasks', value: String(farmUnlockTasks) },
+                  { key: 'TgBotFarmUnlockAchieve', value: String(farmUnlockAchieve) },
+                  { key: 'TgBotFarmLevelPrices', value: farmLevelPrices },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

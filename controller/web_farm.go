@@ -1118,6 +1118,7 @@ func WebFarmLogs(c *gin.Context) {
 		"craft_sell":   "收取",
 		"task":         "任务",
 		"achieve":      "成就",
+		"levelup":      "升级",
 	}
 
 	var items []logItem
@@ -1234,6 +1235,109 @@ func WebFarmMarket(c *gin.Context) {
 			"prices":       prices,
 			"next_refresh": nextRefresh,
 			"refresh_hours": common.TgBotMarketRefreshHours,
+		},
+	})
+}
+
+// ========== 等级系统 ==========
+
+// WebFarmLevelInfo returns current level, prices, feature unlock info
+func WebFarmLevelInfo(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	level := model.GetFarmLevel(tgId)
+
+	type unlockInfo struct {
+		Key      string `json:"key"`
+		Name     string `json:"name"`
+		Level    int    `json:"level"`
+		Unlocked bool   `json:"unlocked"`
+	}
+	var unlocks []unlockInfo
+	for _, fu := range featureUnlocks {
+		unlocks = append(unlocks, unlockInfo{
+			Key:      fu.Key,
+			Name:     fu.Name,
+			Level:    *fu.Level,
+			Unlocked: level >= *fu.Level,
+		})
+	}
+
+	type priceItem struct {
+		Level int     `json:"level"`
+		Price float64 `json:"price"`
+	}
+	var prices []priceItem
+	for i, p := range common.TgBotFarmLevelPrices {
+		lv := i + 2
+		if lv > common.TgBotFarmMaxLevel {
+			break
+		}
+		prices = append(prices, priceItem{Level: lv, Price: webFarmQuotaFloat(p)})
+	}
+
+	nextPrice := float64(0)
+	if level < common.TgBotFarmMaxLevel {
+		nextPrice = webFarmQuotaFloat(getLevelUpPrice(level))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"level":      level,
+			"max_level":  common.TgBotFarmMaxLevel,
+			"next_price": nextPrice,
+			"prices":     prices,
+			"unlocks":    unlocks,
+		},
+	})
+}
+
+// WebFarmLevelUp handles level upgrade
+func WebFarmLevelUp(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	level := model.GetFarmLevel(tgId)
+	if level >= common.TgBotFarmMaxLevel {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "已达最高等级"})
+		return
+	}
+
+	price := getLevelUpPrice(level)
+	err := model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "余额不足"})
+		return
+	}
+
+	newLevel := level + 1
+	model.SetFarmLevel(tgId, newLevel)
+	model.AddFarmLog(tgId, "levelup", -price, fmt.Sprintf("升级到Lv.%d", newLevel))
+
+	var newUnlocks []string
+	for _, fu := range featureUnlocks {
+		if *fu.Level == newLevel {
+			newUnlocks = append(newUnlocks, fu.Name)
+		}
+	}
+
+	msg := fmt.Sprintf("升级到 Lv.%d", newLevel)
+	if len(newUnlocks) > 0 {
+		msg += "，解锁: " + strings.Join(newUnlocks, ", ")
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": msg,
+		"data": gin.H{
+			"new_level": newLevel,
+			"unlocks":   newUnlocks,
 		},
 	})
 }

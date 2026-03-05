@@ -153,6 +153,21 @@ func InitOptionMap() {
 	common.OptionMap["TgBotMarketRefreshHours"] = strconv.Itoa(common.TgBotMarketRefreshHours)
 	common.OptionMap["TgBotMarketMinMultiplier"] = strconv.Itoa(common.TgBotMarketMinMultiplier)
 	common.OptionMap["TgBotMarketMaxMultiplier"] = strconv.Itoa(common.TgBotMarketMaxMultiplier)
+	// 等级系统
+	common.OptionMap["TgBotFarmUnlockSteal"] = strconv.Itoa(common.TgBotFarmUnlockSteal)
+	common.OptionMap["TgBotFarmUnlockDog"] = strconv.Itoa(common.TgBotFarmUnlockDog)
+	common.OptionMap["TgBotFarmUnlockRanch"] = strconv.Itoa(common.TgBotFarmUnlockRanch)
+	common.OptionMap["TgBotFarmUnlockFish"] = strconv.Itoa(common.TgBotFarmUnlockFish)
+	common.OptionMap["TgBotFarmUnlockWorkshop"] = strconv.Itoa(common.TgBotFarmUnlockWorkshop)
+	common.OptionMap["TgBotFarmUnlockMarket"] = strconv.Itoa(common.TgBotFarmUnlockMarket)
+	common.OptionMap["TgBotFarmUnlockTasks"] = strconv.Itoa(common.TgBotFarmUnlockTasks)
+	common.OptionMap["TgBotFarmUnlockAchieve"] = strconv.Itoa(common.TgBotFarmUnlockAchieve)
+	// 等级价格用逗号分隔存储
+	levelPriceStrs := make([]string, len(common.TgBotFarmLevelPrices))
+	for i, p := range common.TgBotFarmLevelPrices {
+		levelPriceStrs[i] = strconv.Itoa(p)
+	}
+	common.OptionMap["TgBotFarmLevelPrices"] = strings.Join(levelPriceStrs, ",")
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -666,6 +681,34 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotMarketMaxMultiplier, _ = strconv.Atoi(value)
 		if common.TgBotMarketMaxMultiplier < 100 {
 			common.TgBotMarketMaxMultiplier = 100
+		}
+	case "TgBotFarmUnlockSteal":
+		common.TgBotFarmUnlockSteal, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockDog":
+		common.TgBotFarmUnlockDog, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockRanch":
+		common.TgBotFarmUnlockRanch, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockFish":
+		common.TgBotFarmUnlockFish, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockWorkshop":
+		common.TgBotFarmUnlockWorkshop, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockMarket":
+		common.TgBotFarmUnlockMarket, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockTasks":
+		common.TgBotFarmUnlockTasks, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockAchieve":
+		common.TgBotFarmUnlockAchieve, _ = strconv.Atoi(value)
+	case "TgBotFarmLevelPrices":
+		parts := strings.Split(value, ",")
+		var prices []int
+		for _, p := range parts {
+			v, _ := strconv.Atoi(strings.TrimSpace(p))
+			if v > 0 {
+				prices = append(prices, v)
+			}
+		}
+		if len(prices) > 0 {
+			common.TgBotFarmLevelPrices = prices
 		}
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value

@@ -162,6 +162,24 @@ var TgBotMarketRefreshHours = 4              // 市场刷新间隔（小时）
 var TgBotMarketMinMultiplier = 50            // 最低价格倍率%（默认50%）
 var TgBotMarketMaxMultiplier = 200           // 最高价格倍率%（默认200%）
 
+// 等级系统
+var TgBotFarmMaxLevel = 15
+// 每级升级价格（quota），索引0=升到2级，索引13=升到15级
+var TgBotFarmLevelPrices = []int{
+	500000, 1000000, 2000000, 3000000, 5000000,
+	8000000, 12000000, 18000000, 25000000, 35000000,
+	50000000, 70000000, 100000000, 150000000,
+}
+// 功能解锁等级
+var TgBotFarmUnlockSteal = 2      // 偷菜
+var TgBotFarmUnlockDog = 2        // 狗狗
+var TgBotFarmUnlockRanch = 3      // 牧场
+var TgBotFarmUnlockFish = 3       // 钓鱼
+var TgBotFarmUnlockWorkshop = 4   // 加工坊
+var TgBotFarmUnlockMarket = 2     // 市场
+var TgBotFarmUnlockTasks = 1      // 每日任务
+var TgBotFarmUnlockAchieve = 1    // 成就
+
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0

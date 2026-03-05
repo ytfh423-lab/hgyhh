@@ -925,6 +925,16 @@ func GetTgBotSettings(c *gin.Context) {
 			"ranch_manure_interval":      common.TgBotRanchManureInterval,
 			"ranch_manure_clean_price":   common.TgBotRanchManureCleanPrice,
 			"ranch_manure_grow_penalty":  common.TgBotRanchManureGrowPenalty,
+			// 等级系统
+			"farm_unlock_steal":         common.TgBotFarmUnlockSteal,
+			"farm_unlock_dog":           common.TgBotFarmUnlockDog,
+			"farm_unlock_ranch":         common.TgBotFarmUnlockRanch,
+			"farm_unlock_fish":          common.TgBotFarmUnlockFish,
+			"farm_unlock_workshop":      common.TgBotFarmUnlockWorkshop,
+			"farm_unlock_market":        common.TgBotFarmUnlockMarket,
+			"farm_unlock_tasks":         common.TgBotFarmUnlockTasks,
+			"farm_unlock_achieve":       common.TgBotFarmUnlockAchieve,
+			"farm_level_prices":         common.OptionMap["TgBotFarmLevelPrices"],
 		},
 	})
 }

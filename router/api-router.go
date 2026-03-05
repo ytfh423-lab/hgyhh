@@ -338,6 +338,8 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/feeddog", controller.WebFarmFeedDog)
 			farmRoute.GET("/logs", controller.WebFarmLogs)
 			farmRoute.GET("/market", controller.WebFarmMarket)
+			farmRoute.GET("/level", controller.WebFarmLevelInfo)
+			farmRoute.POST("/levelup", controller.WebFarmLevelUp)
 			farmRoute.GET("/tasks", controller.WebFarmTasks)
 			farmRoute.POST("/tasks/claim", controller.WebFarmClaimTask)
 			farmRoute.GET("/achievements", controller.WebFarmAchievements)

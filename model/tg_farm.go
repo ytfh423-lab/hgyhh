@@ -311,6 +311,28 @@ func CleanRanchAnimals(telegramId string) error {
 	return DB.Model(&TgRanchAnimal{}).Where("telegram_id = ? AND status != 5", telegramId).Update("last_cleaned_at", now).Error
 }
 
+// ========== 等级 ==========
+
+func GetFarmLevel(telegramId string) int {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_level").First(&item).Error
+	if err != nil || item.Quantity < 1 {
+		return 1
+	}
+	return item.Quantity
+}
+
+func SetFarmLevel(telegramId string, level int) {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_level").First(&item).Error
+	if err != nil {
+		item = TgFarmItem{TelegramId: telegramId, ItemType: "_level", Quantity: level}
+		_ = DB.Create(&item).Error
+		return
+	}
+	_ = DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", level).Error
+}
+
 // ========== 每日任务 & 成就 ==========
 
 type TgFarmTaskClaim struct {

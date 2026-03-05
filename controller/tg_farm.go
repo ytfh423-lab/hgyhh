@@ -169,6 +169,49 @@ func todayDateStr() string {
 	return time.Now().Format("20060102")
 }
 
+// ========== 等级系统 ==========
+
+type featureUnlock struct {
+	Key   string
+	Name  string
+	Level *int
+}
+
+var featureUnlocks = []featureUnlock{
+	{"steal", "偷菜", &common.TgBotFarmUnlockSteal},
+	{"dog", "狗狗", &common.TgBotFarmUnlockDog},
+	{"ranch", "牧场", &common.TgBotFarmUnlockRanch},
+	{"fish", "钓鱼", &common.TgBotFarmUnlockFish},
+	{"workshop", "加工坊", &common.TgBotFarmUnlockWorkshop},
+	{"market", "市场", &common.TgBotFarmUnlockMarket},
+	{"tasks", "每日任务", &common.TgBotFarmUnlockTasks},
+	{"achieve", "成就", &common.TgBotFarmUnlockAchieve},
+}
+
+func checkFeatureLevel(tgId string, level int, requiredLevel int, featureName string, chatId int64, editMsgId int, from *TgUser) bool {
+	if level >= requiredLevel {
+		return true
+	}
+	farmSend(chatId, editMsgId, fmt.Sprintf("🔒 %s需要等级 %d 才能解锁（当前等级 %d）", featureName, requiredLevel, level), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "⬆️ 升级", CallbackData: "farm_levelup"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+	return false
+}
+
+func getLevelUpPrice(currentLevel int) int {
+	idx := currentLevel - 1 // level 1 -> index 0 = price to reach level 2
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(common.TgBotFarmLevelPrices) {
+		return common.TgBotFarmLevelPrices[len(common.TgBotFarmLevelPrices)-1]
+	}
+	return common.TgBotFarmLevelPrices[idx]
+}
+
 var farmCropMap map[string]*farmCropDef
 var farmCropByShort map[string]*farmCropDef
 var farmItemMap map[string]*farmItemDef
@@ -414,6 +457,7 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		itemKey := strings.TrimPrefix(data, "farm_buy_")
 		doFarmBuy(chatId, msgId, tgId, itemKey, from)
 	case data == "farm_steal":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockSteal, "偷菜", chatId, msgId, from) { return }
 		showFarmStealTargets(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_st_"):
 		victimId := strings.TrimPrefix(data, "farm_st_")
@@ -439,6 +483,7 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		plotIdx, _ := strconv.Atoi(plotStr)
 		doFarmWater(chatId, msgId, tgId, plotIdx, from)
 	case data == "farm_dog":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockDog, "狗狗", chatId, msgId, from) { return }
 		showFarmDog(chatId, msgId, tgId, from)
 	case data == "farm_buydog":
 		doFarmBuyDog(chatId, msgId, tgId, from)
@@ -447,25 +492,34 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	case data == "farm_logs":
 		showFarmLogs(chatId, msgId, tgId, from)
 	case data == "farm_fish":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockFish, "钓鱼", chatId, msgId, from) { return }
 		showFarmFish(chatId, msgId, tgId, from)
 	case data == "farm_dofish":
 		doFarmFish(chatId, msgId, tgId, from)
 	case data == "farm_sellfish":
 		doFarmSellFish(chatId, msgId, tgId, from)
 	case data == "farm_market":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockMarket, "市场", chatId, msgId, from) { return }
 		showFarmMarket(chatId, msgId, tgId, from)
+	case data == "farm_levelup":
+		showFarmLevelUp(chatId, msgId, tgId, from)
+	case data == "farm_dolevelup":
+		doFarmLevelUp(chatId, msgId, tgId, from)
 	case data == "farm_tasks":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockTasks, "每日任务", chatId, msgId, from) { return }
 		showFarmTasks(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_tclaim_"):
 		idxStr := strings.TrimPrefix(data, "farm_tclaim_")
 		idx, _ := strconv.Atoi(idxStr)
 		doFarmClaimTask(chatId, msgId, tgId, idx, from)
 	case data == "farm_achieve":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockAchieve, "成就", chatId, msgId, from) { return }
 		showFarmAchievements(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_aclaim_"):
 		achKey := strings.TrimPrefix(data, "farm_aclaim_")
 		doFarmClaimAchievement(chatId, msgId, tgId, achKey, from)
 	case data == "farm_workshop":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockWorkshop, "加工坊", chatId, msgId, from) { return }
 		showFarmWorkshop(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_craft_"):
 		recipeKey := strings.TrimPrefix(data, "farm_craft_")
@@ -479,6 +533,9 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		plotIdx, _ := strconv.Atoi(plotStr)
 		doFarmSoilUpgrade(chatId, msgId, tgId, plotIdx, from)
 	case strings.HasPrefix(data, "ranch"):
+		if data == "ranch" {
+			if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockRanch, "牧场", chatId, msgId, from) { return }
+		}
 		handleRanchCallback(cb)
 	}
 }
@@ -495,7 +552,8 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		updateFarmPlotStatus(plot)
 	}
 
-	text := "🌾 我的农场\n\n"
+	userLevel := model.GetFarmLevel(tgId)
+	text := fmt.Sprintf("🌾 我的农场  ⭐Lv.%d\n\n", userLevel)
 	hasEvent := false
 	hasWiltOrGrowing := false
 	for _, plot := range plots {
@@ -597,23 +655,35 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{Text: "🌱 泥土升级", CallbackData: "farm_soil"},
 		})
 	}
-	// 狗狗 & 牧场 & 钓鱼 & 记录按钮
+	// 功能按钮（带锁标识）
+	lockTag := func(name string, lvl int) string {
+		if userLevel >= lvl {
+			return name
+		}
+		return fmt.Sprintf("🔒%s(Lv%d)", name, lvl)
+	}
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "🐕 狗狗", CallbackData: "farm_dog"},
-		{Text: "🐄 牧场", CallbackData: "ranch"},
+		{Text: lockTag("🐕 狗狗", common.TgBotFarmUnlockDog), CallbackData: "farm_dog"},
+		{Text: lockTag("🐄 牧场", common.TgBotFarmUnlockRanch), CallbackData: "ranch"},
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "🎣 钓鱼", CallbackData: "farm_fish"},
-		{Text: "🏭 加工", CallbackData: "farm_workshop"},
+		{Text: lockTag("🎣 钓鱼", common.TgBotFarmUnlockFish), CallbackData: "farm_fish"},
+		{Text: lockTag("🏭 加工", common.TgBotFarmUnlockWorkshop), CallbackData: "farm_workshop"},
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "📝 任务", CallbackData: "farm_tasks"},
-		{Text: "🏆 成就", CallbackData: "farm_achieve"},
+		{Text: lockTag("📝 任务", common.TgBotFarmUnlockTasks), CallbackData: "farm_tasks"},
+		{Text: lockTag("🏆 成就", common.TgBotFarmUnlockAchieve), CallbackData: "farm_achieve"},
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "� 市场", CallbackData: "farm_market"},
 		{Text: "� 记录", CallbackData: "farm_logs"},
 	})
+	if userLevel < common.TgBotFarmMaxLevel {
+		price := getLevelUpPrice(userLevel)
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("⬆️ 升级 Lv.%d→%d (%s)", userLevel, userLevel+1, farmQuotaStr(price)), CallbackData: "farm_levelup"},
+		})
+	}
 	if len(plots) < model.FarmMaxPlots {
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: fmt.Sprintf("🏗️ 购买土地 (%s)", farmQuotaStr(common.TgBotFarmPlotPrice)), CallbackData: "farm_buyland"},
@@ -1998,6 +2068,7 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		"fish": "钓鱼", "fish_sell": "卖鱼",
 		"craft": "加工", "craft_sell": "收取",
 		"task": "任务", "achieve": "成就",
+		"levelup": "升级",
 	}
 
 	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
@@ -2226,6 +2297,97 @@ func doFarmSellFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	farmSend(chatId, editMsgId, fmt.Sprintf("💰 出售成功！\n\n卖出 %d 条鱼\n收入 %s（含市场波动）", totalCount, farmQuotaStr(totalValue)), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🎣 继续钓鱼", CallbackData: "farm_fish"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 等级升级 ==========
+
+func showFarmLevelUp(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	level := model.GetFarmLevel(tgId)
+	if level >= common.TgBotFarmMaxLevel {
+		farmSend(chatId, editMsgId, fmt.Sprintf("⭐ 已达最高等级 Lv.%d！", level), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	price := getLevelUpPrice(level)
+	text := fmt.Sprintf("⬆️ 等级升级\n\n当前等级: ⭐Lv.%d\n升级费用: %s\n升级后: ⭐Lv.%d\n\n", level, farmQuotaStr(price), level+1)
+
+	text += "📋 功能解锁一览:\n"
+	for _, fu := range featureUnlocks {
+		req := *fu.Level
+		icon := "✅"
+		if level < req {
+			icon = "🔒"
+		}
+		text += fmt.Sprintf("  %s %s - Lv.%d\n", icon, fu.Name, req)
+	}
+
+	text += fmt.Sprintf("\n📊 等级价格表:\n")
+	for i, p := range common.TgBotFarmLevelPrices {
+		lv := i + 2
+		if lv > common.TgBotFarmMaxLevel {
+			break
+		}
+		marker := "  "
+		if lv == level+1 {
+			marker = "👉"
+		}
+		text += fmt.Sprintf("%s Lv.%d: %s\n", marker, lv, farmQuotaStr(p))
+	}
+
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: fmt.Sprintf("💰 升级到 Lv.%d (%s)", level+1, farmQuotaStr(price)), CallbackData: "farm_dolevelup"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+func doFarmLevelUp(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	level := model.GetFarmLevel(tgId)
+	if level >= common.TgBotFarmMaxLevel {
+		farmSend(chatId, editMsgId, "❌ 已达最高等级", nil, from)
+		return
+	}
+
+	price := getLevelUpPrice(level)
+	err = model.DecreaseUserQuota(user.Id, price)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 余额不足", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	newLevel := level + 1
+	model.SetFarmLevel(tgId, newLevel)
+	model.AddFarmLog(tgId, "levelup", -price, fmt.Sprintf("升级到Lv.%d", newLevel))
+
+	// 检查新解锁的功能
+	unlocked := ""
+	for _, fu := range featureUnlocks {
+		if *fu.Level == newLevel {
+			unlocked += fmt.Sprintf("\n🔓 解锁: %s", fu.Name)
+		}
+	}
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🎉 升级成功！\n\n⭐ Lv.%d → Lv.%d\n💰 花费 %s%s",
+		level, newLevel, farmQuotaStr(price), unlocked), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
 	}, from)
