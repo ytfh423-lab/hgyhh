@@ -41,6 +41,7 @@ import {
   Trophy,
   ClipboardList,
   Star,
+  Landmark,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -412,8 +413,8 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
 
   useEffect(() => { loadShop(); }, [loadShop]);
 
-  const handleBuyItem = async (key) => {
-    const res = await doAction('/api/farm/buy', { item_key: key });
+  const handleBuyItem = async (key, quantity = 1) => {
+    const res = await doAction('/api/farm/buy', { item_key: key, quantity });
     if (res) { loadShop(); loadFarm(); }
   };
 
@@ -466,10 +467,15 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
               <Text strong size='small'>{item.name}</Text>
               <Text type='tertiary' size='small'>{item.desc}</Text>
             </div>
-            <Button size='small' theme='solid' onClick={() => handleBuyItem(item.key)}
-              loading={actionLoading} style={{ borderRadius: 6 }}>
-              ${item.cost?.toFixed(2)}
-            </Button>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {[1, 5, 10].map(qty => (
+                <Button key={qty} size='small' theme={qty === 1 ? 'solid' : 'light'}
+                  onClick={() => handleBuyItem(item.key, qty)}
+                  loading={actionLoading} style={{ borderRadius: 6, minWidth: 60 }}>
+                  ×{qty} ${(item.cost * qty)?.toFixed(2)}
+                </Button>
+              ))}
+            </div>
           </div>
         ))}
       </Card>
@@ -493,6 +499,133 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
               ${shopData.dog_price?.toFixed(2)}
             </Button>
           </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ===================== Sub-page: Bank =====================
+const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
+  const [bankData, setBankData] = useState(null);
+  const [bankLoading, setBankLoading] = useState(true);
+
+  const loadBank = useCallback(async () => {
+    setBankLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/bank');
+      if (res.success) setBankData(res.data);
+      else showError(res.message);
+    } catch (err) { /* ignore */ }
+    finally { setBankLoading(false); }
+  }, []);
+
+  useEffect(() => { loadBank(); }, [loadBank]);
+
+  const handleLoan = async () => {
+    const res = await doAction('/api/farm/bank/loan', {});
+    if (res) { loadBank(); loadFarm(); }
+  };
+
+  const handleRepay = async (percent) => {
+    const res = await doAction('/api/farm/bank/repay', { percent });
+    if (res) { loadBank(); loadFarm(); }
+  };
+
+  if (bankLoading) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+
+  if (!bankData) {
+    return <Empty description={t('银行功能不可用')} />;
+  }
+
+  const loan = bankData.active_loan;
+  const history = bankData.history || [];
+
+  return (
+    <div>
+      {/* Balance & Credit info */}
+      <Card className='!rounded-xl' bodyStyle={{ padding: '12px 14px' }}
+        style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+        <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>🏦 {t('银行信息')}</Text>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          <Tag size='large' color='light-blue' style={{ borderRadius: 6 }}>💰 {t('余额')}: {formatBalance(bankData.balance)}</Tag>
+          <Tag size='large' color='cyan' style={{ borderRadius: 6 }}>📊 {t('信用评分')}: {bankData.credit_score}/{bankData.max_score}</Tag>
+        </div>
+        <Descriptions size='small' row data={[
+          { key: t('可贷额度'), value: formatBalance(bankData.max_loan) },
+          { key: t('利率'), value: `${bankData.interest_rate}%` },
+          { key: t('利息'), value: formatBalance(bankData.interest) },
+          { key: t('应还总额'), value: formatBalance(bankData.total_due) },
+          { key: t('还款期限'), value: `${bankData.loan_days} ${t('天')}` },
+        ]} />
+      </Card>
+
+      {/* Active loan or apply */}
+      <Card className='!rounded-xl' bodyStyle={{ padding: '12px 14px' }}
+        style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+        {bankData.has_active_loan && loan ? (
+          <div>
+            <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>📋 {t('当前贷款')}</Text>
+            {loan.overdue && (
+              <Banner type='danger' description={t('贷款已逾期！请尽快还款')} style={{ marginBottom: 8, borderRadius: 8 }} />
+            )}
+            <Descriptions size='small' row data={[
+              { key: t('本金'), value: formatBalance(loan.principal) },
+              { key: t('利息'), value: formatBalance(loan.interest) },
+              { key: t('应还'), value: formatBalance(loan.total_due) },
+              { key: t('已还'), value: formatBalance(loan.repaid) },
+              { key: t('剩余'), value: <Text type='danger' strong>{formatBalance(loan.remaining)}</Text> },
+              { key: t('剩余天数'), value: loan.overdue ? <Tag color='red'>{t('已逾期')}</Tag> : `${loan.days_left} ${t('天')}` },
+            ]} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <Button theme='solid' type='primary' onClick={() => handleRepay(100)}
+                loading={actionLoading} style={{ borderRadius: 8 }}>
+                💰 {t('全额还款')} ({formatBalance(loan.remaining)})
+              </Button>
+              {loan.remaining > 0.01 && (
+                <Button theme='light' type='primary' onClick={() => handleRepay(50)}
+                  loading={actionLoading} style={{ borderRadius: 8 }}>
+                  💰 {t('还一半')} ({formatBalance(loan.remaining / 2)})
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>✅ {t('当前无贷款')}</Text>
+            <Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 12 }}>
+              {t('可申请贷款')} {formatBalance(bankData.max_loan)}，{t('利息')} {formatBalance(bankData.interest)}，{t('还款期限')} {bankData.loan_days}{t('天')}
+            </Text>
+            <Button theme='solid' type='primary' onClick={handleLoan}
+              loading={actionLoading} style={{ borderRadius: 8 }}>
+              💵 {t('申请贷款')} ({formatBalance(bankData.max_loan)})
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* Loan history */}
+      {history.length > 0 && (
+        <Card className='!rounded-xl' bodyStyle={{ padding: '12px 14px' }}
+          style={{ border: '1px solid var(--semi-color-border)' }}>
+          <Text strong size='small' style={{ display: 'block', marginBottom: 8 }}>📜 {t('贷款历史')}</Text>
+          <Table dataSource={history} pagination={false} size='small' columns={[
+            { title: t('日期'), dataIndex: 'created_at', width: 100,
+              render: v => new Date(v * 1000).toLocaleDateString() },
+            { title: t('本金'), dataIndex: 'principal', width: 90,
+              render: v => formatBalance(v) },
+            { title: t('应还'), dataIndex: 'total_due', width: 90,
+              render: v => formatBalance(v) },
+            { title: t('已还'), dataIndex: 'repaid', width: 90,
+              render: v => formatBalance(v) },
+            { title: t('评分'), dataIndex: 'credit_score', width: 50 },
+            { title: t('状态'), dataIndex: 'status', width: 70,
+              render: v => v === 1
+                ? <Tag size='small' color='green'>{t('已还清')}</Tag>
+                : <Tag size='small' color='orange'>{t('还款中')}</Tag> },
+          ]} />
         </Card>
       )}
     </div>
@@ -1872,6 +2005,10 @@ const Farm = () => {
         </TabPane>
         <TabPane tab={<span><Trophy size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('成就')}</span>} itemKey='achievements'>
           <AchievementsPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Landmark size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('银行')}</span>} itemKey='bank'>
+          <BankPage farmData={farmData} actionLoading={actionLoading}
+            doAction={doAction} loadFarm={loadFarm} t={t} />
         </TabPane>
         <TabPane tab={<span><TrendingUp size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('市场')}</span>} itemKey='market'>
           <MarketPage t={t} />
