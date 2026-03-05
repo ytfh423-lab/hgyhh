@@ -102,6 +102,73 @@ var recipes = []recipeDef{
 
 var recipeMap map[string]*recipeDef
 
+// ========== 每日任务 & 成就 ==========
+
+type dailyTaskDef struct {
+	Action string
+	Name   string
+	Emoji  string
+	Target int
+	Reward int
+}
+
+var taskPool = []dailyTaskDef{
+	{"plant", "种植作物", "🌱", 2, 200000},
+	{"harvest", "收获作物", "🌾", 1, 300000},
+	{"fish", "钓鱼", "🎣", 3, 250000},
+	{"steal", "偷菜", "🕵️", 1, 200000},
+	{"craft", "加工产品", "🏭", 1, 300000},
+	{"shop", "购买道具", "🏪", 2, 150000},
+	{"ranch_feed", "喂食动物", "🌾", 2, 200000},
+	{"ranch_water", "喂水动物", "💧", 2, 150000},
+	{"fish_sell", "出售鱼获", "💰", 1, 200000},
+	{"craft_sell", "收取加工品", "📥", 1, 250000},
+}
+
+const dailyTaskCount = 4
+
+type achievementDef struct {
+	Key         string
+	Name        string
+	Emoji       string
+	Description string
+	Action      string
+	Target      int64
+	Reward      int
+}
+
+var achievements = []achievementDef{
+	{"first_plant", "初出茅庐", "🌱", "首次种植作物", "plant", 1, 500000},
+	{"plant_50", "种植达人", "🌾", "累计种植50次", "plant", 50, 2000000},
+	{"harvest_30", "丰收使者", "🧺", "累计收获30次", "harvest", 30, 1500000},
+	{"fish_20", "钓鱼爱好者", "🎣", "累计钓鱼20次", "fish", 20, 1000000},
+	{"fish_100", "钓鱼大师", "🐟", "累计钓鱼100次", "fish", 100, 5000000},
+	{"steal_10", "小偷小摸", "🕵️", "累计偷菜10次", "steal", 10, 800000},
+	{"steal_50", "江洋大盗", "🦹", "累计偷菜50次", "steal", 50, 3000000},
+	{"craft_20", "加工达人", "🏭", "累计加工20次", "craft", 20, 2000000},
+	{"fish_sell_10", "渔商", "💰", "累计卖鱼10次", "fish_sell", 10, 1500000},
+	{"ranch_buy_5", "牧场主", "🐄", "累计买动物5次", "ranch_buy", 5, 1000000},
+}
+
+func getDailyTasks(dateStr string) []dailyTaskDef {
+	// Use date string as seed for deterministic daily tasks
+	seed := int64(0)
+	for _, c := range dateStr {
+		seed = seed*31 + int64(c)
+	}
+	r := rand.New(rand.NewSource(seed))
+	perm := r.Perm(len(taskPool))
+	var tasks []dailyTaskDef
+	for i := 0; i < dailyTaskCount && i < len(perm); i++ {
+		tasks = append(tasks, taskPool[perm[i]])
+	}
+	return tasks
+}
+
+func todayDateStr() string {
+	return time.Now().Format("20060102")
+}
+
 var farmCropMap map[string]*farmCropDef
 var farmCropByShort map[string]*farmCropDef
 var farmItemMap map[string]*farmItemDef
@@ -387,6 +454,17 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmSellFish(chatId, msgId, tgId, from)
 	case data == "farm_market":
 		showFarmMarket(chatId, msgId, tgId, from)
+	case data == "farm_tasks":
+		showFarmTasks(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_tclaim_"):
+		idxStr := strings.TrimPrefix(data, "farm_tclaim_")
+		idx, _ := strconv.Atoi(idxStr)
+		doFarmClaimTask(chatId, msgId, tgId, idx, from)
+	case data == "farm_achieve":
+		showFarmAchievements(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_aclaim_"):
+		achKey := strings.TrimPrefix(data, "farm_aclaim_")
+		doFarmClaimAchievement(chatId, msgId, tgId, achKey, from)
 	case data == "farm_workshop":
 		showFarmWorkshop(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_craft_"):
@@ -527,6 +605,10 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🎣 钓鱼", CallbackData: "farm_fish"},
 		{Text: "🏭 加工", CallbackData: "farm_workshop"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "📝 任务", CallbackData: "farm_tasks"},
+		{Text: "🏆 成就", CallbackData: "farm_achieve"},
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "� 市场", CallbackData: "farm_market"},
@@ -1915,6 +1997,7 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		"ranch_sell": "出售", "ranch_clean": "清粪",
 		"fish": "钓鱼", "fish_sell": "卖鱼",
 		"craft": "加工", "craft_sell": "收取",
+		"task": "任务", "achieve": "成就",
 	}
 
 	text := fmt.Sprintf("📋 消费记录（最近15条，共%d条）\n\n", total)
@@ -2148,6 +2231,202 @@ func doFarmSellFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}, from)
 }
 
+// ========== 每日任务 ==========
+
+func showFarmTasks(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	dateStr := todayDateStr()
+	tasks := getDailyTasks(dateStr)
+	claimed, _ := model.GetTaskClaims(tgId, dateStr)
+	claimedSet := make(map[int]bool)
+	for _, idx := range claimed {
+		claimedSet[idx] = true
+	}
+
+	text := fmt.Sprintf("📝 每日任务（%s）\n\n", dateStr[:4]+"-"+dateStr[4:6]+"-"+dateStr[6:])
+
+	var rows [][]TgInlineKeyboardButton
+	allDone := true
+	for i, task := range tasks {
+		progress := model.CountTodayActions(tgId, task.Action)
+		done := progress >= int64(task.Target)
+		isClaimed := claimedSet[i]
+
+		statusIcon := "⬜"
+		if isClaimed {
+			statusIcon = "✅"
+		} else if done {
+			statusIcon = "🟢"
+			allDone = false
+		} else {
+			allDone = false
+		}
+
+		text += fmt.Sprintf("%s %s %s %d/%d  奖励%s\n",
+			statusIcon, task.Emoji, task.Name, progress, task.Target, farmQuotaStr(task.Reward))
+
+		if done && !isClaimed {
+			rows = append(rows, []TgInlineKeyboardButton{
+				{Text: fmt.Sprintf("📥 领取: %s %s", task.Emoji, task.Name),
+					CallbackData: fmt.Sprintf("farm_tclaim_%d", i)},
+			})
+		}
+	}
+
+	if allDone && len(claimed) == len(tasks) {
+		text += "\n🎉 今日任务全部完成！\n"
+	}
+
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🏆 查看成就", CallbackData: "farm_achieve"},
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmClaimTask(chatId int64, editMsgId int, tgId string, taskIdx int, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	dateStr := todayDateStr()
+	tasks := getDailyTasks(dateStr)
+	if taskIdx < 0 || taskIdx >= len(tasks) {
+		farmSend(chatId, editMsgId, "❌ 无效任务", nil, from)
+		return
+	}
+
+	// Check already claimed
+	claimed, _ := model.GetTaskClaims(tgId, dateStr)
+	for _, idx := range claimed {
+		if idx == taskIdx {
+			farmSend(chatId, editMsgId, "❌ 该任务奖励已领取", &TgInlineKeyboardMarkup{
+				InlineKeyboard: [][]TgInlineKeyboardButton{
+					{{Text: "🔙 返回任务", CallbackData: "farm_tasks"}},
+				},
+			}, from)
+			return
+		}
+	}
+
+	task := tasks[taskIdx]
+	progress := model.CountTodayActions(tgId, task.Action)
+	if progress < int64(task.Target) {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 任务未完成（%d/%d）", progress, task.Target), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回任务", CallbackData: "farm_tasks"}},
+			},
+		}, from)
+		return
+	}
+
+	_ = model.ClaimTask(tgId, dateStr, taskIdx)
+	_ = model.IncreaseUserQuota(user.Id, task.Reward, true)
+	model.AddFarmLog(tgId, "task", task.Reward, fmt.Sprintf("完成任务:%s", task.Name))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🎉 任务完成！\n\n%s %s\n💰 奖励 %s",
+		task.Emoji, task.Name, farmQuotaStr(task.Reward)), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "📝 返回任务", CallbackData: "farm_tasks"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
+// ========== 成就 ==========
+
+func showFarmAchievements(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	unlocked, _ := model.GetAchievements(tgId)
+	unlockedSet := make(map[string]bool)
+	for _, a := range unlocked {
+		unlockedSet[a.AchievementKey] = true
+	}
+
+	text := "🏆 成就\n\n"
+	var rows [][]TgInlineKeyboardButton
+	for _, ach := range achievements {
+		isUnlocked := unlockedSet[ach.Key]
+		progress := model.CountTotalActions(tgId, ach.Action)
+		done := progress >= ach.Target
+
+		statusIcon := "⬜"
+		if isUnlocked {
+			statusIcon = "✅"
+		} else if done {
+			statusIcon = "🟢"
+		}
+
+		text += fmt.Sprintf("%s %s %s - %s %d/%d  奖励%s\n",
+			statusIcon, ach.Emoji, ach.Name, ach.Description, progress, ach.Target, farmQuotaStr(ach.Reward))
+
+		if done && !isUnlocked {
+			rows = append(rows, []TgInlineKeyboardButton{
+				{Text: fmt.Sprintf("📥 领取: %s %s", ach.Emoji, ach.Name),
+					CallbackData: "farm_aclaim_" + ach.Key},
+			})
+		}
+	}
+
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "📝 每日任务", CallbackData: "farm_tasks"},
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmClaimAchievement(chatId int64, editMsgId int, tgId string, achKey string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	// Find achievement
+	var ach *achievementDef
+	for i := range achievements {
+		if achievements[i].Key == achKey {
+			ach = &achievements[i]
+			break
+		}
+	}
+	if ach == nil {
+		farmSend(chatId, editMsgId, "❌ 未知成就", nil, from)
+		return
+	}
+
+	if model.HasAchievement(tgId, achKey) {
+		farmSend(chatId, editMsgId, "❌ 成就已领取", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回成就", CallbackData: "farm_achieve"}},
+			},
+		}, from)
+		return
+	}
+
+	progress := model.CountTotalActions(tgId, ach.Action)
+	if progress < ach.Target {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 成就未达成（%d/%d）", progress, ach.Target), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回成就", CallbackData: "farm_achieve"}},
+			},
+		}, from)
+		return
+	}
+
+	_ = model.UnlockAchievement(tgId, achKey)
+	_ = model.IncreaseUserQuota(user.Id, ach.Reward, true)
+	model.AddFarmLog(tgId, "achieve", ach.Reward, fmt.Sprintf("解锁成就:%s", ach.Name))
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🏆 成就解锁！\n\n%s %s\n%s\n💰 奖励 %s",
+		ach.Emoji, ach.Name, ach.Description, farmQuotaStr(ach.Reward)), &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🏆 返回成就", CallbackData: "farm_achieve"}},
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}, from)
+}
+
 // ========== 加工坊 ==========
 
 func showFarmWorkshop(chatId int64, editMsgId int, tgId string, from *TgUser) {
@@ -2367,6 +2646,13 @@ func showFarmMarket(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		m := getMarketMultiplier("meat_" + a.Key)
 		tag := marketTag(m)
 		text += fmt.Sprintf("  %s %s肉 %d%% %s %s\n", a.Emoji, a.Name, m, tag, farmQuotaStr(applyMarket(*a.MeatPrice, "meat_"+a.Key)))
+	}
+
+	text += "\n🏭 加工品:\n"
+	for _, r := range recipes {
+		m := getMarketMultiplier("recipe_" + r.Key)
+		tag := marketTag(m)
+		text += fmt.Sprintf("  %s %s %d%% %s %s\n", r.Emoji, r.Name, m, tag, farmQuotaStr(applyMarket(r.SellPrice, "recipe_"+r.Key)))
 	}
 
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{

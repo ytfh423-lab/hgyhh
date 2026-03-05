@@ -38,6 +38,8 @@ import {
   Fish,
   TrendingUp,
   Factory,
+  Trophy,
+  ClipboardList,
 } from 'lucide-react';
 
 const Farm3DView = lazy(() => import('./Farm3D'));
@@ -889,6 +891,181 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
   );
 };
 
+// ===================== Tasks Page =====================
+const TasksPage = ({ actionLoading, loadFarm, t }) => {
+  const [taskData, setTaskData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/tasks');
+      if (res.success) setTaskData(res.data);
+    } catch (err) {
+      showError(t('加载失败'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadTasks(); }, [loadTasks]);
+
+  const claimTask = async (index) => {
+    try {
+      const { data: res } = await API.post('/api/farm/tasks/claim', { index });
+      if (res.success) {
+        showSuccess(res.message);
+        loadTasks();
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    }
+  };
+
+  if (loading && !taskData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!taskData) return null;
+
+  const dateStr = taskData.date || '';
+  const dateDisplay = dateStr.length === 8 ? `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6)}` : dateStr;
+
+  return (
+    <div>
+      <Tag size='large' color='blue' style={{ marginBottom: 12 }}>📅 {dateDisplay}</Tag>
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+        <Text strong style={{ display: 'block', marginBottom: 10 }}>📝 {t('今日任务')}</Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(taskData.tasks || []).map((task) => (
+            <div key={task.index} style={{
+              padding: '10px 14px', borderRadius: 8,
+              background: task.claimed ? 'var(--semi-color-success-light-default)' : 'var(--semi-color-fill-0)',
+              border: '1px solid var(--semi-color-border)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span style={{ fontSize: 22 }}>{task.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <Text strong>{task.name}</Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <div style={{ width: 80, height: 6, background: 'var(--semi-color-fill-2)', borderRadius: 3 }}>
+                    <div style={{
+                      width: `${Math.min(100, (task.progress / task.target) * 100)}%`,
+                      height: '100%',
+                      background: task.claimed ? '#16a34a' : task.done ? '#eab308' : '#3b82f6',
+                      borderRadius: 3,
+                    }} />
+                  </div>
+                  <Text size='small' type='tertiary'>{task.progress}/{task.target}</Text>
+                </div>
+                <Text size='small' type='tertiary'>{t('奖励')}: ${task.reward.toFixed(2)}</Text>
+              </div>
+              {task.claimed ? (
+                <Tag size='small' color='green'>✅</Tag>
+              ) : task.done ? (
+                <Button size='small' theme='solid' type='warning' onClick={() => claimTask(task.index)}>
+                  {t('领取')}
+                </Button>
+              ) : (
+                <Tag size='small' color='grey'>{t('未完成')}</Tag>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ===================== Achievements Page =====================
+const AchievementsPage = ({ actionLoading, loadFarm, t }) => {
+  const [achData, setAchData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadAch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/achievements');
+      if (res.success) setAchData(res.data);
+    } catch (err) {
+      showError(t('加载失败'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadAch(); }, [loadAch]);
+
+  const claimAch = async (key) => {
+    try {
+      const { data: res } = await API.post('/api/farm/achievements/claim', { key });
+      if (res.success) {
+        showSuccess(res.message);
+        loadAch();
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    }
+  };
+
+  if (loading && !achData) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+  }
+  if (!achData) return null;
+
+  const unlockCount = (achData.achievements || []).filter(a => a.unlocked).length;
+  const totalCount = (achData.achievements || []).length;
+
+  return (
+    <div>
+      <Tag size='large' color='blue' style={{ marginBottom: 12 }}>🏆 {unlockCount}/{totalCount} {t('已解锁')}</Tag>
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(achData.achievements || []).map((ach) => (
+            <div key={ach.key} style={{
+              padding: '10px 14px', borderRadius: 8,
+              background: ach.unlocked ? 'var(--semi-color-success-light-default)' : 'var(--semi-color-fill-0)',
+              border: '1px solid var(--semi-color-border)',
+              display: 'flex', alignItems: 'center', gap: 10,
+              opacity: ach.unlocked ? 1 : ach.done ? 1 : 0.7,
+            }}>
+              <span style={{ fontSize: 24 }}>{ach.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <Text strong>{ach.name}</Text>
+                <Text size='small' type='tertiary' style={{ display: 'block' }}>{ach.description}</Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <div style={{ width: 80, height: 6, background: 'var(--semi-color-fill-2)', borderRadius: 3 }}>
+                    <div style={{
+                      width: `${Math.min(100, (ach.progress / ach.target) * 100)}%`,
+                      height: '100%',
+                      background: ach.unlocked ? '#16a34a' : ach.done ? '#eab308' : '#3b82f6',
+                      borderRadius: 3,
+                    }} />
+                  </div>
+                  <Text size='small' type='tertiary'>{ach.progress}/{ach.target}</Text>
+                  <Text size='small' type='tertiary'>· ${ach.reward.toFixed(2)}</Text>
+                </div>
+              </div>
+              {ach.unlocked ? (
+                <Tag size='small' color='green'>✅</Tag>
+              ) : ach.done ? (
+                <Button size='small' theme='solid' type='warning' onClick={() => claimAch(ach.key)}>
+                  {t('领取')}
+                </Button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 // ===================== Workshop Page =====================
 const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const [wsData, setWsData] = useState(null);
@@ -1108,6 +1285,7 @@ const MarketPage = ({ t }) => {
     { key: 'crop', label: '🌾 ' + t('作物') },
     { key: 'fish', label: '🐟 ' + t('鱼类') },
     { key: 'meat', label: '🥩 ' + t('肉类') },
+    { key: 'recipe', label: '🏭 ' + t('加工品') },
   ];
 
   return (
@@ -1373,6 +1551,7 @@ const LogsPage = ({ t }) => {
     ranch_sell: '🔪', ranch_clean: '🧹',
     fish: '🎣', fish_sell: '💰',
     craft: '🏭', craft_sell: '📥',
+    task: '📝', achieve: '🏆',
   };
 
   const formatTime = (ts) => {
@@ -1575,6 +1754,12 @@ const Farm = () => {
         <TabPane tab={<span><Factory size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('加工')}</span>} itemKey='workshop'>
           <WorkshopPage actionLoading={actionLoading}
             doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><ClipboardList size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('任务')}</span>} itemKey='tasks'>
+          <TasksPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Trophy size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('成就')}</span>} itemKey='achievements'>
+          <AchievementsPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />
         </TabPane>
         <TabPane tab={<span><TrendingUp size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('市场')}</span>} itemKey='market'>
           <MarketPage t={t} />

@@ -1116,6 +1116,8 @@ func WebFarmLogs(c *gin.Context) {
 		"fish_sell":    "卖鱼",
 		"craft":        "加工",
 		"craft_sell":   "收取",
+		"task":         "任务",
+		"achieve":      "成就",
 	}
 
 	var items []logItem
@@ -1205,6 +1207,20 @@ func WebFarmMarket(c *gin.Context) {
 		})
 	}
 
+	// 加工品
+	for _, r := range recipes {
+		m := getMarketMultiplier("recipe_" + r.Key)
+		prices = append(prices, priceInfo{
+			Key:        "recipe_" + r.Key,
+			Name:       r.Name,
+			Emoji:      r.Emoji,
+			Category:   "recipe",
+			BasePrice:  webFarmQuotaFloat(r.SellPrice),
+			Multiplier: m,
+			CurPrice:   webFarmQuotaFloat(applyMarket(r.SellPrice, "recipe_"+r.Key)),
+		})
+	}
+
 	marketMu.RLock()
 	nextRefresh := marketNextUpdate - time.Now().Unix()
 	marketMu.RUnlock()
@@ -1219,6 +1235,202 @@ func WebFarmMarket(c *gin.Context) {
 			"next_refresh": nextRefresh,
 			"refresh_hours": common.TgBotMarketRefreshHours,
 		},
+	})
+}
+
+// ========== 每日任务 & 成就 ==========
+
+// WebFarmTasks returns daily tasks with progress
+func WebFarmTasks(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	dateStr := todayDateStr()
+	tasks := getDailyTasks(dateStr)
+	claimed, _ := model.GetTaskClaims(tgId, dateStr)
+	claimedSet := make(map[int]bool)
+	for _, idx := range claimed {
+		claimedSet[idx] = true
+	}
+
+	type taskInfo struct {
+		Index    int     `json:"index"`
+		Action   string  `json:"action"`
+		Name     string  `json:"name"`
+		Emoji    string  `json:"emoji"`
+		Target   int     `json:"target"`
+		Progress int64   `json:"progress"`
+		Done     bool    `json:"done"`
+		Claimed  bool    `json:"claimed"`
+		Reward   float64 `json:"reward"`
+	}
+	var taskList []taskInfo
+	for i, task := range tasks {
+		progress := model.CountTodayActions(tgId, task.Action)
+		taskList = append(taskList, taskInfo{
+			Index:    i,
+			Action:   task.Action,
+			Name:     task.Name,
+			Emoji:    task.Emoji,
+			Target:   task.Target,
+			Progress: progress,
+			Done:     progress >= int64(task.Target),
+			Claimed:  claimedSet[i],
+			Reward:   webFarmQuotaFloat(task.Reward),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"date":  dateStr,
+			"tasks": taskList,
+		},
+	})
+}
+
+// WebFarmClaimTask claims a daily task reward
+func WebFarmClaimTask(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Index int `json:"index"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	dateStr := todayDateStr()
+	tasks := getDailyTasks(dateStr)
+	if req.Index < 0 || req.Index >= len(tasks) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "无效任务"})
+		return
+	}
+
+	claimed, _ := model.GetTaskClaims(tgId, dateStr)
+	for _, idx := range claimed {
+		if idx == req.Index {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "奖励已领取"})
+			return
+		}
+	}
+
+	task := tasks[req.Index]
+	progress := model.CountTodayActions(tgId, task.Action)
+	if progress < int64(task.Target) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("任务未完成（%d/%d）", progress, task.Target)})
+		return
+	}
+
+	_ = model.ClaimTask(tgId, dateStr, req.Index)
+	_ = model.IncreaseUserQuota(user.Id, task.Reward, true)
+	model.AddFarmLog(tgId, "task", task.Reward, fmt.Sprintf("完成任务:%s", task.Name))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("领取奖励 $%.2f", webFarmQuotaFloat(task.Reward)),
+	})
+}
+
+// WebFarmAchievements returns all achievements with progress
+func WebFarmAchievements(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	unlocked, _ := model.GetAchievements(tgId)
+	unlockedSet := make(map[string]bool)
+	for _, a := range unlocked {
+		unlockedSet[a.AchievementKey] = true
+	}
+
+	type achInfo struct {
+		Key         string  `json:"key"`
+		Name        string  `json:"name"`
+		Emoji       string  `json:"emoji"`
+		Description string  `json:"description"`
+		Target      int64   `json:"target"`
+		Progress    int64   `json:"progress"`
+		Done        bool    `json:"done"`
+		Unlocked    bool    `json:"unlocked"`
+		Reward      float64 `json:"reward"`
+	}
+	var achList []achInfo
+	for _, ach := range achievements {
+		progress := model.CountTotalActions(tgId, ach.Action)
+		achList = append(achList, achInfo{
+			Key:         ach.Key,
+			Name:        ach.Name,
+			Emoji:       ach.Emoji,
+			Description: ach.Description,
+			Target:      ach.Target,
+			Progress:    progress,
+			Done:        progress >= ach.Target,
+			Unlocked:    unlockedSet[ach.Key],
+			Reward:      webFarmQuotaFloat(ach.Reward),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"achievements": achList,
+		},
+	})
+}
+
+// WebFarmClaimAchievement claims an achievement reward
+func WebFarmClaimAchievement(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Key string `json:"key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	var ach *achievementDef
+	for i := range achievements {
+		if achievements[i].Key == req.Key {
+			ach = &achievements[i]
+			break
+		}
+	}
+	if ach == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知成就"})
+		return
+	}
+
+	if model.HasAchievement(tgId, req.Key) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "成就已领取"})
+		return
+	}
+
+	progress := model.CountTotalActions(tgId, ach.Action)
+	if progress < ach.Target {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("成就未达成（%d/%d）", progress, ach.Target)})
+		return
+	}
+
+	_ = model.UnlockAchievement(tgId, req.Key)
+	_ = model.IncreaseUserQuota(user.Id, ach.Reward, true)
+	model.AddFarmLog(tgId, "achieve", ach.Reward, fmt.Sprintf("解锁成就:%s", ach.Name))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("解锁 %s %s，奖励 $%.2f", ach.Emoji, ach.Name, webFarmQuotaFloat(ach.Reward)),
 	})
 }
 

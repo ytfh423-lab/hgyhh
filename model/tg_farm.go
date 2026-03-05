@@ -311,6 +311,77 @@ func CleanRanchAnimals(telegramId string) error {
 	return DB.Model(&TgRanchAnimal{}).Where("telegram_id = ? AND status != 5", telegramId).Update("last_cleaned_at", now).Error
 }
 
+// ========== 每日任务 & 成就 ==========
+
+type TgFarmTaskClaim struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	TaskDate   string `json:"task_date" gorm:"type:varchar(10)"`
+	TaskIndex  int    `json:"task_index"`
+}
+
+type TgFarmAchievement struct {
+	Id             int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId     string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_achieve"`
+	AchievementKey string `json:"achievement_key" gorm:"type:varchar(32);uniqueIndex:idx_achieve"`
+	UnlockedAt     int64  `json:"unlocked_at"`
+}
+
+func GetTaskClaims(telegramId, taskDate string) ([]int, error) {
+	var claims []*TgFarmTaskClaim
+	err := DB.Where("telegram_id = ? AND task_date = ?", telegramId, taskDate).Find(&claims).Error
+	if err != nil {
+		return nil, err
+	}
+	var indices []int
+	for _, c := range claims {
+		indices = append(indices, c.TaskIndex)
+	}
+	return indices, nil
+}
+
+func ClaimTask(telegramId, taskDate string, taskIndex int) error {
+	return DB.Create(&TgFarmTaskClaim{
+		TelegramId: telegramId,
+		TaskDate:   taskDate,
+		TaskIndex:  taskIndex,
+	}).Error
+}
+
+func CountTodayActions(telegramId, action string) int64 {
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	var count int64
+	DB.Model(&TgFarmLog{}).Where("telegram_id = ? AND action = ? AND created_at >= ?", telegramId, action, startOfDay).Count(&count)
+	return count
+}
+
+func CountTotalActions(telegramId, action string) int64 {
+	var count int64
+	DB.Model(&TgFarmLog{}).Where("telegram_id = ? AND action = ?", telegramId, action).Count(&count)
+	return count
+}
+
+func GetAchievements(telegramId string) ([]*TgFarmAchievement, error) {
+	var achs []*TgFarmAchievement
+	err := DB.Where("telegram_id = ?", telegramId).Find(&achs).Error
+	return achs, err
+}
+
+func HasAchievement(telegramId, key string) bool {
+	var count int64
+	DB.Model(&TgFarmAchievement{}).Where("telegram_id = ? AND achievement_key = ?", telegramId, key).Count(&count)
+	return count > 0
+}
+
+func UnlockAchievement(telegramId, key string) error {
+	return DB.Create(&TgFarmAchievement{
+		TelegramId:     telegramId,
+		AchievementKey: key,
+		UnlockedAt:     time.Now().Unix(),
+	}).Error
+}
+
 // ========== 加工坊 ==========
 
 type TgFarmProcess struct {
