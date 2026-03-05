@@ -1099,9 +1099,9 @@ const TgBotPage = () => {
             <InputNumber value={farmBankAdminId} onChange={setFarmBankAdminId} min={1} style={{ width: 120 }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <Typography.Text style={{ width: 200 }}>💰 {t('信用贷基础额度(quota)')}</Typography.Text>
+            <Typography.Text style={{ width: 200 }}>💰 {t('信用贷最低额度(quota)')}</Typography.Text>
             <InputNumber value={farmBankBaseAmount} onChange={setFarmBankBaseAmount} min={1} style={{ width: 180 }} />
-            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>= ${(farmBankBaseAmount / 500000).toFixed(2)}</Typography.Text>
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>= ${(farmBankBaseAmount / 500000).toFixed(2)} ({t('评分1时可贷额度')})</Typography.Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <Typography.Text style={{ width: 200 }}>📈 {t('信用贷利率(%)')}</Typography.Text>
