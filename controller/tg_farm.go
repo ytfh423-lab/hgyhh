@@ -454,8 +454,16 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	case data == "farm_shop":
 		showFarmShop(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "farm_buy_"):
-		itemKey := strings.TrimPrefix(data, "farm_buy_")
-		doFarmBuy(chatId, msgId, tgId, itemKey, from)
+		raw := strings.TrimPrefix(data, "farm_buy_")
+		buyQty := 1
+		buyKey := raw
+		if idx := strings.LastIndex(raw, "_"); idx > 0 {
+			if q, err := strconv.Atoi(raw[idx+1:]); err == nil && q > 0 {
+				buyQty = q
+				buyKey = raw[:idx]
+			}
+		}
+		doFarmBuy(chatId, msgId, tgId, buyKey, buyQty, from)
 	case data == "farm_steal":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockSteal, "偷菜", chatId, msgId, from) { return }
 		showFarmStealTargets(chatId, msgId, tgId, from)
@@ -1091,8 +1099,12 @@ func showFarmShop(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			text += fmt.Sprintf("  %s %s - %s\n", item.Emoji, item.Name, farmQuotaStr(itemCost))
 		}
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("%s 购买%s (%s)", item.Emoji, item.Name, farmQuotaStr(itemCost)),
-				CallbackData: "farm_buy_" + item.Key},
+			{Text: fmt.Sprintf("%s %s ×1 (%s)", item.Emoji, item.Name, farmQuotaStr(itemCost)),
+				CallbackData: "farm_buy_" + item.Key + "_1"},
+			{Text: "×5 (" + farmQuotaStr(itemCost*5) + ")",
+				CallbackData: "farm_buy_" + item.Key + "_5"},
+			{Text: "×10 (" + farmQuotaStr(itemCost*10) + ")",
+				CallbackData: "farm_buy_" + item.Key + "_10"},
 		})
 	}
 	// 购买狗狗
@@ -1115,43 +1127,50 @@ func showFarmShop(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	farmSend(chatId, editMsgId, text, &keyboard, from)
 }
 
-func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string, from *TgUser) {
+func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string, qty int, from *TgUser) {
 	item := farmItemMap[itemKey]
 	if item == nil {
 		farmSend(chatId, editMsgId, "❌ 未知道具", nil, from)
 		return
+	}
+	if qty < 1 {
+		qty = 1
+	}
+	if qty > 99 {
+		qty = 99
 	}
 	user, err := getFarmUser(tgId)
 	if err != nil {
 		farmBindingError(chatId, editMsgId, from)
 		return
 	}
-	cost := item.Cost
+	unitCost := item.Cost
 	if itemKey == "dogfood" {
-		cost = common.TgBotFarmDogFoodPrice
+		unitCost = common.TgBotFarmDogFoodPrice
 	}
-	if user.Quota < cost {
-		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足！需要 %s", farmQuotaStr(cost)), &TgInlineKeyboardMarkup{
+	totalCost := unitCost * qty
+	if user.Quota < totalCost {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 余额不足！需要 %s（单价 %s × %d）", farmQuotaStr(totalCost), farmQuotaStr(unitCost), qty), &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回商店", CallbackData: "farm_shop"}},
 			},
 		}, from)
 		return
 	}
-	err = model.DecreaseUserQuota(user.Id, cost)
+	err = model.DecreaseUserQuota(user.Id, totalCost)
 	if err != nil {
 		farmSend(chatId, editMsgId, "❌ 扣费失败", nil, from)
 		return
 	}
-	err = model.IncrementFarmItem(tgId, itemKey, 1)
+	err = model.IncrementFarmItem(tgId, itemKey, qty)
 	if err != nil {
-		_ = model.IncreaseUserQuota(user.Id, cost, true)
+		_ = model.IncreaseUserQuota(user.Id, totalCost, true)
 		farmSend(chatId, editMsgId, "❌ 购买失败", nil, from)
 		return
 	}
-	model.AddFarmLog(tgId, "shop", -cost, fmt.Sprintf("购买%s%s", item.Emoji, item.Name))
-	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 购买 %s%s 成功！已扣除 %s",
-		item.Emoji, item.Name, farmQuotaStr(cost)), &TgInlineKeyboardMarkup{
+	model.AddFarmLog(tgId, "shop", -totalCost, fmt.Sprintf("购买%s%s×%d", item.Emoji, item.Name, qty))
+	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 购买 %s%s ×%d 成功！已扣除 %s",
+		item.Emoji, item.Name, qty, farmQuotaStr(totalCost)), &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "🏪 继续购物", CallbackData: "farm_shop"},
 				{Text: "🔙 返回农场", CallbackData: "farm"}},

@@ -471,45 +471,61 @@ func WebFarmHarvest(c *gin.Context) {
 	})
 }
 
-// WebFarmBuyItem buys a shop item
+// WebFarmBuyItem buys a shop item (supports quantity for batch purchase)
 func WebFarmBuyItem(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
 		return
 	}
 	var req struct {
-		ItemKey string `json:"item_key"`
+		ItemKey  string `json:"item_key"`
+		Quantity int    `json:"quantity"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
 		return
+	}
+	if req.Quantity < 1 {
+		req.Quantity = 1
+	}
+	if req.Quantity > 99 {
+		req.Quantity = 99
 	}
 	item := farmItemMap[req.ItemKey]
 	if item == nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知道具"})
 		return
 	}
-	cost := item.Cost
+	unitCost := item.Cost
 	if req.ItemKey == "dogfood" {
-		cost = common.TgBotFarmDogFoodPrice
+		unitCost = common.TgBotFarmDogFoodPrice
 	}
-	if user.Quota < cost {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！需要 $%.2f", webFarmQuotaFloat(cost))})
+	totalCost := unitCost * req.Quantity
+	if user.Quota < totalCost {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！需要 $%.2f（单价 $%.2f × %d）", webFarmQuotaFloat(totalCost), webFarmQuotaFloat(unitCost), req.Quantity)})
 		return
 	}
-	err := model.DecreaseUserQuota(user.Id, cost)
+	err := model.DecreaseUserQuota(user.Id, totalCost)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
 		return
 	}
-	err = model.IncrementFarmItem(tgId, req.ItemKey, 1)
+	err = model.IncrementFarmItem(tgId, req.ItemKey, req.Quantity)
 	if err != nil {
-		_ = model.IncreaseUserQuota(user.Id, cost, true)
+		_ = model.IncreaseUserQuota(user.Id, totalCost, true)
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "购买失败"})
 		return
 	}
-	model.AddFarmLog(tgId, "shop", -cost, fmt.Sprintf("购买%s%s", item.Emoji, item.Name))
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("购买 %s%s 成功！", item.Emoji, item.Name)})
+	model.AddFarmLog(tgId, "shop", -totalCost, fmt.Sprintf("购买%s%s×%d", item.Emoji, item.Name, req.Quantity))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("购买 %s%s ×%d 成功！", item.Emoji, item.Name, req.Quantity),
+		"data": gin.H{
+			"item":       req.ItemKey,
+			"quantity":   req.Quantity,
+			"total_cost": webFarmQuotaFloat(totalCost),
+		},
+	})
 }
 
 // WebFarmStealTargets returns available steal targets
