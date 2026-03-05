@@ -113,6 +113,7 @@ const TgBotPage = () => {
   const [farmUnlockAchieve, setFarmUnlockAchieve] = useState(1);
   const [farmLevelPrices, setFarmLevelPrices] = useState('500000,1000000,2000000,3000000,5000000,8000000,12000000,18000000,25000000,35000000,50000000,70000000,100000000,150000000');
   const [savingFarm, setSavingFarm] = useState(false);
+  const [resetLevel, setResetLevel] = useState(1);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
   const [lotteryPrizeTotal, setLotteryPrizeTotal] = useState(0);
@@ -1152,6 +1153,93 @@ const TgBotPage = () => {
           >
             {t('保存农场设置')}
           </Button>
+        </div>
+      </Card>
+
+      {/* ===== 管理操作 ===== */}
+      <Card
+        title={t('农场管理操作')}
+        className='mt-4'
+      >
+        <div className='mb-4'>
+          <Banner type='warning' description={t('以下操作不可撤销，请谨慎使用')} style={{ marginBottom: 16, borderRadius: 8 }} />
+
+          <div style={{ borderBottom: '1px solid var(--semi-color-border)', paddingBottom: 16, marginBottom: 16 }}>
+            <Typography.Title heading={6} style={{ marginBottom: 8 }}>💰 {t('重置负余额用户')}</Typography.Title>
+            <Typography.Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 12 }}>
+              {t('将所有余额为负数的用户重置为0，不影响正常用户')}
+            </Typography.Text>
+            <Button
+              theme='solid'
+              type='danger'
+              onClick={async () => {
+                Modal.confirm({
+                  title: t('确认重置'),
+                  content: t('确定要将所有负余额用户重置为0吗？此操作不可撤销。'),
+                  onOk: async () => {
+                    try {
+                      const { data: res } = await API.post('/api/tgbot/farm/reset-negative-balances');
+                      if (res.success) {
+                        showSuccess(res.message);
+                      } else {
+                        showError(res.message);
+                      }
+                    } catch (err) {
+                      showError(t('操作失败'));
+                    }
+                  },
+                });
+              }}
+            >
+              {t('重置所有负余额为0')}
+            </Button>
+          </div>
+
+          <div>
+            <Typography.Title heading={6} style={{ marginBottom: 8 }}>⭐ {t('重置所有用户等级')}</Typography.Title>
+            <Typography.Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 12 }}>
+              {t('将所有用户的农场等级重置到指定等级')}
+            </Typography.Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <InputNumber
+                value={resetLevel}
+                onChange={setResetLevel}
+                min={1}
+                max={15}
+                style={{ width: 120 }}
+                placeholder={t('目标等级')}
+              />
+              <Button
+                theme='solid'
+                type='danger'
+                onClick={async () => {
+                  const level = resetLevel;
+                  if (!level || level < 1 || level > 15) {
+                    showError(t('请输入有效等级 (1-15)'));
+                    return;
+                  }
+                  Modal.confirm({
+                    title: t('确认重置'),
+                    content: t('确定要将所有用户等级重置为') + ` Lv.${level} ` + t('吗？此操作不可撤销。'),
+                    onOk: async () => {
+                      try {
+                        const { data: res } = await API.post('/api/tgbot/farm/reset-all-levels', { level });
+                        if (res.success) {
+                          showSuccess(res.message);
+                        } else {
+                          showError(res.message);
+                        }
+                      } catch (err) {
+                        showError(t('操作失败'));
+                      }
+                    },
+                  });
+                }}
+              >
+                {t('重置所有用户等级')}
+              </Button>
+            </div>
+          </div>
         </div>
       </Card>
 
