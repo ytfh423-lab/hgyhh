@@ -631,6 +631,149 @@ func WebFarmGameHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
 }
 
+func WebFarmGameList(c *gin.Context) {
+	type gameItem struct {
+		Key   string  `json:"key"`
+		Name  string  `json:"name"`
+		Emoji string  `json:"emoji"`
+		Desc  string  `json:"desc"`
+		Price float64 `json:"price"`
+	}
+	var items []gameItem
+	for _, g := range miniGames {
+		items = append(items, gameItem{
+			Key: g.Key, Name: g.Name, Emoji: g.Emoji,
+			Desc: g.Desc, Price: webFarmQuotaFloat(g.Price),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+}
+
+func WebFarmGamePlay(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		GameKey string `json:"game_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.GameKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "缺少 game_key"})
+		return
+	}
+
+	g := miniGameMap[req.GameKey]
+	if g == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "未知游戏"})
+		return
+	}
+
+	price := g.Price
+	if int64(user.Quota) < int64(price) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足，需要 %s", farmQuotaStr(price))})
+		return
+	}
+	model.DecreaseUserQuota(user.Id, price)
+
+	var resultText string
+	var multi float64
+
+	switch req.GameKey {
+	case "bugcatch":
+		resultText, multi = playBugCatch()
+	case "egghunt":
+		resultText, multi = playEggHunt()
+	case "milking":
+		resultText, multi = playMilking()
+	case "sunflower":
+		resultText, multi = playSunflower()
+	case "beekeep":
+		resultText, multi = playBeekeep()
+	case "fruitpick":
+		resultText, multi = playFruitPick()
+	case "sheepcount":
+		resultText, multi = playSheepCount()
+	case "cornrace":
+		resultText, multi = playCornRace()
+	case "rooster":
+		resultText, multi = playRooster()
+	case "horserace":
+		resultText, multi = playHorseRace()
+	case "sheepdog":
+		resultText, multi = playSheepdog()
+	case "seedling":
+		resultText, multi = playSeedling()
+	case "pumpkin":
+		resultText, multi = playPumpkinContest()
+	case "pigchase":
+		resultText, multi = playPigChase()
+	case "duckherd":
+		resultText, multi = playDuckHerd()
+	case "thresh":
+		resultText, multi = playThresh()
+	case "grape":
+		resultText, multi = playGrapeStomp()
+	case "fishcomp":
+		resultText, multi = playFishComp()
+	case "weed":
+		resultText, multi = playWeed()
+	case "woodchop":
+		resultText, multi = playWoodChop()
+	case "lasso":
+		resultText, multi = playLasso()
+	case "pullcarrot":
+		resultText, multi = playPullCarrot()
+	case "mushroom":
+		resultText, multi = playMushroom()
+	case "hatchegg":
+		resultText, multi = playHatchEgg()
+	case "weather":
+		resultText, multi = playWeather()
+	case "produce":
+		resultText, multi = playProduce()
+	case "tame":
+		resultText, multi = playTame()
+	case "scarecrow":
+		resultText, multi = playScarecrow()
+	case "foxhunt":
+		resultText, multi = playFoxHunt()
+	case "harvest":
+		resultText, multi = playHarvestRace()
+	default:
+		model.IncreaseUserQuota(user.Id, price, true)
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "未知游戏"})
+		return
+	}
+
+	actualWin := int(float64(price) * multi)
+	prestige := model.GetPrestigeLevel(tgId)
+	if prestige > 0 && actualWin > 0 {
+		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
+	}
+	if actualWin > 0 {
+		model.IncreaseUserQuota(user.Id, actualWin, true)
+	}
+
+	net := actualWin - price
+	model.CreateGameLog(tgId, req.GameKey, price, actualWin)
+	model.AddFarmLog(tgId, "game", net, fmt.Sprintf("%s %s", g.Emoji, g.Name))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"game_key":    req.GameKey,
+			"game_name":   g.Name,
+			"game_emoji":  g.Emoji,
+			"result_text": resultText,
+			"bet":         webFarmQuotaFloat(price),
+			"win":         webFarmQuotaFloat(actualWin),
+			"net":         webFarmQuotaFloat(net),
+			"multi":       multi,
+		},
+	})
+}
+
 func init() {
 	initWeather()
 }

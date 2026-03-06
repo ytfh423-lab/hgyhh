@@ -85,8 +85,10 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
   if (!farmData) return null;
 
   const handleWater = (idx) => doAction('/api/farm/water', { plot_index: idx });
+  const handleWaterAll = () => doAction('/api/farm/water/all', {});
   const handleTreat = (idx) => doAction('/api/farm/treat', { plot_index: idx });
   const handleFertilize = (idx) => doAction('/api/farm/fertilize', { plot_index: idx });
+  const handleFertilizeAll = () => doAction('/api/farm/fertilize/all', {});
   const handleHarvest = () => doAction('/api/farm/harvest', {});
   const handleHarvestStore = () => doAction('/api/farm/harvest/store', {});
   const handleBuyLand = () => doAction('/api/farm/buyland', {});
@@ -94,6 +96,8 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
 
   const plots = farmData.plots || [];
   const matureCount = plots.filter(p => p.status === 2).length;
+  const needsWaterCount = plots.filter(p => p.status === 1 || p.status === 4 || (p.status === 3 && p.event_type === 'drought')).length;
+  const canFertilizeCount = plots.filter(p => p.status === 1 && p.fertilized === 0).length;
   const activePlots = plots.filter(p => p.status !== 0);
   const emptyPlots = plots.filter(p => p.status === 0);
 
@@ -148,6 +152,18 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
                 {t('收获入仓')}
               </Button>
             </>
+          )}
+          {needsWaterCount > 0 && (
+            <Button size='small' icon={<Droplets size={12} />} theme='light' onClick={handleWaterAll}
+              loading={actionLoading} style={{ borderRadius: 6, color: '#0284c7', borderColor: '#38bdf8' }}>
+              💧 {t('全部浇水')}({needsWaterCount})
+            </Button>
+          )}
+          {canFertilizeCount > 0 && (
+            <Button size='small' icon={<FlaskConical size={12} />} theme='light' onClick={handleFertilizeAll}
+              loading={actionLoading} style={{ borderRadius: 6, color: '#059669', borderColor: '#34d399' }}>
+              🧪 {t('全部施肥')}({canFertilizeCount})
+            </Button>
           )}
           {farmData.plot_count < farmData.max_plots && (
             <Button size='small' icon={<LandPlot size={12} />} theme='light' onClick={handleBuyLand}
@@ -1144,11 +1160,18 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                     </>
                   )}
                   {animal.status === 2 && (
-                    <Button size='small' theme='solid' type='warning'
-                      onClick={() => doRanchAction('/api/ranch/slaughter', { animal_id: animal.id })}
-                      loading={actionLoading} style={{ borderRadius: 6 }}>
-                      🔪 {t('出售')}
-                    </Button>
+                    <>
+                      <Button size='small' theme='solid' type='warning'
+                        onClick={() => doRanchAction('/api/ranch/slaughter', { animal_id: animal.id })}
+                        loading={actionLoading} style={{ borderRadius: 6 }}>
+                        💰 {t('出售')}
+                      </Button>
+                      <Button size='small' theme='light'
+                        onClick={() => doRanchAction('/api/ranch/slaughter/store', { animal_id: animal.id })}
+                        loading={actionLoading} style={{ borderRadius: 6, color: '#1e40af', borderColor: '#3b82f6' }}>
+                        📦 {t('存仓库')}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -2507,6 +2530,8 @@ const GamesPage = ({ loadFarm, t }) => {
   const [scratchResult, setScratchResult] = useState(null);
   const [scratchRevealed, setScratchRevealed] = useState(false);
   const [history, setHistory] = useState([]);
+  const [miniGames, setMiniGames] = useState([]);
+  const [miniResult, setMiniResult] = useState(null);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -2515,11 +2540,19 @@ const GamesPage = ({ loadFarm, t }) => {
     } catch (err) { /* ignore */ }
   }, []);
 
-  useEffect(() => { loadHistory(); }, [loadHistory]);
+  const loadMiniGames = useCallback(async () => {
+    try {
+      const { data: res } = await API.get('/api/farm/game/list');
+      if (res.success) setMiniGames(res.data || []);
+    } catch (err) { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadHistory(); loadMiniGames(); }, [loadHistory, loadMiniGames]);
 
   const spinWheel = async () => {
     setGameLoading(true);
     setWheelResult(null);
+    setMiniResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/wheel');
       if (res.success) {
@@ -2535,6 +2568,7 @@ const GamesPage = ({ loadFarm, t }) => {
     setGameLoading(true);
     setScratchResult(null);
     setScratchRevealed(false);
+    setMiniResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/scratch');
       if (res.success) {
@@ -2546,10 +2580,26 @@ const GamesPage = ({ loadFarm, t }) => {
     finally { setGameLoading(false); }
   };
 
+  const playMiniGame = async (gameKey) => {
+    setGameLoading(true);
+    setMiniResult(null);
+    setWheelResult(null);
+    setScratchResult(null);
+    try {
+      const { data: res } = await API.post('/api/farm/game/play', { game_key: gameKey });
+      if (res.success) {
+        setMiniResult(res.data);
+        loadFarm();
+        loadHistory();
+      } else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+    finally { setGameLoading(false); }
+  };
+
   return (
     <div>
+      {/* Wheel & Scratch */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-        {/* Wheel */}
         <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>🎡 {t('幸运转盘')} ($1/{t('次')})</Text>
           <Button theme='solid' onClick={spinWheel} loading={gameLoading} style={{ borderRadius: 8, marginBottom: 8 }}>
@@ -2564,7 +2614,6 @@ const GamesPage = ({ loadFarm, t }) => {
           )}
         </Card>
 
-        {/* Scratch */}
         <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>🎰 {t('刮刮卡')} ($0.50/{t('次')})</Text>
           <Button theme='solid' onClick={doScratch} loading={gameLoading} style={{ borderRadius: 8, marginBottom: 8 }}>
@@ -2600,17 +2649,66 @@ const GamesPage = ({ loadFarm, t }) => {
         </Card>
       </div>
 
+      {/* Mini-Game Result */}
+      {miniResult && (
+        <Card className='!rounded-xl' style={{ border: '2px solid var(--semi-color-primary)', marginBottom: 12 }}>
+          <Text strong size='large' style={{ display: 'block', marginBottom: 8 }}>
+            {miniResult.game_emoji} {miniResult.game_name}
+          </Text>
+          <div style={{ whiteSpace: 'pre-wrap', marginBottom: 12, padding: '8px 12px', borderRadius: 8,
+            background: 'var(--semi-color-fill-0)', fontSize: 13, lineHeight: 1.6 }}>
+            {miniResult.result_text}
+          </div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Tag color='blue' size='large' style={{ borderRadius: 6 }}>{t('下注')}: ${miniResult.bet.toFixed(2)}</Tag>
+            <Tag color={miniResult.net >= 0 ? 'green' : 'red'} size='large' style={{ borderRadius: 6 }}>
+              {t('收益')}: {miniResult.net >= 0 ? '+' : ''}{miniResult.net.toFixed(2)}
+            </Tag>
+            <Tag color='purple' size='large' style={{ borderRadius: 6 }}>{miniResult.multi}x</Tag>
+            <Button size='small' theme='solid' onClick={() => playMiniGame(miniResult.game_key)}
+              loading={gameLoading} style={{ borderRadius: 6 }}>
+              🔄 {t('再来一次')}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* 30 Mini-Games Grid */}
+      {miniGames.length > 0 && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 12 }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>🎮 {t('农场小游戏')} ({miniGames.length})</Text>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+            {miniGames.map((g) => (
+              <div key={g.key} onClick={() => !gameLoading && playMiniGame(g.key)}
+                style={{
+                  padding: '10px 8px', borderRadius: 10, textAlign: 'center', cursor: gameLoading ? 'not-allowed' : 'pointer',
+                  border: '1px solid var(--semi-color-border)', background: 'var(--semi-color-fill-0)',
+                  transition: 'all 0.2s', opacity: gameLoading ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+              >
+                <span style={{ fontSize: 28, display: 'block', marginBottom: 4 }}>{g.emoji}</span>
+                <Text strong size='small' style={{ display: 'block' }}>{g.name}</Text>
+                <Text type='tertiary' size='small' style={{ display: 'block', fontSize: 11 }}>{g.desc}</Text>
+                <Text type='success' size='small' style={{ display: 'block', marginTop: 2 }}>${g.price.toFixed(2)}</Text>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* History */}
       {history.length > 0 && (
         <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>📜 {t('游戏记录')}</Text>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {history.slice(0, 10).map((h, i) => (
+            {history.slice(0, 15).map((h, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 6,
                 background: 'var(--semi-color-fill-0)',
               }}>
-                <Text size='small'>{h.game_type === 'wheel' ? '🎡' : '🎰'}</Text>
+                <Text size='small'>{h.game_type === 'wheel' ? '🎡' : h.game_type === 'scratch' ? '🎰' : '🎮'}</Text>
                 <Text size='small' style={{ flex: 1 }}>{t('下注')} ${h.bet.toFixed(2)} → ${h.win.toFixed(2)}</Text>
                 <Text size='small' strong style={{ color: h.net >= 0 ? '#22c55e' : '#ef4444' }}>
                   {h.net >= 0 ? '+' : ''}{h.net.toFixed(2)}

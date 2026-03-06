@@ -950,6 +950,83 @@ func WebFarmWater(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
 }
 
+// WebFarmWaterAll waters all plots that need watering
+func WebFarmWaterAll(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	watered := 0
+	for _, plot := range plots {
+		updateFarmPlotStatus(plot)
+		canWater := plot.Status == 1 || plot.Status == 4 ||
+			(plot.Status == 3 && plot.EventType == "drought")
+		if !canWater {
+			continue
+		}
+		if plot.Status == 4 {
+			now := time.Now().Unix()
+			waterInterval := int64(common.TgBotFarmWaterInterval)
+			wiltStart := plot.LastWateredAt + waterInterval
+			downtime := now - wiltStart
+			plot.PlantedAt += downtime
+			plot.Status = 1
+			_ = model.UpdateFarmPlot(plot)
+		}
+		if plot.Status == 3 && plot.EventType == "drought" {
+			now := time.Now().Unix()
+			downtime := now - plot.EventAt
+			plot.PlantedAt += downtime
+			plot.Status = 1
+			plot.EventType = ""
+			plot.EventAt = 0
+			_ = model.UpdateFarmPlot(plot)
+		}
+		_ = model.WaterFarmPlot(plot.Id)
+		watered++
+	}
+	if watered == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有需要浇水的地块"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功浇水 %d 块地！", watered)})
+}
+
+// WebFarmFertilizeAll fertilizes all growing plots
+func WebFarmFertilizeAll(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	fertilized := 0
+	for _, plot := range plots {
+		if plot.Status != 1 || plot.Fertilized == 1 {
+			continue
+		}
+		if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
+			break
+		}
+		plot.Fertilized = 1
+		_ = model.UpdateFarmPlot(plot)
+		fertilized++
+	}
+	if fertilized == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可施肥的地块（或化肥不足）"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功施肥 %d 块地！", fertilized)})
+}
+
 // WebFarmDog returns dog info
 func WebFarmDog(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
