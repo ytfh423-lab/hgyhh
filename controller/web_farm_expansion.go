@@ -302,7 +302,7 @@ func WebFarmClaimCollection(c *gin.Context) {
 	}
 
 	_ = model.ClaimCollectionReward(tgId, req.Category)
-	model.IncreaseUserQuota(user.Id, reward)
+	model.IncreaseUserQuota(user.Id, reward, true)
 	model.AddFarmLog(tgId, "encyclopedia", reward, "📖 图鉴奖励: "+req.Category)
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "领取成功！"})
 }
@@ -355,7 +355,7 @@ func WebFarmPrestige(c *gin.Context) {
 	model.CreatePrestigeRecord(tgId, newPrestige)
 
 	prestigeReward := 25000000
-	model.IncreaseUserQuota(user.Id, prestigeReward)
+	model.IncreaseUserQuota(user.Id, prestigeReward, true)
 	model.AddFarmLog(tgId, "prestige", prestigeReward, fmt.Sprintf("🔄 转生到第%d世", newPrestige))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -509,7 +509,7 @@ func WebFarmGameWheel(c *gin.Context) {
 		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
 	}
 	if actualWin > 0 {
-		model.IncreaseUserQuota(user.Id, actualWin)
+		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
 	net := actualWin - price
 	model.CreateGameLog(tgId, "wheel", price, actualWin)
@@ -572,7 +572,7 @@ func WebFarmGameScratch(c *gin.Context) {
 		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
 	}
 	if actualWin > 0 {
-		model.IncreaseUserQuota(user.Id, actualWin)
+		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
 	net := actualWin - price
 	model.CreateGameLog(tgId, "scratch", price, actualWin)

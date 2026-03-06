@@ -132,7 +132,7 @@ func WebFarmTradeBuy(c *gin.Context) {
 	sellerUser := &model.User{TelegramId: trade.SellerId}
 	_ = sellerUser.FillUserByTelegramId()
 	if sellerUser.Id > 0 {
-		model.IncreaseUserQuota(sellerUser.Id, totalPrice)
+		model.IncreaseUserQuota(sellerUser.Id, totalPrice, true)
 		model.AddFarmLog(trade.SellerId, "trade", totalPrice, fmt.Sprintf("💰 售出: %s%s×%d", trade.ItemEmoji, trade.ItemName, trade.Quantity))
 	}
 
