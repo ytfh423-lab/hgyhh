@@ -8,6 +8,32 @@ import (
 	"github.com/QuantumNous/new-api/model"
 )
 
+// ========== 交易辅助 ==========
+
+func getWarehouseItemMarketPrice(cropType string) int {
+	for _, cr := range farmCrops {
+		if cr.Key == cropType {
+			return applyMarket(cr.UnitPrice, "crop_"+cr.Key)
+		}
+	}
+	for _, f := range fishTypes {
+		if "fish_"+f.Key == cropType || f.Key == cropType {
+			return applyMarket(f.SellPrice, "fish_"+f.Key)
+		}
+	}
+	for _, a := range ranchAnimals {
+		if "meat_"+a.Key == cropType || a.Key == cropType {
+			return applyMarket(*a.MeatPrice, "meat_"+a.Key)
+		}
+	}
+	for _, r := range recipes {
+		if "recipe_"+r.Key == cropType || r.Key == cropType {
+			return applyMarket(r.SellPrice, "recipe_"+r.Key)
+		}
+	}
+	return 500000
+}
+
 // ========== 图鉴 ==========
 
 func showFarmEncyclopedia(chatId int64, editMsgId int, tgId string, from *TgUser) {
@@ -246,9 +272,113 @@ func showFarmTradeMarket(chatId int64, editMsgId int, tgId string, from *TgUser)
 		}
 	}
 	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "📤 挂单出售", CallbackData: "farm_tsell"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func showFarmTradeSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	if int(model.CountMyOpenTrades(tgId)) >= common.TgBotFarmTradeMaxListings {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 挂单数量已达上限（%d个）", common.TgBotFarmTradeMaxListings), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔄 返回交易", CallbackData: "farm_trade"}},
+			},
+		}, from)
+		return
+	}
+
+	items, _ := model.GetWarehouseItems(tgId)
+	if len(items) == 0 {
+		farmSend(chatId, editMsgId, "📭 仓库为空，没有可出售的物品！\n\n请先收获作物存入仓库。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔄 返回交易", CallbackData: "farm_trade"}},
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
+		return
+	}
+
+	text := "📤 选择要出售的物品\n\n📦 仓库物品:\n"
+	var rows [][]TgInlineKeyboardButton
+	for _, item := range items {
+		if item.Quantity <= 0 {
+			continue
+		}
+		itemName, itemEmoji, _ := getTradeItemInfo(item.CropType)
+		marketPrice := getWarehouseItemMarketPrice(item.CropType)
+		priceStr := fmt.Sprintf("$%.2f", float64(marketPrice)/500000.0)
+		text += fmt.Sprintf("  %s %s ×%d (市价%s/个)\n", itemEmoji, itemName, item.Quantity, priceStr)
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("📤 %s%s ×%d (%s/个)", itemEmoji, itemName, item.Quantity, priceStr),
+				CallbackData: fmt.Sprintf("farm_tlist_%s", item.CropType)},
+		})
+	}
+	text += fmt.Sprintf("\n💡 将以当前市场价挂单出售\n💰 买家需额外支付 %d%% 手续费", common.TgBotFarmTradeFee)
+
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔄 返回交易", CallbackData: "farm_trade"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
+}
+
+func doFarmTradeList(chatId int64, editMsgId int, tgId string, cropType string, from *TgUser) {
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	if int(model.CountMyOpenTrades(tgId)) >= common.TgBotFarmTradeMaxListings {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 挂单数量已达上限（%d个）", common.TgBotFarmTradeMaxListings), nil, from)
+		return
+	}
+
+	whItem, err := model.GetWarehouseItem(tgId, cropType)
+	if err != nil || whItem.Quantity <= 0 {
+		farmSend(chatId, editMsgId, "❌ 仓库中没有该物品", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "📤 返回挂单", CallbackData: "farm_tsell"}},
+			},
+		}, from)
+		return
+	}
+
+	quantity := whItem.Quantity
+	itemName, itemEmoji, category := getTradeItemInfo(cropType)
+	marketPrice := getWarehouseItemMarketPrice(cropType)
+
+	err = model.RemoveFromWarehouse(tgId, cropType, quantity)
+	if err != nil {
+		farmSend(chatId, editMsgId, "❌ 仓库物品不足", nil, from)
+		return
+	}
+
+	trade := &model.TgFarmTrade{
+		SellerId: tgId, SellerName: user.Username, Category: category,
+		ItemKey: cropType, ItemName: itemName, ItemEmoji: itemEmoji,
+		Quantity: quantity, PricePerUnit: marketPrice, Status: 0,
+	}
+	if err := model.CreateTrade(trade); err != nil {
+		_ = model.AddToWarehouseWithCategory(tgId, cropType, quantity, category)
+		farmSend(chatId, editMsgId, "❌ 创建挂单失败", nil, from)
+		return
+	}
+
+	model.AddFarmLog(tgId, "trade", 0, fmt.Sprintf("📤 挂单: %s%s×%d", itemEmoji, itemName, quantity))
+	totalPrice := float64(marketPrice*quantity) / 500000.0
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 挂单成功！\n\n%s %s ×%d\n💰 单价: $%.2f\n💰 总价: $%.2f\n\n等待其他玩家购买...",
+		itemEmoji, itemName, quantity, float64(marketPrice)/500000.0, totalPrice),
+		&TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "📤 继续挂单", CallbackData: "farm_tsell"}},
+				{{Text: "🔄 返回交易", CallbackData: "farm_trade"}},
+				{{Text: "🔙 返回农场", CallbackData: "farm"}},
+			},
+		}, from)
 }
 
 func doFarmTradeBuy(chatId int64, editMsgId int, tgId string, tradeId int, from *TgUser) {

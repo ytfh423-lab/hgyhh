@@ -747,6 +747,11 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	case data == "farm_trade":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockTrading, "交易", chatId, msgId, from) { return }
 		showFarmTradeMarket(chatId, msgId, tgId, from)
+	case data == "farm_tsell":
+		showFarmTradeSell(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_tlist_"):
+		cropType := strings.TrimPrefix(data, "farm_tlist_")
+		doFarmTradeList(chatId, msgId, tgId, cropType, from)
 	case strings.HasPrefix(data, "farm_tbuy_"):
 		tradeIdStr := strings.TrimPrefix(data, "farm_tbuy_")
 		tradeId, _ := strconv.Atoi(tradeIdStr)
