@@ -227,7 +227,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
           {emptyPlots.length > 0 && (
             <div className='farm-card' style={{
               display: 'flex', flexWrap: 'wrap', gap: 6,
-              border: '1px dashed var(--farm-glass-border)',
+              border: '1px dashed var(--farm-border-strong)',
               marginTop: activePlots.length > 0 ? 14 : 0,
             }}>
               <Text type='tertiary' size='small' style={{ lineHeight: '24px', marginRight: 4 }}>⬜ {t('空地')}:</Text>
