@@ -38,7 +38,7 @@ import {
   IconFile,
   IconCopy,
 } from '@douyinfe/semi-icons';
-import { Zap, Shield, Globe, Rocket } from 'lucide-react';
+import { Zap, Shield, Globe, Rocket, Sprout } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import NoticeModal from '../../components/layout/NoticeModal';
 import {
@@ -100,6 +100,19 @@ const Home = () => {
   const providerStagger = useStaggerReveal(providerCount, 50, providersVisible);
   const countUpValue = useCountUp(30, 1800, providersVisible);
   const canvasRef = useRef(null);
+  const [farmBannerRef, farmBannerVisible] = useScrollReveal({ threshold: 0.1 });
+  const [farmGridRef, farmGridVisible] = useScrollReveal({ threshold: 0.1 });
+
+  const farmActivities = [
+    { emoji: '🌱', title: '种植系统', desc: '种植作物，浇水施肥' },
+    { emoji: '🐄', title: '牧场养殖', desc: '饲养动物，收获产品' },
+    { emoji: '🎣', title: '休闲钓鱼', desc: '河畔垂钓，收获鱼类' },
+    { emoji: '🏭', title: '加工制造', desc: '原料加工成高价商品' },
+    { emoji: '📈', title: '市场交易', desc: '买低卖高，商业大亨' },
+    { emoji: '🕵️', title: '偷菜玩法', desc: '拜访好友，顺手牵菜' },
+    { emoji: '🎰', title: '趣味游戏', desc: '小游戏赢取丰厚奖励' },
+    { emoji: '🏆', title: '成就排行', desc: '完成任务，冲刺榜首' },
+  ];
 
   // Floating particles effect
   useEffect(() => {
@@ -125,6 +138,7 @@ const Home = () => {
         dx: (Math.random() - 0.5) * 0.4,
         dy: (Math.random() - 0.5) * 0.3 - 0.1,
         opacity: Math.random() * 0.5 + 0.1,
+        green: Math.random() > 0.6,
       });
     }
 
@@ -134,9 +148,9 @@ const Home = () => {
       particles.forEach((p) => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = isDark
-          ? `rgba(165, 140, 255, ${p.opacity})`
-          : `rgba(99, 102, 241, ${p.opacity})`;
+        ctx.fillStyle = p.green
+          ? (isDark ? `rgba(52, 211, 153, ${p.opacity})` : `rgba(5, 150, 105, ${p.opacity})`)
+          : (isDark ? `rgba(165, 140, 255, ${p.opacity})` : `rgba(99, 102, 241, ${p.opacity})`);
         ctx.fill();
         p.x += p.dx;
         p.y += p.dy;
@@ -261,6 +275,10 @@ const Home = () => {
               <div className='npc-animate npc-delay-3 mb-10'>
                 <p className='npc-subtitle' style={{ margin: '0 auto' }}>
                   {t('一站式 AI 模型接口聚合平台，更快、更稳、更省')}
+                  <br />
+                  <span style={{ fontSize: 'clamp(0.85rem, 2vw, 1.1rem)', color: 'var(--semi-color-text-3)' }}>
+                    🌾 {t('内置趣味农场游戏，边用 AI 边种田')}
+                  </span>
                 </p>
               </div>
 
@@ -301,7 +319,7 @@ const Home = () => {
               </div>
 
               {/* 操作按钮 */}
-              <div className='npc-animate npc-delay-4 flex flex-row gap-4 justify-center items-center'>
+              <div className='npc-animate npc-delay-4 flex flex-row gap-4 justify-center items-center flex-wrap'>
                 <Link to='/console'>
                   <Button
                     theme='solid'
@@ -311,6 +329,16 @@ const Home = () => {
                     icon={<Rocket size={18} />}
                   >
                     {t('开始使用')}
+                  </Button>
+                </Link>
+                <Link to='/farm'>
+                  <Button
+                    theme='solid'
+                    size={isMobile ? 'default' : 'large'}
+                    className='npc-btn-farm-hero'
+                    icon={<Sprout size={18} />}
+                  >
+                    {t('进入农场')} 🌾
                   </Button>
                 </Link>
                 {isDemoSiteMode && statusState?.status?.version ? (
@@ -388,6 +416,70 @@ const Home = () => {
                     {t('聚合 30+ 主流 AI 供应商，统一接口一键切换')}
                   </Text>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ===== NPC 农场推广区 ===== */}
+          <div className='w-full px-4 py-16 md:py-20 relative z-10' ref={farmBannerRef}>
+            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${farmBannerVisible ? 'npc-scroll-visible' : ''}`}>
+              <div className='npc-farm-banner'>
+                <div className='npc-farm-float' style={{ top: '8%', left: '4%', animationDelay: '0s' }}>🌾</div>
+                <div className='npc-farm-float' style={{ top: '12%', right: '6%', animationDelay: '1s' }}>🌻</div>
+                <div className='npc-farm-float' style={{ bottom: '12%', left: '6%', animationDelay: '2s' }}>🐶</div>
+                <div className='npc-farm-float' style={{ bottom: '8%', right: '4%', animationDelay: '0.5s' }}>🌽</div>
+                <div className='npc-farm-float' style={{ top: '45%', left: '2%', animationDelay: '1.5s' }}>🐄</div>
+                <div className='npc-farm-float' style={{ top: '45%', right: '2%', animationDelay: '2.5s' }}>🎣</div>
+
+                <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
+                  <div className='npc-farm-badge'>🎮 {t('全新上线')}</div>
+                  <h2 className='npc-farm-title'>NPC {t('农场')}</h2>
+                  <p className='npc-farm-subtitle'>
+                    {t('使用 API 的同时，经营属于你的虚拟农场')}
+                  </p>
+                  <div className='npc-farm-chips'>
+                    {[
+                      { emoji: '🌱', label: '种植' },
+                      { emoji: '🐄', label: '养殖' },
+                      { emoji: '🎣', label: '钓鱼' },
+                      { emoji: '🏭', label: '加工' },
+                      { emoji: '📈', label: '交易' },
+                      { emoji: '🕵️', label: '偷菜' },
+                      { emoji: '🎰', label: '游戏' },
+                      { emoji: '🏆', label: '排行' },
+                    ].map(c => (
+                      <span key={c.label} className='npc-farm-chip'>{c.emoji} {t(c.label)}</span>
+                    ))}
+                  </div>
+                  <Link to='/farm'>
+                    <Button theme='solid' size={isMobile ? 'default' : 'large'} className='npc-btn-farm' icon={<Sprout size={18} />}>
+                      {t('立即进入农场')}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ===== 农场玩法展示 ===== */}
+          <div className='w-full px-4 pb-16 md:pb-20 relative z-10' ref={farmGridRef}>
+            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${farmGridVisible ? 'npc-scroll-visible' : ''}`}>
+              <div className='text-center mb-10'>
+                <div className='npc-divider npc-divider-animated mb-5' style={{ background: 'linear-gradient(90deg, #059669, #34d399)' }} />
+                <Text style={{ fontWeight: 500, fontSize: '15px', letterSpacing: '1px', color: 'var(--semi-color-text-2)' }}>
+                  {t('丰富的农场玩法等你探索')}
+                </Text>
+              </div>
+              <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+                {farmActivities.map((a, i) => (
+                  <Link to='/farm' key={i} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div className='npc-farm-activity'>
+                      <span className='npc-farm-activity-emoji'>{a.emoji}</span>
+                      <div className='npc-farm-activity-title'>{t(a.title)}</div>
+                      <div className='npc-farm-activity-desc'>{t(a.desc)}</div>
+                    </div>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>

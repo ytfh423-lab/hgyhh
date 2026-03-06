@@ -751,7 +751,7 @@ html:not(.dark) .blur-ball-teal {
 
 .npc-mesh-3 {
   width: 450px; height: 450px;
-  background: conic-gradient(from 240deg, #06b6d4, #22d3ee, #3b82f6, #06b6d4);
+  background: conic-gradient(from 240deg, #059669, #34d399, #06b6d4, #059669);
   bottom: -20%; left: 30%;
   animation: npc-mesh-rotate 35s linear infinite;
 }
@@ -1109,6 +1109,166 @@ html:not(.dark) .npc-feature-card::after {
     rgba(255, 255, 255, 0.35),
     transparent
   );
+}
+
+/* ==================== NPC 农场推广区 ==================== */
+
+.npc-farm-banner {
+  position: relative;
+  border-radius: 24px;
+  padding: 56px 32px;
+  background: linear-gradient(135deg, #059669 0%, #047857 30%, #065f46 70%, #064e3b 100%);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(5, 150, 105, 0.3);
+}
+
+html.dark .npc-farm-banner {
+  box-shadow: 0 20px 60px rgba(5, 150, 105, 0.2);
+}
+
+.npc-farm-float {
+  position: absolute;
+  font-size: 32px;
+  opacity: 0.25;
+  animation: npc-farm-bob 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes npc-farm-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(6deg); }
+}
+
+.npc-farm-badge {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.npc-farm-title {
+  font-size: clamp(2.2rem, 6vw, 3.8rem);
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 12px;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.15);
+  line-height: 1.1;
+}
+
+.npc-farm-subtitle {
+  font-size: clamp(0.9rem, 2vw, 1.15rem);
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 28px;
+  line-height: 1.6;
+}
+
+.npc-farm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.npc-farm-chip {
+  padding: 6px 14px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.npc-farm-chip:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px);
+}
+
+.npc-btn-farm {
+  padding: 12px 40px !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #065f46 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.npc-btn-farm:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25) !important;
+  background: #ffffff !important;
+}
+
+.npc-btn-farm-hero {
+  padding: 12px 32px !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: linear-gradient(135deg, #059669, #047857, #065f46) !important;
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.npc-btn-farm-hero:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.45), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+
+/* --- 农场玩法卡片 --- */
+.npc-farm-activity {
+  padding: 24px 16px;
+  border-radius: 16px;
+  background: var(--semi-color-bg-1);
+  border: 1px solid var(--semi-color-border);
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.npc-farm-activity:hover {
+  transform: translateY(-4px);
+  border-color: rgba(5, 150, 105, 0.35);
+  box-shadow: 0 12px 32px rgba(5, 150, 105, 0.12);
+}
+
+html.dark .npc-farm-activity:hover {
+  box-shadow: 0 12px 32px rgba(5, 150, 105, 0.2);
+}
+
+.npc-farm-activity-emoji {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+
+.npc-farm-activity-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--semi-color-text-0);
+}
+
+.npc-farm-activity-desc {
+  font-size: 12px;
+  color: var(--semi-color-text-2);
+  line-height: 1.5;
 }
 
 /* ==================== 卡片马卡龙模糊球（类封装） ==================== */
