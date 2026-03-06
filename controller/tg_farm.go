@@ -621,6 +621,10 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	}
 
 	switch {
+	case strings.HasPrefix(data, "farm_locked_"):
+		lvlStr := strings.TrimPrefix(data, "farm_locked_")
+		farmSend(chatId, msgId, fmt.Sprintf("🔒 该功能需要 Lv.%s 解锁，请先升级！", lvlStr), &TgInlineKeyboardMarkup{InlineKeyboard: [][]TgInlineKeyboardButton{{{Text: "🔙 返回", CallbackData: "farm"}}}}, from)
+		return
 	case data == "farm":
 		showFarmView(chatId, msgId, tgId, from)
 	case data == "farm_plant":
@@ -902,21 +906,20 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 	text += "\n"
 
-	lockTag := func(name string, lvl int) string {
+	lockBtn := func(name string, lvl int, cb string) TgInlineKeyboardButton {
 		if userLevel >= lvl {
-			return name
+			return TgInlineKeyboardButton{Text: name, CallbackData: cb}
 		}
-		return fmt.Sprintf("🔒%s(Lv%d)", name, lvl)
+		return TgInlineKeyboardButton{Text: fmt.Sprintf("🔒%s(Lv%d)", name, lvl), CallbackData: fmt.Sprintf("farm_locked_%d", lvl)}
 	}
 
 	var rows [][]TgInlineKeyboardButton
 	// 第1行：核心操作
-	row1 := []TgInlineKeyboardButton{
+	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🌱 种植", CallbackData: "farm_plant"},
 		{Text: "🌾 收获", CallbackData: "farm_harvest"},
-		{Text: "🕵️ 偷菜", CallbackData: "farm_steal"},
-	}
-	rows = append(rows, row1)
+		lockBtn("🕵️ 偷菜", common.TgBotFarmUnlockSteal, "farm_steal"),
+	})
 	// 第2行：商店+仓库+条件按钮
 	row2 := []TgInlineKeyboardButton{
 		{Text: "🏪 商店", CallbackData: "farm_shop"},
@@ -955,32 +958,32 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 	// 第4行：狗狗+牧场+钓鱼
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: lockTag("🐕 狗狗", common.TgBotFarmUnlockDog), CallbackData: "farm_dog"},
-		{Text: lockTag("🐄 牧场", common.TgBotFarmUnlockRanch), CallbackData: "ranch"},
-		{Text: lockTag("🎣 钓鱼", common.TgBotFarmUnlockFish), CallbackData: "farm_fish"},
+		lockBtn("🐕 狗狗", common.TgBotFarmUnlockDog, "farm_dog"),
+		lockBtn("🐄 牧场", common.TgBotFarmUnlockRanch, "ranch"),
+		lockBtn("🎣 钓鱼", common.TgBotFarmUnlockFish, "farm_fish"),
 	})
 	// 第5行：加工+任务+成就
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: lockTag("🏭 加工", common.TgBotFarmUnlockWorkshop), CallbackData: "farm_workshop"},
-		{Text: lockTag("📝 任务", common.TgBotFarmUnlockTasks), CallbackData: "farm_tasks"},
-		{Text: lockTag("🏆 成就", common.TgBotFarmUnlockAchieve), CallbackData: "farm_achieve"},
+		lockBtn("🏭 加工", common.TgBotFarmUnlockWorkshop, "farm_workshop"),
+		lockBtn("📝 任务", common.TgBotFarmUnlockTasks, "farm_tasks"),
+		lockBtn("🏆 成就", common.TgBotFarmUnlockAchieve, "farm_achieve"),
 	})
 	// 第6行：市场+银行+记录
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "📈 市场", CallbackData: "farm_market"},
-		{Text: lockTag("🏦 银行", common.TgBotFarmBankUnlockLevel), CallbackData: "farm_bank"},
+		lockBtn("📈 市场", common.TgBotFarmUnlockMarket, "farm_market"),
+		lockBtn("🏦 银行", common.TgBotFarmBankUnlockLevel, "farm_bank"),
 		{Text: "📋 记录", CallbackData: "farm_logs"},
 	})
-	// 第7行：图鉴+排行+交易+游戏
+	// 第7行：图鉴+排行+交易
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: lockTag("📖 图鉴", common.TgBotFarmUnlockEncyclopedia), CallbackData: "farm_ency"},
-		{Text: lockTag("🏅 排行", common.TgBotFarmUnlockLeaderboard), CallbackData: "farm_rank"},
-		{Text: lockTag("🔄 交易", common.TgBotFarmUnlockTrading), CallbackData: "farm_trade"},
+		lockBtn("📖 图鉴", common.TgBotFarmUnlockEncyclopedia, "farm_ency"),
+		lockBtn("🏅 排行", common.TgBotFarmUnlockLeaderboard, "farm_rank"),
+		lockBtn("🔄 交易", common.TgBotFarmUnlockTrading, "farm_trade"),
 	})
 	// 第8行：游戏+自动化+转生
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: lockTag("🎮 游戏", common.TgBotFarmUnlockGames), CallbackData: "farm_game"},
-		{Text: lockTag("⚡ 自动化", common.TgBotFarmUnlockAutomation), CallbackData: "farm_auto"},
+		lockBtn("🎮 游戏", common.TgBotFarmUnlockGames, "farm_game"),
+		lockBtn("⚡ 自动化", common.TgBotFarmUnlockAutomation, "farm_auto"),
 		{Text: "🔄 转生", CallbackData: "farm_prestige"},
 	})
 	// 升级+购地合并为一行
