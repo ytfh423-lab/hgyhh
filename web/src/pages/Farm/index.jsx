@@ -1601,17 +1601,16 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
 };
 
 // ===================== Market Chart =====================
-const CHART_COLORS = [
-  '#22c55e', '#0ea5e9', '#f97316', '#ef4444', '#a855f7', '#eab308',
-  '#06b6d4', '#e11d48', '#14b8a6', '#8b5cf6', '#d97706', '#64748b',
-  '#84cc16', '#db2777', '#0d9488', '#c026d3', '#2563eb', '#dc2626',
-  '#65a30d', '#f43f5e', '#a3e635', '#7871c6', '#16a34a',
+const CHART_PALETTE = [
+  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899',
+  '#14b8a6', '#f97316', '#06b6d4', '#84cc16', '#e11d48', '#6366f1',
 ];
 
 const MarketChart = ({ t }) => {
   const [historyData, setHistoryData] = useState(null);
   const [chartCat, setChartCat] = useState('crop');
   const [loading, setLoading] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState(null);
 
   const loadHistory = useCallback(async () => {
     setLoading(true);
@@ -1623,6 +1622,7 @@ const MarketChart = ({ t }) => {
   }, []);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
+  useEffect(() => { setVisibleKeys(null); }, [chartCat]);
 
   if (loading && !historyData) return <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>;
   if (!historyData || !historyData.history || historyData.history.length < 2) {
@@ -1636,10 +1636,28 @@ const MarketChart = ({ t }) => {
   }
 
   const catItems = (historyData.items || []).filter(it => it.category === chartCat);
+  const latestSnap = historyData.history[historyData.history.length - 1];
+
+  const itemColorMap = {};
+  catItems.forEach((it, idx) => {
+    itemColorMap[it.key] = CHART_PALETTE[idx % CHART_PALETTE.length];
+  });
+
+  const sortedByVolatility = [...catItems].sort((a, b) => {
+    const aD = Math.abs((latestSnap.prices?.[a.key] || 100) - 100);
+    const bD = Math.abs((latestSnap.prices?.[b.key] || 100) - 100);
+    return bD - aD;
+  });
+
+  const defaultTopN = Math.min(5, catItems.length);
+  const defaultKeys = new Set(sortedByVolatility.slice(0, defaultTopN).map(it => it.key));
+  const activeKeys = visibleKeys || defaultKeys;
+  const displayItems = catItems.filter(it => activeKeys.has(it.key));
+
   const chartData = [];
   for (const snap of historyData.history) {
     const timeStr = new Date(snap.timestamp * 1000).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    for (const item of catItems) {
+    for (const item of displayItems) {
       const val = snap.prices?.[item.key];
       if (val !== undefined) {
         chartData.push({ time: timeStr, name: item.emoji + item.name, value: val });
@@ -1647,30 +1665,71 @@ const MarketChart = ({ t }) => {
     }
   }
 
+  const displayColors = displayItems.map(it => itemColorMap[it.key]);
+
   const spec = {
     type: 'line',
     data: { values: chartData },
     xField: 'time',
     yField: 'value',
     seriesField: 'name',
-    point: { visible: true, size: 4 },
-    line: { style: { lineWidth: 2 } },
-    legends: { visible: true, orient: 'bottom', type: 'scroll', maxRow: 2 },
+    point: { visible: true, size: 5, style: { lineWidth: 1.5, stroke: '#fff' } },
+    line: { style: { lineWidth: 2.5, lineCap: 'round' } },
+    legends: { visible: false },
+    crosshair: {
+      xField: { visible: true, line: { style: { stroke: 'var(--semi-color-text-3)', lineWidth: 1, lineDash: [4, 4] } } },
+    },
     axes: [
       { orient: 'left', title: { visible: true, text: t('倍率') + ' %' }, min: 0 },
       { orient: 'bottom', title: { visible: false }, label: { autoRotate: true, autoRotateAngle: [-45] } },
     ],
     markLine: [{
       y: 100,
-      line: { style: { stroke: '#ef4444', lineWidth: 1, lineDash: [4, 4] } },
-      label: { visible: true, text: '100%', style: { fill: '#ef4444', fontSize: 10 } },
+      line: { style: { stroke: '#ef4444', lineWidth: 1.5, lineDash: [6, 4] } },
+      label: { visible: true, text: '100%', style: { fill: '#ef4444', fontSize: 11, fontWeight: 'bold' } },
     }],
     tooltip: {
-      mark: { content: [{ key: d => d.name, value: d => d.value + '%' }] },
+      dimension: {
+        content: (data) => {
+          const sorted = [...data].sort((a, b) => (b.datum?.value ?? b.value ?? 0) - (a.datum?.value ?? a.value ?? 0));
+          return sorted.map(d => ({
+            key: d.datum?.name || d.name,
+            value: (d.datum?.value ?? d.value) + '%',
+            hasShape: true,
+            shapeType: 'circle',
+          }));
+        },
+      },
     },
-    color: CHART_COLORS.slice(0, catItems.length),
-    height: 340,
+    color: displayColors,
+    height: 420,
     padding: { left: 10, right: 10, top: 10, bottom: 10 },
+    animation: false,
+  };
+
+  const toggleItem = (key) => {
+    const base = new Set(activeKeys);
+    if (base.has(key)) {
+      if (base.size <= 1) return;
+      base.delete(key);
+    } else {
+      base.add(key);
+    }
+    setVisibleKeys(base);
+  };
+
+  const selectPreset = (mode) => {
+    if (mode === 'top5') {
+      setVisibleKeys(null);
+    } else if (mode === 'all') {
+      setVisibleKeys(new Set(catItems.map(it => it.key)));
+    } else if (mode === 'up') {
+      const keys = catItems.filter(it => (latestSnap.prices?.[it.key] || 100) > 100).map(it => it.key);
+      setVisibleKeys(new Set(keys.length ? keys : defaultKeys));
+    } else if (mode === 'down') {
+      const keys = catItems.filter(it => (latestSnap.prices?.[it.key] || 100) < 100).map(it => it.key);
+      setVisibleKeys(new Set(keys.length ? keys : defaultKeys));
+    }
   };
 
   const cats = [
@@ -1686,13 +1745,50 @@ const MarketChart = ({ t }) => {
         <Text strong>📊 {t('市场波动图')}</Text>
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadHistory} loading={loading} />
       </div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
         {cats.map(c => (
           <Tag key={c.key} size='large' color={chartCat === c.key ? 'blue' : 'grey'}
             style={{ cursor: 'pointer' }} onClick={() => setChartCat(c.key)}>
             {c.label}
           </Tag>
         ))}
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+        <Button size='small' theme={!visibleKeys ? 'solid' : 'light'} style={{ borderRadius: 6, fontSize: 12 }}
+          onClick={() => selectPreset('top5')}>🔥 Top 5</Button>
+        <Button size='small' theme={visibleKeys?.size === catItems.length ? 'solid' : 'light'} style={{ borderRadius: 6, fontSize: 12 }}
+          onClick={() => selectPreset('all')}>{t('全部')}</Button>
+        <Button size='small' theme='light' style={{ borderRadius: 6, fontSize: 12, color: '#22c55e' }}
+          onClick={() => selectPreset('up')}>📈 {t('涨')}</Button>
+        <Button size='small' theme='light' style={{ borderRadius: 6, fontSize: 12, color: '#ef4444' }}
+          onClick={() => selectPreset('down')}>📉 {t('跌')}</Button>
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+        {catItems.map((it) => {
+          const active = activeKeys.has(it.key);
+          const clr = itemColorMap[it.key];
+          const pct = latestSnap.prices?.[it.key];
+          return (
+            <div key={it.key} onClick={() => toggleItem(it.key)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
+              border: `1.5px solid ${active ? clr : 'var(--semi-color-border)'}`,
+              background: active ? clr + '18' : 'transparent',
+              opacity: active ? 1 : 0.45,
+              transition: 'all 0.15s',
+            }}>
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: active ? clr : 'var(--semi-color-text-3)',
+                flexShrink: 0,
+              }} />
+              <span>{it.emoji}{it.name}</span>
+              {pct !== undefined && (
+                <span style={{ color: pct >= 100 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{pct}%</span>
+              )}
+            </div>
+          );
+        })}
       </div>
       {chartData.length > 0 ? (
         <VChart spec={spec} />

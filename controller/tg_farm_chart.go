@@ -17,13 +17,13 @@ import (
 // ========== 市场波动图生成 ==========
 
 const (
-	chartWidth    = 900
-	chartHeight   = 520
-	chartPadLeft  = 70
-	chartPadRight = 20
-	chartPadTop   = 45
+	chartWidth    = 1000
+	chartHeight   = 600
+	chartPadLeft  = 75
+	chartPadRight = 60
+	chartPadTop   = 50
 	chartPadBot   = 60
-	chartLegendH  = 30
+	chartLegendH  = 50
 )
 
 var chartCategoryColors = map[string][]color.RGBA{
@@ -214,11 +214,14 @@ func generateMarketChartPNG(category string) ([]byte, error) {
 		}
 	}
 
-	// 绘制数据线
+	// 绘制数据线（3px 粗度 + 末尾数值标签）
 	for idx, item := range items {
 		clr := colors[idx%len(colors)]
 		var prevX, prevY int
+		var lastV int
+		var lastX, lastY int
 		first := true
+		hasData := false
 		for i, snap := range history {
 			v, ok := snap.Prices[item.Key]
 			if !ok {
@@ -228,38 +231,51 @@ func generateMarketChartPNG(category string) ([]byte, error) {
 			xPx := plotL + int(float64(i)*xStep)
 			yPx := plotB - int(float64(v-minVal)/yRange*float64(plotH))
 			if !first {
-				drawLine(img, prevX, prevY, xPx, yPx, clr)
-				drawLine(img, prevX, prevY+1, xPx, yPx+1, clr)
+				for dy := -1; dy <= 1; dy++ {
+					drawLine(img, prevX, prevY+dy, xPx, yPx+dy, clr)
+				}
 			}
-			// 数据点
-			fillCircle(img, xPx, yPx, 2, clr)
+			fillCircle(img, xPx, yPx, 3, clr)
+			fillCircle(img, xPx, yPx, 1, color.RGBA{0xff, 0xff, 0xff, 0xff})
 			first = false
 			prevX = xPx
 			prevY = yPx
+			lastV = v
+			lastX = xPx
+			lastY = yPx
+			hasData = true
+		}
+		if hasData && lastX >= plotR-int(xStep) {
+			label := fmt.Sprintf("%d%%", lastV)
+			drawString(img, face, lastX+6, lastY+4, label, clr)
 		}
 	}
 
 	// 标题
 	title := getCategoryTitle(category)
 	titleColor := color.RGBA{0xff, 0xff, 0xff, 0xff}
-	drawString(img, face, plotL, plotT-12, title, titleColor)
+	drawString(img, face, plotL, plotT-14, title, titleColor)
 
-	// 图例（底部）
-	legendY := chartHeight - chartLegendH + 5
+	// 图例（底部多行）
+	legendY := chartHeight - chartLegendH
 	legendX := plotL
 	maxLegendWidth := plotW
 	currentX := legendX
+	currentY := legendY
+	legendRowH := 18
 	for idx, item := range items {
 		clr := colors[idx%len(colors)]
 		label := item.Label
-		labelW := len(label)*7 + 20
+		labelW := len(label)*7 + 22
 		if currentX+labelW > legendX+maxLegendWidth {
-			// 超出宽度不绘制更多图例
-			drawString(img, face, currentX, legendY+10, "...", labelColor)
-			break
+			currentX = legendX
+			currentY += legendRowH
+			if currentY+legendRowH > chartHeight {
+				break
+			}
 		}
-		fillRect(img, currentX, legendY+3, currentX+10, legendY+13, clr)
-		drawString(img, face, currentX+13, legendY+12, label, labelColor)
+		fillRect(img, currentX, currentY+2, currentX+12, currentY+12, clr)
+		drawString(img, face, currentX+15, currentY+12, label, labelColor)
 		currentX += labelW
 	}
 
