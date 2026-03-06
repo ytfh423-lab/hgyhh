@@ -44,6 +44,12 @@ import {
   Star,
   Landmark,
   Warehouse,
+  BookOpen,
+  BarChart3,
+  ArrowLeftRight,
+  Gamepad2,
+  Zap,
+  RotateCcw,
 } from 'lucide-react';
 
 import { VChart } from '@visactor/react-vchart';
@@ -109,6 +115,16 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
         {farmData.dog && (
           <Tag size='large' color={farmData.dog.hunger > 0 ? 'green' : 'red'} style={{ borderRadius: 6 }}>
             {farmData.dog.level === 2 ? '🐕' : '🐶'} {farmData.dog.name} · {farmData.dog.level_name} · {farmData.dog.hunger}%
+          </Tag>
+        )}
+        {farmData.weather && (
+          <Tag size='large' color='cyan' style={{ borderRadius: 6 }}>
+            {farmData.weather.emoji} {farmData.weather.name}
+          </Tag>
+        )}
+        {farmData.prestige_level > 0 && (
+          <Tag size='large' color='purple' style={{ borderRadius: 6 }}>
+            🔄 P{farmData.prestige_level} (+{farmData.prestige_bonus}%)
           </Tag>
         )}
         <div style={{ flex: 1 }} />
@@ -2207,6 +2223,520 @@ const LogsPage = ({ t }) => {
   );
 };
 
+// ===================== Encyclopedia Page =====================
+const EncyclopediaPage = ({ actionLoading, loadFarm, t }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/encyclopedia');
+      if (res.success) setData(res.data);
+    } catch (err) { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const claim = async (category) => {
+    try {
+      const { data: res } = await API.post('/api/farm/encyclopedia/claim', { category });
+      if (res.success) { showSuccess(res.message); load(); loadFarm(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+  };
+
+  if (loading && !data) return <Spin />;
+  if (!data) return null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <Tag size='large' color='blue'>📖 {data.total_unlocked}/{data.total_items} {t('已发现')}</Tag>
+        {data.all_complete && !data.grand_claimed && (
+          <Button size='small' theme='solid' type='warning' onClick={() => claim('grand')}>
+            🏆 {t('领取大师奖励')} (${data.grand_reward})
+          </Button>
+        )}
+      </div>
+      {(data.categories || []).map(cat => (
+        <Card key={cat.key} className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text strong>{cat.name} ({cat.unlocked}/{cat.total})</Text>
+            {cat.complete && !cat.claimed && (
+              <Button size='small' theme='solid' type='warning' onClick={() => claim(cat.key)}>
+                {t('领取')} ${cat.reward}
+              </Button>
+            )}
+            {cat.claimed && <Tag size='small' color='green'>✅</Tag>}
+          </div>
+          <Progress percent={Math.round(cat.unlocked / cat.total * 100)} size='small' style={{ marginBottom: 8 }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {(cat.items || []).map(it => (
+              <div key={it.key} style={{
+                padding: '4px 10px', borderRadius: 6, minWidth: 90, textAlign: 'center',
+                background: it.unlocked ? 'var(--semi-color-success-light-default)' : 'var(--semi-color-fill-1)',
+                border: '1px solid var(--semi-color-border)',
+                opacity: it.unlocked ? 1 : 0.4,
+              }}>
+                <span style={{ fontSize: 20 }}>{it.unlocked ? it.emoji : '❓'}</span>
+                <Text size='small' style={{ display: 'block' }}>{it.unlocked ? it.name : '???'}</Text>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+// ===================== Leaderboard Page =====================
+const LeaderboardPage = ({ t }) => {
+  const [data, setData] = useState(null);
+  const [boardType, setBoardType] = useState('balance');
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (type) => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get(`/api/farm/leaderboard?type=${type}`);
+      if (res.success) setData(res.data);
+    } catch (err) { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(boardType); }, [load, boardType]);
+
+  const types = [
+    { key: 'balance', label: '💰 ' + t('资产') },
+    { key: 'level', label: '⭐ ' + t('等级') },
+    { key: 'harvest', label: '🌾 ' + t('收获') },
+    { key: 'prestige', label: '🔄 ' + t('转生') },
+  ];
+
+  const medals = ['🥇', '🥈', '🥉'];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        {types.map(tp => (
+          <Tag key={tp.key} size='large' color={boardType === tp.key ? 'blue' : 'grey'}
+            style={{ cursor: 'pointer' }} onClick={() => setBoardType(tp.key)}>
+            {tp.label}
+          </Tag>
+        ))}
+      </div>
+      {data?.my_rank && (
+        <Tag size='large' color='cyan' style={{ marginBottom: 10 }}>📊 {t('我的排名')}: #{data.my_rank}</Tag>
+      )}
+      {loading ? <Spin /> : (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {(data?.items || []).map(item => (
+              <div key={item.rank} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
+                background: item.is_me ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)',
+                border: item.is_me ? '1.5px solid var(--semi-color-primary)' : '1px solid var(--semi-color-border)',
+                fontWeight: item.is_me ? 600 : 400,
+              }}>
+                <span style={{ fontSize: 18, width: 30, textAlign: 'center' }}>
+                  {item.rank <= 3 ? medals[item.rank - 1] : `#${item.rank}`}
+                </span>
+                <Text style={{ flex: 1 }}>{item.name}</Text>
+                <Text strong>{boardType === 'balance' ? formatBalance(item.value) : item.value}</Text>
+              </div>
+            ))}
+            {(!data?.items || data.items.length === 0) && (
+              <Empty description={t('暂无数据')} />
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ===================== Trading Page =====================
+const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
+  const [trades, setTrades] = useState([]);
+  const [myTrades, setMyTrades] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [view, setView] = useState('market');
+  const [whItems, setWhItems] = useState([]);
+  const [sellForm, setSellForm] = useState({ crop_type: '', quantity: 1, price: 1 });
+
+  const loadTrades = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [mktRes, histRes, whRes] = await Promise.all([
+        API.get('/api/farm/trade'),
+        API.get('/api/farm/trade/history'),
+        API.get('/api/farm/warehouse'),
+      ]);
+      if (mktRes.data.success) setTrades(mktRes.data.data?.trades || []);
+      if (histRes.data.success) setMyTrades(histRes.data.data || []);
+      if (whRes.data.success) setWhItems(whRes.data.data?.items || []);
+    } catch (err) { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadTrades(); }, [loadTrades]);
+
+  const buyTrade = async (tradeId) => {
+    try {
+      const { data: res } = await API.post('/api/farm/trade/buy', { trade_id: tradeId });
+      if (res.success) { showSuccess(res.message); loadTrades(); loadFarm(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+  };
+
+  const cancelTrade = async (tradeId) => {
+    try {
+      const { data: res } = await API.post('/api/farm/trade/cancel', { trade_id: tradeId });
+      if (res.success) { showSuccess(res.message); loadTrades(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+  };
+
+  const createTrade = async () => {
+    if (!sellForm.crop_type || sellForm.quantity < 1 || sellForm.price <= 0) {
+      showError(t('请填写完整'));
+      return;
+    }
+    try {
+      const { data: res } = await API.post('/api/farm/trade/create', sellForm);
+      if (res.success) { showSuccess(res.message); loadTrades(); setSellForm({ crop_type: '', quantity: 1, price: 1 }); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+  };
+
+  if (loading && trades.length === 0) return <Spin />;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <Tag size='large' color={view === 'market' ? 'blue' : 'grey'} style={{ cursor: 'pointer' }}
+          onClick={() => setView('market')}>🏪 {t('市场')}</Tag>
+        <Tag size='large' color={view === 'sell' ? 'blue' : 'grey'} style={{ cursor: 'pointer' }}
+          onClick={() => setView('sell')}>📤 {t('挂单')}</Tag>
+        <Tag size='large' color={view === 'history' ? 'blue' : 'grey'} style={{ cursor: 'pointer' }}
+          onClick={() => setView('history')}>📜 {t('历史')}</Tag>
+      </div>
+
+      {view === 'market' && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          {trades.length === 0 ? <Empty description={t('暂无挂单')} /> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {trades.map(tr => (
+                <div key={tr.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
+                  background: 'var(--semi-color-fill-0)', border: '1px solid var(--semi-color-border)',
+                }}>
+                  <span style={{ fontSize: 20 }}>{tr.item_emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <Text strong size='small'>{tr.item_name} ×{tr.quantity}</Text>
+                    <Text type='tertiary' size='small' style={{ display: 'block' }}>
+                      {t('卖家')}: {tr.seller_name} · ${tr.price_per_unit.toFixed(2)}/{t('个')}
+                    </Text>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <Text strong style={{ color: '#f59e0b' }}>${tr.total_price.toFixed(2)}</Text>
+                    <Text type='tertiary' size='small' style={{ display: 'block' }}>+{tr.fee.toFixed(2)}{t('手续费')}</Text>
+                  </div>
+                  <Button size='small' theme='solid' onClick={() => buyTrade(tr.id)}>{t('购买')}</Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {view === 'sell' && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>📤 {t('从仓库挂单出售')}</Text>
+          {whItems.length === 0 ? <Empty description={t('仓库为空')} /> : (
+            <div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                {whItems.map(it => (
+                  <Tag key={it.crop_key} size='large'
+                    color={sellForm.crop_type === it.crop_key ? 'blue' : 'grey'}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSellForm({ ...sellForm, crop_type: it.crop_key, quantity: Math.min(sellForm.quantity, it.quantity) })}>
+                    {it.emoji} {it.crop_name} ×{it.quantity}
+                  </Tag>
+                ))}
+              </div>
+              {sellForm.crop_type && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Text size='small'>{t('数量')}:</Text>
+                  <InputNumber value={sellForm.quantity} onChange={v => setSellForm({ ...sellForm, quantity: v })}
+                    min={1} max={whItems.find(i => i.crop_key === sellForm.crop_type)?.quantity || 99} style={{ width: 80 }} />
+                  <Text size='small'>{t('单价')} $:</Text>
+                  <InputNumber value={sellForm.price} onChange={v => setSellForm({ ...sellForm, price: v })}
+                    min={0.01} step={0.1} style={{ width: 100 }} />
+                  <Button theme='solid' onClick={createTrade}>{t('挂单')}</Button>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {view === 'history' && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          {myTrades.length === 0 ? <Empty description={t('暂无记录')} /> : (
+            <Table dataSource={myTrades} pagination={false} size='small' rowKey='id' columns={[
+              { title: t('物品'), render: (_, r) => `${r.item_emoji} ${r.item_name}`, width: 100 },
+              { title: t('数量'), dataIndex: 'quantity', width: 60 },
+              { title: t('单价'), dataIndex: 'price', render: v => `$${v.toFixed(2)}`, width: 80 },
+              { title: t('方向'), render: (_, r) => r.is_seller ? <Tag size='small' color='orange'>{t('卖出')}</Tag> : <Tag size='small' color='green'>{t('买入')}</Tag>, width: 60 },
+              { title: t('状态'), dataIndex: 'status', render: v => v === 1 ? <Tag size='small' color='green'>{t('成交')}</Tag> : <Tag size='small' color='grey'>{t('取消')}</Tag>, width: 60 },
+            ]} />
+          )}
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ===================== Games Page =====================
+const GamesPage = ({ loadFarm, t }) => {
+  const [gameLoading, setGameLoading] = useState(false);
+  const [wheelResult, setWheelResult] = useState(null);
+  const [scratchResult, setScratchResult] = useState(null);
+  const [scratchRevealed, setScratchRevealed] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const { data: res } = await API.get('/api/farm/game/history');
+      if (res.success) setHistory(res.data || []);
+    } catch (err) { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  const spinWheel = async () => {
+    setGameLoading(true);
+    setWheelResult(null);
+    try {
+      const { data: res } = await API.post('/api/farm/game/wheel');
+      if (res.success) {
+        setWheelResult(res.data);
+        loadFarm();
+        loadHistory();
+      } else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+    finally { setGameLoading(false); }
+  };
+
+  const doScratch = async () => {
+    setGameLoading(true);
+    setScratchResult(null);
+    setScratchRevealed(false);
+    try {
+      const { data: res } = await API.post('/api/farm/game/scratch');
+      if (res.success) {
+        setScratchResult(res.data);
+        loadFarm();
+        loadHistory();
+      } else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+    finally { setGameLoading(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        {/* Wheel */}
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>🎡 {t('幸运转盘')} ($1/{t('次')})</Text>
+          <Button theme='solid' onClick={spinWheel} loading={gameLoading} style={{ borderRadius: 8, marginBottom: 8 }}>
+            🎰 {t('转一次')}
+          </Button>
+          {wheelResult && (
+            <Banner type={wheelResult.net >= 0 ? 'success' : 'warning'} closeIcon={null}
+              style={{ borderRadius: 8 }}
+              description={
+                <span>{t('中奖')}: <strong>{wheelResult.prize_label}</strong> ({wheelResult.net >= 0 ? '+' : ''}{wheelResult.net.toFixed(2)})</span>
+              } />
+          )}
+        </Card>
+
+        {/* Scratch */}
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>🎰 {t('刮刮卡')} ($0.50/{t('次')})</Text>
+          <Button theme='solid' onClick={doScratch} loading={gameLoading} style={{ borderRadius: 8, marginBottom: 8 }}>
+            🃏 {t('刮一张')}
+          </Button>
+          {scratchResult && (
+            <div>
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 8,
+                maxWidth: 180,
+              }}>
+                {scratchResult.grid.flat().map((sym, i) => (
+                  <div key={i} onClick={() => setScratchRevealed(true)} style={{
+                    width: 50, height: 50, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 24, cursor: 'pointer',
+                    background: scratchRevealed ? 'var(--semi-color-fill-0)' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    border: '1px solid var(--semi-color-border)',
+                    transition: 'all 0.3s',
+                  }}>
+                    {scratchRevealed ? sym : '?'}
+                  </div>
+                ))}
+              </div>
+              {scratchRevealed && (
+                <Banner type={scratchResult.net >= 0 ? 'success' : 'warning'} closeIcon={null}
+                  style={{ borderRadius: 8 }}
+                  description={
+                    <span>{scratchResult.win_symbol}×3 → <strong>{scratchResult.prize_label}</strong></span>
+                  } />
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* History */}
+      {history.length > 0 && (
+        <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>📜 {t('游戏记录')}</Text>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {history.slice(0, 10).map((h, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 6,
+                background: 'var(--semi-color-fill-0)',
+              }}>
+                <Text size='small'>{h.game_type === 'wheel' ? '🎡' : '🎰'}</Text>
+                <Text size='small' style={{ flex: 1 }}>{t('下注')} ${h.bet.toFixed(2)} → ${h.win.toFixed(2)}</Text>
+                <Text size='small' strong style={{ color: h.net >= 0 ? '#22c55e' : '#ef4444' }}>
+                  {h.net >= 0 ? '+' : ''}{h.net.toFixed(2)}
+                </Text>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ===================== Automation Page =====================
+const AutomationPage = ({ loadFarm, t }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/automation');
+      if (res.success) setData(res.data);
+    } catch (err) { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const buy = async (type) => {
+    try {
+      const { data: res } = await API.post('/api/farm/automation/buy', { type });
+      if (res.success) { showSuccess(res.message); load(); loadFarm(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+  };
+
+  if (loading && !data) return <Spin />;
+  if (!data) return null;
+
+  return (
+    <div>
+      <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+        <Text strong style={{ display: 'block', marginBottom: 10 }}>🔧 {t('自动化设施')}</Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.map(item => (
+            <div key={item.type} style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10,
+              background: item.installed ? 'var(--semi-color-success-light-default)' : 'var(--semi-color-fill-0)',
+              border: '1px solid var(--semi-color-border)',
+            }}>
+              <span style={{ fontSize: 28 }}>{item.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <Text strong>{item.name}</Text>
+                <Text type='tertiary' size='small' style={{ display: 'block' }}>{item.desc}</Text>
+              </div>
+              {item.installed ? (
+                <Tag size='large' color='green'>✅ {t('已安装')}</Tag>
+              ) : (
+                <Button theme='solid' onClick={() => buy(item.type)} style={{ borderRadius: 8 }}>
+                  ${item.price.toFixed(2)}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ===================== Prestige Page =====================
+const PrestigePage = ({ loadFarm, t }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: res } = await API.get('/api/farm/prestige');
+      if (res.success) setData(res.data);
+    } catch (err) { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const doPrestige = async () => {
+    if (!window.confirm(t('转生将重置所有进度（保留成就和图鉴），确定吗？'))) return;
+    try {
+      const { data: res } = await API.post('/api/farm/prestige');
+      if (res.success) { showSuccess(res.message); load(); loadFarm(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+  };
+
+  if (loading && !data) return <Spin />;
+  if (!data) return null;
+
+  return (
+    <Card className='!rounded-xl' style={{ border: '1px solid var(--semi-color-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+        <span style={{ fontSize: 36 }}>🔄</span>
+        <div>
+          <Title heading={5} style={{ margin: 0 }}>{t('转生系统')}</Title>
+          <Text type='tertiary' size='small'>{t('满级后重置换取永久加成')}</Text>
+        </div>
+      </div>
+      <Descriptions size='small' row data={[
+        { key: t('当前等级'), value: `Lv.${data.current_level}` },
+        { key: t('转生次数'), value: data.prestige_level },
+        { key: t('当前加成'), value: `+${data.current_bonus}%` },
+        { key: t('转生后加成'), value: `+${data.next_bonus}%` },
+        { key: t('每次加成'), value: `+${data.bonus_per_level}%` },
+        { key: t('需要等级'), value: `Lv.${data.min_level}` },
+      ]} />
+      <Banner type='warning' style={{ marginTop: 12, marginBottom: 12, borderRadius: 8 }}
+        description={t('转生将重置：等级、地块、仓库、狗、牧场、加工。保留：成就、图鉴。获得永久收入加成。')} />
+      <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={doPrestige}
+        style={{ borderRadius: 8 }}>
+        {data.can_prestige ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)` : `${t('需要')} Lv.${data.min_level}`}
+      </Button>
+    </Card>
+  );
+};
+
 // ===================== Main Farm Component =====================
 const Farm = () => {
   const { t } = useTranslation();
@@ -2362,6 +2892,24 @@ const Farm = () => {
         </TabPane>
         <TabPane tab={<span><ScrollText size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('记录')}</span>} itemKey='logs'>
           <LogsPage t={t} />
+        </TabPane>
+        <TabPane tab={<span><BookOpen size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('图鉴')}</span>} itemKey='encyclopedia'>
+          <EncyclopediaPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><BarChart3 size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('排行')}</span>} itemKey='leaderboard'>
+          <LeaderboardPage t={t} />
+        </TabPane>
+        <TabPane tab={<span><ArrowLeftRight size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('交易')}</span>} itemKey='trading'>
+          <TradingPage actionLoading={actionLoading} doAction={doAction} loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Gamepad2 size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('游戏')}</span>} itemKey='games'>
+          <GamesPage loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><Zap size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('自动化')}</span>} itemKey='automation'>
+          <AutomationPage loadFarm={loadFarm} t={t} />
+        </TabPane>
+        <TabPane tab={<span><RotateCcw size={13} style={{ marginRight: 3, verticalAlign: -2 }} />{t('转生')}</span>} itemKey='prestige'>
+          <PrestigePage loadFarm={loadFarm} t={t} />
         </TabPane>
       </Tabs>
     </div>

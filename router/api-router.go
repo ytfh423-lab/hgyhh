@@ -364,6 +364,22 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/warehouse/sell", controller.WebFarmWarehouseSell)
 			farmRoute.POST("/warehouse/sellall", controller.WebFarmWarehouseSellAll)
 			farmRoute.POST("/harvest/store", controller.WebFarmHarvestStore)
+
+			farmRoute.GET("/encyclopedia", controller.WebFarmEncyclopedia)
+			farmRoute.POST("/encyclopedia/claim", controller.WebFarmClaimCollection)
+			farmRoute.GET("/prestige", controller.WebFarmPrestigeInfo)
+			farmRoute.POST("/prestige", controller.WebFarmPrestige)
+			farmRoute.GET("/automation", controller.WebFarmAutomationView)
+			farmRoute.POST("/automation/buy", controller.WebFarmAutomationBuy)
+			farmRoute.GET("/leaderboard", controller.WebFarmLeaderboard)
+			farmRoute.POST("/game/wheel", controller.WebFarmGameWheel)
+			farmRoute.POST("/game/scratch", controller.WebFarmGameScratch)
+			farmRoute.GET("/game/history", controller.WebFarmGameHistory)
+			farmRoute.GET("/trade", controller.WebFarmTradeList)
+			farmRoute.POST("/trade/create", controller.WebFarmTradeCreate)
+			farmRoute.POST("/trade/buy", controller.WebFarmTradeBuy)
+			farmRoute.POST("/trade/cancel", controller.WebFarmTradeCancel)
+			farmRoute.GET("/trade/history", controller.WebFarmTradeHistory)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

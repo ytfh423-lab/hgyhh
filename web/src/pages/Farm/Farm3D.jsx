@@ -840,10 +840,92 @@ const PlotInfoOverlay = ({ plot, t, onAction, onClose, farmData }) => {
   );
 };
 
+// ==================== Weather Effects ====================
+const WeatherParticles = ({ weatherType }) => {
+  const count = weatherType === 'stormy' ? 500 : weatherType === 'snowy' ? 300 : weatherType === 'rainy' ? 400 : 0;
+  const meshRef = useRef();
+
+  const particles = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 30;
+      positions[i * 3 + 1] = Math.random() * 15;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+    }
+    return positions;
+  }, [count]);
+
+  useFrame((_, delta) => {
+    if (!meshRef.current || count === 0) return;
+    const posArr = meshRef.current.geometry.attributes.position.array;
+    const speed = weatherType === 'stormy' ? 12 : weatherType === 'snowy' ? 2 : 8;
+    const drift = weatherType === 'snowy' ? 0.5 : weatherType === 'stormy' ? 2 : 0.3;
+    for (let i = 0; i < count; i++) {
+      posArr[i * 3 + 1] -= speed * delta;
+      posArr[i * 3] += (Math.sin(posArr[i * 3 + 1] + i) * drift) * delta;
+      if (posArr[i * 3 + 1] < -0.5) {
+        posArr[i * 3 + 1] = 15;
+        posArr[i * 3] = (Math.random() - 0.5) * 30;
+        posArr[i * 3 + 2] = (Math.random() - 0.5) * 30;
+      }
+    }
+    meshRef.current.geometry.attributes.position.needsUpdate = true;
+  });
+
+  if (count === 0) return null;
+
+  const pColor = weatherType === 'snowy' ? '#ffffff' : '#93c5fd';
+  const pSize = weatherType === 'snowy' ? 0.08 : 0.03;
+
+  return (
+    <points ref={meshRef}>
+      <bufferGeometry>
+        <bufferAttribute attach='attributes-position' array={particles} count={count} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial color={pColor} size={pSize} transparent opacity={0.7} sizeAttenuation />
+    </points>
+  );
+};
+
+const WeatherLighting = ({ weatherType }) => {
+  if (weatherType === 'sunny') {
+    return <pointLight position={[0, 10, 0]} intensity={0.5} color='#fef08a' />;
+  }
+  if (weatherType === 'stormy' || weatherType === 'rainy') {
+    return <pointLight position={[0, 10, 0]} intensity={0.1} color='#94a3b8' />;
+  }
+  return null;
+};
+
+const getWeatherSkyColor = (weatherType) => {
+  switch (weatherType) {
+    case 'sunny': return '#87ceeb';
+    case 'rainy': return '#94a3b8';
+    case 'stormy': return '#64748b';
+    case 'snowy': return '#cbd5e1';
+    case 'foggy': return '#d1d5db';
+    case 'windy': return '#a5f3fc';
+    default: return '#e0f2fe';
+  }
+};
+
+const getWeatherBgGradient = (weatherType) => {
+  switch (weatherType) {
+    case 'sunny': return 'linear-gradient(180deg, #7dd3fc 0%, #fef3c7 40%, #dcfce7 100%)';
+    case 'rainy': return 'linear-gradient(180deg, #94a3b8 0%, #cbd5e1 40%, #d1d5db 100%)';
+    case 'stormy': return 'linear-gradient(180deg, #475569 0%, #64748b 40%, #94a3b8 100%)';
+    case 'snowy': return 'linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 40%, #f8fafc 100%)';
+    case 'foggy': return 'linear-gradient(180deg, #d1d5db 0%, #e5e7eb 40%, #f3f4f6 100%)';
+    case 'windy': return 'linear-gradient(180deg, #a5f3fc 0%, #cffafe 40%, #dcfce7 100%)';
+    default: return 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)';
+  }
+};
+
 // ==================== Main 3D Farm Component ====================
 const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotIndex }) => {
   const plots = farmData?.plots || [];
   const totalPlots = plots.length;
+  const weatherType = farmData?.weather?.type || 'clear';
 
   const handlePlotAction = (action, plotIndex) => {
     if (action === 'water') doAction('/api/farm/water', { plot_index: plotIndex });
@@ -876,9 +958,23 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
     <div style={{
       width: '100%', height: 500, borderRadius: 12, overflow: 'hidden',
       border: '2px solid var(--semi-color-border)',
-      background: 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)',
+      background: getWeatherBgGradient(weatherType),
       position: 'relative',
     }}>
+      {/* Weather indicator */}
+      {farmData?.weather && (
+        <div style={{
+          position: 'absolute', top: 10, left: 10, zIndex: 10,
+          padding: '4px 12px', borderRadius: 8,
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)',
+          fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6,
+          border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        }}>
+          <span style={{ fontSize: 18 }}>{farmData.weather.emoji}</span>
+          <span>{farmData.weather.name}</span>
+        </div>
+      )}
+
       {/* DOM overlay for selected plot info */}
       <PlotInfoOverlay
         plot={selectedPlot}
@@ -905,8 +1001,10 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
         <pointLight position={[0, 6, 0]} intensity={0.15} color='#fef3c7' />
         <hemisphereLight args={['#87ceeb', '#4ade80', 0.35]} />
 
-        <color attach='background' args={['#e0f2fe']} />
-        <fog attach='fog' args={['#e0f2fe', 18, 45]} />
+        <color attach='background' args={[getWeatherSkyColor(weatherType)]} />
+        <fog attach='fog' args={[getWeatherSkyColor(weatherType), weatherType === 'foggy' ? 8 : 18, weatherType === 'foggy' ? 25 : 45]} />
+        <WeatherParticles weatherType={weatherType} />
+        <WeatherLighting weatherType={weatherType} />
 
         <Ground totalPlots={totalPlots} />
         <Fence totalPlots={totalPlots} />

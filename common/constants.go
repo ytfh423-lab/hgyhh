@@ -198,6 +198,38 @@ var TgBotFarmWarehouseMaxSlots = 100      // 仓库最大存储格数
 var TgBotFarmWarehouseMeatExpiry = 259200     // 肉类保质期秒数（默认3天）
 var TgBotFarmWarehouseRecipeExpiry = 432000   // 加工食品保质期秒数（默认5天）
 
+// 天气系统
+var TgBotFarmWeatherDurationMin = 14400
+var TgBotFarmWeatherDurationMax = 28800
+var TgBotFarmWeatherSunnyGrowthBonus = 20
+var TgBotFarmWeatherStormyEventBonus = 50
+var TgBotFarmWeatherFoggyStealBonus = 30
+
+// 转生系统
+var TgBotFarmPrestigeMinLevel = 15
+var TgBotFarmPrestigeBonusPerLevel = 5
+
+// 自动化设施
+var TgBotFarmIrrigationPrice = 5000000
+var TgBotFarmAutoFeederPrice = 8000000
+var TgBotFarmScarecrowPrice = 3000000
+var TgBotFarmScarecrowDefenseRate = 30
+
+// 交易系统
+var TgBotFarmTradeFee = 5
+var TgBotFarmTradeMaxListings = 10
+
+// 小游戏
+var TgBotFarmWheelPrice = 500000
+var TgBotFarmScratchPrice = 250000
+
+// 新功能解锁等级
+var TgBotFarmUnlockLeaderboard = 3
+var TgBotFarmUnlockTrading = 5
+var TgBotFarmUnlockGames = 4
+var TgBotFarmUnlockEncyclopedia = 2
+var TgBotFarmUnlockAutomation = 6
+
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0

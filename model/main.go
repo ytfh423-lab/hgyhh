@@ -294,6 +294,11 @@ func migrateDB() error {
 		&TgFarmAchievement{},
 		&TgFarmLoan{},
 		&TgFarmWarehouse{},
+		&TgFarmCollection{},
+		&TgFarmTrade{},
+		&TgFarmPrestige{},
+		&TgFarmGameLog{},
+		&TgFarmAutomation{},
 		&PublicInviteCode{},
 	)
 	if err != nil {

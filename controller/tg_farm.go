@@ -232,6 +232,11 @@ var taskPool = []dailyTaskDef{
 	{"ranch_water", "喂水动物", "💧", 2, 150000},
 	{"fish_sell", "出售鱼获", "💰", 1, 200000},
 	{"craft_sell", "收取加工品", "📥", 1, 250000},
+	{"ranch_sell", "出售肉类", "🥩", 1, 300000},
+	{"water", "浇水", "💧", 3, 150000},
+	{"warehouse_sell", "仓库出售", "📦", 1, 200000},
+	{"trade", "交易", "🔄", 1, 250000},
+	{"game", "玩小游戏", "🎰", 2, 150000},
 }
 
 const dailyTaskCount = 4
@@ -249,14 +254,26 @@ type achievementDef struct {
 var achievements = []achievementDef{
 	{"first_plant", "初出茅庐", "🌱", "首次种植作物", "plant", 1, 500000},
 	{"plant_50", "种植达人", "🌾", "累计种植50次", "plant", 50, 2000000},
+	{"plant_200", "农场传说", "👨‍🌾", "累计种植200次", "plant", 200, 7500000},
 	{"harvest_30", "丰收使者", "🧺", "累计收获30次", "harvest", 30, 1500000},
+	{"harvest_100", "收获之王", "👑", "累计收获100次", "harvest", 100, 4000000},
 	{"fish_20", "钓鱼爱好者", "🎣", "累计钓鱼20次", "fish", 20, 1000000},
 	{"fish_100", "钓鱼大师", "🐟", "累计钓鱼100次", "fish", 100, 5000000},
 	{"steal_10", "小偷小摸", "🕵️", "累计偷菜10次", "steal", 10, 800000},
 	{"steal_50", "江洋大盗", "🦹", "累计偷菜50次", "steal", 50, 3000000},
+	{"steal_100", "神偷", "🥷", "累计偷菜100次", "steal", 100, 6000000},
 	{"craft_20", "加工达人", "🏭", "累计加工20次", "craft", 20, 2000000},
+	{"craft_50", "工匠大师", "⚒️", "累计加工50次", "craft", 50, 4000000},
 	{"fish_sell_10", "渔商", "💰", "累计卖鱼10次", "fish_sell", 10, 1500000},
 	{"ranch_buy_5", "牧场主", "🐄", "累计买动物5次", "ranch_buy", 5, 1000000},
+	{"ranch_sell_20", "肉贩", "🥩", "累计出售肉类20次", "ranch_sell", 20, 3000000},
+	{"water_50", "浇水达人", "💧", "累计浇水50次", "water", 50, 1000000},
+	{"trade_10", "商人", "🔄", "累计交易10次", "trade", 10, 2500000},
+	{"game_20", "赌徒", "🎰", "累计玩小游戏20次", "game", 20, 1500000},
+	{"levelup_5", "小有名气", "⭐", "升到5级", "levelup", 5, 2500000},
+	{"levelup_10", "农场大亨", "🌟", "升到10级", "levelup", 10, 12500000},
+	{"levelup_15", "传奇农夫", "💫", "升到满级15级", "levelup", 15, 50000000},
+	{"prestige_1", "涅槃重生", "🔄", "完成首次转生", "prestige", 1, 25000000},
 }
 
 func getDailyTasks(dateStr string) []dailyTaskDef {
@@ -287,14 +304,19 @@ type featureUnlock struct {
 }
 
 var featureUnlocks = []featureUnlock{
-	{"steal", "偷菜", &common.TgBotFarmUnlockSteal},
-	{"dog", "狗狗", &common.TgBotFarmUnlockDog},
-	{"ranch", "牧场", &common.TgBotFarmUnlockRanch},
-	{"fish", "钓鱼", &common.TgBotFarmUnlockFish},
-	{"workshop", "加工坊", &common.TgBotFarmUnlockWorkshop},
-	{"market", "市场", &common.TgBotFarmUnlockMarket},
 	{"tasks", "每日任务", &common.TgBotFarmUnlockTasks},
 	{"achieve", "成就", &common.TgBotFarmUnlockAchieve},
+	{"steal", "偷菜", &common.TgBotFarmUnlockSteal},
+	{"dog", "狗狗", &common.TgBotFarmUnlockDog},
+	{"market", "市场", &common.TgBotFarmUnlockMarket},
+	{"encyclopedia", "图鉴", &common.TgBotFarmUnlockEncyclopedia},
+	{"ranch", "牧场", &common.TgBotFarmUnlockRanch},
+	{"fish", "钓鱼", &common.TgBotFarmUnlockFish},
+	{"leaderboard", "排行榜", &common.TgBotFarmUnlockLeaderboard},
+	{"workshop", "加工坊", &common.TgBotFarmUnlockWorkshop},
+	{"games", "小游戏", &common.TgBotFarmUnlockGames},
+	{"trading", "交易所", &common.TgBotFarmUnlockTrading},
+	{"automation", "自动化", &common.TgBotFarmUnlockAutomation},
 }
 
 func checkFeatureLevel(tgId string, level int, requiredLevel int, featureName string, chatId int64, editMsgId int, from *TgUser) bool {

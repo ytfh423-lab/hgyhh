@@ -808,9 +808,237 @@ func ResetNegativeBalanceUsers() (int64, error) {
 
 // ResetAllFarmLevels 将所有用户的农场等级重置为指定等级
 func ResetAllFarmLevels(level int) (int64, error) {
-	// 更新已有等级记录
 	result := DB.Model(&TgFarmItem{}).Where("item_type = ?", "_level").Update("quantity", level)
 	return result.RowsAffected, result.Error
+}
+
+// ========== 图鉴收藏 ==========
+
+type TgFarmCollection struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_farm_coll"`
+	Category   string `json:"category" gorm:"type:varchar(16);uniqueIndex:idx_farm_coll"`
+	ItemKey    string `json:"item_key" gorm:"type:varchar(32);uniqueIndex:idx_farm_coll"`
+	Quantity   int    `json:"quantity" gorm:"default:0"`
+	FirstAt    int64  `json:"first_at"`
+}
+
+func RecordCollection(telegramId, category, itemKey string, qty int) {
+	var item TgFarmCollection
+	err := DB.Where("telegram_id = ? AND category = ? AND item_key = ?", telegramId, category, itemKey).First(&item).Error
+	if err != nil {
+		DB.Create(&TgFarmCollection{TelegramId: telegramId, Category: category, ItemKey: itemKey, Quantity: qty, FirstAt: time.Now().Unix()})
+		return
+	}
+	DB.Model(&TgFarmCollection{}).Where("id = ?", item.Id).Update("quantity", item.Quantity+qty)
+}
+
+func GetCollections(telegramId string) ([]*TgFarmCollection, error) {
+	var items []*TgFarmCollection
+	err := DB.Where("telegram_id = ?", telegramId).Find(&items).Error
+	return items, err
+}
+
+func HasCollectionReward(telegramId, category string) bool {
+	return HasAchievement(telegramId, "_coll_"+category)
+}
+
+func ClaimCollectionReward(telegramId, category string) error {
+	return UnlockAchievement(telegramId, "_coll_"+category)
+}
+
+// ========== 玩家交易 ==========
+
+type TgFarmTrade struct {
+	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	SellerId     string `json:"seller_id" gorm:"type:varchar(64);index"`
+	SellerName   string `json:"seller_name" gorm:"type:varchar(64)"`
+	Category     string `json:"category" gorm:"type:varchar(16)"`
+	ItemKey      string `json:"item_key" gorm:"type:varchar(32)"`
+	ItemName     string `json:"item_name" gorm:"type:varchar(32)"`
+	ItemEmoji    string `json:"item_emoji" gorm:"type:varchar(16)"`
+	Quantity     int    `json:"quantity"`
+	PricePerUnit int    `json:"price_per_unit"`
+	Status       int    `json:"status" gorm:"default:0"`
+	BuyerId      string `json:"buyer_id" gorm:"type:varchar(64)"`
+	CreatedAt    int64  `json:"created_at"`
+}
+
+func GetOpenTrades(limit, offset int) ([]*TgFarmTrade, int64, error) {
+	var trades []*TgFarmTrade
+	var total int64
+	DB.Model(&TgFarmTrade{}).Where("status = 0").Count(&total)
+	err := DB.Where("status = 0").Order("id desc").Limit(limit).Offset(offset).Find(&trades).Error
+	return trades, total, err
+}
+
+func CountMyOpenTrades(telegramId string) int64 {
+	var count int64
+	DB.Model(&TgFarmTrade{}).Where("seller_id = ? AND status = 0", telegramId).Count(&count)
+	return count
+}
+
+func CreateTrade(trade *TgFarmTrade) error {
+	trade.CreatedAt = time.Now().Unix()
+	return DB.Create(trade).Error
+}
+
+func GetTradeById(id int) (*TgFarmTrade, error) {
+	var trade TgFarmTrade
+	err := DB.Where("id = ?", id).First(&trade).Error
+	return &trade, err
+}
+
+func UpdateTradeStatus(id int, status int, buyerId string) error {
+	updates := map[string]interface{}{"status": status}
+	if buyerId != "" {
+		updates["buyer_id"] = buyerId
+	}
+	return DB.Model(&TgFarmTrade{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func GetTradeHistory(telegramId string, limit int) ([]*TgFarmTrade, error) {
+	var trades []*TgFarmTrade
+	err := DB.Where("(seller_id = ? OR buyer_id = ?) AND status != 0", telegramId, telegramId).
+		Order("id desc").Limit(limit).Find(&trades).Error
+	return trades, err
+}
+
+// ========== 转生系统 ==========
+
+type TgFarmPrestige struct {
+	Id            int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId    string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	PrestigeLevel int    `json:"prestige_level"`
+	PrestigedAt   int64  `json:"prestiged_at"`
+}
+
+func GetPrestigeLevel(telegramId string) int {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
+	if err != nil || item.Quantity < 1 {
+		return 0
+	}
+	return item.Quantity
+}
+
+func SetPrestigeLevel(telegramId string, level int) {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
+	if err != nil {
+		DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_prestige", Quantity: level})
+		return
+	}
+	DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", level)
+}
+
+func CreatePrestigeRecord(telegramId string, level int) {
+	DB.Create(&TgFarmPrestige{TelegramId: telegramId, PrestigeLevel: level, PrestigedAt: time.Now().Unix()})
+}
+
+func ResetFarmForPrestige(telegramId string) {
+	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmPlot{})
+	DB.Where("telegram_id = ? AND item_type NOT IN ('_level','_prestige','_mortgage_blocked','_last_fish')", telegramId).Delete(&TgFarmItem{})
+	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmWarehouse{})
+	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmDog{})
+	DB.Where("telegram_id = ? AND status IN (1,2)", telegramId).Delete(&TgFarmProcess{})
+	DB.Where("telegram_id = ?", telegramId).Delete(&TgRanchAnimal{})
+	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmAutomation{})
+	SetFarmLevel(telegramId, 1)
+}
+
+// ========== 小游戏记录 ==========
+
+type TgFarmGameLog struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	GameType   string `json:"game_type" gorm:"type:varchar(16)"`
+	BetAmount  int    `json:"bet_amount"`
+	WinAmount  int    `json:"win_amount"`
+	CreatedAt  int64  `json:"created_at"`
+}
+
+func CreateGameLog(telegramId, gameType string, bet, win int) {
+	DB.Create(&TgFarmGameLog{
+		TelegramId: telegramId, GameType: gameType,
+		BetAmount: bet, WinAmount: win, CreatedAt: time.Now().Unix(),
+	})
+}
+
+func GetRecentGameLogs(telegramId string, limit int) ([]*TgFarmGameLog, error) {
+	var logs []*TgFarmGameLog
+	err := DB.Where("telegram_id = ?", telegramId).Order("id desc").Limit(limit).Find(&logs).Error
+	return logs, err
+}
+
+// ========== 自动化设施 ==========
+
+type TgFarmAutomation struct {
+	Id          int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramId  string `json:"telegram_id" gorm:"type:varchar(64);uniqueIndex:idx_farm_auto"`
+	Type        string `json:"type" gorm:"type:varchar(32);uniqueIndex:idx_farm_auto"`
+	Level       int    `json:"level" gorm:"default:1"`
+	InstalledAt int64  `json:"installed_at"`
+}
+
+func GetAutomations(telegramId string) ([]*TgFarmAutomation, error) {
+	var items []*TgFarmAutomation
+	err := DB.Where("telegram_id = ?", telegramId).Find(&items).Error
+	return items, err
+}
+
+func HasAutomation(telegramId, autoType string) bool {
+	var count int64
+	DB.Model(&TgFarmAutomation{}).Where("telegram_id = ? AND type = ?", telegramId, autoType).Count(&count)
+	return count > 0
+}
+
+func CreateAutomation(telegramId, autoType string) error {
+	return DB.Create(&TgFarmAutomation{
+		TelegramId: telegramId, Type: autoType, Level: 1, InstalledAt: time.Now().Unix(),
+	}).Error
+}
+
+// ========== 排行榜 ==========
+
+type FarmLeaderboardEntry struct {
+	TelegramId string
+	Username   string
+	Value      int64
+}
+
+func GetFarmLeaderboard(boardType string, limit int) ([]FarmLeaderboardEntry, error) {
+	var entries []FarmLeaderboardEntry
+	switch boardType {
+	case "balance":
+		err := DB.Raw("SELECT telegram_id, username, quota as value FROM users WHERE telegram_id != '' AND status = 1 ORDER BY quota DESC LIMIT ?", limit).Scan(&entries).Error
+		return entries, err
+	case "level":
+		err := DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
+		return entries, err
+	case "harvest":
+		err := DB.Raw("SELECT fl.telegram_id, u.username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' GROUP BY fl.telegram_id, u.username ORDER BY value DESC LIMIT ?", limit).Scan(&entries).Error
+		return entries, err
+	case "prestige":
+		err := DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
+		return entries, err
+	default:
+		return entries, nil
+	}
+}
+
+func GetFarmRank(telegramId, boardType string) int64 {
+	var rank int64
+	switch boardType {
+	case "balance":
+		var userQuota int64
+		DB.Model(&User{}).Select("quota").Where("telegram_id = ?", telegramId).Scan(&userQuota)
+		DB.Model(&User{}).Where("telegram_id != '' AND status = 1 AND quota > ?", userQuota).Count(&rank)
+	case "level":
+		level := GetFarmLevel(telegramId)
+		DB.Model(&TgFarmItem{}).Where("item_type = '_level' AND quantity > ?", level).Count(&rank)
+	}
+	return rank + 1
 }
 
 func GetFarmLogs(telegramId string, limit, offset int) ([]*TgFarmLog, int64, error) {
