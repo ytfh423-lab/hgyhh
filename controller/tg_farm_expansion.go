@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -36,7 +37,112 @@ func getWarehouseItemMarketPrice(cropType string) int {
 
 // ========== 图鉴 ==========
 
+func backfillCollections(tgId string) {
+	existing, _ := model.GetCollections(tgId)
+	have := make(map[string]bool)
+	for _, c := range existing {
+		have[c.Category+"_"+c.ItemKey] = true
+	}
+	record := func(cat, key string) {
+		if !have[cat+"_"+key] {
+			model.RecordCollection(tgId, cat, key, 1)
+			have[cat+"_"+key] = true
+		}
+	}
+
+	// 1) Warehouse items
+	whItems, _ := model.GetWarehouseItems(tgId)
+	for _, wh := range whItems {
+		switch wh.Category {
+		case "crop":
+			record("crop", wh.CropType)
+		case "fish":
+			key := wh.CropType
+			if len(key) > 5 && key[:5] == "fish_" {
+				key = key[5:]
+			}
+			record("fish", key)
+		case "meat":
+			key := wh.CropType
+			if len(key) > 5 && key[:5] == "meat_" {
+				key = key[5:]
+			}
+			record("animal", key)
+		case "recipe":
+			key := wh.CropType
+			if len(key) > 7 && key[:7] == "recipe_" {
+				key = key[7:]
+			}
+			record("recipe", key)
+		}
+	}
+
+	// 2) Fish in backpack
+	fishItems, _ := model.GetFishItems(tgId)
+	for _, fi := range fishItems {
+		if len(fi.ItemType) > 5 {
+			record("fish", fi.ItemType[5:])
+		}
+	}
+
+	// 3) Current plots with crops
+	plots, _ := model.GetOrCreateFarmPlots(tgId)
+	for _, plot := range plots {
+		if plot.CropType != "" && plot.Status > 0 {
+			record("crop", plot.CropType)
+		}
+	}
+
+	// 4) Ranch animals
+	animals, _ := model.GetRanchAnimals(tgId)
+	for _, a := range animals {
+		if a.AnimalType != "" {
+			record("animal", a.AnimalType)
+		}
+	}
+
+	// 5) Farm logs — parse known patterns
+	logs, _, _ := model.GetFarmLogs(tgId, 200, 0)
+	for _, log := range logs {
+		detail := log.Detail
+		switch log.Action {
+		case "plant":
+			for _, c := range farmCrops {
+				if strings.Contains(detail, c.Name) {
+					record("crop", c.Key)
+				}
+			}
+		case "fish":
+			for _, f := range fishTypes {
+				if strings.Contains(detail, f.Name) {
+					record("fish", f.Key)
+				}
+			}
+		case "ranch_sell", "ranch_store":
+			for _, a := range ranchAnimals {
+				if strings.Contains(detail, a.Name) {
+					record("animal", a.Key)
+				}
+			}
+		case "craft_sell", "craft_store":
+			for _, r := range recipes {
+				if strings.Contains(detail, r.Name) {
+					record("recipe", r.Key)
+				}
+			}
+		case "ranch_buy":
+			for _, a := range ranchAnimals {
+				if strings.Contains(detail, a.Name) {
+					record("animal", a.Key)
+				}
+			}
+		}
+	}
+}
+
 func showFarmEncyclopedia(chatId int64, editMsgId int, tgId string, from *TgUser) {
+	backfillCollections(tgId)
+
 	collections, _ := model.GetCollections(tgId)
 	collectedMap := make(map[string]bool)
 	for _, c := range collections {

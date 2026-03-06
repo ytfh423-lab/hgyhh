@@ -183,6 +183,8 @@ func WebFarmEncyclopedia(c *gin.Context) {
 		return
 	}
 
+	backfillCollections(tgId)
+
 	collections, _ := model.GetCollections(tgId)
 	collMap := make(map[string]map[string]int64)
 	for _, col := range collections {
