@@ -1,0 +1,322 @@
+/* ====== Farm Glassmorphism Theme ====== */
+
+:root {
+  --farm-glass-bg: rgba(255, 255, 255, 0.06);
+  --farm-glass-border: rgba(255, 255, 255, 0.1);
+  --farm-glass-hover: rgba(255, 255, 255, 0.12);
+  --farm-blur: blur(20px);
+  --farm-radius: 16px;
+  --farm-radius-sm: 10px;
+  --farm-radius-xs: 8px;
+  --farm-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --farm-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.18);
+  --farm-glow-green: 0 0 20px rgba(34, 197, 94, 0.15);
+  --farm-glow-blue: 0 0 20px rgba(59, 130, 246, 0.15);
+  --farm-glow-amber: 0 0 20px rgba(245, 158, 11, 0.15);
+  --farm-glow-purple: 0 0 20px rgba(139, 92, 246, 0.15);
+  --farm-spring: linear-gradient(135deg, #fce7f3 0%, #dcfce7 50%, #e0f2fe 100%);
+  --farm-summer: linear-gradient(135deg, #fef3c7 0%, #ffedd5 50%, #fce7f3 100%);
+  --farm-autumn: linear-gradient(135deg, #fef3c7 0%, #fed7aa 50%, #fde68a 100%);
+  --farm-winter: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 50%, #f0f9ff 100%);
+}
+
+[theme-mode='dark'] {
+  --farm-glass-bg: rgba(255, 255, 255, 0.04);
+  --farm-glass-border: rgba(255, 255, 255, 0.08);
+  --farm-glass-hover: rgba(255, 255, 255, 0.08);
+  --farm-spring: linear-gradient(135deg, #042f2e 0%, #052e16 50%, #0c1e3a 100%);
+  --farm-summer: linear-gradient(135deg, #422006 0%, #431407 50%, #2a1032 100%);
+  --farm-autumn: linear-gradient(135deg, #422006 0%, #451a03 50%, #1c1917 100%);
+  --farm-winter: linear-gradient(135deg, #0c1e3a 0%, #1e1b4b 50%, #0f172a 100%);
+}
+
+/* ====== Layout ====== */
+
+.farm-layout {
+  display: flex;
+  min-height: calc(100vh - 60px);
+  margin-top: 60px;
+}
+
+.farm-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 16px 10px;
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border-right: 1px solid var(--farm-glass-border);
+  overflow-y: auto;
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+  scrollbar-width: thin;
+}
+
+.farm-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.farm-statusbar {
+  position: sticky;
+  top: 60px;
+  z-index: 10;
+  padding: 10px 20px;
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border-bottom: 1px solid var(--farm-glass-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.farm-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* ====== Glass Card ====== */
+
+.farm-card {
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border: 1px solid var(--farm-glass-border);
+  border-radius: var(--farm-radius);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--farm-shadow);
+  transition: all 0.2s ease;
+}
+
+.farm-card:hover {
+  background: var(--farm-glass-hover);
+}
+
+.farm-card-glow-green { box-shadow: var(--farm-shadow), var(--farm-glow-green); }
+.farm-card-glow-blue { box-shadow: var(--farm-shadow), var(--farm-glow-blue); }
+.farm-card-glow-amber { box-shadow: var(--farm-shadow), var(--farm-glow-amber); }
+.farm-card-glow-purple { box-shadow: var(--farm-shadow), var(--farm-glow-purple); }
+
+.farm-card-flat {
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border: 1px solid var(--farm-glass-border);
+  border-radius: var(--farm-radius-sm);
+  padding: 10px 14px;
+  transition: all 0.2s ease;
+}
+
+/* ====== Sidebar Nav ====== */
+
+.farm-nav-group {
+  margin-bottom: 6px;
+}
+
+.farm-nav-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--semi-color-text-2);
+  cursor: pointer;
+  border-radius: var(--farm-radius-xs);
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.farm-nav-header:hover {
+  background: var(--farm-glass-hover);
+}
+
+.farm-nav-header .chevron {
+  margin-left: auto;
+  transition: transform 0.2s;
+  opacity: 0.5;
+}
+
+.farm-nav-header .chevron.open {
+  transform: rotate(90deg);
+}
+
+.farm-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px 7px 26px;
+  font-size: 13px;
+  color: var(--semi-color-text-1);
+  cursor: pointer;
+  border-radius: var(--farm-radius-xs);
+  transition: all 0.15s;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.farm-nav-item:hover {
+  background: var(--farm-glass-hover);
+}
+
+.farm-nav-item.active {
+  background: var(--farm-glass-hover);
+  font-weight: 600;
+  color: var(--semi-color-primary);
+}
+
+.farm-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--semi-color-primary);
+  box-shadow: 0 0 8px var(--semi-color-primary);
+}
+
+/* ====== Status Pills ====== */
+
+.farm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border: 1px solid var(--farm-glass-border);
+  white-space: nowrap;
+}
+
+.farm-pill-green { border-color: rgba(34, 197, 94, 0.3); color: #22c55e; }
+.farm-pill-blue { border-color: rgba(59, 130, 246, 0.3); color: #3b82f6; }
+.farm-pill-amber { border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
+.farm-pill-purple { border-color: rgba(139, 92, 246, 0.3); color: #8b5cf6; }
+.farm-pill-cyan { border-color: rgba(6, 182, 212, 0.3); color: #06b6d4; }
+.farm-pill-red { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+
+/* ====== Buttons ====== */
+
+.farm-btn {
+  border-radius: var(--farm-radius-xs) !important;
+  backdrop-filter: var(--farm-blur);
+  transition: all 0.2s !important;
+}
+
+.farm-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ====== Grid ====== */
+
+.farm-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.farm-grid-2 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.farm-grid-3 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.farm-grid-4 { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.farm-grid-5 { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+
+/* ====== Interactive Item Card ====== */
+
+.farm-item-card {
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border: 1px solid var(--farm-glass-border);
+  border-radius: var(--farm-radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.farm-item-card:hover {
+  transform: translateY(-2px);
+  background: var(--farm-glass-hover);
+  box-shadow: var(--farm-shadow);
+}
+
+.farm-item-card.selected {
+  border-color: var(--semi-color-primary);
+  background: rgba(var(--semi-blue-0), 0.1);
+  box-shadow: 0 0 0 1px var(--semi-color-primary), var(--farm-glow-blue);
+}
+
+/* ====== Progress Bar ====== */
+
+.farm-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--farm-glass-border);
+  overflow: hidden;
+}
+
+.farm-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ====== Section Title ====== */
+
+.farm-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ====== Row ====== */
+
+.farm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--farm-radius-sm);
+  backdrop-filter: var(--farm-blur);
+  background: var(--farm-glass-bg);
+  border: 1px solid var(--farm-glass-border);
+  margin-bottom: 8px;
+  transition: all 0.15s;
+}
+
+.farm-row:hover {
+  background: var(--farm-glass-hover);
+}
+
+/* ====== Responsive ====== */
+
+@media (max-width: 768px) {
+  .farm-sidebar {
+    display: none;
+  }
+
+  .farm-content {
+    padding: 14px;
+  }
+
+  .farm-statusbar {
+    padding: 8px 14px;
+  }
+
+  .farm-grid-2 { grid-template-columns: 1fr; }
+  .farm-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
