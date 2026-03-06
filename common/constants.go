@@ -230,6 +230,11 @@ var TgBotFarmUnlockGames = 4
 var TgBotFarmUnlockEncyclopedia = 2
 var TgBotFarmUnlockAutomation = 6
 
+// 农场内测系统
+var FarmBetaEnabled = false  // 内测开关（开启后农场受内测控制）
+var FarmBetaMaxSlots = 100   // 最大预约名额
+var FarmBetaAdminBypass = true // 管理员是否绕过内测限制
+
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0

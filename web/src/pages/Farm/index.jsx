@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Spin, Typography } from '@douyinfe/semi-ui';
-import { Sprout } from 'lucide-react';
+import { Spin, Typography, Button } from '@douyinfe/semi-ui';
+import { Sprout, Lock, Clock } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
+import { StatusContext } from '../../context/Status';
+import { Link } from 'react-router-dom';
 import './farm.css';
 
 import Sidebar, { navGroups } from './components/Sidebar';
@@ -87,12 +89,15 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, t }) => {
 
 const Farm = () => {
   const { t } = useTranslation();
+  const [statusState] = useContext(StatusContext);
   const [loading, setLoading] = useState(true);
   const [farmData, setFarmData] = useState(null);
   const [crops, setCrops] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
   const [activePage, setActivePage] = useState('overview');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS'
+  const [betaMessage, setBetaMessage] = useState('');
 
   const loadFarm = useCallback(async () => {
     setLoading(true);
@@ -100,6 +105,10 @@ const Farm = () => {
       const { data: res } = await API.get('/api/farm/view');
       if (res.success) {
         setFarmData(res.data);
+        setBetaGate(null);
+      } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS') {
+        setBetaGate(res.code);
+        setBetaMessage(res.message);
       } else {
         showError(res.message);
       }
@@ -147,10 +156,62 @@ const Farm = () => {
     }
   };
 
-  if (loading && !farmData) {
+  if (loading && !farmData && !betaGate) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <Spin size='large' />
+      </div>
+    );
+  }
+
+  if (betaGate) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0a0a0a' }}>
+        <div style={{
+          textAlign: 'center', padding: '48px 32px', maxWidth: 440,
+          background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(251,191,36,0.12)',
+          borderRadius: 16, backdropFilter: 'blur(16px)',
+        }}>
+          {betaGate === 'BETA_NOT_STARTED' ? (
+            <>
+              <Clock size={44} style={{ color: '#fbbf24', marginBottom: 16 }} />
+              <h2 style={{ color: '#fde68a', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+                {t('农场内测尚未开启')}
+              </h2>
+              <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                {t('内测倒计时正在进行中，请返回首页查看倒计时并预约内测资格。')}
+              </p>
+              <Link to='/'>
+                <button style={{
+                  padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
+                  background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: '#000',
+                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                }}>
+                  {t('返回首页')}
+                </button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Lock size={44} style={{ color: '#ef4444', marginBottom: 16 }} />
+              <h2 style={{ color: '#fca5a5', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+                {t('暂无内测资格')}
+              </h2>
+              <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                {betaMessage || t('你没有内测资格，无法访问农场。请返回首页预约内测名额。')}
+              </p>
+              <Link to='/'>
+                <button style={{
+                  padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
+                  background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: '#000',
+                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                }}>
+                  {t('返回首页')}
+                </button>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     );
   }

@@ -1680,6 +1680,82 @@ html:not(.dark) .npc-feature-card::after {
   padding: 0 24px 40px;
 }
 
+/* --- Beta reservation --- */
+.cy-beta-reserve {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.cy-beta-slots {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cy-beta-slots-num {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(180deg, #fde68a, #fbbf24);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cy-beta-slots-sep {
+  font-size: 20px;
+  color: #78716c;
+  margin: 0 2px;
+}
+
+.cy-beta-slots-max {
+  font-size: 20px;
+  font-weight: 600;
+  color: #a8a29e;
+}
+
+.cy-beta-slots-label {
+  font-size: 12px;
+  color: #78716c;
+  margin-left: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.cy-beta-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cy-beta-check {
+  font-size: 18px;
+  color: #22c55e;
+}
+
+.cy-beta-full {
+  font-size: 13px;
+  color: #ef4444;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.cy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 /* --- Mobile responsive --- */
 @media (max-width: 768px) {
   .cy-hero { padding: 60px 16px 32px; min-height: 90vh; }
@@ -1690,6 +1766,7 @@ html:not(.dark) .npc-feature-card::after {
   .cy-cd-num { font-size: 24px; }
   .cy-section { padding: 48px 16px; }
   .cy-ticker-item { font-size: 11px; letter-spacing: 1px; }
+  .cy-beta-slots-num { font-size: 22px; }
 }
 
 /* ==================== NPC 农场推广区 ==================== */

@@ -319,8 +319,16 @@ func SetApiRouter(router *gin.Engine) {
 			invCodeRoute.GET("/", controller.GetMyInvitationCodes)
 		}
 
+		farmBetaRoute := apiRouter.Group("/farm/beta")
+		farmBetaRoute.Use(middleware.UserAuth())
+		{
+			farmBetaRoute.GET("/status", controller.FarmBetaStatus)
+			farmBetaRoute.POST("/reserve", controller.FarmBetaReserve)
+		}
+
 		farmRoute := apiRouter.Group("/farm")
 		farmRoute.Use(middleware.UserAuth())
+		farmRoute.Use(controller.CheckFarmBetaAccess())
 		{
 			farmRoute.GET("/view", controller.WebFarmView)
 			farmRoute.GET("/crops", controller.WebFarmCrops)
@@ -388,6 +396,7 @@ func SetApiRouter(router *gin.Engine) {
 
 		ranchRoute := apiRouter.Group("/ranch")
 		ranchRoute.Use(middleware.UserAuth())
+		ranchRoute.Use(controller.CheckFarmBetaAccess())
 		{
 			ranchRoute.GET("/view", controller.WebRanchView)
 			ranchRoute.POST("/buy", controller.WebRanchBuy)

@@ -66,6 +66,9 @@ func InitOptionMap() {
 	common.OptionMap["About"] = ""
 	common.OptionMap["HomePageContent"] = ""
 	common.OptionMap["FarmCountdownDate"] = ""
+	common.OptionMap["FarmBetaEnabled"] = strconv.FormatBool(common.FarmBetaEnabled)
+	common.OptionMap["FarmBetaMaxSlots"] = strconv.Itoa(common.FarmBetaMaxSlots)
+	common.OptionMap["FarmBetaAdminBypass"] = strconv.FormatBool(common.FarmBetaAdminBypass)
 	common.OptionMap["Footer"] = common.Footer
 	common.OptionMap["SystemName"] = common.SystemName
 	common.OptionMap["Logo"] = common.Logo
@@ -308,7 +311,7 @@ func updateOptionMap(key string, value string) (err error) {
 			common.ImageDownloadPermission = intValue
 		}
 	}
-	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" {
+	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "FarmBetaAdminBypass" {
 		boolValue := value == "true"
 		switch key {
 		case "PasswordRegisterEnabled":
@@ -391,9 +394,15 @@ func updateOptionMap(key string, value string) (err error) {
 			setting.DefaultUseAutoGroup = boolValue
 		case "ExposeRatioEnabled":
 			ratio_setting.SetExposeRatioEnabled(boolValue)
+		case "FarmBetaEnabled":
+			common.FarmBetaEnabled = boolValue
+		case "FarmBetaAdminBypass":
+			common.FarmBetaAdminBypass = boolValue
 		}
 	}
 	switch key {
+	case "FarmBetaMaxSlots":
+		common.FarmBetaMaxSlots, _ = strconv.Atoi(value)
 	case "EmailDomainWhitelist":
 		common.EmailDomainWhitelist = strings.Split(value, ",")
 	case "SMTPServer":

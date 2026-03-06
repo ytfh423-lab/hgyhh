@@ -42,6 +42,10 @@ const Home = () => {
   const isMobile = useIsMobile();
   const canvasRef = useRef(null);
   const [visibleSections, setVisibleSections] = useState(new Set());
+  const [betaInfo, setBetaInfo] = useState(null);
+  const [reserving, setReserving] = useState(false);
+  const betaEnabled = statusState?.status?.farm_beta_enabled || false;
+  const betaMaxSlots = statusState?.status?.farm_beta_max_slots || 0;
 
   const targetDate = useMemo(() => {
     const raw = statusState?.status?.farm_countdown_date;
@@ -179,6 +183,32 @@ const Home = () => {
     displayHomePageContent();
   }, []);
 
+  const fetchBetaStatus = async () => {
+    try {
+      const res = await API.get('/api/farm/beta/status');
+      if (res.data.success) setBetaInfo(res.data.data);
+    } catch (_) { /* ignore if not logged in */ }
+  };
+
+  useEffect(() => {
+    if (betaEnabled) fetchBetaStatus();
+  }, [betaEnabled]);
+
+  const handleReserve = async () => {
+    setReserving(true);
+    try {
+      const res = await API.post('/api/farm/beta/reserve');
+      if (res.data.success) {
+        await fetchBetaStatus();
+      } else {
+        showError(res.data.message);
+      }
+    } catch (_) {
+      showError(t('预约失败'));
+    }
+    setReserving(false);
+  };
+
   const farmFeatures = [
     { icon: '\u{1F33E}', title: '\u667A\u80FD\u79CD\u690D', desc: 'AI \u9A71\u52A8\u519C\u4F5C\u7269\u751F\u957F\u7CFB\u7EDF\uFF0C\u6A21\u62DF\u771F\u5B9E\u56DB\u5B63\u53D8\u5316', tag: 'CORE' },
     { icon: '\u{1F4CA}', title: '\u52A8\u6001\u5E02\u573A', desc: '\u4F9B\u9700\u9A71\u52A8\u5B9E\u65F6\u7ECF\u6D4E\uFF0C\u6BCF\u7B14\u4EA4\u6613\u5F71\u54CD\u5168\u5C40\u4EF7\u683C', tag: 'ECONOMY' },
@@ -282,19 +312,49 @@ const Home = () => {
                 {countdownExpired ? t('内测已开启') : t('内测倒计时')}
               </div>
               {!countdownExpired ? (
-                <div className='cy-countdown-row'>
-                  {[
-                    { v: pad(countdown.d), l: t('天') },
-                    { v: pad(countdown.h), l: t('时') },
-                    { v: pad(countdown.m), l: t('分') },
-                    { v: pad(countdown.s), l: t('秒') },
-                  ].map((c, i) => (
-                    <div key={i} className='cy-cd-cell'>
-                      <span className='cy-cd-num'>{c.v}</span>
-                      <span className='cy-cd-unit'>{c.l}</span>
+                <>
+                  <div className='cy-countdown-row'>
+                    {[
+                      { v: pad(countdown.d), l: t('天') },
+                      { v: pad(countdown.h), l: t('时') },
+                      { v: pad(countdown.m), l: t('分') },
+                      { v: pad(countdown.s), l: t('秒') },
+                    ].map((c, i) => (
+                      <div key={i} className='cy-cd-cell'>
+                        <span className='cy-cd-num'>{c.v}</span>
+                        <span className='cy-cd-unit'>{c.l}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Beta reservation */}
+                  {betaEnabled && (
+                    <div className='cy-beta-reserve'>
+                      <div className='cy-beta-slots'>
+                        <span className='cy-beta-slots-num'>{betaInfo?.total_reserved ?? 0}</span>
+                        <span className='cy-beta-slots-sep'>/</span>
+                        <span className='cy-beta-slots-max'>{betaMaxSlots}</span>
+                        <span className='cy-beta-slots-label'>{t('已预约')}</span>
+                      </div>
+                      {betaInfo?.reserved ? (
+                        <div className='cy-beta-done'>
+                          <span className='cy-beta-check'>✓</span>
+                          {t('已预约')} · {t('排名')} #{betaInfo.rank}
+                        </div>
+                      ) : (
+                        <button
+                          className='cy-btn cy-btn-gold'
+                          onClick={handleReserve}
+                          disabled={reserving || (betaInfo?.slots_remaining !== undefined && betaInfo.slots_remaining <= 0)}
+                        >
+                          {reserving ? t('预约中...') : t('预约内测资格')}
+                        </button>
+                      )}
+                      {betaInfo?.slots_remaining !== undefined && betaInfo.slots_remaining <= 0 && !betaInfo?.reserved && (
+                        <div className='cy-beta-full'>{t('名额已满')}</div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               ) : (
                 <div style={{ textAlign: 'center' }}>
                   <Link to='/farm'>

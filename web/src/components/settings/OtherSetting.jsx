@@ -51,6 +51,9 @@ const OtherSetting = () => {
     HomePageContent: '',
     HomeAdHtml: '',
     FarmCountdownDate: '',
+    FarmBetaEnabled: 'false',
+    FarmBetaMaxSlots: '100',
+    FarmBetaAdminBypass: 'true',
     CheckinLeaderboardLimit: '',
   });
   let [loading, setLoading] = useState(false);
@@ -85,6 +88,9 @@ const OtherSetting = () => {
     HomePageContent: false,
     HomeAdHtml: false,
     FarmCountdownDate: false,
+    FarmBetaEnabled: false,
+    FarmBetaMaxSlots: false,
+    FarmBetaAdminBypass: false,
     CheckinLeaderboardLimit: false,
     About: false,
     Footer: false,
@@ -511,6 +517,61 @@ const OtherSetting = () => {
                   >
                     {t('清除')}
                   </Button>
+                </div>
+              </Form.Slot>
+              <Form.Slot label={t('农场内测系统')}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type='checkbox'
+                        checked={inputs.FarmBetaEnabled === 'true'}
+                        onChange={(e) => setInputs((prev) => ({ ...prev, FarmBetaEnabled: e.target.checked ? 'true' : 'false' }))}
+                      />
+                      {t('启用内测模式')}
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type='checkbox'
+                        checked={inputs.FarmBetaAdminBypass === 'true'}
+                        onChange={(e) => setInputs((prev) => ({ ...prev, FarmBetaAdminBypass: e.target.checked ? 'true' : 'false' }))}
+                      />
+                      {t('管理员绕过内测限制')}
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{t('最大预约名额')}:</span>
+                    <input
+                      type='number'
+                      value={inputs.FarmBetaMaxSlots}
+                      onChange={(e) => setInputs((prev) => ({ ...prev, FarmBetaMaxSlots: e.target.value }))}
+                      style={{ width: 100, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--semi-color-border)', background: 'var(--semi-color-bg-1)', color: 'var(--semi-color-text-0)' }}
+                      min={0}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      onClick={async () => {
+                        setLoadingInput((prev) => ({ ...prev, FarmBetaEnabled: true }));
+                        try {
+                          await updateOption('FarmBetaEnabled', inputs.FarmBetaEnabled);
+                          await updateOption('FarmBetaMaxSlots', inputs.FarmBetaMaxSlots);
+                          await updateOption('FarmBetaAdminBypass', inputs.FarmBetaAdminBypass);
+                          showSuccess(t('设置已更新'));
+                        } catch (e) {
+                          showError(t('设置更新失败'));
+                        } finally {
+                          setLoadingInput((prev) => ({ ...prev, FarmBetaEnabled: false }));
+                        }
+                      }}
+                      loading={loadingInput['FarmBetaEnabled']}
+                    >
+                      {t('保存内测设置')}
+                    </Button>
+                  </div>
+                  <Text type='tertiary' size='small'>
+                    {t('开启内测模式后，农场将在倒计时结束前关闭。到达目标时间后，仅有预约且排名在名额内的用户可以访问农场。管理员绕过选项可让管理员在内测期间自由测试。')}
+                  </Text>
                 </div>
               </Form.Slot>
               <Form.Input
