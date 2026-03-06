@@ -16,6 +16,7 @@ import (
 
 type weatherState struct {
 	Type      int    `json:"type"`
+	TypeKey   string `json:"type_key"`
 	Name      string `json:"name"`
 	Emoji     string `json:"emoji"`
 	Effects   string `json:"effects"`
@@ -28,17 +29,47 @@ var (
 	weatherMu      sync.RWMutex
 )
 
-var weatherTypes = []struct {
-	Type   int
-	Name   string
-	Emoji  string
-	Effect string
+type weatherDef struct {
+	Type    int
+	TypeKey string // frontend 3D view uses this key
+	Name    string
+	Emoji   string
+	Effect  string
+}
+
+// 0=春 1=夏 2=秋 3=冬 各季节可用天气及权重
+var seasonWeatherPool = map[int][]struct {
+	Def    weatherDef
+	Weight int
 }{
-	{0, "晴天", "☀️", "作物生长加速20%"},
-	{1, "雨天", "🌧️", "自动浇水所有地块"},
-	{2, "暴风雨", "⛈️", "事件概率+50%，小心！"},
-	{3, "大雾", "🌫️", "偷菜成功率+30%"},
-	{4, "下雪", "❄️", "作物生长减速30%（仅冬季）"},
+	0: { // 春：多雨温和
+		{weatherDef{0, "sunny", "晴天", "☀️", "作物生长加速20%"}, 30},
+		{weatherDef{1, "rainy", "春雨", "🌧️", "自动浇水所有地块"}, 35},
+		{weatherDef{2, "stormy", "雷阵雨", "⛈️", "事件概率+50%，小心！"}, 15},
+		{weatherDef{3, "foggy", "薄雾", "🌫️", "偷菜成功率+30%"}, 15},
+		{weatherDef{5, "windy", "微风", "🍃", "作物生长加速10%"}, 5},
+	},
+	1: { // 夏：炎热多晴，可暴风雨，绝不下雪
+		{weatherDef{0, "sunny", "烈日", "☀️", "作物生长加速20%"}, 40},
+		{weatherDef{1, "rainy", "阵雨", "🌧️", "自动浇水所有地块"}, 20},
+		{weatherDef{2, "stormy", "暴风雨", "⛈️", "事件概率+50%，小心！"}, 15},
+		{weatherDef{6, "hot", "酷暑", "🔥", "作物需水量增加，注意浇水"}, 20},
+		{weatherDef{5, "windy", "微风", "🍃", "作物生长加速10%"}, 5},
+	},
+	2: { // 秋：多雾多风，偶尔雨
+		{weatherDef{0, "sunny", "晴天", "☀️", "作物生长加速20%"}, 25},
+		{weatherDef{1, "rainy", "秋雨", "🌧️", "自动浇水所有地块"}, 20},
+		{weatherDef{3, "foggy", "浓雾", "🌫️", "偷菜成功率+30%"}, 25},
+		{weatherDef{5, "windy", "秋风", "🍂", "作物生长加速10%"}, 20},
+		{weatherDef{2, "stormy", "暴风雨", "⛈️", "事件概率+50%，小心！"}, 10},
+	},
+	3: { // 冬：下雪为主，寒冷
+		{weatherDef{4, "snowy", "大雪", "❄️", "作物生长减速30%"}, 35},
+		{weatherDef{7, "snowy", "小雪", "🌨️", "作物生长减速15%"}, 25},
+		{weatherDef{0, "sunny", "冬日暖阳", "☀️", "作物生长加速20%"}, 10},
+		{weatherDef{3, "foggy", "寒雾", "🌫️", "偷菜成功率+30%"}, 15},
+		{weatherDef{8, "cold", "寒潮", "🥶", "事件概率+30%，作物生长减速20%"}, 15},
+	},
 }
 
 func initWeather() {
@@ -54,42 +85,34 @@ func pickNewWeather() {
 	duration := minD + rand.Int63n(maxD-minD+1)
 
 	season := getCurrentSeasonIndex()
-	weights := []int{30, 25, 15, 15, 15}
-	if season == 3 {
-		weights = []int{10, 15, 10, 25, 40}
-	} else if season == 1 {
-		weights = []int{45, 15, 15, 15, 10}
+	pool, ok := seasonWeatherPool[season]
+	if !ok {
+		pool = seasonWeatherPool[0]
 	}
 
 	total := 0
-	for _, w := range weights {
-		total += w
+	for _, entry := range pool {
+		total += entry.Weight
 	}
 	r := rand.Intn(total)
-	idx := 0
 	acc := 0
-	for i, w := range weights {
-		acc += w
+	chosen := pool[0].Def
+	for _, entry := range pool {
+		acc += entry.Weight
 		if r < acc {
-			idx = i
+			chosen = entry.Def
 			break
 		}
 	}
 
-	wt := weatherTypes[idx]
 	currentWeather = weatherState{
-		Type: wt.Type, Name: wt.Name, Emoji: wt.Emoji,
-		Effects: wt.Effect, StartedAt: now, EndsAt: now + duration,
+		Type: chosen.Type, TypeKey: chosen.TypeKey, Name: chosen.Name, Emoji: chosen.Emoji,
+		Effects: chosen.Effect, StartedAt: now, EndsAt: now + duration,
 	}
 }
 
 func getCurrentSeasonIndex() int {
-	daysSinceEpoch := int(time.Now().Unix() / 86400)
-	seasonLen := common.TgBotFarmSeasonDays
-	if seasonLen <= 0 {
-		seasonLen = 7
-	}
-	return (daysSinceEpoch / seasonLen) % 4
+	return getCurrentSeason()
 }
 
 func RefreshWeatherIfNeeded() {

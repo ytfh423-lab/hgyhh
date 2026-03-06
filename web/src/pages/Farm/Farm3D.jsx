@@ -891,8 +891,14 @@ const WeatherLighting = ({ weatherType }) => {
   if (weatherType === 'sunny') {
     return <pointLight position={[0, 10, 0]} intensity={0.5} color='#fef08a' />;
   }
+  if (weatherType === 'hot') {
+    return <pointLight position={[0, 10, 0]} intensity={0.7} color='#fbbf24' />;
+  }
   if (weatherType === 'stormy' || weatherType === 'rainy') {
     return <pointLight position={[0, 10, 0]} intensity={0.1} color='#94a3b8' />;
+  }
+  if (weatherType === 'cold') {
+    return <pointLight position={[0, 10, 0]} intensity={0.15} color='#a5b4fc' />;
   }
   return null;
 };
@@ -905,6 +911,8 @@ const getWeatherSkyColor = (weatherType) => {
     case 'snowy': return '#cbd5e1';
     case 'foggy': return '#d1d5db';
     case 'windy': return '#a5f3fc';
+    case 'hot': return '#fcd34d';
+    case 'cold': return '#a5b4fc';
     default: return '#e0f2fe';
   }
 };
@@ -917,6 +925,8 @@ const getWeatherBgGradient = (weatherType) => {
     case 'snowy': return 'linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 40%, #f8fafc 100%)';
     case 'foggy': return 'linear-gradient(180deg, #d1d5db 0%, #e5e7eb 40%, #f3f4f6 100%)';
     case 'windy': return 'linear-gradient(180deg, #a5f3fc 0%, #cffafe 40%, #dcfce7 100%)';
+    case 'hot': return 'linear-gradient(180deg, #fbbf24 0%, #fcd34d 40%, #fef3c7 100%)';
+    case 'cold': return 'linear-gradient(180deg, #818cf8 0%, #a5b4fc 40%, #c7d2fe 100%)';
     default: return 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)';
   }
 };
@@ -925,7 +935,7 @@ const getWeatherBgGradient = (weatherType) => {
 const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotIndex }) => {
   const plots = farmData?.plots || [];
   const totalPlots = plots.length;
-  const weatherType = farmData?.weather?.type || 'clear';
+  const weatherType = farmData?.weather?.type_key || 'clear';
 
   const handlePlotAction = (action, plotIndex) => {
     if (action === 'water') doAction('/api/farm/water', { plot_index: plotIndex });

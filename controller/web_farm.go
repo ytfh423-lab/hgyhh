@@ -233,13 +233,13 @@ func WebFarmView(c *gin.Context) {
 				"5": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice5),
 			},
 			"user_level": model.GetFarmLevel(tgId),
-			"weather": func() gin.H {
-				w := GetCurrentWeather()
-				return gin.H{
-					"type": w.Type, "name": w.Name, "emoji": w.Emoji,
-					"effects": w.Effects, "ends_in": w.EndsAt - time.Now().Unix(),
-				}
-			}(),
+		"weather": func() gin.H {
+			w := GetCurrentWeather()
+			return gin.H{
+				"type": w.Type, "type_key": w.TypeKey, "name": w.Name, "emoji": w.Emoji,
+				"effects": w.Effects, "ends_in": w.EndsAt - time.Now().Unix(),
+			}
+		}(),
 			"prestige_level": model.GetPrestigeLevel(tgId),
 			"prestige_bonus": model.GetPrestigeLevel(tgId) * common.TgBotFarmPrestigeBonusPerLevel,
 		},
