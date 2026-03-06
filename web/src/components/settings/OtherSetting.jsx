@@ -22,6 +22,7 @@ import {
   Banner,
   Button,
   Col,
+  DatePicker,
   Form,
   Row,
   Modal,
@@ -49,6 +50,7 @@ const OtherSetting = () => {
     About: '',
     HomePageContent: '',
     HomeAdHtml: '',
+    FarmCountdownDate: '',
     CheckinLeaderboardLimit: '',
   });
   let [loading, setLoading] = useState(false);
@@ -82,6 +84,7 @@ const OtherSetting = () => {
     Logo: false,
     HomePageContent: false,
     HomeAdHtml: false,
+    FarmCountdownDate: false,
     CheckinLeaderboardLimit: false,
     About: false,
     Footer: false,
@@ -480,6 +483,36 @@ const OtherSetting = () => {
               >
                 {t('设置首页广告')}
               </Button>
+              <Form.Slot label={t('农场内测倒计时目标日期')}>
+                <DatePicker
+                  type='dateTime'
+                  value={inputs.FarmCountdownDate ? new Date(inputs.FarmCountdownDate) : null}
+                  onChange={(date) => {
+                    const iso = date ? date.toISOString() : '';
+                    setInputs((prev) => ({ ...prev, FarmCountdownDate: iso }));
+                  }}
+                  placeholder={t('选择倒计时目标日期，留空则默认 30 天后')}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                  <Button
+                    onClick={() => submitOption('FarmCountdownDate')}
+                    loading={loadingInput['FarmCountdownDate']}
+                  >
+                    {t('设置倒计时日期')}
+                  </Button>
+                  <Button
+                    type='warning'
+                    onClick={async () => {
+                      setInputs((prev) => ({ ...prev, FarmCountdownDate: '' }));
+                      await updateOption('FarmCountdownDate', '');
+                      showSuccess(t('设置已更新'));
+                    }}
+                  >
+                    {t('清除')}
+                  </Button>
+                </div>
+              </Form.Slot>
               <Form.Input
                 label={t('排行榜显示人数')}
                 placeholder={t('设置签到排行榜显示前多少名，默认 100')}

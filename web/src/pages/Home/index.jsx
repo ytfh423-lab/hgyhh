@@ -44,11 +44,17 @@ const Home = () => {
   const [visibleSections, setVisibleSections] = useState(new Set());
 
   const targetDate = useMemo(() => {
+    const raw = statusState?.status?.farm_countdown_date;
+    if (raw) {
+      const parsed = new Date(raw);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
     const d = new Date();
     d.setDate(d.getDate() + 30);
     return d;
-  }, []);
+  }, [statusState?.status?.farm_countdown_date]);
   const [countdown, setCountdown] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const countdownExpired = targetDate <= Date.now();
 
   useEffect(() => {
     const tick = () => {
@@ -272,20 +278,30 @@ const Home = () => {
 
             {/* Countdown */}
             <div className='cy-countdown'>
-              <div className='cy-countdown-label'>{t('内测倒计时')}</div>
-              <div className='cy-countdown-row'>
-                {[
-                  { v: pad(countdown.d), l: t('天') },
-                  { v: pad(countdown.h), l: t('时') },
-                  { v: pad(countdown.m), l: t('分') },
-                  { v: pad(countdown.s), l: t('秒') },
-                ].map((c, i) => (
-                  <div key={i} className='cy-cd-cell'>
-                    <span className='cy-cd-num'>{c.v}</span>
-                    <span className='cy-cd-unit'>{c.l}</span>
-                  </div>
-                ))}
+              <div className='cy-countdown-label'>
+                {countdownExpired ? t('内测已开启') : t('内测倒计时')}
               </div>
+              {!countdownExpired ? (
+                <div className='cy-countdown-row'>
+                  {[
+                    { v: pad(countdown.d), l: t('天') },
+                    { v: pad(countdown.h), l: t('时') },
+                    { v: pad(countdown.m), l: t('分') },
+                    { v: pad(countdown.s), l: t('秒') },
+                  ].map((c, i) => (
+                    <div key={i} className='cy-cd-cell'>
+                      <span className='cy-cd-num'>{c.v}</span>
+                      <span className='cy-cd-unit'>{c.l}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <Link to='/farm'>
+                    <button className='cy-btn cy-btn-gold cy-btn-lg'>🌾 {t('立即进入农场')}</button>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Glass cards */}

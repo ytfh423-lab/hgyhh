@@ -119,6 +119,7 @@ func GetStatus(c *gin.Context) {
 		"invitation_code_enabled":     operation_setting.IsInvitationCodeEnabled(),
 		"invitation_code_min_days":    operation_setting.GetInvitationCodeMinDays(),
 		"home_ad_html":                common.OptionMap["HomeAdHtml"],
+		"farm_countdown_date":          common.OptionMap["FarmCountdownDate"],
 		"_qn":                         "new-api",
 	}
 
