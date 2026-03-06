@@ -221,11 +221,13 @@ const Farm = () => {
 
   return (
     <div className='farm-layout'>
-      <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} />
+      <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} />
       <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
         <StatusBar farmData={farmData} t={t} />
         <div className='farm-content'>
-          {renderPage()}
+          <div className='farm-content-inner'>
+            {renderPage()}
+          </div>
         </div>
       </div>
       <MobileBottomNav

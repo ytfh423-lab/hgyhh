@@ -4,6 +4,8 @@ import { formatBalance } from './utils';
 const StatusBar = ({ farmData, t }) => {
   if (!farmData) return null;
 
+  const hasExtra = farmData.prestige_level > 0 || farmData.dog || (farmData.items && farmData.items.length > 0);
+
   return (
     <div className='farm-statusbar'>
       <div className='farm-pill farm-pill-green'>
@@ -11,11 +13,11 @@ const StatusBar = ({ farmData, t }) => {
         <span>{formatBalance(farmData.balance)}</span>
       </div>
       <div className='farm-pill farm-pill-blue'>
-        <span>🌾</span>
+        <span>⭐</span>
         <span>Lv.{farmData.user_level || 1}</span>
       </div>
       <div className='farm-pill'>
-        <span>📊</span>
+        <span>🌾</span>
         <span>{farmData.plot_count}/{farmData.max_plots}</span>
       </div>
       {farmData.weather && (
@@ -24,6 +26,7 @@ const StatusBar = ({ farmData, t }) => {
           <span>{farmData.weather.name}</span>
         </div>
       )}
+      {hasExtra && <div className='farm-stat-sep' />}
       {farmData.prestige_level > 0 && (
         <div className='farm-pill farm-pill-purple'>
           <span>🔄</span>

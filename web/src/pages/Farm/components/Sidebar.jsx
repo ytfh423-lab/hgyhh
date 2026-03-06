@@ -62,7 +62,7 @@ const navGroups = [
 
 export { navGroups };
 
-const Sidebar = ({ activeKey, onNavigate, t }) => {
+const Sidebar = ({ activeKey, onNavigate, t, farmData }) => {
   const [collapsed, setCollapsed] = useState({});
 
   const toggle = (groupKey) => {
@@ -71,25 +71,39 @@ const Sidebar = ({ activeKey, onNavigate, t }) => {
 
   return (
     <nav className='farm-sidebar'>
-      {navGroups.map((group) => (
-        <div key={group.key} className='farm-nav-group'>
-          <div className='farm-nav-header' onClick={() => toggle(group.key)}>
-            <span>{group.emoji}</span>
-            <span>{t(group.label)}</span>
-            <ChevronRight size={12} className={`chevron ${collapsed[group.key] ? '' : 'open'}`} />
-          </div>
-          {!collapsed[group.key] && group.items.map((item) => (
-            <div
-              key={item.key}
-              className={`farm-nav-item ${activeKey === item.key ? 'active' : ''}`}
-              onClick={() => onNavigate(item.key)}
-            >
-              <span style={{ fontSize: 14 }}>{item.emoji}</span>
-              <span>{t(item.label)}</span>
+      <div className='farm-sidebar-header'>
+        <div className='farm-sidebar-brand' onClick={() => onNavigate('overview')}>
+          <div className='farm-sidebar-logo'>🌾</div>
+          <div>
+            <div className='farm-sidebar-title'>{t('我的农场')}</div>
+            <div className='farm-sidebar-subtitle'>
+              {farmData ? `Lv.${farmData.user_level || 1}` : ''}
+              {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
             </div>
-          ))}
+          </div>
         </div>
-      ))}
+      </div>
+      <div className='farm-sidebar-nav'>
+        {navGroups.map((group) => (
+          <div key={group.key} className='farm-nav-group'>
+            <div className='farm-nav-header' onClick={() => toggle(group.key)}>
+              <span>{group.emoji}</span>
+              <span>{t(group.label)}</span>
+              <ChevronRight size={12} className={`chevron ${collapsed[group.key] ? '' : 'open'}`} />
+            </div>
+            {!collapsed[group.key] && group.items.map((item) => (
+              <div
+                key={item.key}
+                className={`farm-nav-item ${activeKey === item.key ? 'active' : ''}`}
+                onClick={() => onNavigate(item.key)}
+              >
+                <span style={{ fontSize: 15 }}>{item.emoji}</span>
+                <span>{t(item.label)}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </nav>
   );
 };

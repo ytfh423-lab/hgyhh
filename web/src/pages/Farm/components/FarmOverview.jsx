@@ -33,48 +33,49 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
   return (
     <div>
       {/* Action Bar */}
-      <div className='farm-card' style={{ padding: '10px 16px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
-          <Button size='small' icon={viewMode === '3d' ? <List size={12} /> : <Box size={12} />}
+      <div className='farm-card farm-toolbar'>
+        <div className='farm-toolbar-left'>
+          <Button size='small' icon={viewMode === '3d' ? <List size={14} /> : <Box size={14} />}
             theme='borderless' onClick={() => setViewMode(viewMode === '3d' ? 'list' : '3d')}
-            className='farm-btn'>
+            className='farm-btn' style={{ fontWeight: 600 }}>
             {viewMode === '3d' ? t('列表') : '3D'}
           </Button>
-          <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadFarm} loading={loading} className='farm-btn' />
+          <Button size='small' icon={<RefreshCw size={14} />} theme='borderless' onClick={loadFarm} loading={loading} className='farm-btn' />
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className='farm-toolbar-right'>
           {matureCount > 0 && (
             <>
-              <Button size='small' icon={<Wheat size={12} />} theme='solid'
+              <Button size='small' icon={<Wheat size={14} />} theme='solid'
                 style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
                 onClick={handleHarvest} loading={actionLoading} className='farm-btn'>
-                {t('收获出售')}({matureCount})
+                {t('收获出售')} ({matureCount})
               </Button>
-              <Button size='small' icon={<Package size={12} />} theme='solid'
+              <Button size='small' icon={<Package size={14} />} theme='solid'
                 style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
                 onClick={handleHarvestStore} loading={actionLoading} className='farm-btn'>
                 {t('收获入仓')}
               </Button>
+              <div className='farm-toolbar-sep' />
             </>
           )}
           {needsWaterCount > 0 && (
-            <Button size='small' icon={<Droplets size={12} />} theme='light' onClick={handleWaterAll}
+            <Button size='small' icon={<Droplets size={14} />} theme='light' onClick={handleWaterAll}
               loading={actionLoading} className='farm-btn'
               style={{ color: '#0284c7', borderColor: 'rgba(56,189,248,0.4)' }}>
-              💧 {t('全部浇水')}({needsWaterCount})
+              💧 {t('全部浇水')} ({needsWaterCount})
             </Button>
           )}
           {canFertilizeCount > 0 && (
-            <Button size='small' icon={<FlaskConical size={12} />} theme='light' onClick={handleFertilizeAll}
+            <Button size='small' icon={<FlaskConical size={14} />} theme='light' onClick={handleFertilizeAll}
               loading={actionLoading} className='farm-btn'
               style={{ color: '#059669', borderColor: 'rgba(52,211,153,0.4)' }}>
-              🧪 {t('全部施肥')}({canFertilizeCount})
+              🧪 {t('全部施肥')} ({canFertilizeCount})
             </Button>
           )}
           {farmData.plot_count < farmData.max_plots && (
-            <Button size='small' icon={<LandPlot size={12} />} theme='light' onClick={handleBuyLand}
+            <Button size='small' icon={<LandPlot size={14} />} theme='light' onClick={handleBuyLand}
               loading={actionLoading} className='farm-btn'>
-              {t('买地')}({formatBalance(farmData.plot_price)})
+              {t('买地')} ({formatBalance(farmData.plot_price)})
             </Button>
           )}
         </div>
@@ -82,13 +83,11 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
 
       {/* 3D View */}
       {viewMode === '3d' && (
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 16 }}>
           <Suspense fallback={
-            <div style={{
-              width: '100%', height: 'min(500px, 60vh)', borderRadius: 16, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
+            <div className='farm-canvas-wrap' style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)',
-              border: '1px solid var(--farm-glass-border)',
             }}>
               <Spin size='large' />
             </div>
@@ -101,7 +100,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
               setSelectedPlotIndex={setSelectedPlotIndex}
             />
           </Suspense>
-          <div style={{ textAlign: 'center', marginTop: 6 }}>
+          <div style={{ textAlign: 'center', marginTop: 8, opacity: 0.5 }}>
             <Text type='tertiary' size='small'>🖱️ {t('拖拽旋转 · 滚轮缩放 · 点击地块查看详情')}</Text>
           </div>
         </div>
@@ -109,12 +108,12 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 16 }}>
           {activePlots.length > 0 && (
             <div className='farm-grid farm-grid-2'>
               {activePlots.map((plot) => (
                 <div key={plot.plot_index} className='farm-card' style={{
-                  marginBottom: 0, padding: '12px 14px',
+                  marginBottom: 0, padding: '14px 16px',
                   borderColor: plot.status === 3 || plot.status === 4 ? 'rgba(239,68,68,0.4)' : plot.status === 2 ? 'rgba(34,197,94,0.4)' : undefined,
                   boxShadow: plot.status === 2 ? 'var(--farm-shadow), var(--farm-glow-green)' : undefined,
                 }}>
