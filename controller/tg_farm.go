@@ -731,6 +731,47 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		plotStr := strings.TrimPrefix(data, "farm_su_")
 		plotIdx, _ := strconv.Atoi(plotStr)
 		doFarmSoilUpgrade(chatId, msgId, tgId, plotIdx, from)
+	// ===== 新功能回调 =====
+	case data == "farm_ency":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockEncyclopedia, "图鉴", chatId, msgId, from) { return }
+		showFarmEncyclopedia(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_eclaim_"):
+		cat := strings.TrimPrefix(data, "farm_eclaim_")
+		doFarmClaimCollection(chatId, msgId, tgId, cat, from)
+	case data == "farm_rank":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockLeaderboard, "排行", chatId, msgId, from) { return }
+		showFarmLeaderboard(chatId, msgId, tgId, "balance", from)
+	case strings.HasPrefix(data, "farm_rank_"):
+		boardType := strings.TrimPrefix(data, "farm_rank_")
+		showFarmLeaderboard(chatId, msgId, tgId, boardType, from)
+	case data == "farm_trade":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockTrading, "交易", chatId, msgId, from) { return }
+		showFarmTradeMarket(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_tbuy_"):
+		tradeIdStr := strings.TrimPrefix(data, "farm_tbuy_")
+		tradeId, _ := strconv.Atoi(tradeIdStr)
+		doFarmTradeBuy(chatId, msgId, tgId, tradeId, from)
+	case strings.HasPrefix(data, "farm_tcancel_"):
+		tradeIdStr := strings.TrimPrefix(data, "farm_tcancel_")
+		tradeId, _ := strconv.Atoi(tradeIdStr)
+		doFarmTradeCancel(chatId, msgId, tgId, tradeId, from)
+	case data == "farm_game":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockGames, "游戏", chatId, msgId, from) { return }
+		showFarmGames(chatId, msgId, tgId, from)
+	case data == "farm_wheel":
+		doFarmWheel(chatId, msgId, tgId, from)
+	case data == "farm_scratch":
+		doFarmScratch(chatId, msgId, tgId, from)
+	case data == "farm_auto":
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockAutomation, "自动化", chatId, msgId, from) { return }
+		showFarmAutomation(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_abuy_"):
+		autoType := strings.TrimPrefix(data, "farm_abuy_")
+		doFarmBuyAutomation(chatId, msgId, tgId, autoType, from)
+	case data == "farm_prestige":
+		showFarmPrestige(chatId, msgId, tgId, from)
+	case data == "farm_doprestige":
+		doFarmPrestige(chatId, msgId, tgId, from)
 	case strings.HasPrefix(data, "ranch"):
 		if data == "ranch" {
 			if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockRanch, "牧场", chatId, msgId, from) { return }
@@ -797,6 +838,20 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			}
 		}
 		text += "\n"
+	}
+
+	// 天气
+	w := GetCurrentWeather()
+	text += fmt.Sprintf("\n%s 天气: %s", w.Emoji, w.Name)
+	if w.Effects != "" {
+		text += " (" + w.Effects + ")"
+	}
+	text += "\n"
+
+	// 转生
+	prestigeLv := model.GetPrestigeLevel(tgId)
+	if prestigeLv > 0 {
+		text += fmt.Sprintf("🔄 转生: P%d (+%d%%收入加成)\n", prestigeLv, prestigeLv*common.TgBotFarmPrestigeBonusPerLevel)
 	}
 
 	// 显示地块数量
@@ -884,6 +939,18 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("🏦 银行", common.TgBotFarmBankUnlockLevel), CallbackData: "farm_bank"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: lockTag("📖 图鉴", common.TgBotFarmUnlockEncyclopedia), CallbackData: "farm_ency"},
+		{Text: lockTag("🏅 排行", common.TgBotFarmUnlockLeaderboard), CallbackData: "farm_rank"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: lockTag("🔄 交易", common.TgBotFarmUnlockTrading), CallbackData: "farm_trade"},
+		{Text: lockTag("🎮 游戏", common.TgBotFarmUnlockGames), CallbackData: "farm_game"},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: lockTag("⚡ 自动化", common.TgBotFarmUnlockAutomation), CallbackData: "farm_auto"},
+		{Text: "🔄 转生", CallbackData: "farm_prestige"},
 	})
 	if userLevel < common.TgBotFarmMaxLevel {
 		price := getLevelUpPrice(userLevel)
