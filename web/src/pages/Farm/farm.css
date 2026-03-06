@@ -157,6 +157,12 @@
   scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
+.farm-sidebar-footer {
+  flex-shrink: 0;
+  padding: 8px 10px 12px;
+  border-top: 1px solid var(--farm-sb-border);
+}
+
 /* -- Main Area -- */
 
 .farm-main {

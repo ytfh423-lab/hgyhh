@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { getLogo } from '../../../helpers';
 
 const navGroups = [
   {
@@ -64,6 +66,7 @@ export { navGroups };
 
 const Sidebar = ({ activeKey, onNavigate, t, farmData }) => {
   const [collapsed, setCollapsed] = useState({});
+  const navigate = useNavigate();
 
   const toggle = (groupKey) => {
     setCollapsed(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -73,9 +76,9 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData }) => {
     <nav className='farm-sidebar'>
       <div className='farm-sidebar-header'>
         <div className='farm-sidebar-brand' onClick={() => onNavigate('overview')}>
-          <div className='farm-sidebar-logo'>🌾</div>
+          <img src={getLogo()} alt='logo' className='farm-sidebar-logo' style={{ objectFit: 'contain' }} />
           <div>
-            <div className='farm-sidebar-title'>{t('我的农场')}</div>
+            <div className='farm-sidebar-title'>NPC {t('农场')}</div>
             <div className='farm-sidebar-subtitle'>
               {farmData ? `Lv.${farmData.user_level || 1}` : ''}
               {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
@@ -103,6 +106,12 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData }) => {
             ))}
           </div>
         ))}
+      </div>
+      <div className='farm-sidebar-footer'>
+        <div className='farm-nav-item' onClick={() => navigate('/')} style={{ paddingLeft: 14 }}>
+          <ArrowLeft size={14} style={{ color: 'var(--farm-sb-text-dim)' }} />
+          <span>{t('返回控制台')}</span>
+        </div>
       </div>
     </nav>
   );
