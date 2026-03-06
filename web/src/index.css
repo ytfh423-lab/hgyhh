@@ -1680,6 +1680,13 @@ html:not(.dark) .npc-feature-card::after {
   padding: 0 24px 40px;
 }
 
+/* --- Hero countdown --- */
+.cy-countdown-hero {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(251, 191, 36, 0.1);
+}
+
 /* --- Beta reservation --- */
 .cy-beta-reserve {
   margin-top: 28px;

@@ -284,6 +284,63 @@ const Home = () => {
                   <button className='cy-btn cy-btn-outline'>🌾 {t('探索农场')}</button>
                 </Link>
               </div>
+
+              {/* Countdown + Reservation — directly in hero */}
+              <div className='cy-countdown cy-countdown-hero'>
+                <div className='cy-countdown-label'>
+                  {countdownExpired ? t('内测已开启') : t('NPC 农场 · 内测倒计时')}
+                </div>
+                {!countdownExpired ? (
+                  <>
+                    <div className='cy-countdown-row'>
+                      {[
+                        { v: pad(countdown.d), l: t('天') },
+                        { v: pad(countdown.h), l: t('时') },
+                        { v: pad(countdown.m), l: t('分') },
+                        { v: pad(countdown.s), l: t('秒') },
+                      ].map((c, i) => (
+                        <div key={i} className='cy-cd-cell'>
+                          <span className='cy-cd-num'>{c.v}</span>
+                          <span className='cy-cd-unit'>{c.l}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {betaEnabled && (
+                      <div className='cy-beta-reserve'>
+                        <div className='cy-beta-slots'>
+                          <span className='cy-beta-slots-num'>{betaInfo?.total_reserved ?? 0}</span>
+                          <span className='cy-beta-slots-sep'>/</span>
+                          <span className='cy-beta-slots-max'>{betaMaxSlots}</span>
+                          <span className='cy-beta-slots-label'>{t('已预约')}</span>
+                        </div>
+                        {betaInfo?.reserved ? (
+                          <div className='cy-beta-done'>
+                            <span className='cy-beta-check'>✓</span>
+                            {t('已预约')} · {t('排名')} #{betaInfo.rank}
+                          </div>
+                        ) : (
+                          <button
+                            className='cy-btn cy-btn-gold'
+                            onClick={handleReserve}
+                            disabled={reserving || (betaInfo?.slots_remaining !== undefined && betaInfo.slots_remaining <= 0)}
+                          >
+                            {reserving ? t('预约中...') : t('🔥 预约内测资格')}
+                          </button>
+                        )}
+                        {betaInfo?.slots_remaining !== undefined && betaInfo.slots_remaining <= 0 && !betaInfo?.reserved && (
+                          <div className='cy-beta-full'>{t('名额已满')}</div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center' }}>
+                    <Link to='/farm'>
+                      <button className='cy-btn cy-btn-gold cy-btn-lg'>🌾 {t('立即进入农场')}</button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
@@ -304,64 +361,6 @@ const Home = () => {
               <div className='cy-gold-line' />
               <h2 className='cy-section-title'>NPC {t('农场')}</h2>
               <p className='cy-section-sub'>{t('重新定义公益与数字农场的结合')}</p>
-            </div>
-
-            {/* Countdown */}
-            <div className='cy-countdown'>
-              <div className='cy-countdown-label'>
-                {countdownExpired ? t('内测已开启') : t('内测倒计时')}
-              </div>
-              {!countdownExpired ? (
-                <>
-                  <div className='cy-countdown-row'>
-                    {[
-                      { v: pad(countdown.d), l: t('天') },
-                      { v: pad(countdown.h), l: t('时') },
-                      { v: pad(countdown.m), l: t('分') },
-                      { v: pad(countdown.s), l: t('秒') },
-                    ].map((c, i) => (
-                      <div key={i} className='cy-cd-cell'>
-                        <span className='cy-cd-num'>{c.v}</span>
-                        <span className='cy-cd-unit'>{c.l}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Beta reservation */}
-                  {betaEnabled && (
-                    <div className='cy-beta-reserve'>
-                      <div className='cy-beta-slots'>
-                        <span className='cy-beta-slots-num'>{betaInfo?.total_reserved ?? 0}</span>
-                        <span className='cy-beta-slots-sep'>/</span>
-                        <span className='cy-beta-slots-max'>{betaMaxSlots}</span>
-                        <span className='cy-beta-slots-label'>{t('已预约')}</span>
-                      </div>
-                      {betaInfo?.reserved ? (
-                        <div className='cy-beta-done'>
-                          <span className='cy-beta-check'>✓</span>
-                          {t('已预约')} · {t('排名')} #{betaInfo.rank}
-                        </div>
-                      ) : (
-                        <button
-                          className='cy-btn cy-btn-gold'
-                          onClick={handleReserve}
-                          disabled={reserving || (betaInfo?.slots_remaining !== undefined && betaInfo.slots_remaining <= 0)}
-                        >
-                          {reserving ? t('预约中...') : t('预约内测资格')}
-                        </button>
-                      )}
-                      {betaInfo?.slots_remaining !== undefined && betaInfo.slots_remaining <= 0 && !betaInfo?.reserved && (
-                        <div className='cy-beta-full'>{t('名额已满')}</div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ textAlign: 'center' }}>
-                  <Link to='/farm'>
-                    <button className='cy-btn cy-btn-gold cy-btn-lg'>🌾 {t('立即进入农场')}</button>
-                  </Link>
-                </div>
-              )}
             </div>
 
             {/* Glass cards */}
