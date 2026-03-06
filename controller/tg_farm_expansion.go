@@ -50,7 +50,7 @@ func backfillCollections(tgId string) {
 		}
 	}
 
-	// 1) Warehouse items
+	// 1) Warehouse items (current)
 	whItems, _ := model.GetWarehouseItems(tgId)
 	for _, wh := range whItems {
 		switch wh.Category {
@@ -85,7 +85,7 @@ func backfillCollections(tgId string) {
 		}
 	}
 
-	// 3) Current plots with crops
+	// 3) Current plots
 	plots, _ := model.GetOrCreateFarmPlots(tgId)
 	for _, plot := range plots {
 		if plot.CropType != "" && plot.Status > 0 {
@@ -101,40 +101,30 @@ func backfillCollections(tgId string) {
 		}
 	}
 
-	// 5) Farm logs — parse known patterns
-	logs, _, _ := model.GetFarmLogs(tgId, 200, 0)
-	for _, log := range logs {
-		detail := log.Detail
-		switch log.Action {
-		case "plant":
-			for _, c := range farmCrops {
-				if strings.Contains(detail, c.Name) {
-					record("crop", c.Key)
-				}
+	// 5) ALL farm logs (efficient: DB-level DISTINCT, no limit)
+	details := model.GetFarmLogDetails(tgId, []string{
+		"plant", "fish", "ranch_buy", "ranch_sell", "ranch_store",
+		"craft_sell", "craft_store", "harvest",
+	})
+	for _, detail := range details {
+		for _, c := range farmCrops {
+			if strings.Contains(detail, c.Name) {
+				record("crop", c.Key)
 			}
-		case "fish":
-			for _, f := range fishTypes {
-				if strings.Contains(detail, f.Name) {
-					record("fish", f.Key)
-				}
+		}
+		for _, f := range fishTypes {
+			if strings.Contains(detail, f.Name) {
+				record("fish", f.Key)
 			}
-		case "ranch_sell", "ranch_store":
-			for _, a := range ranchAnimals {
-				if strings.Contains(detail, a.Name) {
-					record("animal", a.Key)
-				}
+		}
+		for _, a := range ranchAnimals {
+			if strings.Contains(detail, a.Name) {
+				record("animal", a.Key)
 			}
-		case "craft_sell", "craft_store":
-			for _, r := range recipes {
-				if strings.Contains(detail, r.Name) {
-					record("recipe", r.Key)
-				}
-			}
-		case "ranch_buy":
-			for _, a := range ranchAnimals {
-				if strings.Contains(detail, a.Name) {
-					record("animal", a.Key)
-				}
+		}
+		for _, r := range recipes {
+			if strings.Contains(detail, r.Name) {
+				record("recipe", r.Key)
 			}
 		}
 	}

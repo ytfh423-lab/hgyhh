@@ -1041,6 +1041,14 @@ func GetFarmRank(telegramId, boardType string) int64 {
 	return rank + 1
 }
 
+func GetFarmLogDetails(telegramId string, actions []string) []string {
+	var details []string
+	DB.Model(&TgFarmLog{}).Select("DISTINCT detail").
+		Where("telegram_id = ? AND action IN ?", telegramId, actions).
+		Pluck("detail", &details)
+	return details
+}
+
 func GetFarmLogs(telegramId string, limit, offset int) ([]*TgFarmLog, int64, error) {
 	var logs []*TgFarmLog
 	var total int64
