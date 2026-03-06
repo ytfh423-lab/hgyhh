@@ -795,6 +795,7 @@ func doRanchSlaughter(chatId int64, editMsgId int, tgId string, animalId int, fr
 	}
 
 	model.AddFarmLog(tgId, "ranch_sell", meatPrice, fmt.Sprintf("出售%s%s", def.Emoji, def.Name))
+	model.RecordCollection(tgId, "animal", def.Key, 1)
 	common.SysLog(fmt.Sprintf("TG Ranch: user %s slaughtered %s for %d quota", tgId, def.Key, meatPrice))
 	farmSend(chatId, editMsgId, fmt.Sprintf("🔪 屠宰成功！\n\n%s %s 已出售！\n💰 收入 %s",
 		def.Emoji, def.Name, farmQuotaStr(meatPrice)), &TgInlineKeyboardMarkup{
@@ -862,6 +863,7 @@ func doRanchSlaughterStore(chatId int64, editMsgId int, tgId string, animalId in
 	}
 
 	_ = model.AddToWarehouseWithCategory(tgId, "meat_"+def.Key, 1, "meat")
+	model.RecordCollection(tgId, "animal", def.Key, 1)
 	model.AddFarmLog(tgId, "ranch_store", 0, fmt.Sprintf("%s%s肉存入仓库", def.Emoji, def.Name))
 	common.SysLog(fmt.Sprintf("TG Ranch: user %s stored %s meat to warehouse", tgId, def.Key))
 

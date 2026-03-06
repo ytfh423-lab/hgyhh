@@ -461,6 +461,7 @@ func WebFarmHarvest(c *gin.Context) {
 			})
 
 			_ = model.ClearFarmPlot(plot.Id)
+			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 		}
 	}
 
@@ -1802,6 +1803,7 @@ func WebFarmWorkshopCollect(c *gin.Context) {
 			totalValue += sellPrice
 			collected++
 			_ = model.CollectFarmProcess(p.Id)
+			model.RecordCollection(tgId, "recipe", r.Key, 1)
 		}
 	}
 
@@ -1959,6 +1961,7 @@ func WebFarmFishDo(c *gin.Context) {
 	}
 
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
+	model.RecordCollection(tgId, "fish", fish.Key, 1)
 	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -2525,6 +2528,7 @@ func WebFarmWorkshopCollectStore(c *gin.Context) {
 			_ = model.AddToWarehouseWithCategory(tgId, "recipe_"+r.Key, 1, "recipe")
 			stored++
 			_ = model.CollectFarmProcess(p.Id)
+			model.RecordCollection(tgId, "recipe", r.Key, 1)
 			details = append(details, gin.H{"name": r.Name, "quantity": 1})
 		}
 	}
@@ -2587,6 +2591,7 @@ func WebFarmHarvestStore(c *gin.Context) {
 			_ = model.ClearFarmPlot(plot.Id)
 			storedTotal += realYield
 			harvestedCount++
+			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 			stored = append(stored, gin.H{"crop": crop.Name, "quantity": realYield})
 		}
 	}

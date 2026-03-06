@@ -451,6 +451,7 @@ func WebRanchSlaughter(c *gin.Context) {
 	}
 
 	model.AddFarmLog(tgId, "ranch_sell", meatPrice, fmt.Sprintf("出售%s%s", def.Emoji, def.Name))
+	model.RecordCollection(tgId, "animal", def.Key, 1)
 	common.SysLog(fmt.Sprintf("Web Ranch: user %s slaughtered %s for %d quota", tgId, def.Key, meatPrice))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -511,6 +512,7 @@ func WebRanchSlaughterStore(c *gin.Context) {
 	}
 
 	_ = model.AddToWarehouseWithCategory(tgId, "meat_"+def.Key, 1, "meat")
+	model.RecordCollection(tgId, "animal", def.Key, 1)
 	model.AddFarmLog(tgId, "ranch_store", 0, fmt.Sprintf("%s%s肉存入仓库", def.Emoji, def.Name))
 	common.SysLog(fmt.Sprintf("Web Ranch: user %s stored %s meat to warehouse", tgId, def.Key))
 

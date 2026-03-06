@@ -1365,6 +1365,7 @@ func doFarmHarvestSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
 				realYield, farmQuotaStr(seasonPrice), mPct, seasonTag, sPct, farmQuotaStr(value))
 
 			_ = model.ClearFarmPlot(plot.Id)
+			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 		}
 	}
 
@@ -1440,6 +1441,7 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			_ = model.AddToWarehouse(tgId, crop.Key, realYield)
 			storedTotal += realYield
 			harvestedCount++
+			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 
 			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield-fertBonus)
 			if fertBonus > 0 {
@@ -2837,6 +2839,7 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	// 钓到鱼了
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
+	model.RecordCollection(tgId, "fish", fish.Key, 1)
 	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
 
 	rarityMsg := ""
@@ -3426,6 +3429,7 @@ func doFarmCollectAll(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			totalValue += sellPrice
 			collected++
 			_ = model.CollectFarmProcess(p.Id)
+			model.RecordCollection(tgId, "recipe", r.Key, 1)
 		}
 	}
 
@@ -3473,6 +3477,7 @@ func doFarmCollectStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			_ = model.AddToWarehouseWithCategory(tgId, "recipe_"+r.Key, 1, "recipe")
 			stored++
 			_ = model.CollectFarmProcess(p.Id)
+			model.RecordCollection(tgId, "recipe", r.Key, 1)
 			details += fmt.Sprintf("\n%s %s → 📦仓库", r.Emoji, r.Name)
 		}
 	}
