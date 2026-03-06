@@ -71,6 +71,10 @@ const Sidebar = ({ activeKey, onNavigate, t }) => {
 
   return (
     <nav className='farm-sidebar'>
+      <div className='farm-sidebar-brand' onClick={() => onNavigate('overview')}>
+        <span style={{ fontSize: 22 }}>🌾</span>
+        <span>{t('我的农场')}</span>
+      </div>
       {navGroups.map((group) => (
         <div key={group.key} className='farm-nav-group'>
           <div className='farm-nav-header' onClick={() => toggle(group.key)}>
@@ -84,7 +88,7 @@ const Sidebar = ({ activeKey, onNavigate, t }) => {
               className={`farm-nav-item ${activeKey === item.key ? 'active' : ''}`}
               onClick={() => onNavigate(item.key)}
             >
-              <span style={{ fontSize: 14 }}>{item.emoji}</span>
+              <span style={{ fontSize: 15 }}>{item.emoji}</span>
               <span>{t(item.label)}</span>
             </div>
           ))}

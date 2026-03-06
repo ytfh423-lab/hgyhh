@@ -40,9 +40,9 @@
 }
 
 .farm-sidebar {
-  width: 210px;
+  width: 240px;
   flex-shrink: 0;
-  padding: 16px 10px;
+  padding: 20px 12px;
   backdrop-filter: var(--farm-blur);
   background: var(--farm-glass-bg);
   border-right: 1px solid var(--farm-glass-border);
@@ -64,7 +64,7 @@
   position: sticky;
   top: 60px;
   z-index: 10;
-  padding: 10px 20px;
+  padding: 10px 28px;
   backdrop-filter: var(--farm-blur);
   background: var(--farm-glass-bg);
   border-bottom: 1px solid var(--farm-glass-border);
@@ -76,9 +76,13 @@
 
 .farm-content {
   flex: 1;
-  padding: 20px;
-  padding-bottom: calc(20px + var(--farm-mobile-bar-h));
+  padding: 24px 28px;
+  padding-bottom: calc(24px + var(--farm-mobile-bar-h));
   overflow-y: auto;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* ====== Glass Card ====== */
@@ -88,14 +92,15 @@
   background: var(--farm-glass-bg);
   border: 1px solid var(--farm-glass-border);
   border-radius: var(--farm-radius);
-  padding: 18px 20px;
-  margin-bottom: 14px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
   box-shadow: var(--farm-shadow);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .farm-card:hover {
   background: var(--farm-glass-hover);
+  box-shadow: var(--farm-shadow-lg);
 }
 
 .farm-card-glow-green { box-shadow: var(--farm-shadow), var(--farm-glow-green); }
@@ -108,30 +113,50 @@
   background: var(--farm-glass-bg);
   border: 1px solid var(--farm-glass-border);
   border-radius: var(--farm-radius-sm);
-  padding: 10px 14px;
-  transition: all 0.2s ease;
+  padding: 12px 16px;
+  transition: all 0.25s ease;
 }
 
 /* ====== Sidebar Nav ====== */
 
+.farm-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--farm-glass-border);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--semi-color-text-0);
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+
+.farm-sidebar-brand:hover {
+  opacity: 0.8;
+}
+
 .farm-nav-group {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .farm-nav-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 7px;
+  padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: var(--semi-color-text-2);
   cursor: pointer;
   border-radius: var(--farm-radius-xs);
   transition: all 0.15s;
   user-select: none;
+  margin-bottom: 2px;
 }
 
 .farm-nav-header:hover {
@@ -151,8 +176,8 @@
 .farm-nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px 7px 26px;
+  gap: 10px;
+  padding: 8px 12px 8px 28px;
   font-size: 13px;
   color: var(--semi-color-text-1);
   cursor: pointer;
@@ -162,6 +187,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 1px;
 }
 
 .farm-nav-item:hover {
@@ -177,9 +203,9 @@
 .farm-nav-item.active::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
   width: 3px;
   border-radius: 2px;
   background: var(--semi-color-primary);
@@ -226,13 +252,13 @@
 
 .farm-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
-.farm-grid-2 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-.farm-grid-3 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-.farm-grid-4 { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-.farm-grid-5 { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.farm-grid-2 { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.farm-grid-3 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.farm-grid-4 { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.farm-grid-5 { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 
 /* ====== Interactive Item Card ====== */
 
@@ -290,14 +316,14 @@
 .farm-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 12px 16px;
   border-radius: var(--farm-radius-sm);
   backdrop-filter: var(--farm-blur);
   background: var(--farm-glass-bg);
   border: 1px solid var(--farm-glass-border);
-  margin-bottom: 8px;
-  transition: all 0.15s;
+  margin-bottom: 10px;
+  transition: all 0.2s;
 }
 
 .farm-row:hover {
@@ -308,12 +334,12 @@
 
 .farm-kv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
 }
 
 .farm-kv {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--farm-radius-xs);
   background: var(--farm-glass-bg);
   border: 1px solid var(--farm-glass-border);
@@ -322,12 +348,73 @@
 .farm-kv-label {
   font-size: 11px;
   color: var(--semi-color-text-2);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .farm-kv-value {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+}
+
+/* ====== Action Bar ====== */
+
+.farm-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+}
+
+.farm-action-bar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.farm-action-bar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.farm-action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--farm-glass-border);
+  margin: 0 4px;
+}
+
+/* ====== StatusBar Items Group ====== */
+
+.farm-statusbar-items {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--farm-glass-border);
+}
+
+/* ====== 3D Canvas ====== */
+
+.farm-3d-canvas {
+  width: 100%;
+  height: min(520px, 55vh);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--farm-glass-border);
+  position: relative;
+  box-shadow: var(--farm-shadow-lg);
+}
+
+@media (min-width: 1200px) {
+  .farm-3d-canvas {
+    height: 560px;
+  }
 }
 
 /* ====== Mobile Bottom Navigation ====== */
@@ -394,6 +481,31 @@
   .farm-pill {
     font-size: 11px;
     padding: 3px 10px;
+  }
+
+  .farm-statusbar-items {
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+  }
+
+  .farm-action-bar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .farm-action-bar-right {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .farm-action-divider {
+    display: none;
+  }
+
+  .farm-3d-canvas {
+    height: min(400px, 50vh);
+    border-radius: 12px;
   }
 
   .farm-btn {

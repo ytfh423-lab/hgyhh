@@ -965,11 +965,8 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
   const selectedPlot = plots.find(p => p.plot_index === selectedPlotIndex);
 
   return (
-    <div style={{
-      width: '100%', height: 500, borderRadius: 12, overflow: 'hidden',
-      border: '2px solid var(--semi-color-border)',
+    <div className='farm-3d-canvas' style={{
       background: getWeatherBgGradient(weatherType),
-      position: 'relative',
     }}>
       {/* Weather indicator */}
       {farmData?.weather && (
