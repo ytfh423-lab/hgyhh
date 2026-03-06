@@ -235,7 +235,7 @@ func WebFarmEncyclopedia(c *gin.Context) {
 		Reward   float64    `json:"reward"`
 	}
 
-	rewards := map[string]float64{"crop": 20, "fish": 30, "meat": 15, "recipe": 50}
+	rewards := map[string]float64{"crop": 20, "fish": 30, "animal": 15, "recipe": 50}
 	var categories []categoryInfo
 
 	buildCat := func(key, name string, keys []struct{ k, n, e string }) categoryInfo {
@@ -256,25 +256,25 @@ func WebFarmEncyclopedia(c *gin.Context) {
 
 	var cropKeys []struct{ k, n, e string }
 	for _, cr := range farmCrops {
-		cropKeys = append(cropKeys, struct{ k, n, e string }{"crop_" + cr.Key, cr.Name, cr.Emoji})
+		cropKeys = append(cropKeys, struct{ k, n, e string }{cr.Key, cr.Name, cr.Emoji})
 	}
 	categories = append(categories, buildCat("crop", "作物", cropKeys))
 
 	var fishKeys []struct{ k, n, e string }
 	for _, f := range fishTypes {
-		fishKeys = append(fishKeys, struct{ k, n, e string }{"fish_" + f.Key, f.Name, f.Emoji})
+		fishKeys = append(fishKeys, struct{ k, n, e string }{f.Key, f.Name, f.Emoji})
 	}
 	categories = append(categories, buildCat("fish", "鱼类", fishKeys))
 
 	var meatKeys []struct{ k, n, e string }
 	for _, a := range ranchAnimals {
-		meatKeys = append(meatKeys, struct{ k, n, e string }{"meat_" + a.Key, a.Name, a.Emoji})
+		meatKeys = append(meatKeys, struct{ k, n, e string }{a.Key, a.Name, a.Emoji})
 	}
-	categories = append(categories, buildCat("meat", "肉类", meatKeys))
+	categories = append(categories, buildCat("animal", "肉类", meatKeys))
 
 	var recipeKeys []struct{ k, n, e string }
 	for _, r := range recipes {
-		recipeKeys = append(recipeKeys, struct{ k, n, e string }{"recipe_" + r.Key, r.Name, r.Emoji})
+		recipeKeys = append(recipeKeys, struct{ k, n, e string }{r.Key, r.Name, r.Emoji})
 	}
 	categories = append(categories, buildCat("recipe", "加工品", recipeKeys))
 
