@@ -2298,13 +2298,25 @@ const EncyclopediaPage = ({ actionLoading, loadFarm, t }) => {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {(cat.items || []).map(it => (
               <div key={it.key} style={{
-                padding: '4px 10px', borderRadius: 6, minWidth: 90, textAlign: 'center',
-                background: it.unlocked ? 'var(--semi-color-success-light-default)' : 'var(--semi-color-fill-1)',
-                border: '1px solid var(--semi-color-border)',
-                opacity: it.unlocked ? 1 : 0.4,
+                padding: '6px 10px', borderRadius: 8, minWidth: 80, textAlign: 'center',
+                background: it.unlocked
+                  ? 'linear-gradient(135deg, var(--semi-color-success-light-default), var(--semi-color-success-light-hover))'
+                  : 'var(--semi-color-fill-1)',
+                border: it.unlocked ? '1.5px solid var(--semi-color-success)' : '1px dashed var(--semi-color-border)',
+                opacity: it.unlocked ? 1 : 0.55,
+                transition: 'all 0.2s',
               }}>
-                <span style={{ fontSize: 20 }}>{it.unlocked ? it.emoji : '❓'}</span>
-                <Text size='small' style={{ display: 'block' }}>{it.unlocked ? it.name : '???'}</Text>
+                {it.unlocked ? (
+                  <>
+                    <span style={{ fontSize: 22, display: 'block', marginBottom: 2 }}>{it.emoji}</span>
+                    <Text size='small' strong style={{ display: 'block' }}>{it.name}</Text>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 18, display: 'block', marginBottom: 2, filter: 'grayscale(1)' }}>🔒</span>
+                    <Text size='small' type='tertiary' style={{ display: 'block', fontSize: 11 }}>{t('未解锁')}</Text>
+                  </>
+                )}
               </div>
             ))}
           </div>
