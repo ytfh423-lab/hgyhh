@@ -86,8 +86,7 @@
 
 .farm-layout {
   display: flex;
-  min-height: calc(100vh - 60px);
-  margin-top: 60px;
+  min-height: calc(100vh - 64px);
 }
 
 /* -- Sidebar -- */
@@ -98,8 +97,8 @@
   background: var(--farm-sb-bg);
   overflow: hidden;
   position: sticky;
-  top: 60px;
-  height: calc(100vh - 60px);
+  top: 0;
+  height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 20px rgba(0, 0, 0, 0.15);
@@ -170,7 +169,7 @@
 
 .farm-statusbar {
   position: sticky;
-  top: 60px;
+  top: 0;
   z-index: 10;
   padding: 8px 24px;
   background: var(--farm-surface);
