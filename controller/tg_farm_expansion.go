@@ -554,41 +554,7 @@ func doFarmTradeCancel(chatId int64, editMsgId int, tgId string, tradeId int, fr
 // ========== 游戏 ==========
 
 func showFarmGames(chatId int64, editMsgId int, tgId string, from *TgUser) {
-	logs, _ := model.GetRecentGameLogs(tgId, 5)
-
-	text := "🎮 农场小游戏\n\n"
-	text += fmt.Sprintf("🎡 幸运转盘 — %s/次\n", farmQuotaStr(common.TgBotFarmWheelPrice))
-	text += "  转动转盘赢取奖励！奖池从 0.1x 到 10x\n\n"
-	text += fmt.Sprintf("🎰 刮刮卡 — %s/次\n", farmQuotaStr(common.TgBotFarmScratchPrice))
-	text += "  刮出3个相同符号赢取奖励！\n"
-
-	if len(logs) > 0 {
-		text += "\n📜 最近记录:\n"
-		for _, log := range logs {
-			gameEmoji := "🎡"
-			if log.GameType == "scratch" {
-				gameEmoji = "🎰"
-			}
-			net := log.WinAmount - log.BetAmount
-			netSign := "+"
-			if net < 0 {
-				netSign = ""
-			}
-			text += fmt.Sprintf("  %s 下注%s → %s (%s%s)\n",
-				gameEmoji, farmQuotaStr(log.BetAmount), farmQuotaStr(log.WinAmount),
-				netSign, farmQuotaStr(net))
-		}
-	}
-
-	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
-		InlineKeyboard: [][]TgInlineKeyboardButton{
-			{
-				{Text: fmt.Sprintf("🎡 转盘 (%s)", farmQuotaStr(common.TgBotFarmWheelPrice)), CallbackData: "farm_wheel"},
-				{Text: fmt.Sprintf("🎰 刮刮卡 (%s)", farmQuotaStr(common.TgBotFarmScratchPrice)), CallbackData: "farm_scratch"},
-			},
-			{{Text: "🔙 返回农场", CallbackData: "farm"}},
-		},
-	}, from)
+	showFarmGamesPage(chatId, editMsgId, tgId, 1, from)
 }
 
 func doFarmWheel(chatId int64, editMsgId int, tgId string, from *TgUser) {

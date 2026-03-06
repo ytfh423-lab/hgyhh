@@ -207,6 +207,37 @@ var recipes = []recipeDef{
 	{"burger", "汉堡", "🍔", 2500000, 5400, 4800000},
 	{"ham", "火腿", "🍖", 3000000, 7200, 5500000},
 	{"steak", "牛排", "🥩", 5000000, 10800, 9500000},
+	// 蔬菜水果加工品
+	{"jam", "果酱", "🍯", 350000, 1200, 620000},
+	{"smoothie", "冰沙", "🥤", 500000, 900, 850000},
+	{"pickles", "泡菜", "🥒", 280000, 1800, 520000},
+	{"ketchup", "番茄酱", "🍅", 450000, 1500, 800000},
+	{"applepie", "苹果派", "🍎", 1100000, 2700, 2000000},
+	{"fruitcake", "水果蛋糕", "🎂", 2200000, 5400, 4200000},
+	{"pumpkinsoup", "南瓜汤", "🥣", 600000, 1200, 1050000},
+	{"cornflakes", "玉米片", "🌽", 400000, 1500, 720000},
+	{"lemonade", "柠檬水", "🍋", 300000, 600, 520000},
+	{"mangolassi", "芒果奶昔", "🥭", 700000, 1800, 1300000},
+	{"tomato_paste", "番茄膏", "🥫", 550000, 2400, 1000000},
+	{"frenchfries", "薯条", "🍟", 350000, 900, 600000},
+	{"onionring", "洋葱圈", "🧅", 500000, 1200, 880000},
+	{"garlicbread", "蒜香面包", "🧄", 600000, 1500, 1100000},
+	{"vegburger", "蔬菜汉堡", "🥬", 900000, 2100, 1650000},
+	{"fruitwine", "水果酒", "🍹", 1800000, 5400, 3500000},
+	{"broccolisoup", "西兰花汤", "🥦", 700000, 1500, 1250000},
+	{"peppersauce", "辣椒酱", "🌶️", 650000, 1800, 1200000},
+	{"peachcobbler", "蜜桃酥", "🍑", 1300000, 3000, 2400000},
+	{"cherrytart", "樱桃挞", "🍒", 1600000, 3600, 3000000},
+	{"kiwijam", "猕猴桃酱", "🥝", 800000, 2100, 1500000},
+	{"bananachip", "香蕉片", "🍌", 500000, 1200, 900000},
+	{"pearjuice", "梨汁", "🍐", 400000, 900, 700000},
+	{"grapejelly", "葡萄果冻", "🍇", 550000, 1500, 1000000},
+	{"carrotcake", "胡萝卜蛋糕", "🥕", 950000, 2400, 1750000},
+	{"eggplantstew", "茄子煲", "🍆", 750000, 1800, 1350000},
+	{"cucumberroll", "黄瓜卷", "🥒", 400000, 900, 700000},
+	{"mixedsalad", "混合沙拉", "🥗", 600000, 1200, 1050000},
+	{"strawberrymilk", "草莓牛奶", "🍓", 850000, 1500, 1550000},
+	{"watermelonice", "西瓜冰", "🍉", 700000, 1200, 1250000},
 }
 
 var recipeMap map[string]*recipeDef
@@ -763,6 +794,15 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 	case data == "farm_game":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockGames, "游戏", chatId, msgId, from) { return }
 		showFarmGames(chatId, msgId, tgId, from)
+	case strings.HasPrefix(data, "farm_gp_"):
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockGames, "游戏", chatId, msgId, from) { return }
+		pageStr := strings.TrimPrefix(data, "farm_gp_")
+		page, _ := strconv.Atoi(pageStr)
+		showFarmGamesPage(chatId, msgId, tgId, page, from)
+	case strings.HasPrefix(data, "farm_g_"):
+		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockGames, "游戏", chatId, msgId, from) { return }
+		gameKey := strings.TrimPrefix(data, "farm_g_")
+		doMiniGame(chatId, msgId, tgId, gameKey, from)
 	case data == "farm_wheel":
 		doFarmWheel(chatId, msgId, tgId, from)
 	case data == "farm_scratch":
@@ -800,7 +840,16 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	userLevel := model.GetFarmLevel(tgId)
 	season := getCurrentSeason()
 	daysLeft := getSeasonDaysLeft()
-	text := fmt.Sprintf("🌾 我的农场  ⭐Lv.%d | %s (剩%d天)\n\n", userLevel, getSeasonName(season), daysLeft)
+	w := GetCurrentWeather()
+	prestigeLv := model.GetPrestigeLevel(tgId)
+
+	// 紧凑头部：等级+季节+天气 一行
+	text := fmt.Sprintf("🌾 Lv.%d | %s(%d天) | %s%s", userLevel, getSeasonName(season), daysLeft, w.Emoji, w.Name)
+	if prestigeLv > 0 {
+		text += fmt.Sprintf(" | P%d", prestigeLv)
+	}
+	text += "\n"
+
 	hasEvent := false
 	hasWiltOrGrowing := false
 	for _, plot := range plots {
@@ -814,77 +863,70 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		}
 	}
 
-	// 狗狗信息
+	// 狗狗信息（紧凑）
 	dog, dogErr := model.GetFarmDog(tgId)
 	if dogErr == nil {
 		model.UpdateDogHunger(dog)
-		dogLevel := "🐶 幼犬"
-		if dog.Level == 2 {
-			dogLevel = "🐕 成犬"
-		}
-		guardStatus := ""
+		guardTag := "⏳"
 		if dog.Level == 2 && dog.Hunger > 0 {
-			guardStatus = " ✅看门中"
+			guardTag = "✅"
 		} else if dog.Hunger == 0 {
-			guardStatus = " ❌饿坏了"
-		} else {
-			guardStatus = " ⏳成长中"
+			guardTag = "❌"
 		}
-		text += fmt.Sprintf("\n🐕 %s「%s」 饱食度:%d%%%s\n", dogLevel, dog.Name, dog.Hunger, guardStatus)
+		text += fmt.Sprintf("🐕%s %d%%  ", dog.Name, dog.Hunger)
+		text += guardTag
 	}
 
+	// 背包（紧凑）
 	items, _ := model.GetFarmItems(tgId)
 	if len(items) > 0 {
-		text += "\n📦 背包："
+		if dogErr == nil {
+			text += " | "
+		}
+		text += "📦"
 		for _, item := range items {
 			def := farmItemMap[item.ItemType]
 			if def != nil {
-				text += fmt.Sprintf(" %s%s×%d", def.Emoji, def.Name, item.Quantity)
+				text += fmt.Sprintf("%s%d ", def.Emoji, item.Quantity)
 			}
 		}
+	}
+	if dogErr == nil || len(items) > 0 {
 		text += "\n"
 	}
 
-	// 天气
-	w := GetCurrentWeather()
-	text += fmt.Sprintf("\n%s 天气: %s", w.Emoji, w.Name)
+	// 底部信息栏
+	text += fmt.Sprintf("📊 %d/%d块地", len(plots), model.FarmMaxPlots)
 	if w.Effects != "" {
-		text += " (" + w.Effects + ")"
+		text += " | " + w.Effects
 	}
 	text += "\n"
 
-	// 转生
-	prestigeLv := model.GetPrestigeLevel(tgId)
-	if prestigeLv > 0 {
-		text += fmt.Sprintf("🔄 转生: P%d (+%d%%收入加成)\n", prestigeLv, prestigeLv*common.TgBotFarmPrestigeBonusPerLevel)
+	lockTag := func(name string, lvl int) string {
+		if userLevel >= lvl {
+			return name
+		}
+		return fmt.Sprintf("🔒%s(Lv%d)", name, lvl)
 	}
-
-	// 显示地块数量
-	text += fmt.Sprintf("\n📊 土地 %d/%d 块", len(plots), model.FarmMaxPlots)
-	if len(plots) < model.FarmMaxPlots {
-		text += fmt.Sprintf(" | 购买新地 %s", farmQuotaStr(common.TgBotFarmPlotPrice))
-	}
-	text += "\n"
 
 	var rows [][]TgInlineKeyboardButton
-	rows = append(rows, []TgInlineKeyboardButton{
+	// 第1行：核心操作
+	row1 := []TgInlineKeyboardButton{
 		{Text: "🌱 种植", CallbackData: "farm_plant"},
 		{Text: "🌾 收获", CallbackData: "farm_harvest"},
-	})
-	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🕵️ 偷菜", CallbackData: "farm_steal"},
+	}
+	rows = append(rows, row1)
+	// 第2行：商店+仓库+条件按钮
+	row2 := []TgInlineKeyboardButton{
 		{Text: "🏪 商店", CallbackData: "farm_shop"},
 		{Text: "📦 仓库", CallbackData: "farm_warehouse"},
-	})
-	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "🕵️ 偷菜", CallbackData: "farm_steal"},
-	})
-	// 浇水按钮
-	if hasWiltOrGrowing {
-		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: "💧 浇水", CallbackData: "farm_water"},
-		})
 	}
-	// 有生长中作物时显示施肥按钮
+	if hasWiltOrGrowing {
+		row2 = append(row2, TgInlineKeyboardButton{Text: "💧 浇水", CallbackData: "farm_water"})
+	}
+	rows = append(rows, row2)
+	// 第3行：条件按钮（施肥/治疗/泥土升级）
 	hasGrowing := false
 	for _, plot := range plots {
 		if plot.Status == 1 && plot.Fertilized == 0 {
@@ -892,81 +934,70 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			break
 		}
 	}
-	if hasGrowing {
-		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: "🧴 施肥", CallbackData: "farm_fert"},
-		})
-	}
-	if hasEvent {
-		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: "💊 治疗", CallbackData: "farm_treat"},
-		})
-	}
-	// 泥土升级按钮
 	hasUpgradable := false
 	for _, plot := range plots {
 		sl := plot.SoilLevel
-		if sl < 1 {
-			sl = 1
-		}
-		if sl < common.TgBotFarmSoilMaxLevel {
-			hasUpgradable = true
-			break
-		}
+		if sl < 1 { sl = 1 }
+		if sl < common.TgBotFarmSoilMaxLevel { hasUpgradable = true; break }
+	}
+	var row3 []TgInlineKeyboardButton
+	if hasGrowing {
+		row3 = append(row3, TgInlineKeyboardButton{Text: "🧴 施肥", CallbackData: "farm_fert"})
+	}
+	if hasEvent {
+		row3 = append(row3, TgInlineKeyboardButton{Text: "💊 治疗", CallbackData: "farm_treat"})
 	}
 	if hasUpgradable {
-		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: "🌱 泥土升级", CallbackData: "farm_soil"},
-		})
+		row3 = append(row3, TgInlineKeyboardButton{Text: "🌱 升级土", CallbackData: "farm_soil"})
 	}
-	// 功能按钮（带锁标识）
-	lockTag := func(name string, lvl int) string {
-		if userLevel >= lvl {
-			return name
-		}
-		return fmt.Sprintf("🔒%s(Lv%d)", name, lvl)
+	if len(row3) > 0 {
+		rows = append(rows, row3)
 	}
+	// 第4行：狗狗+牧场+钓鱼
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("🐕 狗狗", common.TgBotFarmUnlockDog), CallbackData: "farm_dog"},
 		{Text: lockTag("🐄 牧场", common.TgBotFarmUnlockRanch), CallbackData: "ranch"},
-	})
-	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("🎣 钓鱼", common.TgBotFarmUnlockFish), CallbackData: "farm_fish"},
-		{Text: lockTag("🏭 加工", common.TgBotFarmUnlockWorkshop), CallbackData: "farm_workshop"},
 	})
+	// 第5行：加工+任务+成就
 	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: lockTag("🏭 加工", common.TgBotFarmUnlockWorkshop), CallbackData: "farm_workshop"},
 		{Text: lockTag("📝 任务", common.TgBotFarmUnlockTasks), CallbackData: "farm_tasks"},
 		{Text: lockTag("🏆 成就", common.TgBotFarmUnlockAchieve), CallbackData: "farm_achieve"},
 	})
+	// 第6行：市场+银行+记录
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "� 市场", CallbackData: "farm_market"},
-		{Text: "� 记录", CallbackData: "farm_logs"},
-	})
-	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "📈 市场", CallbackData: "farm_market"},
 		{Text: lockTag("🏦 银行", common.TgBotFarmBankUnlockLevel), CallbackData: "farm_bank"},
+		{Text: "📋 记录", CallbackData: "farm_logs"},
 	})
+	// 第7行：图鉴+排行+交易+游戏
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("📖 图鉴", common.TgBotFarmUnlockEncyclopedia), CallbackData: "farm_ency"},
 		{Text: lockTag("🏅 排行", common.TgBotFarmUnlockLeaderboard), CallbackData: "farm_rank"},
-	})
-	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("🔄 交易", common.TgBotFarmUnlockTrading), CallbackData: "farm_trade"},
-		{Text: lockTag("🎮 游戏", common.TgBotFarmUnlockGames), CallbackData: "farm_game"},
 	})
+	// 第8行：游戏+自动化+转生
 	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: lockTag("🎮 游戏", common.TgBotFarmUnlockGames), CallbackData: "farm_game"},
 		{Text: lockTag("⚡ 自动化", common.TgBotFarmUnlockAutomation), CallbackData: "farm_auto"},
 		{Text: "🔄 转生", CallbackData: "farm_prestige"},
 	})
+	// 升级+购地合并为一行
+	var rowBottom []TgInlineKeyboardButton
 	if userLevel < common.TgBotFarmMaxLevel {
 		price := getLevelUpPrice(userLevel)
-		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("⬆️ 升级 Lv.%d→%d (%s)", userLevel, userLevel+1, farmQuotaStr(price)), CallbackData: "farm_levelup"},
+		rowBottom = append(rowBottom, TgInlineKeyboardButton{
+			Text: fmt.Sprintf("⬆️ Lv%d→%d(%s)", userLevel, userLevel+1, farmQuotaStr(price)), CallbackData: "farm_levelup",
 		})
 	}
 	if len(plots) < model.FarmMaxPlots {
-		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("🏗️ 购买土地 (%s)", farmQuotaStr(common.TgBotFarmPlotPrice)), CallbackData: "farm_buyland"},
+		rowBottom = append(rowBottom, TgInlineKeyboardButton{
+			Text: fmt.Sprintf("🏗️ 买地(%s)", farmQuotaStr(common.TgBotFarmPlotPrice)), CallbackData: "farm_buyland",
 		})
+	}
+	if len(rowBottom) > 0 {
+		rows = append(rows, rowBottom)
 	}
 	keyboard := TgInlineKeyboardMarkup{InlineKeyboard: rows}
 	farmSend(chatId, editMsgId, text, &keyboard, from)
@@ -980,16 +1011,19 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 		sl = 1
 	}
 	if sl > 1 {
-		soilTag = fmt.Sprintf(" 🌱Lv.%d", sl)
+		soilTag = fmt.Sprintf("S%d", sl)
 	}
 
 	switch plot.Status {
 	case 0:
-		return fmt.Sprintf("⬜ %d号地 - 空地%s", idx, soilTag)
+		if soilTag != "" {
+			return fmt.Sprintf("⬜%d 空地[%s]", idx, soilTag)
+		}
+		return fmt.Sprintf("⬜%d 空地", idx)
 	case 1:
 		crop := farmCropMap[plot.CropType]
 		if crop == nil {
-			return fmt.Sprintf("⬜ %d号地 - 空地", idx)
+			return fmt.Sprintf("⬜%d 空地", idx)
 		}
 		now := time.Now().Unix()
 		elapsed := now - plot.PlantedAt
@@ -1010,32 +1044,33 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 			pct = 99
 		}
 		remaining := total - elapsed
-		fertTag := ""
+		tags := ""
 		if plot.Fertilized == 1 {
-			fertTag = " 🧴"
+			tags += "🧴"
 		}
-		// 浇水倒计时
-		waterTag := ""
 		if plot.LastWateredAt > 0 {
 			waterInterval := int64(common.TgBotFarmWaterInterval)
 			nextWater := plot.LastWateredAt + waterInterval - now
 			if nextWater > 0 {
-				waterTag = fmt.Sprintf(" 💧%s", formatDuration(nextWater))
+				tags += "💧"
 			} else {
-				waterTag = " 💧⚠️需浇水"
+				tags += "💧⚠️"
 			}
 		}
-		return fmt.Sprintf("%s %d号地 - %s 生长中 %d%% 剩余%s%s%s%s", crop.Emoji, idx, crop.Name, pct, formatDuration(remaining), fertTag, waterTag, soilTag)
+		if soilTag != "" {
+			tags += soilTag
+		}
+		return fmt.Sprintf("%s%d %s %d%% %s %s", crop.Emoji, idx, crop.Name, pct, formatDuration(remaining), tags)
 	case 2:
 		crop := farmCropMap[plot.CropType]
 		if crop == nil {
-			return fmt.Sprintf("✅ %d号地 - 已成熟", idx)
+			return fmt.Sprintf("✅%d 已成熟", idx)
 		}
 		stolen := ""
 		if plot.StolenCount > 0 {
-			stolen = fmt.Sprintf(" ⚠️被偷%d次", plot.StolenCount)
+			stolen = fmt.Sprintf("⚠️偷%d", plot.StolenCount)
 		}
-		return fmt.Sprintf("✅ %d号地 - %s%s 已成熟！%s%s", crop.Emoji, crop.Name, stolen, soilTag, "")
+		return fmt.Sprintf("✅%d %s%s 成熟！%s", idx, crop.Emoji, crop.Name, stolen)
 	case 3:
 		crop := farmCropMap[plot.CropType]
 		emoji := "❓"
@@ -1052,16 +1087,16 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 			if remaining < 0 {
 				remaining = 0
 			}
-			return fmt.Sprintf("🏜️ %d号地 - %s%s 天灾干旱！💧快浇水救命！%s后死亡%s", idx, emoji, name, formatDuration(remaining), soilTag)
+			return fmt.Sprintf("🏜️%d %s%s 干旱！💧%s", idx, emoji, name, formatDuration(remaining))
 		}
 		eventEmoji := "❌"
-		eventLabel := "未知事件"
+		eventLabel := "异常"
 		switch plot.EventType {
 		case "bugs":
 			eventEmoji = "🐛"
 			eventLabel = "虫害"
 		}
-		return fmt.Sprintf("%s %d号地 - %s %s%s！需要治疗%s", emoji, idx, name, eventEmoji, eventLabel, soilTag)
+		return fmt.Sprintf("%s%d %s %s%s", emoji, idx, name, eventEmoji, eventLabel)
 	case 4:
 		crop := farmCropMap[plot.CropType]
 		emoji := "🥀"
@@ -1078,9 +1113,9 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 		if remaining < 0 {
 			remaining = 0
 		}
-		return fmt.Sprintf("🥀 %d号地 - %s%s 枯萎中！💧快浇水！%s后死亡%s", idx, emoji, name, formatDuration(remaining), soilTag)
+		return fmt.Sprintf("🥀%d %s%s 枯萎💧%s", idx, emoji, name, formatDuration(remaining))
 	}
-	return fmt.Sprintf("❓ %d号地", idx)
+	return fmt.Sprintf("❓%d", idx)
 }
 
 func formatDuration(secs int64) string {
