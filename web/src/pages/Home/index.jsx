@@ -17,61 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useState, useRef } from 'react';
-import {
-  Button,
-  Typography,
-  Input,
-  ScrollList,
-  ScrollItem,
-} from '@douyinfe/semi-ui';
-import { API, showError, copy, showSuccess } from '../../helpers';
+import React, { useContext, useEffect, useState, useRef, useMemo } from 'react';
+import { API, showError } from '../../helpers';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
-import { API_ENDPOINTS } from '../../constants/common.constant';
 import { StatusContext } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
 import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
-import {
-  IconGithubLogo,
-  IconPlay,
-  IconFile,
-  IconCopy,
-} from '@douyinfe/semi-icons';
-import { Zap, Shield, Globe, Rocket, Sprout } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import NoticeModal from '../../components/layout/NoticeModal';
 import {
-  useScrollReveal,
-  useMouseGlow,
-  useTiltEffect,
-  useCountUp,
-  useStaggerReveal,
-} from '../../hooks/common/useInteractiveEffects';
-import {
-  Moonshot,
-  OpenAI,
-  XAI,
-  Zhipu,
-  Volcengine,
-  Cohere,
-  Claude,
-  Gemini,
-  Suno,
-  Minimax,
-  Wenxin,
-  Spark,
-  Qingyan,
-  DeepSeek,
-  Qwen,
-  Midjourney,
-  Grok,
-  AzureAI,
-  Hunyuan,
-  Xinference,
+  Moonshot, OpenAI, XAI, Zhipu, Volcengine, Cohere, Claude, Gemini,
+  Suno, Minimax, Wenxin, Spark, Qingyan, DeepSeek, Qwen, Midjourney,
+  Grok, AzureAI, Hunyuan, Xinference,
 } from '@lobehub/icons';
-
-const { Text } = Typography;
 
 const Home = () => {
   const { t, i18n } = useTranslation();
@@ -81,86 +40,90 @@ const Home = () => {
   const [homePageContent, setHomePageContent] = useState('');
   const [noticeVisible, setNoticeVisible] = useState(false);
   const isMobile = useIsMobile();
-  const isDemoSiteMode = statusState?.status?.demo_site_enabled || false;
-  const docsLink = statusState?.status?.docs_link || '';
-  const serverAddress =
-    statusState?.status?.server_address || `${window.location.origin}`;
-  const endpointItems = API_ENDPOINTS.map((e) => ({ value: e }));
-  const [endpointIndex, setEndpointIndex] = useState(0);
-  const isChinese = i18n.language.startsWith('zh');
-
-  // Interactive effects hooks
-  const [heroRef, heroGlowStyle] = useMouseGlow();
-  const [featuresRef, featuresVisible] = useScrollReveal({ threshold: 0.1 });
-  const [providersRef, providersVisible] = useScrollReveal({ threshold: 0.1 });
-  const tiltRef1 = useTiltEffect({ maxTilt: 6, scale: 1.03 });
-  const tiltRef2 = useTiltEffect({ maxTilt: 6, scale: 1.03 });
-  const tiltRef3 = useTiltEffect({ maxTilt: 6, scale: 1.03 });
-  const providerCount = 21; // 20 icons + 1 "30+" badge
-  const providerStagger = useStaggerReveal(providerCount, 50, providersVisible);
-  const countUpValue = useCountUp(30, 1800, providersVisible);
   const canvasRef = useRef(null);
-  const [farmBannerRef, farmBannerVisible] = useScrollReveal({ threshold: 0.1 });
-  const [farmGridRef, farmGridVisible] = useScrollReveal({ threshold: 0.1 });
+  const [visibleSections, setVisibleSections] = useState(new Set());
 
-  const farmActivities = [
-    { emoji: '🌱', title: '种植系统', desc: '种植作物，浇水施肥' },
-    { emoji: '🐄', title: '牧场养殖', desc: '饲养动物，收获产品' },
-    { emoji: '🎣', title: '休闲钓鱼', desc: '河畔垂钓，收获鱼类' },
-    { emoji: '🏭', title: '加工制造', desc: '原料加工成高价商品' },
-    { emoji: '📈', title: '市场交易', desc: '买低卖高，商业大亨' },
-    { emoji: '🕵️', title: '偷菜玩法', desc: '拜访好友，顺手牵菜' },
-    { emoji: '🎰', title: '趣味游戏', desc: '小游戏赢取丰厚奖励' },
-    { emoji: '🏆', title: '成就排行', desc: '完成任务，冲刺榜首' },
-  ];
+  const targetDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d;
+  }, []);
+  const [countdown, setCountdown] = useState({ d: 0, h: 0, m: 0, s: 0 });
 
-  // Floating particles effect
+  useEffect(() => {
+    const tick = () => {
+      const diff = Math.max(0, targetDate - Date.now());
+      setCountdown({
+        d: Math.floor(diff / 86400000),
+        h: Math.floor((diff / 3600000) % 24),
+        m: Math.floor((diff / 60000) % 60),
+        s: Math.floor((diff / 1000) % 60),
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setVisibleSections((prev) => new Set([...prev, e.target.dataset.section]));
+          }
+        });
+      },
+      { threshold: 0.12 },
+    );
+    document.querySelectorAll('[data-section]').forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [homePageContentLoaded, homePageContent]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let animId;
     let particles = [];
-
     const resize = () => {
       canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
       canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
       ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
     };
     resize();
-
-    const PARTICLE_COUNT = isMobile ? 25 : 50;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const N = isMobile ? 30 : 70;
+    for (let i = 0; i < N; i++) {
       particles.push({
         x: Math.random() * canvas.offsetWidth,
         y: Math.random() * canvas.offsetHeight,
-        r: Math.random() * 2 + 0.5,
-        dx: (Math.random() - 0.5) * 0.4,
-        dy: (Math.random() - 0.5) * 0.3 - 0.1,
-        opacity: Math.random() * 0.5 + 0.1,
-        green: Math.random() > 0.6,
+        r: Math.random() * 1.5 + 0.3,
+        dx: (Math.random() - 0.5) * 0.25,
+        dy: -Math.random() * 0.15 - 0.03,
+        o: Math.random() * 0.5 + 0.1,
+        gold: Math.random() > 0.35,
       });
     }
-
     const draw = () => {
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      const isDark = document.documentElement.classList.contains('dark');
       particles.forEach((p) => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = p.green
-          ? (isDark ? `rgba(52, 211, 153, ${p.opacity})` : `rgba(5, 150, 105, ${p.opacity})`)
-          : (isDark ? `rgba(110, 231, 183, ${p.opacity * 0.7})` : `rgba(16, 185, 129, ${p.opacity * 0.8})`);
+        ctx.fillStyle = p.gold
+          ? `rgba(251, 191, 36, ${p.o})`
+          : `rgba(161, 161, 170, ${p.o * 0.4})`;
         ctx.fill();
         p.x += p.dx;
         p.y += p.dy;
         if (p.x < 0 || p.x > canvas.offsetWidth) p.dx *= -1;
-        if (p.y < 0 || p.y > canvas.offsetHeight) p.dy *= -1;
+        if (p.y < -10) {
+          p.y = canvas.offsetHeight + 10;
+          p.x = Math.random() * canvas.offsetWidth;
+        }
       });
       animId = requestAnimationFrame(draw);
     };
     draw();
-
     window.addEventListener('resize', resize);
     return () => {
       cancelAnimationFrame(animId);
@@ -174,13 +137,9 @@ const Home = () => {
     const { success, message, data } = res.data;
     if (success) {
       let content = data;
-      if (!data.startsWith('https://')) {
-        content = marked.parse(data);
-      }
+      if (!data.startsWith('https://')) content = marked.parse(data);
       setHomePageContent(content);
       localStorage.setItem('home_page_content', content);
-
-      // 如果内容是 URL，则发送主题模式
       if (data.startsWith('https://')) {
         const iframe = document.querySelector('iframe');
         if (iframe) {
@@ -192,347 +151,212 @@ const Home = () => {
       }
     } else {
       showError(message);
-      setHomePageContent('加载首页内容失败...');
+      setHomePageContent('');
     }
     setHomePageContentLoaded(true);
   };
 
-  const handleCopyBaseURL = async () => {
-    const ok = await copy(serverAddress);
-    if (ok) {
-      showSuccess(t('已复制到剪切板'));
-    }
-  };
-
   useEffect(() => {
-    const checkNoticeAndShow = async () => {
-      const lastCloseDate = localStorage.getItem('notice_close_date');
-      const today = new Date().toDateString();
-      if (lastCloseDate !== today) {
+    const check = async () => {
+      const last = localStorage.getItem('notice_close_date');
+      if (last !== new Date().toDateString()) {
         try {
           const res = await API.get('/api/notice');
-          const { success, data } = res.data;
-          if (success && data && data.trim() !== '') {
-            setNoticeVisible(true);
-          }
-        } catch (error) {
-          console.error('获取公告失败:', error);
-        }
+          if (res.data.success && res.data.data?.trim()) setNoticeVisible(true);
+        } catch (_) { /* ignore */ }
       }
     };
-
-    checkNoticeAndShow();
+    check();
   }, []);
 
   useEffect(() => {
-    displayHomePageContent().then();
+    displayHomePageContent();
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setEndpointIndex((prev) => (prev + 1) % endpointItems.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [endpointItems.length]);
+  const farmFeatures = [
+    { icon: '\u{1F33E}', title: '\u667A\u80FD\u79CD\u690D', desc: 'AI \u9A71\u52A8\u519C\u4F5C\u7269\u751F\u957F\u7CFB\u7EDF\uFF0C\u6A21\u62DF\u771F\u5B9E\u56DB\u5B63\u53D8\u5316', tag: 'CORE' },
+    { icon: '\u{1F4CA}', title: '\u52A8\u6001\u5E02\u573A', desc: '\u4F9B\u9700\u9A71\u52A8\u5B9E\u65F6\u7ECF\u6D4E\uFF0C\u6BCF\u7B14\u4EA4\u6613\u5F71\u54CD\u5168\u5C40\u4EF7\u683C', tag: 'ECONOMY' },
+    { icon: '\u{1F91D}', title: '\u793E\u4EA4\u751F\u6001', desc: '\u62DC\u8BBF\u597D\u53CB\u519C\u573A\u3001\u5077\u83DC\u4E92\u52A8\u3001\u7EC4\u5EFA\u516C\u4F1A\u534F\u4F5C', tag: 'SOCIAL' },
+    { icon: '\u{1F3C6}', title: '\u7ADE\u6280\u7CFB\u7EDF', desc: '\u5168\u7403\u6392\u884C\u699C\u3001\u8D5B\u5B63\u5956\u52B1\u3001\u7A00\u6709\u6210\u5C31\u89E3\u9501', tag: 'COMPETE' },
+  ];
+
+  const providerIcons = [
+    <OpenAI size={22} key='openai' />, <Claude.Color size={22} key='claude' />,
+    <Gemini.Color size={22} key='gemini' />, <DeepSeek.Color size={22} key='ds' />,
+    <Qwen.Color size={22} key='qwen' />, <XAI size={22} key='xai' />,
+    <Grok size={22} key='grok' />, <Zhipu.Color size={22} key='zhipu' />,
+    <Moonshot size={22} key='moon' />, <Volcengine.Color size={22} key='volc' />,
+    <Cohere.Color size={22} key='cohere' />, <Minimax.Color size={22} key='mm' />,
+    <Wenxin.Color size={22} key='wx' />, <Spark.Color size={22} key='spark' />,
+    <Qingyan.Color size={22} key='qy' />, <Suno size={22} key='suno' />,
+    <Midjourney size={22} key='mj' />, <AzureAI.Color size={22} key='azure' />,
+    <Hunyuan.Color size={22} key='hy' />, <Xinference.Color size={22} key='xf' />,
+  ];
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const sc = (name) => `cy-section cy-reveal ${visibleSections.has(name) ? 'cy-visible' : ''}`;
 
   return (
-    <div className='w-full overflow-x-hidden'>
+    <div className='cy-landing'>
       <NoticeModal
         visible={noticeVisible}
         onClose={() => setNoticeVisible(false)}
         isMobile={isMobile}
       />
       {homePageContentLoaded && homePageContent === '' ? (
-        <div className='w-full overflow-x-hidden'>
-          {/* ===== Hero 区域 ===== */}
-          <div className='w-full relative overflow-hidden npc-hero-glow-container' ref={heroRef} style={heroGlowStyle}>
-            {/* Mesh 渐变背景 */}
-            <div className='npc-hero-bg'>
-              <div className='npc-mesh-blob npc-mesh-1' />
-              <div className='npc-mesh-blob npc-mesh-2' />
-              <div className='npc-mesh-blob npc-mesh-3' />
-            </div>
-            {/* Mouse-following glow */}
-            <div className='npc-mouse-glow' />
-            {/* Floating particles */}
-            <canvas ref={canvasRef} className='npc-particles-canvas' />
+        <>
+          {/* Animated grid background */}
+          <div className='cy-grid-bg' />
+          {/* Gold particles */}
+          <canvas ref={canvasRef} className='cy-particles' />
 
-            <div className='flex flex-col items-center justify-center text-center px-4 pt-24 pb-16 md:pt-32 md:pb-20 lg:pt-40 lg:pb-24 relative z-10'>
-              {/* 农场状态 */}
-              <div className='npc-animate npc-delay-1 mb-6'>
-                <div className='npc-status-badge'>
-                  <div className='npc-status-dot' />
-                  <span>🌾 {t('农场世界已开放')}</span>
-                </div>
+          {/* Side floating labels */}
+          {!isMobile && (
+            <>
+              <div className='cy-side cy-side-l'>
+                <span>NPC</span><span>{t('农场')}</span><span>BETA</span>
               </div>
-
-              {/* 农场大标题 */}
-              <div className='npc-animate npc-delay-2 mb-2'>
-                <h1 className='npc-brand-title'>NPC {t('农场')}</h1>
+              <div className='cy-side cy-side-r'>
+                <span>2025</span><span>{t('公益')}</span><span>AI</span>
               </div>
+            </>
+          )}
 
-              {/* Powered by */}
-              <div className='npc-animate npc-delay-2 mb-8'>
-                <div className='npc-powered-badge'>Powered by NPC-API · 30+ AI Models</div>
-              </div>
+          {/* ═══ HERO ═══ */}
+          <section className='cy-hero'>
+            <div className='cy-hero-glow' />
+            <div className='cy-hero-ring cy-ring-1' />
+            <div className='cy-hero-ring cy-ring-2' />
+            <div className='cy-hero-ring cy-ring-3' />
 
-              {/* 副标题 */}
-              <div className='npc-animate npc-delay-3 mb-10'>
-                <p className='npc-subtitle' style={{ margin: '0 auto', maxWidth: 560 }}>
-                  {t('你的 AI 驱动虚拟农场世界')}
-                  <br />
-                  {t('种植、养殖、交易、偷菜 — 打造你的农场帝国')}
-                </p>
-              </div>
-
-              {/* URL 区域 */}
-              <div className='npc-animate npc-delay-3 w-full max-w-lg mb-10'>
-                <div className='npc-url-container'>
-                  <div className='npc-url-inner'>
-                    <Input
-                      readonly
-                      value={serverAddress}
-                      className='flex-1 !rounded-full'
-                      size={isMobile ? 'default' : 'large'}
-                      suffix={
-                        <div className='flex items-center gap-2'>
-                          <ScrollList
-                            bodyHeight={32}
-                            style={{ border: 'unset', boxShadow: 'unset' }}
-                          >
-                            <ScrollItem
-                              mode='wheel'
-                              cycled={true}
-                              list={endpointItems}
-                              selectedIndex={endpointIndex}
-                              onSelect={({ index }) => setEndpointIndex(index)}
-                            />
-                          </ScrollList>
-                          <Button
-                            type='primary'
-                            onClick={handleCopyBaseURL}
-                            icon={<IconCopy />}
-                            className='!rounded-full'
-                          />
-                        </div>
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 操作按钮 - 农场优先 */}
-              <div className='npc-animate npc-delay-4 flex flex-row gap-4 justify-center items-center flex-wrap mb-10'>
-                <Link to='/farm'>
-                  <Button
-                    theme='solid'
-                    size={isMobile ? 'default' : 'large'}
-                    className='npc-btn-farm-hero'
-                    icon={<Sprout size={18} />}
-                  >
-                    🌾 {t('进入我的农场')}
-                  </Button>
-                </Link>
+            <div className='cy-hero-inner'>
+              <div className='cy-hero-badge'>NON-PROFIT · OPEN SOURCE · AI FOR ALL</div>
+              <h1 className='cy-hero-title'>
+                <span className='cy-glow-text'>NPC</span>
+                <span className='cy-title-sep' />
+                <span className='cy-title-sub'>{t('公益')}</span>
+              </h1>
+              <p className='cy-hero-tagline'>{t('非营利 · 纯粹 · 开放')}</p>
+              <p className='cy-hero-desc'>
+                {t('聚合 30+ 主流 AI 模型，打造零门槛的公益 AI 接口平台')}
+              </p>
+              <div className='cy-hero-actions'>
                 <Link to='/console'>
-                  <Button
-                    size={isMobile ? 'default' : 'large'}
-                    className='npc-btn-secondary'
-                    icon={<Rocket size={18} />}
-                  >
-                    {t('使用 API')}
-                  </Button>
+                  <button className='cy-btn cy-btn-gold'>{t('进入控制台')}</button>
                 </Link>
-                {isDemoSiteMode && statusState?.status?.version ? (
-                  <Button
-                    size={isMobile ? 'default' : 'large'}
-                    className='npc-btn-secondary'
-                    icon={<IconGithubLogo />}
-                    onClick={() =>
-                      window.open(
-                        'https://github.com/QuantumNous/new-api',
-                        '_blank',
-                      )
-                    }
-                  >
-                    {statusState.status.version}
-                  </Button>
-                ) : (
-                  docsLink && (
-                    <Button
-                      size={isMobile ? 'default' : 'large'}
-                      className='npc-btn-secondary'
-                      icon={<IconFile />}
-                      onClick={() => window.open(docsLink, '_blank')}
-                    >
-                      {t('查看文档')}
-                    </Button>
-                  )
-                )}
+                <Link to='/farm'>
+                  <button className='cy-btn cy-btn-outline'>🌾 {t('探索农场')}</button>
+                </Link>
               </div>
+            </div>
+          </section>
 
-              {/* 广告 HTML 区域 */}
-              {statusState?.status?.home_ad_html && (
-                <div
-                  className='npc-animate npc-delay-4 w-full max-w-4xl mt-10'
-                  dangerouslySetInnerHTML={{ __html: statusState.status.home_ad_html }}
-                />
-              )}
+          {/* ═══ TICKER ═══ */}
+          <div className='cy-ticker'>
+            <div className='cy-ticker-track'>
+              {Array(10).fill(null).map((_, i) => (
+                <span key={i} className='cy-ticker-item'>
+                  ◆ NPC {t('农场内测即将开启')} ◆ {t('全新数字公益生态')} ◆ REDEFINE PUBLIC WELFARE ◆ AI-POWERED FARM ◆&nbsp;
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* ===== 农场玩法展示 ===== */}
-          <div className='w-full px-4 py-16 md:py-20 relative z-10' ref={featuresRef}>
-            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${featuresVisible ? 'npc-scroll-visible' : ''}`}>
-              <div className='text-center mb-12'>
-                <div className='npc-divider npc-divider-animated mb-5' />
-                <Typography.Title heading={3} style={{ marginBottom: 4 }}>
-                  🌾 {t('开始你的农场生活')}
-                </Typography.Title>
-                <Text style={{ color: 'var(--semi-color-text-2)', fontSize: '15px' }}>
-                  {t('丰富的玩法等你探索')}
-                </Text>
-              </div>
-              <div className='grid grid-cols-2 md:grid-cols-4 gap-5'>
-                {farmActivities.map((a, i) => (
-                  <Link to='/farm' key={i} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <div className='npc-farm-activity'>
-                      <span className='npc-farm-activity-emoji'>{a.emoji}</span>
-                      <div className='npc-farm-activity-title'>{t(a.title)}</div>
-                      <div className='npc-farm-activity-desc'>{t(a.desc)}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+          {/* ═══ FARM PROMO ═══ */}
+          <section className={sc('farm')} data-section='farm'>
+            <div className='cy-section-head'>
+              <div className='cy-gold-line' />
+              <h2 className='cy-section-title'>NPC {t('农场')}</h2>
+              <p className='cy-section-sub'>{t('重新定义公益与数字农场的结合')}</p>
             </div>
-          </div>
 
-          {/* ===== 特色亮点 ===== */}
-          <div className='w-full px-4 py-16 md:py-20 relative z-10' ref={farmBannerRef}>
-            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${farmBannerVisible ? 'npc-scroll-visible' : ''}`}>
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-5'>
-                <div className='npc-feature-card npc-stagger-1' ref={tiltRef1}>
-                  <div className='npc-feature-icon npc-icon-pulse' style={{ background: 'rgba(5, 150, 105, 0.1)' }}>
-                    <Sprout size={24} style={{ color: '#059669' }} />
-                  </div>
-                  <Typography.Title heading={5} style={{ marginBottom: '8px' }}>
-                    {t('AI 驱动经济')}
-                  </Typography.Title>
-                  <Text style={{ color: 'var(--semi-color-text-2)', fontSize: '14px', lineHeight: 1.6 }}>
-                    {t('30+ AI 模型接口聚合，农场市场由真实供需驱动，体验独特的智能经济系统')}
-                  </Text>
-                </div>
-                <div className='npc-feature-card npc-stagger-2' ref={tiltRef2}>
-                  <div className='npc-feature-icon npc-icon-pulse' style={{ background: 'rgba(217, 119, 6, 0.1)' }}>
-                    <Zap size={24} style={{ color: '#d97706' }} />
-                  </div>
-                  <Typography.Title heading={5} style={{ marginBottom: '8px' }}>
-                    {t('丰富玩法')}
-                  </Typography.Title>
-                  <Text style={{ color: 'var(--semi-color-text-2)', fontSize: '14px', lineHeight: 1.6 }}>
-                    {t('种植养殖、钓鱼加工、市场交易、偷菜互动、小游戏，数十种玩法持续更新')}
-                  </Text>
-                </div>
-                <div className='npc-feature-card npc-stagger-3' ref={tiltRef3}>
-                  <div className='npc-feature-icon npc-icon-pulse' style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
-                    <Globe size={24} style={{ color: '#6366f1' }} />
-                  </div>
-                  <Typography.Title heading={5} style={{ marginBottom: '8px' }}>
-                    {t('社交互动')}
-                  </Typography.Title>
-                  <Text style={{ color: 'var(--semi-color-text-2)', fontSize: '14px', lineHeight: 1.6 }}>
-                    {t('拜访好友农场偷菜，排行榜竞争，成就系统，与所有玩家一起经营农场帝国')}
-                  </Text>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ===== 农场入驻横幅 ===== */}
-          <div className='w-full px-4 py-16 md:py-20 relative z-10' ref={farmGridRef}>
-            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${farmGridVisible ? 'npc-scroll-visible' : ''}`}>
-              <div className='npc-farm-banner'>
-                <div className='npc-farm-float' style={{ top: '8%', left: '4%', animationDelay: '0s' }}>🌾</div>
-                <div className='npc-farm-float' style={{ top: '12%', right: '6%', animationDelay: '1s' }}>🌻</div>
-                <div className='npc-farm-float' style={{ bottom: '12%', left: '6%', animationDelay: '2s' }}>🐶</div>
-                <div className='npc-farm-float' style={{ bottom: '8%', right: '4%', animationDelay: '0.5s' }}>🌽</div>
-                <div className='npc-farm-float' style={{ top: '45%', left: '2%', animationDelay: '1.5s' }}>🐄</div>
-                <div className='npc-farm-float' style={{ top: '45%', right: '2%', animationDelay: '2.5s' }}>🎣</div>
-                <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
-                  <h2 className='npc-farm-title'>{t('准备好了吗？')}</h2>
-                  <p className='npc-farm-subtitle'>
-                    {t('加入数千名农场主，开始你的种田之旅')}
-                  </p>
-                  <Link to='/farm'>
-                    <Button theme='solid' size='large' className='npc-btn-farm' icon={<Sprout size={18} />}>
-                      {t('立即进入农场')}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ===== 供应商展示区 ===== */}
-          <div className='w-full px-4 pb-20 md:pb-28 relative z-10' ref={providersRef}>
-            <div className={`max-w-4xl mx-auto npc-scroll-reveal ${providersVisible ? 'npc-scroll-visible' : ''}`}>
-              <div className='text-center mb-10'>
-                <div className='npc-divider npc-divider-animated mb-5' />
-                <Text style={{
-                  fontWeight: 500,
-                  fontSize: '15px',
-                  letterSpacing: '1px',
-                  color: 'var(--semi-color-text-2)',
-                }}>
-                  {t('底层 AI 模型支持')}
-                </Text>
-              </div>
-              <div className='npc-provider-grid'>
+            {/* Countdown */}
+            <div className='cy-countdown'>
+              <div className='cy-countdown-label'>{t('内测倒计时')}</div>
+              <div className='cy-countdown-row'>
                 {[
-                  <OpenAI size={26} />,
-                  <Claude.Color size={26} />,
-                  <Gemini.Color size={26} />,
-                  <DeepSeek.Color size={26} />,
-                  <Qwen.Color size={26} />,
-                  <XAI size={26} />,
-                  <Grok size={26} />,
-                  <Zhipu.Color size={26} />,
-                  <Moonshot size={26} />,
-                  <Volcengine.Color size={26} />,
-                  <Cohere.Color size={26} />,
-                  <Minimax.Color size={26} />,
-                  <Wenxin.Color size={26} />,
-                  <Spark.Color size={26} />,
-                  <Qingyan.Color size={26} />,
-                  <Suno size={26} />,
-                  <Midjourney size={26} />,
-                  <AzureAI.Color size={26} />,
-                  <Hunyuan.Color size={26} />,
-                  <Xinference.Color size={26} />,
-                ].map((icon, idx) => (
-                  <div
-                    key={idx}
-                    className={`npc-provider-item npc-provider-pop ${providerStagger.has(idx) ? 'npc-provider-visible' : ''}`}
-                  >
-                    {icon}
+                  { v: pad(countdown.d), l: t('天') },
+                  { v: pad(countdown.h), l: t('时') },
+                  { v: pad(countdown.m), l: t('分') },
+                  { v: pad(countdown.s), l: t('秒') },
+                ].map((c, i) => (
+                  <div key={i} className='cy-cd-cell'>
+                    <span className='cy-cd-num'>{c.v}</span>
+                    <span className='cy-cd-unit'>{c.l}</span>
                   </div>
                 ))}
-                <div className={`npc-provider-item npc-provider-pop ${providerStagger.has(20) ? 'npc-provider-visible' : ''}`}>
-                  <Typography.Text style={{
-                    fontSize: '16px',
-                    fontWeight: 800,
-                    background: 'linear-gradient(135deg, #059669, #34d399)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}>
-                    {countUpValue}+
-                  </Typography.Text>
-                </div>
               </div>
             </div>
-          </div>
-        </div>
+
+            {/* Glass cards */}
+            <div className='cy-cards'>
+              {farmFeatures.map((f, i) => (
+                <Link to='/farm' key={i} style={{ textDecoration: 'none' }}>
+                  <div className='cy-glass-card' style={{ animationDelay: `${i * 0.12}s` }}>
+                    <div className='cy-card-tag'>{f.tag}</div>
+                    <div className='cy-card-icon'>{f.icon}</div>
+                    <h3 className='cy-card-title'>{t(f.title)}</h3>
+                    <p className='cy-card-desc'>{t(f.desc)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <div className='cy-cta'>
+              <p className='cy-cta-copy'>
+                {t('全新的数字生态，重新定义公益与农场的结合。')}
+                <br />
+                {t('你准备好了吗？')}
+              </p>
+              <Link to='/farm'>
+                <button className='cy-btn cy-btn-gold cy-btn-lg'>🌾 {t('预约内测')}</button>
+              </Link>
+            </div>
+          </section>
+
+          {/* ═══ MANIFESTO ═══ */}
+          <section className={sc('manifesto')} data-section='manifesto'>
+            <blockquote className='cy-quote'>
+              <span className='cy-quote-mark'>&ldquo;</span>
+              {t('我们相信，AI 不应该被少数人垄断。')}<br />
+              {t('NPC 公益，让每个人都能平等地使用最前沿的 AI 技术。')}<br />
+              {t('NPC 农场，让公益变得有趣、可持续、充满想象力。')}
+              <span className='cy-quote-mark'>&rdquo;</span>
+            </blockquote>
+          </section>
+
+          {/* ═══ PROVIDERS ═══ */}
+          <section className={sc('providers')} data-section='providers'>
+            <div className='cy-section-head'>
+              <div className='cy-gold-line' />
+              <h2 className='cy-section-title'>{t('底层技术支持')}</h2>
+              <p className='cy-section-sub'>{t('聚合全球 30+ 主流 AI 供应商')}</p>
+            </div>
+            <div className='cy-providers'>
+              {providerIcons.map((icon, i) => (
+                <div key={i} className='cy-prov-item'>{icon}</div>
+              ))}
+              <div className='cy-prov-item cy-prov-count'>30+</div>
+            </div>
+          </section>
+
+          {/* ═══ FOOTER ═══ */}
+          <footer className='cy-footer'>
+            <div className='cy-footer-brand'>NPC {t('公益')}</div>
+            <div className='cy-footer-text'>{t('非营利 · 开源 · 让 AI 属于每个人')}</div>
+          </footer>
+
+          {/* Ad HTML */}
+          {statusState?.status?.home_ad_html && (
+            <div
+              className='cy-ad'
+              dangerouslySetInnerHTML={{ __html: statusState.status.home_ad_html }}
+            />
+          )}
+        </>
       ) : (
-        <div className='overflow-x-hidden w-full'>
+        <div className='w-full overflow-x-hidden'>
           {homePageContent.startsWith('https://') ? (
             <iframe
               src={homePageContent}
