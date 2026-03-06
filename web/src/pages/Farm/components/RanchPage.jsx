@@ -80,10 +80,10 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {animals.map((animal) => (
             <div key={animal.id} className='farm-card' style={{ marginBottom: 0, padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 32 }}>{animal.animal_emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                     <Text strong style={{ fontSize: 15 }}>{animal.animal_name}</Text>
                     <Tag size='small' color={statusTagColors[animal.status] || 'grey'}>
                       {statusLabels[animal.status] || animal.status_label}
@@ -111,7 +111,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {animal.status !== 5 && (
                     <>
                       <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/feed', { animal_id: animal.id })}

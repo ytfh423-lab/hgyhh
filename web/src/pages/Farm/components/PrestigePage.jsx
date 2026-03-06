@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Spin, Descriptions, Banner, Typography } from '@douyinfe/semi-ui';
+import { Button, Spin, Banner, Typography } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from './utils';
 
 const { Text, Title } = Typography;
@@ -40,15 +40,33 @@ const PrestigePage = ({ loadFarm, t }) => {
           <Text type='tertiary' size='small'>{t('满级后重置换取永久加成')}</Text>
         </div>
       </div>
-      <Descriptions size='small' row data={[
-        { key: t('当前等级'), value: `Lv.${data.current_level}` },
-        { key: t('转生次数'), value: data.prestige_level },
-        { key: t('当前加成'), value: `+${data.current_bonus}%` },
-        { key: t('转生后加成'), value: `+${data.next_bonus}%` },
-        { key: t('每次加成'), value: `+${data.bonus_per_level}%` },
-        { key: t('需要等级'), value: `Lv.${data.min_level}` },
-      ]} />
-      <Banner type='warning' style={{ marginTop: 12, marginBottom: 12, borderRadius: 10 }}
+      <div className='farm-kv-grid' style={{ marginBottom: 14 }}>
+        <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('当前等级')}</div>
+          <div className='farm-kv-value'>Lv.{data.current_level}</div>
+        </div>
+        <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('转生次数')}</div>
+          <div className='farm-kv-value'>{data.prestige_level}</div>
+        </div>
+        <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('当前加成')}</div>
+          <div className='farm-kv-value' style={{ color: '#22c55e' }}>+{data.current_bonus}%</div>
+        </div>
+        <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('转生后加成')}</div>
+          <div className='farm-kv-value' style={{ color: '#8b5cf6' }}>+{data.next_bonus}%</div>
+        </div>
+        <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('每次加成')}</div>
+          <div className='farm-kv-value'>+{data.bonus_per_level}%</div>
+        </div>
+        <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('需要等级')}</div>
+          <div className='farm-kv-value'>Lv.{data.min_level}</div>
+        </div>
+      </div>
+      <Banner type='warning' style={{ marginBottom: 12, borderRadius: 10 }}
         description={t('转生将重置：等级、地块、仓库、狗、牧场、加工。保留：成就、图鉴。获得永久收入加成。')} />
       <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={doPrestige} className='farm-btn'>
         {data.can_prestige ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)` : `${t('需要')} Lv.${data.min_level}`}

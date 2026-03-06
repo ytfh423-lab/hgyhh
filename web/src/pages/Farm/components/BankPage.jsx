@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Spin, Empty, Tag, Descriptions, Banner, InputNumber, Table, Typography } from '@douyinfe/semi-ui';
+import { Button, Spin, Empty, Tag, Banner, InputNumber, Typography } from '@douyinfe/semi-ui';
 import { API, showError, formatBalance } from './utils';
 
 const { Text } = Typography;
@@ -57,23 +57,36 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
           style={{ marginBottom: 14, borderRadius: 12 }} />
       )}
 
-      {/* Bank info */}
       <div className='farm-card'>
         <div className='farm-section-title'>🏦 {t('银行信息')}</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           <div className='farm-pill farm-pill-green'>💰 {t('余额')}: {formatBalance(bankData.balance)}</div>
           <div className='farm-pill farm-pill-cyan'>📊 {t('信用评分')}: {bankData.credit_score}/{bankData.max_score}</div>
         </div>
-        <Descriptions size='small' row data={[
-          { key: t('信用贷额度'), value: formatBalance(bankData.max_loan) },
-          { key: t('信用贷利率'), value: `${bankData.interest_rate}%` },
-          { key: t('抵押贷上限'), value: formatBalance(bankData.mortgage_max) },
-          { key: t('抵押贷利率'), value: `${bankData.mortgage_interest_rate}%` },
-          { key: t('还款期限'), value: `${bankData.loan_days} ${t('天')}` },
-        ]} />
+        <div className='farm-kv-grid'>
+          <div className='farm-kv'>
+            <div className='farm-kv-label'>{t('信用贷额度')}</div>
+            <div className='farm-kv-value'>{formatBalance(bankData.max_loan)}</div>
+          </div>
+          <div className='farm-kv'>
+            <div className='farm-kv-label'>{t('信用贷利率')}</div>
+            <div className='farm-kv-value'>{bankData.interest_rate}%</div>
+          </div>
+          <div className='farm-kv'>
+            <div className='farm-kv-label'>{t('抵押贷上限')}</div>
+            <div className='farm-kv-value'>{formatBalance(bankData.mortgage_max)}</div>
+          </div>
+          <div className='farm-kv'>
+            <div className='farm-kv-label'>{t('抵押贷利率')}</div>
+            <div className='farm-kv-value'>{bankData.mortgage_interest_rate}%</div>
+          </div>
+          <div className='farm-kv'>
+            <div className='farm-kv-label'>{t('还款期限')}</div>
+            <div className='farm-kv-value'>{bankData.loan_days} {t('天')}</div>
+          </div>
+        </div>
       </div>
 
-      {/* Active loan or apply */}
       <div className='farm-card'>
         {bankData.has_active_loan && loan ? (
           <div>
@@ -84,15 +97,35 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
               <Banner type='danger' description={loan.loan_type === 1 ? t('抵押贷款已逾期！逾期将执行惩罚！') : t('贷款已逾期！请尽快还款')}
                 style={{ marginBottom: 10, borderRadius: 10 }} />
             )}
-            <Descriptions size='small' row data={[
-              { key: t('本金'), value: formatBalance(loan.principal) },
-              { key: t('利息'), value: formatBalance(loan.interest) },
-              { key: t('应还'), value: formatBalance(loan.total_due) },
-              { key: t('已还'), value: formatBalance(loan.repaid) },
-              { key: t('剩余'), value: <Text type='danger' strong>{formatBalance(loan.remaining)}</Text> },
-              { key: t('剩余天数'), value: loan.overdue ? <Tag color='red'>{t('已逾期')}</Tag> : `${loan.days_left} ${t('天')}` },
-            ]} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <div className='farm-kv-grid' style={{ marginBottom: 12 }}>
+              <div className='farm-kv'>
+                <div className='farm-kv-label'>{t('本金')}</div>
+                <div className='farm-kv-value'>{formatBalance(loan.principal)}</div>
+              </div>
+              <div className='farm-kv'>
+                <div className='farm-kv-label'>{t('利息')}</div>
+                <div className='farm-kv-value'>{formatBalance(loan.interest)}</div>
+              </div>
+              <div className='farm-kv'>
+                <div className='farm-kv-label'>{t('应还')}</div>
+                <div className='farm-kv-value'>{formatBalance(loan.total_due)}</div>
+              </div>
+              <div className='farm-kv'>
+                <div className='farm-kv-label'>{t('已还')}</div>
+                <div className='farm-kv-value'>{formatBalance(loan.repaid)}</div>
+              </div>
+              <div className='farm-kv'>
+                <div className='farm-kv-label'>{t('剩余')}</div>
+                <div className='farm-kv-value' style={{ color: '#ef4444' }}>{formatBalance(loan.remaining)}</div>
+              </div>
+              <div className='farm-kv'>
+                <div className='farm-kv-label'>{t('剩余天数')}</div>
+                <div className='farm-kv-value'>
+                  {loan.overdue ? <Tag size='small' color='red'>{t('已逾期')}</Tag> : `${loan.days_left} ${t('天')}`}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button theme='solid' type='primary' onClick={() => handleRepay(100)}
                 loading={actionLoading} className='farm-btn'>
                 💰 {t('全额还款')} ({formatBalance(loan.remaining)})
@@ -127,7 +160,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
               </Text>
               <Banner type='warning' style={{ marginBottom: 8, borderRadius: 8 }}
                 description={t('抵押贷款不能用于升级！逾期未还：10级以下永久禁升10级，10级以上封禁账号')} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Text size='small'>$</Text>
                 <InputNumber value={mortgageAmount} onChange={setMortgageAmount}
                   min={1} max={mortgageMaxDollar} style={{ width: 120 }} />
@@ -141,18 +174,31 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
         )}
       </div>
 
-      {/* History */}
       {history.length > 0 && (
         <div className='farm-card'>
           <div className='farm-section-title'>📜 {t('贷款历史')}</div>
-          <Table dataSource={history} pagination={false} size='small' columns={[
-            { title: t('日期'), dataIndex: 'created_at', width: 100, render: v => new Date(v * 1000).toLocaleDateString() },
-            { title: t('类型'), dataIndex: 'loan_type', width: 60, render: v => v === 1 ? <Tag size='small' color='orange'>{t('抵押')}</Tag> : <Tag size='small' color='blue'>{t('信用')}</Tag> },
-            { title: t('本金'), dataIndex: 'principal', width: 90, render: v => formatBalance(v) },
-            { title: t('应还'), dataIndex: 'total_due', width: 90, render: v => formatBalance(v) },
-            { title: t('已还'), dataIndex: 'repaid', width: 90, render: v => formatBalance(v) },
-            { title: t('状态'), dataIndex: 'status', width: 70, render: v => v === 1 ? <Tag size='small' color='green'>{t('已还清')}</Tag> : v === 2 ? <Tag size='small' color='red'>{t('违约')}</Tag> : <Tag size='small' color='orange'>{t('还款中')}</Tag> },
-          ]} />
+          {history.map((h, idx) => (
+            <div key={h.id || idx} className='farm-row'>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
+                  {h.loan_type === 1
+                    ? <Tag size='small' color='orange'>{t('抵押')}</Tag>
+                    : <Tag size='small' color='blue'>{t('信用')}</Tag>}
+                  {h.status === 1
+                    ? <Tag size='small' color='green'>{t('已还清')}</Tag>
+                    : h.status === 2
+                      ? <Tag size='small' color='red'>{t('违约')}</Tag>
+                      : <Tag size='small' color='orange'>{t('还款中')}</Tag>}
+                  <Text type='tertiary' size='small'>{new Date(h.created_at * 1000).toLocaleDateString()}</Text>
+                </div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <Text size='small'>{t('本金')} {formatBalance(h.principal)}</Text>
+                  <Text size='small'>{t('应还')} {formatBalance(h.total_due)}</Text>
+                  <Text size='small'>{t('已还')} {formatBalance(h.repaid)}</Text>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

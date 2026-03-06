@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Empty, Spin, Table, Tag, Banner, Typography } from '@douyinfe/semi-ui';
+import { Button, Empty, Spin, Tag, Banner, Typography } from '@douyinfe/semi-ui';
 import { API, seasonNames, seasonEmojis } from './utils';
 
 const { Text } = Typography;
@@ -38,7 +38,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
   return (
     <div>
       <div className='farm-card'>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
           <Text strong>{seasonEmojis[season]} {t('当前')}: {seasonNames[season]}{t('季')} ({t('剩余')} {whData.days_left} {t('天')})</Text>
           <div className='farm-pill farm-pill-blue'>{t('容量')}: {whData.total}/{whData.max_slots}</div>
         </div>
@@ -50,26 +50,32 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
         <Empty description={t('仓库空空如也，收获时选择「收获到仓库」来存储作物')} />
       ) : (
         <div className='farm-card'>
-          <Table dataSource={items} pagination={false} size='small' rowKey='crop_key'
-            columns={[
-              { title: t('作物'), dataIndex: 'crop_name', render: (_, r) => `${r.emoji} ${r.crop_name}` },
-              { title: t('数量'), dataIndex: 'quantity' },
-              { title: t('单价'), dataIndex: 'unit_price', render: v => `$${v.toFixed(2)}` },
-              { title: t('季节'), dataIndex: 'in_season', render: (v, r) => (
-                <Tag color={v ? 'green' : 'orange'}>{v ? t('应季') : t('反季')} {r.season_pct}%</Tag>
-              )},
-              { title: t('总值'), dataIndex: 'total_value', render: v => `$${v.toFixed(2)}` },
-              { title: t('操作'), render: (_, r) => (
-                <Button size='small' theme='solid' type='warning' onClick={() => handleSell(r.crop_key)}
-                  loading={actionLoading} className='farm-btn'>{t('出售')}</Button>
-              )},
-            ]}
-          />
-          <div style={{ marginTop: 10, textAlign: 'right' }}>
-            <Button theme='solid' type='warning' onClick={handleSellAll} loading={actionLoading} className='farm-btn'>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className='farm-section-title' style={{ marginBottom: 0 }}>📦 {t('库存')}</div>
+            <Button theme='solid' type='warning' size='small' onClick={handleSellAll}
+              loading={actionLoading} className='farm-btn'>
               💰 {t('全部出售')}
             </Button>
           </div>
+          {items.map((r) => (
+            <div key={r.crop_key} className='farm-row'>
+              <span style={{ fontSize: 20 }}>{r.emoji}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Text strong size='small'>{r.crop_name}</Text>
+                  <span className='farm-pill' style={{ fontSize: 11 }}>×{r.quantity}</span>
+                  <Tag size='small' color={r.in_season ? 'green' : 'orange'} style={{ borderRadius: 12 }}>
+                    {r.in_season ? t('应季') : t('反季')} {r.season_pct}%
+                  </Tag>
+                </div>
+                <Text type='tertiary' size='small'>
+                  {t('单价')} ${r.unit_price?.toFixed(2)} · {t('总值')} <Text size='small' strong style={{ color: '#f59e0b' }}>${r.total_value?.toFixed(2)}</Text>
+                </Text>
+              </div>
+              <Button size='small' theme='solid' type='warning' onClick={() => handleSell(r.crop_key)}
+                loading={actionLoading} className='farm-btn'>{t('出售')}</Button>
+            </div>
+          ))}
         </div>
       )}
     </div>

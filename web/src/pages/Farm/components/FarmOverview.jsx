@@ -85,7 +85,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
         <div style={{ marginTop: 14 }}>
           <Suspense fallback={
             <div style={{
-              width: '100%', height: 500, borderRadius: 16, display: 'flex',
+              width: '100%', height: 'min(500px, 60vh)', borderRadius: 16, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
               background: 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)',
               border: '1px solid var(--farm-glass-border)',

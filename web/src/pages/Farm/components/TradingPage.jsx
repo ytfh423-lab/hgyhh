@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Empty, Spin, Table, Tag, InputNumber, Typography } from '@douyinfe/semi-ui';
+import { Button, Empty, Spin, Tag, InputNumber, Typography } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from './utils';
 
 const { Text } = Typography;
@@ -61,7 +61,7 @@ const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
         {[
           { key: 'market', label: '🏪 ' + t('市场') },
           { key: 'sell', label: '📤 ' + t('挂单') },
@@ -82,13 +82,13 @@ const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
               {trades.map(tr => (
                 <div key={tr.id} className='farm-row'>
                   <span style={{ fontSize: 20 }}>{tr.item_emoji}</span>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <Text strong size='small'>{tr.item_name} ×{tr.quantity}</Text>
                     <Text type='tertiary' size='small' style={{ display: 'block' }}>
                       {t('卖家')}: {tr.seller_name} · ${tr.price_per_unit.toFixed(2)}/{t('个')}
                     </Text>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <Text strong style={{ color: '#f59e0b' }}>${tr.total_price.toFixed(2)}</Text>
                     <Text type='tertiary' size='small' style={{ display: 'block' }}>+{tr.fee.toFixed(2)}{t('手续费')}</Text>
                   </div>
@@ -134,13 +134,25 @@ const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
       {view === 'history' && (
         <div className='farm-card'>
           {myTrades.length === 0 ? <Empty description={t('暂无记录')} /> : (
-            <Table dataSource={myTrades} pagination={false} size='small' rowKey='id' columns={[
-              { title: t('物品'), render: (_, r) => `${r.item_emoji} ${r.item_name}`, width: 100 },
-              { title: t('数量'), dataIndex: 'quantity', width: 60 },
-              { title: t('单价'), dataIndex: 'price', render: v => `$${v.toFixed(2)}`, width: 80 },
-              { title: t('方向'), render: (_, r) => r.is_seller ? <Tag size='small' color='orange'>{t('卖出')}</Tag> : <Tag size='small' color='green'>{t('买入')}</Tag>, width: 60 },
-              { title: t('状态'), dataIndex: 'status', render: v => v === 1 ? <Tag size='small' color='green'>{t('成交')}</Tag> : <Tag size='small' color='grey'>{t('取消')}</Tag>, width: 60 },
-            ]} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {myTrades.map((r, idx) => (
+                <div key={r.id || idx} className='farm-row'>
+                  <span style={{ fontSize: 18 }}>{r.item_emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text strong size='small'>{r.item_name} ×{r.quantity}</Text>
+                      {r.is_seller
+                        ? <Tag size='small' color='orange'>{t('卖出')}</Tag>
+                        : <Tag size='small' color='green'>{t('买入')}</Tag>}
+                      {r.status === 1
+                        ? <Tag size='small' color='green'>{t('成交')}</Tag>
+                        : <Tag size='small' color='grey'>{t('取消')}</Tag>}
+                    </div>
+                    <Text type='tertiary' size='small'>{t('单价')} ${r.price?.toFixed(2)}</Text>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

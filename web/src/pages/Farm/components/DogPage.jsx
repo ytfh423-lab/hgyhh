@@ -43,18 +43,16 @@ const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
             <div><Text type='tertiary' size='small'>{t('养大后可拦截偷菜者')}</Text></div>
           </div>
         </div>
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16,
-        }}>
+        <div className='farm-kv-grid' style={{ marginBottom: 16 }}>
           {[
             { label: t('价格'), value: `$${dogData?.dog_price?.toFixed(2)}` },
             { label: t('成长'), value: `${dogData?.grow_hours}${t('小时')}` },
             { label: t('拦截率'), value: `${dogData?.guard_rate}%` },
             { label: t('狗粮'), value: `$${dogData?.food_price?.toFixed(2)}` },
           ].map(s => (
-            <div key={s.label} className='farm-card-flat' style={{ textAlign: 'center' }}>
-              <Text type='tertiary' size='small' style={{ display: 'block' }}>{s.label}</Text>
-              <Text strong size='small'>{s.value}</Text>
+            <div key={s.label} className='farm-kv'>
+              <div className='farm-kv-label'>{s.label}</div>
+              <div className='farm-kv-value'>{s.value}</div>
             </div>
           ))}
         </div>
@@ -68,10 +66,10 @@ const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
   return (
     <div className='farm-card'>
       {/* Profile */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 36 }}>{dogData.level === 2 ? '🐕' : '🐶'}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Text strong style={{ fontSize: 16 }}>「{dogData.name}」</Text>
             <Tag size='small' color={dogData.hunger > 0 ? 'green' : 'red'}>
               {dogData.level_name} · {dogData.status}
@@ -96,16 +94,16 @@ const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+      <div className='farm-kv-grid' style={{ marginBottom: 12 }}>
         {[
           { label: t('等级'), value: dogData.level_name },
           { label: t('饱食度'), value: `${dogData.hunger}%` },
           { label: t('拦截率'), value: `${dogData.guard_rate}%` },
           { label: t('狗粮'), value: `$${dogData.food_price?.toFixed(2)}` },
         ].map(s => (
-          <div key={s.label} className='farm-card-flat' style={{ textAlign: 'center' }}>
-            <Text type='tertiary' size='small' style={{ display: 'block' }}>{s.label}</Text>
-            <Text strong size='small'>{s.value}</Text>
+          <div key={s.label} className='farm-kv'>
+            <div className='farm-kv-label'>{s.label}</div>
+            <div className='farm-kv-value'>{s.value}</div>
           </div>
         ))}
       </div>

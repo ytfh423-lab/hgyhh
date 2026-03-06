@@ -5,7 +5,7 @@ import { Sprout } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
 import './farm.css';
 
-import Sidebar from './components/Sidebar';
+import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import FarmOverview from './components/FarmOverview';
 import PlantPage from './components/PlantPage';
@@ -33,6 +33,58 @@ const { Text, Title } = Typography;
 
 const seasonCssVar = { 0: 'var(--farm-spring)', 1: 'var(--farm-summer)', 2: 'var(--farm-autumn)', 3: 'var(--farm-winter)' };
 
+const mobileQuickTabs = [
+  { key: 'overview', emoji: '🏠', label: '总览' },
+  { key: 'plant', emoji: '🌱', label: '种植' },
+  { key: 'ranch', emoji: '🐄', label: '牧场' },
+  { key: 'market', emoji: '📈', label: '市场' },
+  { key: 'more', emoji: '☰', label: '更多' },
+];
+
+const MobileBottomNav = ({ activeKey, onNavigate, showSheet, t }) => {
+  return (
+    <div className='farm-mobile-nav'>
+      {mobileQuickTabs.map((tab) => (
+        <div
+          key={tab.key}
+          className={`farm-mobile-nav-item ${activeKey === tab.key || (tab.key === 'more' && !mobileQuickTabs.slice(0, 4).some(q => q.key === activeKey)) ? 'active' : ''}`}
+          onClick={() => tab.key === 'more' ? showSheet() : onNavigate(tab.key)}
+        >
+          <span className='nav-emoji'>{tab.emoji}</span>
+          <span className='nav-label'>{t(tab.label)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const MobileSheet = ({ activeKey, onNavigate, onClose, t }) => {
+  return (
+    <div className='farm-mobile-sheet-overlay' onClick={onClose}>
+      <div className='farm-mobile-sheet' onClick={(e) => e.stopPropagation()}>
+        <div className='farm-mobile-sheet-handle' />
+        {navGroups.map((group) => (
+          <div key={group.key} className='farm-mobile-sheet-group'>
+            <div className='farm-mobile-sheet-group-title'>{group.emoji} {t(group.label)}</div>
+            <div className='farm-mobile-sheet-grid'>
+              {group.items.map((item) => (
+                <div
+                  key={item.key}
+                  className={`farm-mobile-sheet-item ${activeKey === item.key ? 'active' : ''}`}
+                  onClick={() => { onNavigate(item.key); onClose(); }}
+                >
+                  <span className='sheet-emoji'>{item.emoji}</span>
+                  <span>{t(item.label)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Farm = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -40,6 +92,7 @@ const Farm = () => {
   const [crops, setCrops] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
   const [activePage, setActivePage] = useState('overview');
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   const loadFarm = useCallback(async () => {
     setLoading(true);
@@ -175,6 +228,20 @@ const Farm = () => {
           {renderPage()}
         </div>
       </div>
+      <MobileBottomNav
+        activeKey={activePage}
+        onNavigate={setActivePage}
+        showSheet={() => setMobileSheetOpen(true)}
+        t={t}
+      />
+      {mobileSheetOpen && (
+        <MobileSheet
+          activeKey={activePage}
+          onNavigate={setActivePage}
+          onClose={() => setMobileSheetOpen(false)}
+          t={t}
+        />
+      )}
     </div>
   );
 };

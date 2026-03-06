@@ -80,7 +80,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
   return (
     <div>
       {/* Slots */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className='farm-pill farm-pill-blue'>🏭 {t('槽位')}: {wsData.used_slots}/{wsData.max_slots}</div>
         {hasCollectable && (
           <Button theme='solid' type='warning' size='small' loading={wsLoading} onClick={doCollect} className='farm-btn'>

@@ -67,27 +67,26 @@ const LogsPage = ({ t }) => {
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {logs.map((log) => (
-              <div key={log.id} className='farm-row'>
-                <span style={{ fontSize: 18, width: 28, textAlign: 'center', flexShrink: 0 }}>
+              <div key={log.id} className='farm-row' style={{ flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>
                   {actionEmojis[log.action] || '📋'}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Tag size='small' color='grey' style={{ borderRadius: 4 }}>{log.action_label}</Tag>
                     <Text size='small' style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {log.detail}
                     </Text>
                   </div>
                 </div>
-                <Text strong size='small' style={{
-                  color: log.amount >= 0 ? '#16a34a' : '#dc2626',
-                  flexShrink: 0, minWidth: 60, textAlign: 'right',
-                }}>
-                  {log.amount >= 0 ? '+' : ''}{log.amount.toFixed(2)}
-                </Text>
-                <Text type='tertiary' size='small' style={{ flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-                  {formatTime(log.created_at)}
-                </Text>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+                  <Text strong size='small' style={{ color: log.amount >= 0 ? '#16a34a' : '#dc2626' }}>
+                    {log.amount >= 0 ? '+' : ''}{log.amount.toFixed(2)}
+                  </Text>
+                  <Text type='tertiary' size='small'>
+                    {formatTime(log.created_at)}
+                  </Text>
+                </div>
               </div>
             ))}
           </div>
