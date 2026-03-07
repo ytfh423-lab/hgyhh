@@ -6,15 +6,17 @@ import { FishingBarGame, PowerChopGame, LassoGame, AnglePowerGame, WaterCatchGam
 /* ═══════════════════════════════════════════════════════════════
    PlaceholderGame — 尚未实现的游戏占位符
    ═══════════════════════════════════════════════════════════════ */
-const PlaceholderGame = ({ game, t }) => {
+const PlaceholderGame = ({ game, onComplete, t }) => {
   return (
     <div className='farm-gc-ready'>
       <div className='farm-gc-ready-emoji'>{game.emoji}</div>
-      <div className='farm-gc-ready-desc'>🚧 {t('该游戏尚未上线')}</div>
+      <div className='farm-gc-ready-desc'>🚧 {t('即将推出')}...</div>
       <div className='farm-gc-ready-hint'>{game.name} — {game.desc}</div>
-      <div style={{ marginTop: 12, fontSize: 12, color: 'var(--farm-text-3)' }}>
-        {t('敬请期待')}
-      </div>
+      <Button theme='solid' size='large' className='farm-btn'
+        style={{ fontWeight: 700, minWidth: 140 }}
+        onClick={() => onComplete(0.5, 50)}>
+        ⏩ {t('模拟完成')}
+      </Button>
     </div>
   );
 };

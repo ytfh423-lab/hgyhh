@@ -302,11 +302,6 @@ const GamesPage = ({ loadFarm, t }) => {
 
   const openGame = (game) => {
     if (gameLoading) return;
-    const reg = GAME_REGISTRY[game.key];
-    if (!reg || !reg.get || !reg.get()) {
-      showError(t('该游戏尚未上线，敬请期待！'));
-      return;
-    }
     setModalGame(game);
   };
 

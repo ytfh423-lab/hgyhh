@@ -6,7 +6,6 @@ import { API, showError, showSuccess } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { Link } from 'react-router-dom';
 import './farm.css';
-import './farm-liquid-glass.css';
 
 import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
@@ -32,7 +31,6 @@ import AutomationPage from './components/AutomationPage';
 import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
-import LiquidGlassBackground from './components/LiquidGlassBackground';
 import { FEATURE_LEVEL_MAP } from './constants';
 
 const { Text, Title } = Typography;
@@ -359,7 +357,6 @@ const Farm = () => {
 
   return (
     <div className='farm-layout'>
-      <LiquidGlassBackground />
       <FarmAnnouncementBar t={t} />
       <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} userLevel={userLevel} />
       <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
