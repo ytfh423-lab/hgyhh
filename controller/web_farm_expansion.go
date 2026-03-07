@@ -529,8 +529,8 @@ func WebFarmGameWheel(c *gin.Context) {
 		Label  string
 	}
 	sectors := []sector{
-		{0, 20, "$0"}, {250000, 25, "$0.50"}, {500000, 20, "$1"}, {1000000, 15, "$2"},
-		{2500000, 10, "$5"}, {5000000, 5, "$10"}, {10000000, 3, "$20"}, {25000000, 2, "$50"},
+		{0, 40, "$0"}, {250000, 25, "$0.50"}, {500000, 16, "$1"}, {750000, 9, "$1.50"},
+		{1000000, 5, "$2"}, {1500000, 3, "$3"}, {2500000, 1, "$5"}, {5000000, 1, "$10"},
 	}
 	totalW := 0
 	for _, s := range sectors {
@@ -585,8 +585,8 @@ func WebFarmGameScratch(c *gin.Context) {
 		Label  string
 	}
 	prizes := []prize{
-		{125000, 30, "🍒", "$0.25"}, {500000, 25, "🍋", "$1"}, {1250000, 20, "🍊", "$2.50"},
-		{2500000, 15, "🍇", "$5"}, {12500000, 8, "💎", "$25"}, {50000000, 2, "👑", "$100"},
+		{250000, 45, "🍒", "$0.50"}, {375000, 27, "🍋", "$0.75"}, {500000, 15, "🍊", "$1"},
+		{750000, 9, "🍇", "$1.50"}, {1250000, 3, "💎", "$2.50"}, {2500000, 1, "👑", "$5"},
 	}
 	totalW := 0
 	for _, p := range prizes {
@@ -610,9 +610,15 @@ func WebFarmGameScratch(c *gin.Context) {
 			grid[row][col] = prizes[rand.Intn(len(prizes))].Symbol
 		}
 	}
-	grid[0][0], grid[0][1], grid[0][2] = win.Symbol, win.Symbol, win.Symbol
 
-	actualWin := win.Amount
+	// 20% win chance
+	actualWin := 0
+	if rand.Intn(100) < 20 {
+		grid[0][0], grid[0][1], grid[0][2] = win.Symbol, win.Symbol, win.Symbol
+		actualWin = win.Amount
+	} else {
+		win = prizes[0] // for label display
+	}
 	prestige := model.GetPrestigeLevel(tgId)
 	if prestige > 0 && actualWin > 0 {
 		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
@@ -622,11 +628,19 @@ func WebFarmGameScratch(c *gin.Context) {
 	}
 	net := actualWin - price
 	model.CreateGameLog(tgId, "scratch", price, actualWin)
-	model.AddFarmLog(tgId, "game", net, "🎰 刮刮卡: "+win.Label)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
-		"grid": grid, "win_symbol": win.Symbol, "prize_label": win.Label,
-		"prize_amount": webFarmQuotaFloat(actualWin), "net": webFarmQuotaFloat(net),
-	}})
+	if actualWin > 0 {
+		model.AddFarmLog(tgId, "game", net, "🎰 刮刮卡: "+win.Label)
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+			"grid": grid, "win_symbol": win.Symbol, "prize_label": win.Label,
+			"prize_amount": webFarmQuotaFloat(actualWin), "net": webFarmQuotaFloat(net),
+		}})
+	} else {
+		model.AddFarmLog(tgId, "game", net, "🎰 刮刮卡: 未中奖")
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+			"grid": grid, "win_symbol": "😢", "prize_label": "未中奖",
+			"prize_amount": 0, "net": webFarmQuotaFloat(net),
+		}})
+	}
 }
 
 func WebFarmGameHistory(c *gin.Context) {

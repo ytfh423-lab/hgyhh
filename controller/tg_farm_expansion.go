@@ -612,7 +612,7 @@ func doFarmWheel(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		{"💀 0x", 0}, {"🎯 0.5x", 0.5}, {"✨ 1x", 1}, {"💎 1.5x", 1.5},
 		{"🌟 2x", 2}, {"🔥 3x", 3}, {"💰 5x", 5}, {"🏆 10x", 10},
 	}
-	weights := []int{25, 25, 20, 12, 8, 5, 3, 2}
+	weights := []int{40, 25, 16, 9, 5, 3, 1, 1}
 	totalW := 0
 	for _, w := range weights {
 		totalW += w
@@ -692,18 +692,18 @@ func doFarmScratch(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	winChance := rand.Intn(100)
 	var winPrize *scratchPrize
-	if winChance < 30 {
+	if winChance < 20 {
 		var idx int
 		r := rand.Intn(100)
-		if r < 40 {
+		if r < 45 {
 			idx = 0
-		} else if r < 65 {
+		} else if r < 72 {
 			idx = 1
-		} else if r < 82 {
+		} else if r < 87 {
 			idx = 2
-		} else if r < 93 {
+		} else if r < 96 {
 			idx = 3
-		} else if r < 98 {
+		} else if r < 99 {
 			idx = 4
 		} else {
 			idx = 5
