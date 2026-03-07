@@ -31,8 +31,29 @@ import AutomationPage from './components/AutomationPage';
 import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
+import { FEATURE_LEVEL_MAP } from './constants';
 
 const { Text, Title } = Typography;
+
+const LockedPage = ({ feature, userLevel, onGoToLevel, t }) => (
+  <div className='farm-locked-wrap'>
+    <div className='farm-locked-card'>
+      <div className='farm-locked-icon-ring'>🔒</div>
+      <div className='farm-locked-emoji'>{feature.emoji}</div>
+      <h3 className='farm-locked-title'>{t(feature.name)}</h3>
+      <p className='farm-locked-desc'>
+        {t('需要等级')} <strong>Lv.{feature.level}</strong> {t('才能解锁')}
+      </p>
+      <div className='farm-locked-level-badge'>
+        {t('当前等级')}: Lv.{userLevel}
+      </div>
+      <br />
+      <button className='farm-locked-btn' onClick={onGoToLevel}>
+        {t('查看等级')}
+      </button>
+    </div>
+  </div>
+);
 
 class FarmErrorBoundary extends React.Component {
   constructor(props) {
@@ -53,31 +74,12 @@ class FarmErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          minHeight: 'calc(100vh - 120px)', padding: 24,
-        }}>
-          <div style={{
-            textAlign: 'center', padding: '48px 36px', maxWidth: 420, width: '100%',
-            background: 'rgba(15, 23, 20, 0.85)', backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 16,
-            boxShadow: '0 0 30px rgba(239, 68, 68, 0.08), 0 8px 32px rgba(0,0,0,0.3)',
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
-              页面加载出错
-            </h3>
-            <p style={{ margin: '0 0 16px', color: '#94a3b8', fontSize: 13 }}>
-              {this.state.error?.message || '未知错误'}
-            </p>
-            <button
-              onClick={() => this.setState({ hasError: false, error: null })}
-              style={{
-                padding: '8px 24px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)',
-                background: 'rgba(59,130,246,0.15)', color: '#60a5fa',
-                fontWeight: 600, fontSize: 13, cursor: 'pointer',
-              }}
-            >
+        <div className='farm-locked-wrap'>
+          <div className='farm-locked-card'>
+            <div className='farm-locked-icon-ring'>⚠️</div>
+            <h3 className='farm-locked-title'>页面加载出错</h3>
+            <p className='farm-locked-desc'>{String(this.state.error?.message || '未知错误')}</p>
+            <button className='farm-locked-btn' onClick={() => this.setState({ hasError: false, error: null })}>
               重试
             </button>
           </div>
@@ -285,63 +287,19 @@ const Farm = () => {
 
   const currentSeason = farmData.weather?.season ?? 0;
   const commonProps = { farmData, loadFarm, actionLoading, doAction, t };
-
-  // 功能解锁等级映射
-  const featureLevelMap = {
-    steal: { level: 2, name: '偷菜', emoji: '🕵️' },
-    dog: { level: 2, name: '狗狗', emoji: '🐶' },
-    market: { level: 2, name: '市场', emoji: '📈' },
-    encyclopedia: { level: 2, name: '图鉴', emoji: '📖' },
-    ranch: { level: 3, name: '牧场', emoji: '🐄' },
-    fish: { level: 3, name: '钓鱼', emoji: '🎣' },
-    bank: { level: 3, name: '银行', emoji: '🏦' },
-    leaderboard: { level: 3, name: '排行榜', emoji: '🏅' },
-    workshop: { level: 4, name: '加工坊', emoji: '🏭' },
-    games: { level: 4, name: '小游戏', emoji: '🎰' },
-    trading: { level: 5, name: '交易所', emoji: '🔄' },
-    automation: { level: 6, name: '自动化', emoji: '⚡' },
-  };
-
   const userLevel = farmData.user_level || 1;
 
   const renderPage = () => {
-    const req = featureLevelMap[activePage];
+    // 等级锁定检查
+    const req = FEATURE_LEVEL_MAP[activePage];
     if (req && userLevel < req.level) {
       return (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          minHeight: 'calc(100vh - 120px)', padding: 24,
-        }}>
-          <div style={{
-            textAlign: 'center', padding: '48px 36px', maxWidth: 420, width: '100%',
-            background: 'rgba(15, 23, 20, 0.85)', backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: 16,
-            boxShadow: '0 0 30px rgba(245, 158, 11, 0.08), 0 8px 32px rgba(0,0,0,0.3)',
-          }}>
-            <div style={{
-              width: 72, height: 72, margin: '0 auto 20px', borderRadius: '50%',
-              background: 'rgba(245, 158, 11, 0.12)', border: '2px solid rgba(245, 158, 11, 0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Lock size={32} style={{ color: '#fbbf24' }} />
-            </div>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>{req.emoji}</div>
-            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>
-              {t(req.name)}
-            </h3>
-            <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: 14, lineHeight: 1.6 }}>
-              {t('需要等级')} <strong style={{ color: '#fbbf24' }}>Lv.{req.level}</strong> {t('才能解锁')}
-            </p>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '6px 16px', borderRadius: 9999, fontSize: 13, fontWeight: 600,
-              background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-            }}>
-              {t('当前等级')}: Lv.{userLevel}
-            </div>
-          </div>
-        </div>
+        <LockedPage
+          feature={req}
+          userLevel={userLevel}
+          onGoToLevel={() => setActivePage('level')}
+          t={t}
+        />
       );
     }
 
@@ -396,7 +354,7 @@ const Farm = () => {
   return (
     <div className='farm-layout'>
       <FarmAnnouncementBar t={t} />
-      <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} />
+      <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} userLevel={userLevel} />
       <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
         <StatusBar farmData={farmData} t={t} />
         <div className='farm-content'>

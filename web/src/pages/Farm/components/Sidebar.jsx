@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLogo } from '../../../helpers';
+import { FEATURE_LEVEL_MAP } from '../constants';
 
 const navGroups = [
   {
@@ -64,7 +65,7 @@ const navGroups = [
 
 export { navGroups };
 
-const Sidebar = ({ activeKey, onNavigate, t, farmData }) => {
+const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
   const [collapsed, setCollapsed] = useState({});
   const navigate = useNavigate();
 
@@ -94,16 +95,21 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData }) => {
               <span>{t(group.label)}</span>
               <ChevronRight size={12} className={`chevron ${collapsed[group.key] ? '' : 'open'}`} />
             </div>
-            {!collapsed[group.key] && group.items.map((item) => (
-              <div
-                key={item.key}
-                className={`farm-nav-item ${activeKey === item.key ? 'active' : ''}`}
-                onClick={() => onNavigate(item.key)}
-              >
-                <span style={{ fontSize: 15 }}>{item.emoji}</span>
-                <span>{t(item.label)}</span>
-              </div>
-            ))}
+            {!collapsed[group.key] && group.items.map((item) => {
+              const req = FEATURE_LEVEL_MAP[item.key];
+              const locked = req && userLevel < req.level;
+              return (
+                <div
+                  key={item.key}
+                  className={`farm-nav-item ${activeKey === item.key ? 'active' : ''}`}
+                  onClick={() => onNavigate(item.key)}
+                >
+                  <span style={{ fontSize: 15 }}>{item.emoji}</span>
+                  <span>{t(item.label)}</span>
+                  {locked && <span className='nav-lock'>🔒</span>}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

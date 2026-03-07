@@ -2691,3 +2691,118 @@
   .farm-ann-badge { font-size: 10px; padding: 1px 6px; }
   .farm-ann-close { width: 20px; height: 20px; font-size: 10px; }
 }
+
+/* ====== Locked Feature Page ====== */
+
+.farm-locked-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 140px);
+  padding: 32px 16px;
+}
+
+.farm-locked-card {
+  text-align: center;
+  padding: 48px 36px;
+  max-width: 400px;
+  width: 100%;
+  background: #1a2420;
+  border: 2px solid rgba(251, 191, 36, 0.35);
+  border-radius: 20px;
+  box-shadow: 0 0 40px rgba(251, 191, 36, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.farm-locked-icon-ring {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.1);
+  border: 2px solid rgba(251, 191, 36, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+}
+
+.farm-locked-emoji {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.farm-locked-title {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.farm-locked-desc {
+  margin: 0 0 24px;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.farm-locked-desc strong {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.farm-locked-level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.farm-locked-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.farm-locked-btn:hover {
+  background: rgba(52, 211, 153, 0.22);
+}
+
+.farm-nav-item .nav-lock {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.45;
+}
+
+@media (max-width: 768px) {
+  .farm-locked-wrap {
+    min-height: calc(100vh - 180px);
+    padding: 24px 16px;
+  }
+  .farm-locked-card {
+    padding: 36px 24px;
+  }
+  .farm-locked-icon-ring {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+  .farm-locked-emoji {
+    font-size: 32px;
+  }
+}
