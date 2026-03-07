@@ -23,6 +23,18 @@ func GetPublicInviteCodes() ([]*PublicInviteCode, error) {
 	return codes, err
 }
 
+func GetPublicInviteCodesPaginated(page, pageSize int) ([]*PublicInviteCode, int64, error) {
+	var total int64
+	err := DB.Model(&PublicInviteCode{}).Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	var codes []*PublicInviteCode
+	offset := (page - 1) * pageSize
+	err = DB.Order("id desc").Offset(offset).Limit(pageSize).Find(&codes).Error
+	return codes, total, err
+}
+
 func CreatePublicInviteCode(code *PublicInviteCode) error {
 	return DB.Create(code).Error
 }

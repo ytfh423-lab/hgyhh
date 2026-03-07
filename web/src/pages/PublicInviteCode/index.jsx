@@ -31,25 +31,30 @@ const PublicInviteCode = () => {
   const isLoggedIn = !!userState?.user?.username;
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [myCodes, setMyCodes] = useState([]);
   const [myCodesLoading, setMyCodesLoading] = useState(false);
   const [selectedCodeId, setSelectedCodeId] = useState(null);
   const [sharing, setSharing] = useState(false);
 
-  const loadCodes = useCallback(async () => {
+  const loadCodes = useCallback(async (page) => {
+    const p = page || currentPage;
     setLoading(true);
     try {
-      const { data: resData } = await API.get('/api/public_invcode/');
+      const { data: resData } = await API.get(`/api/public_invcode/?page=${p}&page_size=${pageSize}`);
       if (resData.success) {
         setCodes(resData.data || []);
+        setTotal(resData.total || 0);
       }
     } catch (err) {
       showError(t('加载失败'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, currentPage]);
 
   useEffect(() => {
     loadCodes();
@@ -85,7 +90,8 @@ const PublicInviteCode = () => {
         showSuccess(t('分享成功'));
         setShareModalVisible(false);
         setSelectedCodeId(null);
-        loadCodes();
+        setCurrentPage(1);
+        loadCodes(1);
       } else {
         showError(resData.message || t('分享失败'));
       }
@@ -101,7 +107,7 @@ const PublicInviteCode = () => {
       const { data: resData } = await API.delete(`/api/public_invcode/${id}`);
       if (resData.success) {
         showSuccess(t('已删除'));
-        loadCodes();
+        loadCodes(currentPage);
       } else {
         showError(resData.message || t('删除失败'));
       }
@@ -283,7 +289,17 @@ const PublicInviteCode = () => {
           dataSource={codes}
           rowKey='id'
           size='small'
-          pagination={false}
+          pagination={{
+            currentPage,
+            pageSize,
+            total,
+            onPageChange: (page) => {
+              setCurrentPage(page);
+              loadCodes(page);
+            },
+            showTotal: true,
+            formatPageText: (p) => t('第 {{start}} - {{end}} 条，共 {{total}} 条', { start: p.currentStart, end: p.currentEnd, total }),
+          }}
           empty={
             <div style={{ padding: '40px 0', textAlign: 'center' }}>
               <Gift size={40} style={{ color: 'var(--semi-color-text-3)', marginBottom: '12px' }} />

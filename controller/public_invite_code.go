@@ -9,19 +9,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetPublicInviteCodes returns all publicly shared invitation codes (no auth required)
+// GetPublicInviteCodes returns publicly shared invitation codes with pagination (no auth required)
 func GetPublicInviteCodes(c *gin.Context) {
 	// Refresh statuses before returning
 	_ = model.RefreshPublicInviteCodeStatuses()
 
-	codes, err := model.GetPublicInviteCodes()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	codes, total, err := model.GetPublicInviteCodesPaginated(page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	// Mask the code key for non-used codes to prevent scraping — only show first 8 chars
-	// Actually, the purpose is for users to copy and use, so show full code
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": codes})
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"data":      codes,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
 }
 
 // SharePublicInviteCode allows a logged-in user to share their invitation code publicly
