@@ -254,16 +254,38 @@ const Farm = () => {
     const req = featureLevelMap[activePage];
     if (req && userLevel < req.level) {
       return (
-        <div className='farm-card' style={{ textAlign: 'center', padding: '48px 24px', maxWidth: 420, margin: '40px auto' }}>
-          <ShieldAlert size={40} style={{ color: '#f59e0b', marginBottom: 16 }} />
-          <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>
-            {req.emoji} {t(req.name)}
-          </h3>
-          <p style={{ margin: '0 0 16px', opacity: 0.7, fontSize: 14 }}>
-            {t('需要等级')} <strong>Lv.{req.level}</strong> {t('才能解锁')}
-          </p>
-          <div className='farm-pill farm-pill-blue' style={{ display: 'inline-block', fontSize: 13 }}>
-            {t('当前等级')}: Lv.{userLevel}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          minHeight: 'calc(100vh - 120px)', padding: 24,
+        }}>
+          <div style={{
+            textAlign: 'center', padding: '48px 36px', maxWidth: 420, width: '100%',
+            background: 'rgba(15, 23, 20, 0.85)', backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: 16,
+            boxShadow: '0 0 30px rgba(245, 158, 11, 0.08), 0 8px 32px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              width: 72, height: 72, margin: '0 auto 20px', borderRadius: '50%',
+              background: 'rgba(245, 158, 11, 0.12)', border: '2px solid rgba(245, 158, 11, 0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Lock size={32} style={{ color: '#fbbf24' }} />
+            </div>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>{req.emoji}</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>
+              {t(req.name)}
+            </h3>
+            <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: 14, lineHeight: 1.6 }}>
+              {t('需要等级')} <strong style={{ color: '#fbbf24' }}>Lv.{req.level}</strong> {t('才能解锁')}
+            </p>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 16px', borderRadius: 9999, fontSize: 13, fontWeight: 600,
+              background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+            }}>
+              {t('当前等级')}: Lv.{userLevel}
+            </div>
           </div>
         </div>
       );
