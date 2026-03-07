@@ -1,189 +1,91 @@
 /* ══════════════════════════════════════════════════════════════════
-   💧 Liquid Glass Design System — Overlay for Farm UI
-   Glassmorphism + Fluid Gradients + Liquid Depth
+   Farm UI — Performance-First Modern Dark Theme
+   ──────────────────────────────────────────────────────────────────
+   Component tiers:
+     A-level (light glass): statusbar, modals, announcement bar
+     B-level (solid card):  farm-card, shop detail, workshop recipe
+     C-level (high-perf):   list rows, table rows, plot grid, buttons
    ══════════════════════════════════════════════════════════════════ */
 
-/* ====== 1. 🌌 Animated Liquid Background (Lava-Lamp Blobs) ====== */
+/* ====== 1. Background — static gradient, zero animation ====== */
 
 .liquid-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
   pointer-events: none;
-  background: #050a14;
+  background: linear-gradient(145deg, #070b16 0%, #0c1222 40%, #0f1628 70%, #0a0f1e 100%);
 }
 
-.liquid-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.55;
-  will-change: transform;
-}
+/* blob classes removed — no longer used */
 
-.liquid-blob-1 {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, #7c3aed 0%, #4f46e5 50%, transparent 70%);
-  top: -10%;
-  left: -5%;
-  animation: liquid-drift-1 18s ease-in-out infinite;
-}
-
-.liquid-blob-2 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, #06b6d4 0%, #0ea5e9 50%, transparent 70%);
-  top: 50%;
-  right: -8%;
-  animation: liquid-drift-2 22s ease-in-out infinite;
-}
-
-.liquid-blob-3 {
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, #ec4899 0%, #a855f7 50%, transparent 70%);
-  bottom: -10%;
-  left: 30%;
-  animation: liquid-drift-3 20s ease-in-out infinite;
-}
-
-.liquid-blob-4 {
-  width: 350px;
-  height: 350px;
-  background: radial-gradient(circle, #10b981 0%, #14b8a6 50%, transparent 70%);
-  top: 30%;
-  left: 50%;
-  animation: liquid-drift-4 25s ease-in-out infinite;
-}
-
-.liquid-blob-5 {
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, #f59e0b 0%, #ef4444 50%, transparent 70%);
-  top: 10%;
-  right: 20%;
-  animation: liquid-drift-5 28s ease-in-out infinite;
-  opacity: 0.35;
-}
-
-@keyframes liquid-drift-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25%      { transform: translate(80px, 60px) scale(1.1); }
-  50%      { transform: translate(30px, 120px) scale(0.95); }
-  75%      { transform: translate(-40px, 50px) scale(1.05); }
-}
-
-@keyframes liquid-drift-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25%      { transform: translate(-70px, -50px) scale(1.08); }
-  50%      { transform: translate(-120px, 30px) scale(0.92); }
-  75%      { transform: translate(-30px, -80px) scale(1.04); }
-}
-
-@keyframes liquid-drift-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(100px, -60px) scale(1.12); }
-  66%      { transform: translate(-50px, -100px) scale(0.9); }
-}
-
-@keyframes liquid-drift-4 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25%      { transform: translate(-90px, 70px) scale(1.06); }
-  50%      { transform: translate(60px, -40px) scale(0.94); }
-  75%      { transform: translate(-30px, -60px) scale(1.1); }
-}
-
-@keyframes liquid-drift-5 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  30%      { transform: translate(50px, 80px) scale(1.15); }
-  60%      { transform: translate(-80px, 40px) scale(0.88); }
-}
-
-/* ====== 2. 🧊 CSS Variable Overrides — Liquid Glass Palette ====== */
+/* ====== 2. CSS Variables — Solid Dark Palette ====== */
 
 :root {
-  /* Override surfaces to transparent glass */
-  --farm-surface: rgba(255, 255, 255, 0.08);
-  --farm-surface-hover: rgba(255, 255, 255, 0.12);
-  --farm-surface-alt: rgba(255, 255, 255, 0.05);
+  /* Solid surfaces — no transparency */
+  --farm-surface: #111827;
+  --farm-surface-hover: #1a2332;
+  --farm-surface-alt: #0d1117;
 
-  /* Glass borders with gradient shimmer */
-  --farm-border: rgba(255, 255, 255, 0.12);
-  --farm-border-strong: rgba(255, 255, 255, 0.2);
+  /* Low-contrast borders */
+  --farm-border: rgba(255, 255, 255, 0.08);
+  --farm-border-strong: rgba(255, 255, 255, 0.14);
 
-  /* Text for dark backgrounds */
-  --farm-text-0: rgba(255, 255, 255, 0.95);
-  --farm-text-1: rgba(255, 255, 255, 0.78);
-  --farm-text-2: rgba(255, 255, 255, 0.5);
-  --farm-text-3: rgba(255, 255, 255, 0.3);
+  /* Text hierarchy */
+  --farm-text-0: #f1f5f9;
+  --farm-text-1: #cbd5e1;
+  --farm-text-2: #64748b;
+  --farm-text-3: #475569;
 
-  /* Glass blur */
-  --farm-blur: blur(24px);
-  --farm-blur-light: blur(16px);
-  --farm-blur-heavy: blur(32px);
+  /* Small shadows only */
+  --farm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --farm-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --farm-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4);
 
-  /* Liquid shadows */
-  --farm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --farm-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 1px rgba(255, 255, 255, 0.1);
-  --farm-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.15);
-  --farm-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.12);
+  /* Accent */
+  --farm-accent: #67e8f9;
 
-  /* Glows */
-  --farm-glow-green: 0 0 20px rgba(52, 211, 153, 0.3), 0 0 40px rgba(52, 211, 153, 0.1);
-  --farm-glow-blue: 0 0 20px rgba(59, 130, 246, 0.3), 0 0 40px rgba(59, 130, 246, 0.1);
-  --farm-glow-amber: 0 0 20px rgba(245, 158, 11, 0.3), 0 0 40px rgba(245, 158, 11, 0.1);
-  --farm-glow-purple: 0 0 20px rgba(139, 92, 246, 0.3), 0 0 40px rgba(139, 92, 246, 0.1);
-
-  /* Sidebar — deep glass */
-  --farm-sb-bg: rgba(5, 10, 20, 0.65);
-  --farm-sb-text: rgba(255, 255, 255, 0.92);
+  /* Sidebar — solid dark */
+  --farm-sb-bg: #0a0f1a;
+  --farm-sb-text: #e2e8f0;
   --farm-sb-text-dim: rgba(255, 255, 255, 0.4);
-  --farm-sb-hover: rgba(255, 255, 255, 0.08);
-  --farm-sb-active: rgba(255, 255, 255, 0.14);
-  --farm-sb-border: rgba(255, 255, 255, 0.08);
+  --farm-sb-hover: rgba(255, 255, 255, 0.06);
+  --farm-sb-active: rgba(255, 255, 255, 0.1);
+  --farm-sb-border: rgba(255, 255, 255, 0.06);
   --farm-sb-accent: #67e8f9;
 
-  /* Seasons — transparent, let blobs show through */
+  /* Seasons — solid dark tints */
   --farm-spring: transparent;
   --farm-summer: transparent;
   --farm-autumn: transparent;
   --farm-winter: transparent;
 
-  /* Compat aliases */
-  --farm-glass-bg: rgba(255, 255, 255, 0.06);
-  --farm-glass-border: rgba(255, 255, 255, 0.1);
-  --farm-glass-hover: rgba(255, 255, 255, 0.1);
-}
-
-/* Override dark-mode too (liquid glass is always dark) */
-[theme-mode='dark'] {
-  --farm-surface: rgba(255, 255, 255, 0.06);
-  --farm-surface-hover: rgba(255, 255, 255, 0.1);
-  --farm-surface-alt: rgba(255, 255, 255, 0.04);
-  --farm-border: rgba(255, 255, 255, 0.1);
-  --farm-border-strong: rgba(255, 255, 255, 0.18);
-  --farm-text-0: rgba(255, 255, 255, 0.95);
-  --farm-text-1: rgba(255, 255, 255, 0.78);
-  --farm-text-2: rgba(255, 255, 255, 0.5);
-  --farm-text-3: rgba(255, 255, 255, 0.3);
-  --farm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --farm-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --farm-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --farm-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --farm-spring: transparent;
-  --farm-summer: transparent;
-  --farm-autumn: transparent;
-  --farm-winter: transparent;
-  --farm-sb-bg: rgba(5, 10, 20, 0.65);
-  --farm-sb-border: rgba(255, 255, 255, 0.06);
-  --farm-glass-bg: rgba(255, 255, 255, 0.05);
+  --farm-glass-bg: #111827;
   --farm-glass-border: rgba(255, 255, 255, 0.08);
-  --farm-glass-hover: rgba(255, 255, 255, 0.08);
+  --farm-glass-hover: rgba(255, 255, 255, 0.06);
 }
 
-/* ====== 3. 🏗️ Layout — Glass Containers ====== */
+[theme-mode='dark'] {
+  --farm-surface: #0f1420;
+  --farm-surface-hover: #161d2e;
+  --farm-surface-alt: #0b0f18;
+  --farm-border: rgba(255, 255, 255, 0.07);
+  --farm-border-strong: rgba(255, 255, 255, 0.12);
+  --farm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --farm-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --farm-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --farm-spring: transparent;
+  --farm-summer: transparent;
+  --farm-autumn: transparent;
+  --farm-winter: transparent;
+  --farm-sb-bg: #080c14;
+  --farm-sb-border: rgba(255, 255, 255, 0.05);
+  --farm-glass-bg: #0f1420;
+  --farm-glass-border: rgba(255, 255, 255, 0.07);
+  --farm-glass-hover: rgba(255, 255, 255, 0.05);
+}
+
+/* ====== 3. Layout ====== */
 
 .farm-layout {
   position: relative;
@@ -191,13 +93,9 @@
   background: transparent;
 }
 
-/* -- Sidebar: Frosted Glass -- */
 .farm-sidebar {
   background: var(--farm-sb-bg);
-  backdrop-filter: var(--farm-blur-heavy);
-  -webkit-backdrop-filter: var(--farm-blur-heavy);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  border-right: 1px solid var(--farm-sb-border);
 }
 
 .farm-sidebar-header {
@@ -205,738 +103,587 @@
 }
 
 .farm-sidebar-logo {
-  background: linear-gradient(135deg, rgba(103, 232, 249, 0.3), rgba(139, 92, 246, 0.3));
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 20px rgba(103, 232, 249, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(103, 232, 249, 0.15), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .farm-sidebar-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* -- Main Area: Transparent -- */
 .farm-main {
   background: transparent !important;
 }
 
-/* -- Status Bar: Glass -- */
+/* A-LEVEL: Status bar — only place with light blur */
 .farm-statusbar {
-  background: rgba(10, 15, 30, 0.45);
-  backdrop-filter: var(--farm-blur);
-  -webkit-backdrop-filter: var(--farm-blur);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: rgba(10, 15, 28, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* -- Content Area -- */
 .farm-content {
   background: transparent;
 }
 
-/* ====== 4. 🧊 Ultra-Glass Cards ====== */
+/* ====== 4. B-LEVEL: Cards — solid background, no blur ====== */
 
 .farm-card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: var(--farm-blur);
-  -webkit-backdrop-filter: var(--farm-blur);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow:
-    var(--farm-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 0 20px rgba(255, 255, 255, 0.02);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Specular highlight — top-left shimmer */
-.farm-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 60%;
-  height: 50%;
-  background: radial-gradient(ellipse at 20% 20%, rgba(255, 255, 255, 0.06) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: var(--farm-shadow-sm);
 }
 
 .farm-card:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow:
-    var(--farm-shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 0 30px rgba(255, 255, 255, 0.03);
-}
-
-.farm-card > * {
-  position: relative;
-  z-index: 1;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .farm-card-flat {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: var(--farm-blur-light);
-  -webkit-backdrop-filter: var(--farm-blur-light);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f1420;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ====== 5. 💧 Liquid Buttons ====== */
+/* ====== 5. C-LEVEL: Buttons — solid, no blur, fast transitions ====== */
 
 .farm-btn {
-  border-radius: 20px !important;
-  background: linear-gradient(135deg, rgba(103, 232, 249, 0.2), rgba(139, 92, 246, 0.2)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  color: rgba(255, 255, 255, 0.92) !important;
-  box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.farm-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  pointer-events: none;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e2e8f0 !important;
+  box-shadow: var(--farm-shadow-sm) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease !important;
 }
 
 .farm-btn:hover {
-  transform: translateY(-2px) scale(1.03) !important;
-  background: linear-gradient(135deg, rgba(103, 232, 249, 0.3), rgba(139, 92, 246, 0.3)) !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  box-shadow:
-    0 6px 24px rgba(103, 232, 249, 0.2),
-    0 4px 16px rgba(139, 92, 246, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 .farm-btn:active {
-  transform: translateY(0) scale(0.98) !important;
+  opacity: 0.85 !important;
 }
 
-/* Primary solid buttons — gem-like */
 .farm-btn.semi-button-primary {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(168, 85, 247, 0.4)) !important;
-  border: 1px solid rgba(167, 139, 250, 0.35) !important;
+  background: rgba(99, 102, 241, 0.35) !important;
+  border: 1px solid rgba(129, 140, 248, 0.3) !important;
+  color: #e0e7ff !important;
 }
 
 .farm-btn.semi-button-primary:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.65), rgba(168, 85, 247, 0.55)) !important;
-  box-shadow:
-    0 6px 28px rgba(139, 92, 246, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  background: rgba(99, 102, 241, 0.5) !important;
+  border-color: rgba(129, 140, 248, 0.45) !important;
 }
 
-/* ====== 6. ✨ Glass Nav Items ====== */
+/* ====== 6. Nav Items ====== */
 
 .farm-nav-item {
-  transition: all 0.2s ease;
+  transition: background 0.15s ease;
 }
 
 .farm-nav-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .farm-nav-item.active {
-  background: rgba(103, 232, 249, 0.1);
-  border: 1px solid rgba(103, 232, 249, 0.15);
-  border-radius: 8px;
+  background: rgba(103, 232, 249, 0.08);
   color: #67e8f9;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 12px rgba(103, 232, 249, 0.1);
 }
 
 .farm-nav-item.active::before {
-  background: linear-gradient(180deg, #67e8f9, #a78bfa);
-  box-shadow: 0 0 10px rgba(103, 232, 249, 0.5);
+  background: #67e8f9;
 }
 
-/* ====== 7. 🏷️ Glass Pills ====== */
+/* ====== 7. C-LEVEL: Pills — solid tints ====== */
 
 .farm-pill {
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
 }
 
-.farm-pill-green { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.2); color: #6ee7b7; }
-.farm-pill-blue { background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.2); color: #93c5fd; }
-.farm-pill-amber { background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.2); color: #fde68a; }
-.farm-pill-purple { background: rgba(167, 139, 250, 0.12); border-color: rgba(167, 139, 250, 0.2); color: #c4b5fd; }
-.farm-pill-cyan { background: rgba(103, 232, 249, 0.12); border-color: rgba(103, 232, 249, 0.2); color: #a5f3fc; }
-.farm-pill-red { background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.2); color: #fca5a5; }
+.farm-pill-green { background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.15); color: #6ee7b7; }
+.farm-pill-blue { background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.15); color: #93c5fd; }
+.farm-pill-amber { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.15); color: #fde68a; }
+.farm-pill-purple { background: rgba(167, 139, 250, 0.1); border-color: rgba(167, 139, 250, 0.15); color: #c4b5fd; }
+.farm-pill-cyan { background: rgba(103, 232, 249, 0.1); border-color: rgba(103, 232, 249, 0.15); color: #a5f3fc; }
+.farm-pill-red { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.15); color: #fca5a5; }
 
-/* Dark mode pills — identical to light (liquid glass is always dark-based) */
-
-/* ====== 8. 🃏 Glass Item Cards ====== */
+/* ====== 8. C-LEVEL: Item Cards — solid, no blur ====== */
 
 .farm-item-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: var(--farm-blur-light);
-  -webkit-backdrop-filter: var(--farm-blur-light);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: all 0.3s ease;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .farm-item-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow:
-    var(--farm-shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transform: translateY(-3px);
+  background: #161d2e;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .farm-item-card.selected {
-  border-color: rgba(103, 232, 249, 0.4);
-  background: rgba(103, 232, 249, 0.08);
-  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.3), 0 0 20px rgba(103, 232, 249, 0.1);
+  border-color: rgba(103, 232, 249, 0.35);
+  background: rgba(103, 232, 249, 0.06);
 }
 
-/* ====== 9. 🏠 Glass Plot Cards ====== */
+/* ====== 9. C-LEVEL: Plot Cards — solid, zero filters ====== */
 
 .farm-plot-card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: var(--farm-blur-light);
-  -webkit-backdrop-filter: var(--farm-blur-light);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: var(--farm-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-plot-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: var(--farm-shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: #161d2e;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .farm-plot-empty {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+  background: #0d1117;
 }
 
 .farm-plot-buy {
-  border-color: rgba(103, 232, 249, 0.25);
-  background: rgba(103, 232, 249, 0.04);
+  border-color: rgba(103, 232, 249, 0.2);
+  background: rgba(103, 232, 249, 0.03);
 }
 
 .farm-plot-buy:hover {
-  border-color: rgba(103, 232, 249, 0.45);
-  background: rgba(103, 232, 249, 0.08);
-  box-shadow: 0 0 28px rgba(103, 232, 249, 0.12);
+  border-color: rgba(103, 232, 249, 0.35);
+  background: rgba(103, 232, 249, 0.06);
 }
 
-/* ====== 10. 📊 Glass Stat Cards ====== */
+/* ====== 10. C-LEVEL: Stat Cards — solid ====== */
 
 .farm-stat-card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: var(--farm-blur-light);
-  -webkit-backdrop-filter: var(--farm-blur-light);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-stat-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: var(--farm-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: #161d2e;
 }
 
 .farm-overview-actions {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: var(--farm-blur-light);
-  -webkit-backdrop-filter: var(--farm-blur-light);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f1420;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ====== 11. 🏪 Glass Shop ====== */
+/* ====== 11. C-LEVEL: Shop — solid ====== */
 
 .farm-shop-list-wrap {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: var(--farm-blur);
-  -webkit-backdrop-filter: var(--farm-blur);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0f1420;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-shop-list-wrap::after {
-  background: linear-gradient(to bottom, transparent, rgba(5, 10, 20, 0.8));
+  background: linear-gradient(to bottom, transparent, #0f1420);
 }
 
 .farm-shop-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .farm-shop-item.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   box-shadow: inset 3px 0 0 #67e8f9;
 }
 
 .farm-shop-detail {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: var(--farm-blur);
-  -webkit-backdrop-filter: var(--farm-blur);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-shop-detail-header {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .farm-shop-stat {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .farm-shop-total {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .farm-shop-total-price {
   color: #67e8f9;
-  text-shadow: 0 0 12px rgba(103, 232, 249, 0.3);
 }
 
 .farm-shop-preset {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .farm-shop-preset.active {
-  border-color: rgba(103, 232, 249, 0.4);
+  border-color: rgba(103, 232, 249, 0.3);
   color: #67e8f9;
-  background: rgba(103, 232, 249, 0.1);
+  background: rgba(103, 232, 249, 0.08);
 }
 
 .farm-shop-slider::-webkit-slider-thumb {
-  background: linear-gradient(135deg, #67e8f9, #a78bfa);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 12px rgba(103, 232, 249, 0.4);
+  background: #67e8f9;
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .farm-shop-slider::-moz-range-thumb {
-  background: linear-gradient(135deg, #67e8f9, #a78bfa);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 12px rgba(103, 232, 249, 0.4);
+  background: #67e8f9;
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-/* ====== 12. 📈 Glass Market Table ====== */
+/* ====== 12. C-LEVEL: Market Table — solid, zero blur ====== */
 
 .farm-market-table {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: var(--farm-blur);
-  -webkit-backdrop-filter: var(--farm-blur);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f1420;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .farm-market-thead {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .farm-market-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .farm-market-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .farm-market-tab {
-  color: rgba(255, 255, 255, 0.5);
+  color: #64748b;
 }
 
 .farm-market-tab:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
 }
 
 .farm-market-tab.active {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
 }
 
-/* ====== 13. 🎮 Glass Game Tiles & Modal ====== */
+/* ====== 13. Game Tiles (C-LEVEL) & Modal (A-LEVEL) ====== */
 
 .farm-game-tile {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-game-tile:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    var(--farm-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: #1a2332;
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
+/* A-LEVEL: game overlay + modal — allow blur here */
 .farm-game-overlay {
-  background: rgba(5, 10, 20, 0.6);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .farm-game-modal {
-  background: rgba(15, 20, 35, 0.75);
-  backdrop-filter: var(--farm-blur-heavy);
-  -webkit-backdrop-filter: var(--farm-blur-heavy);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(15, 20, 35, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 .farm-game-modal-header {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .farm-game-modal-footer {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .farm-game-modal-close {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .farm-game-modal-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
 }
 
-/* ====== 14. ⚙️ Glass Workshop ====== */
+/* ====== 14. C-LEVEL: Workshop — solid ====== */
 
 .farm-ws-recipe {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-ws-recipe:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: #161d2e;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .farm-ws-recipe.profit-high {
-  border-color: rgba(103, 232, 249, 0.25);
+  border-color: rgba(103, 232, 249, 0.2);
 }
 
 .farm-ws-recipe.profit-high:hover {
-  border-color: rgba(103, 232, 249, 0.4);
-  box-shadow: 0 0 16px rgba(103, 232, 249, 0.1);
+  border-color: rgba(103, 232, 249, 0.35);
 }
 
 .farm-ws-active {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .farm-ws-active-bar {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ====== 15. 📊 Glass Rows & KV ====== */
+/* ====== 15. C-LEVEL: Rows & KV — solid, zero blur ====== */
 
 .farm-row {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .farm-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .farm-kv {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ====== 16. 🎰 Glass Wheel & Prize Pool ====== */
+/* ====== 16. Wheel & Prize Pool ====== */
 
 .farm-wheel {
-  border: 3px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0 0 30px rgba(0, 0, 0, 0.4),
-    0 0 60px rgba(139, 92, 246, 0.15),
-    inset 0 0 30px rgba(0, 0, 0, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
 .farm-wheel-center {
-  background: rgba(15, 20, 35, 0.8);
-  backdrop-filter: blur(8px);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 12px rgba(103, 232, 249, 0.3);
+  background: #0f1420;
+  border: 2px solid rgba(255, 255, 255, 0.15);
 }
 
 .farm-prize-pool-row {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .farm-prize-pool-row:hover {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 
-/* ====== 17. 🪟 Glass Modals ====== */
+/* ====== 17. A-LEVEL: Modals — allow light blur ====== */
 
 .farm-modal-overlay {
-  background: rgba(5, 10, 20, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .farm-modal-container {
-  background: rgba(15, 20, 35, 0.75);
-  backdrop-filter: var(--farm-blur-heavy);
-  -webkit-backdrop-filter: var(--farm-blur-heavy);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    var(--farm-shadow-xl),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(15, 20, 35, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 .farm-modal-btn-cancel {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .farm-modal-btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
 }
 
-/* ====== 18. 📱 Glass Mobile Nav ====== */
+/* ====== 18. Mobile Nav ====== */
 
 @media (max-width: 768px) {
   .farm-mobile-nav {
-    background: rgba(10, 15, 30, 0.65);
-    backdrop-filter: var(--farm-blur);
-    -webkit-backdrop-filter: var(--farm-blur);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+    background: rgba(10, 14, 26, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .farm-mobile-nav-item {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.4);
   }
 
   .farm-mobile-nav-item.active {
     color: #67e8f9;
-    background: rgba(103, 232, 249, 0.1);
+    background: rgba(103, 232, 249, 0.08);
   }
 
   .farm-mobile-sheet-overlay {
-    background: rgba(5, 10, 20, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.5);
   }
 
   .farm-mobile-sheet {
-    background: rgba(15, 20, 35, 0.85);
-    backdrop-filter: var(--farm-blur-heavy);
-    -webkit-backdrop-filter: var(--farm-blur-heavy);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: #0f1420;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .farm-mobile-sheet-item:active {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .farm-mobile-sheet-item.active {
-    background: rgba(103, 232, 249, 0.1);
+    background: rgba(103, 232, 249, 0.08);
     color: #67e8f9;
   }
 }
 
-/* ====== 19. 🔒 Glass Locked Page ====== */
+/* ====== 19. Locked Page ====== */
 
 .farm-locked-card {
-  background: rgba(15, 20, 35, 0.65);
-  backdrop-filter: var(--farm-blur-heavy);
-  -webkit-backdrop-filter: var(--farm-blur-heavy);
-  border: 1.5px solid rgba(251, 191, 36, 0.25);
-  box-shadow:
-    0 0 40px rgba(251, 191, 36, 0.08),
-    0 16px 48px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: #111827;
+  border: 1.5px solid rgba(251, 191, 36, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
 .farm-locked-icon-ring {
-  background: rgba(251, 191, 36, 0.08);
-  border: 1.5px solid rgba(251, 191, 36, 0.25);
-  backdrop-filter: blur(8px);
+  background: rgba(251, 191, 36, 0.06);
+  border: 1.5px solid rgba(251, 191, 36, 0.2);
 }
 
 .farm-locked-btn {
-  background: rgba(103, 232, 249, 0.1);
+  background: rgba(103, 232, 249, 0.08);
   color: #67e8f9;
-  border: 1px solid rgba(103, 232, 249, 0.2);
-  backdrop-filter: blur(8px);
+  border: 1px solid rgba(103, 232, 249, 0.18);
 }
 
 .farm-locked-btn:hover {
-  background: rgba(103, 232, 249, 0.2);
+  background: rgba(103, 232, 249, 0.15);
 }
 
-/* ====== 20. 📢 Glass Announcement Bar ====== */
+/* ====== 20. A-LEVEL: Announcement Bar — allow blur ====== */
 
 .farm-ann-inner {
-  background: rgba(10, 15, 30, 0.65);
-  backdrop-filter: var(--farm-blur);
-  -webkit-backdrop-filter: var(--farm-blur);
+  background: rgba(10, 14, 26, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* ====== 21. 🎯 Glass Progress Bars ====== */
+/* ====== 21. Progress Bars & Game Canvas ====== */
 
 .farm-progress {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .farm-qte-bar {
-  background: rgba(255, 255, 255, 0.06);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.08);
 }
 
 .farm-gc {
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .farm-gc-target-area {
-  background: rgba(255, 255, 255, 0.04);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: #0d1117;
+  border: 2px solid rgba(255, 255, 255, 0.08);
 }
 
 .farm-gc-key {
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #111827;
+  border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .farm-gc-key.active {
-  border-color: rgba(103, 232, 249, 0.5);
-  background: rgba(103, 232, 249, 0.12);
-  box-shadow: 0 0 16px rgba(103, 232, 249, 0.2);
+  border-color: rgba(103, 232, 249, 0.4);
+  background: rgba(103, 232, 249, 0.1);
 }
 
-/* ====== 22. 🔄 Glass Scratch Card ====== */
+/* ====== 22. Scratch Card ====== */
 
 .farm-scratch-container {
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--farm-shadow-sm);
 }
 
 .farm-scratch-prize {
-  background: rgba(15, 20, 35, 0.7);
-  backdrop-filter: blur(12px);
+  background: #0f1420;
 }
 
-/* ====== 23. 🌊 Glass Game Result ====== */
+/* ====== 23. Game Result ====== */
 
 .farm-game-result-text {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ====== 24. 📐 Global Text Readability ====== */
+/* ====== 24. Text Readability ====== */
 
 .farm-section-title {
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  color: #f1f5f9;
 }
 
 .farm-shop-item-name {
-  color: rgba(255, 255, 255, 0.9);
+  color: #e2e8f0;
 }
 
 .farm-shop-detail-title {
-  color: rgba(255, 255, 255, 0.95);
+  color: #f1f5f9;
 }
 
 .farm-ws-node-value {
-  color: rgba(255, 255, 255, 0.9);
+  color: #e2e8f0;
 }
 
 .farm-game-tile-name {
-  color: rgba(255, 255, 255, 0.9);
+  color: #e2e8f0;
 }
 
 .farm-game-tile-price {
   color: #67e8f9;
 }
 
-/* ====== 25. 🌀 Canvas Wrap Glass ====== */
+/* ====== 25. Canvas Wrap ====== */
 
 .farm-canvas-wrap {
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    var(--farm-shadow-xl),
-    0 0 40px rgba(139, 92, 246, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* ====== 26. 🧹 Semi Design Overrides for Glass ====== */
+/* ====== 26. Semi Design Overrides ====== */
 
-/* Semi input / select in glass context */
 .farm-card .semi-input,
 .farm-card .semi-select {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
 }
 
 .farm-card .semi-input:hover,
 .farm-card .semi-select:hover {
-  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 .farm-card .semi-input:focus,
 .farm-card .semi-select-focus {
-  border-color: rgba(103, 232, 249, 0.4) !important;
-  box-shadow: 0 0 0 2px rgba(103, 232, 249, 0.1) !important;
+  border-color: rgba(103, 232, 249, 0.35) !important;
+  box-shadow: 0 0 0 2px rgba(103, 232, 249, 0.08) !important;
 }
 
-/* Scrollbar styling for glass */
+/* Scrollbar */
 .farm-content::-webkit-scrollbar {
   width: 6px;
 }
@@ -946,22 +693,14 @@
 }
 
 .farm-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 
 .farm-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .farm-sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* ====== 27. ⚡ Performance — Reduce blur on low-end ====== */
-
-@media (prefers-reduced-motion: reduce) {
-  .liquid-blob {
-    animation: none !important;
-  }
+  background: rgba(255, 255, 255, 0.06);
 }
