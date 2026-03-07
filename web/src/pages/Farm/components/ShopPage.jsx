@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Button, Spin, Typography } from '@douyinfe/semi-ui';
 import { API, formatBalance, formatDuration } from './utils';
 
@@ -14,6 +14,17 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const [activeTab, setActiveTab] = useState('seed');
   const [selectedKey, setSelectedKey] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [scrolledBottom, setScrolledBottom] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const listRef = useRef(null);
+
+  const checkScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
+    setScrolledBottom(atBottom);
+    setShowScrollHint(!atBottom && el.scrollHeight > el.clientHeight);
+  }, []);
 
   const loadShop = useCallback(async () => {
     setShopLoading(true);
@@ -95,6 +106,15 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const filteredItems = allItems.filter(i => i.category === activeTab);
   const selected = allItems.find(i => i.key === selectedKey) || null;
 
+  // Scroll hint: attach listener and re-check when tab changes
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    return () => el.removeEventListener('scroll', checkScroll);
+  }, [checkScroll, activeTab]);
+
   // Auto-select first item when switching tabs
   useEffect(() => {
     const items = allItems.filter(i => i.category === activeTab);
@@ -147,23 +167,28 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       {/* ═══ Master-Detail Layout ═══ */}
       <div className='farm-shop-layout'>
         {/* Left: Item List */}
-        <div className='farm-shop-list'>
-          {filteredItems.length === 0 ? (
-            <div className='farm-shop-empty'>
-              <div className='farm-shop-empty-icon'>📭</div>
-              <span>{t('暂无商品')}</span>
-            </div>
-          ) : filteredItems.map(item => (
-            <div key={item.key}
-              className={`farm-shop-item ${selectedKey === item.key ? 'active' : ''}`}
-              onClick={() => handleSelect(item.key)}>
-              <span className='farm-shop-item-emoji'>{item.emoji}</span>
-              <div className='farm-shop-item-info'>
-                <div className='farm-shop-item-name'>{item.name}</div>
-                <div className='farm-shop-item-price'>${item.price?.toFixed(2)}</div>
+        <div className={`farm-shop-list-wrap ${scrolledBottom ? 'scrolled-bottom' : ''}`}>
+          <div className='farm-shop-list' ref={listRef}>
+            {filteredItems.length === 0 ? (
+              <div className='farm-shop-empty'>
+                <div className='farm-shop-empty-icon'>📭</div>
+                <span>{t('暂无商品')}</span>
               </div>
-            </div>
-          ))}
+            ) : filteredItems.map(item => (
+              <div key={item.key}
+                className={`farm-shop-item ${selectedKey === item.key ? 'active' : ''}`}
+                onClick={() => handleSelect(item.key)}>
+                <span className='farm-shop-item-emoji'>{item.emoji}</span>
+                <div className='farm-shop-item-info'>
+                  <div className='farm-shop-item-name'>{item.name}</div>
+                  <div className='farm-shop-item-price'>${item.price?.toFixed(2)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {showScrollHint && (
+            <div className='farm-shop-scroll-hint'>▼ {t('下滑查看更多')}</div>
+          )}
         </div>
 
         {/* Right: Detail Panel */}
