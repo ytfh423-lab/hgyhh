@@ -2207,6 +2207,146 @@
   font-weight: 600;
 }
 
+/* ====== Game Engines ====== */
+
+.farm-masher-btn {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--farm-surface-hover), var(--farm-surface-alt));
+  border: 3px solid var(--farm-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.05s, box-shadow 0.05s, border-color 0.05s;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  touch-action: manipulation;
+}
+
+.farm-masher-btn:active {
+  transform: scale(0.88);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  border-color: #4ade80;
+}
+
+.farm-timing-bar {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--farm-surface-alt);
+  border: 2px solid var(--farm-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.farm-timing-sweet {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(74, 222, 128, 0.18);
+  border-left: 2px solid #4ade80;
+  border-right: 2px solid #4ade80;
+}
+
+.farm-timing-cursor {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 5px;
+  border-radius: 2px;
+  background: #f43f5e;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+  transition: none;
+}
+
+.farm-timing-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: farm-timing-flash-anim 0.35s ease-out forwards;
+}
+
+@keyframes farm-timing-flash-anim {
+  0% { background: rgba(74, 222, 128, 0.35); }
+  100% { background: transparent; }
+}
+
+.farm-timing-flash.miss {
+  animation-name: farm-timing-flash-miss;
+}
+
+@keyframes farm-timing-flash-miss {
+  0% { background: rgba(239, 68, 68, 0.3); }
+  100% { background: transparent; }
+}
+
+.farm-reaction-grid {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.farm-reaction-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: var(--farm-surface-alt);
+  border: 1px solid var(--farm-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.08s, transform 0.08s;
+  touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
+}
+
+.farm-reaction-cell:active {
+  transform: scale(0.92);
+}
+
+.farm-reaction-cell .farm-rc-pop {
+  animation: farm-rc-pop-in 0.12s ease-out;
+}
+
+@keyframes farm-rc-pop-in {
+  from { transform: scale(0) rotate(-20deg); opacity: 0; }
+  to { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.farm-engine-shake {
+  animation: farm-engine-shake-anim 0.25s ease;
+}
+
+@keyframes farm-engine-shake-anim {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+.farm-engine-countdown {
+  font-size: 32px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.farm-engine-score-big {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 @media (max-width: 768px) {
   .farm-game-modal {
     width: 95%;
@@ -2225,5 +2365,18 @@
 
   .farm-game-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+
+  .farm-masher-btn {
+    width: 110px;
+    height: 110px;
+  }
+
+  .farm-reaction-grid {
+    max-width: 260px;
+  }
+
+  .farm-reaction-cell {
+    font-size: 22px;
   }
 }
