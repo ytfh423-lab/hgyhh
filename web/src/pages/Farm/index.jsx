@@ -117,7 +117,7 @@ const MobileBottomNav = ({ activeKey, onNavigate, showSheet, t }) => {
   );
 };
 
-const MobileSheet = ({ activeKey, onNavigate, onClose, t }) => {
+const MobileSheet = ({ activeKey, onNavigate, onClose, t, userLevel = 1 }) => {
   return (
     <div className='farm-mobile-sheet-overlay' onClick={onClose}>
       <div className='farm-mobile-sheet' onClick={(e) => e.stopPropagation()}>
@@ -126,16 +126,20 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, t }) => {
           <div key={group.key} className='farm-mobile-sheet-group'>
             <div className='farm-mobile-sheet-group-title'>{group.emoji} {t(group.label)}</div>
             <div className='farm-mobile-sheet-grid'>
-              {group.items.map((item) => (
-                <div
-                  key={item.key}
-                  className={`farm-mobile-sheet-item ${activeKey === item.key ? 'active' : ''}`}
-                  onClick={() => { onNavigate(item.key); onClose(); }}
-                >
-                  <span className='sheet-emoji'>{item.emoji}</span>
-                  <span>{t(item.label)}</span>
-                </div>
-              ))}
+              {group.items.map((item) => {
+                const req = FEATURE_LEVEL_MAP[item.key];
+                const locked = req && userLevel < req.level;
+                return (
+                  <div
+                    key={item.key}
+                    className={`farm-mobile-sheet-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
+                    onClick={locked ? undefined : () => { onNavigate(item.key); onClose(); }}
+                  >
+                    <span className='sheet-emoji'>{locked ? '🔒' : item.emoji}</span>
+                    <span>{locked ? `${t(item.label)} (Lv.${req.level})` : t(item.label)}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -377,6 +381,7 @@ const Farm = () => {
           onNavigate={setActivePage}
           onClose={() => setMobileSheetOpen(false)}
           t={t}
+          userLevel={userLevel}
         />
       )}
     </div>

@@ -101,12 +101,13 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
               return (
                 <div
                   key={item.key}
-                  className={`farm-nav-item ${activeKey === item.key ? 'active' : ''}`}
-                  onClick={() => onNavigate(item.key)}
+                  className={`farm-nav-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
+                  onClick={locked ? undefined : () => onNavigate(item.key)}
+                  title={locked ? `${t('需要')} Lv.${req.level} ${t('解锁')}` : ''}
                 >
-                  <span style={{ fontSize: 15 }}>{item.emoji}</span>
+                  <span style={{ fontSize: 15 }}>{locked ? '🔒' : item.emoji}</span>
                   <span>{t(item.label)}</span>
-                  {locked && <span className='nav-lock'>🔒</span>}
+                  {locked && <span className='nav-lock'>Lv.{req.level}</span>}
                 </div>
               );
             })}
