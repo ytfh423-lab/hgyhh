@@ -936,6 +936,11 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_unlock_market":        common.TgBotFarmUnlockMarket,
 			"farm_unlock_tasks":         common.TgBotFarmUnlockTasks,
 			"farm_unlock_achieve":       common.TgBotFarmUnlockAchieve,
+			"farm_unlock_leaderboard":   common.TgBotFarmUnlockLeaderboard,
+			"farm_unlock_trading":       common.TgBotFarmUnlockTrading,
+			"farm_unlock_games":         common.TgBotFarmUnlockGames,
+			"farm_unlock_encyclopedia":  common.TgBotFarmUnlockEncyclopedia,
+			"farm_unlock_automation":    common.TgBotFarmUnlockAutomation,
 			"farm_level_prices":         common.OptionMap["TgBotFarmLevelPrices"],
 			// 银行贷款
 			"farm_bank_admin_id":        common.TgBotFarmBankAdminId,

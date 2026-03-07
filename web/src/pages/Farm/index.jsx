@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
-import { Sprout, Lock, Clock } from 'lucide-react';
+import { Sprout, Lock, Clock, ShieldAlert } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { Link } from 'react-router-dom';
@@ -231,7 +231,43 @@ const Farm = () => {
   const currentSeason = farmData.weather?.season ?? 0;
   const commonProps = { farmData, loadFarm, actionLoading, doAction, t };
 
+  // 功能解锁等级映射
+  const featureLevelMap = {
+    steal: { level: 2, name: '偷菜', emoji: '🕵️' },
+    dog: { level: 2, name: '狗狗', emoji: '🐶' },
+    market: { level: 2, name: '市场', emoji: '📈' },
+    encyclopedia: { level: 2, name: '图鉴', emoji: '📖' },
+    ranch: { level: 3, name: '牧场', emoji: '🐄' },
+    fish: { level: 3, name: '钓鱼', emoji: '🎣' },
+    bank: { level: 3, name: '银行', emoji: '🏦' },
+    leaderboard: { level: 3, name: '排行榜', emoji: '🏅' },
+    workshop: { level: 4, name: '加工坊', emoji: '🏭' },
+    games: { level: 4, name: '小游戏', emoji: '🎰' },
+    trading: { level: 5, name: '交易所', emoji: '🔄' },
+    automation: { level: 6, name: '自动化', emoji: '⚡' },
+  };
+
+  const userLevel = farmData.user_level || 1;
+
   const renderPage = () => {
+    const req = featureLevelMap[activePage];
+    if (req && userLevel < req.level) {
+      return (
+        <div className='farm-card' style={{ textAlign: 'center', padding: '48px 24px', maxWidth: 420, margin: '40px auto' }}>
+          <ShieldAlert size={40} style={{ color: '#f59e0b', marginBottom: 16 }} />
+          <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>
+            {req.emoji} {t(req.name)}
+          </h3>
+          <p style={{ margin: '0 0 16px', opacity: 0.7, fontSize: 14 }}>
+            {t('需要等级')} <strong>Lv.{req.level}</strong> {t('才能解锁')}
+          </p>
+          <div className='farm-pill farm-pill-blue' style={{ display: 'inline-block', fontSize: 13 }}>
+            {t('当前等级')}: Lv.{userLevel}
+          </div>
+        </div>
+      );
+    }
+
     switch (activePage) {
       case 'overview':
         return <FarmOverview {...commonProps} loading={loading} />;
