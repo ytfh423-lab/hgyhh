@@ -126,6 +126,11 @@ const TgBotPage = () => {
   const [farmSeasonInBonus, setFarmSeasonInBonus] = useState(70);
   const [farmSeasonOffBonus, setFarmSeasonOffBonus] = useState(140);
   const [farmWarehouseMaxSlots, setFarmWarehouseMaxSlots] = useState(100);
+  // 农场公告
+  const [farmAnnEnabled, setFarmAnnEnabled] = useState(false);
+  const [farmAnnText, setFarmAnnText] = useState('');
+  const [farmAnnType, setFarmAnnType] = useState('info');
+  const [savingFarmAnn, setSavingFarmAnn] = useState(false);
   const [savingFarm, setSavingFarm] = useState(false);
   const [resetLevel, setResetLevel] = useState(1);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
@@ -212,6 +217,10 @@ const TgBotPage = () => {
         setFarmSeasonInBonus(data.farm_season_in_bonus ?? 70);
         setFarmSeasonOffBonus(data.farm_season_off_bonus ?? 140);
         setFarmWarehouseMaxSlots(data.farm_warehouse_max_slots ?? 100);
+        // 农场公告
+        setFarmAnnEnabled(data.farm_announcement_enabled === true || data.farm_announcement_enabled === 'true');
+        setFarmAnnText(data.farm_announcement_text || '');
+        setFarmAnnType(data.farm_announcement_type || 'info');
         setBotToken('');
       }
     } catch (err) {
@@ -1250,6 +1259,91 @@ const TgBotPage = () => {
             style={{ marginTop: 8 }}
           >
             {t('保存农场设置')}
+          </Button>
+        </div>
+      </Card>
+
+      {/* ===== 农场公告设置 ===== */}
+      <Card
+        title={<span>📢 {t('农场全站公告')}</span>}
+        className='mt-4'
+      >
+        <div className='mb-4'>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <Typography.Text style={{ width: 200 }}>{t('启用公告')}</Typography.Text>
+            <Switch checked={farmAnnEnabled} onChange={setFarmAnnEnabled} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 12 }}>
+              {farmAnnEnabled ? t('已开启') : t('已关闭')}
+            </Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <Typography.Text style={{ width: 200 }}>{t('公告类型')}</Typography.Text>
+            <Form.Select
+              value={farmAnnType}
+              onChange={setFarmAnnType}
+              style={{ width: 200 }}
+              optionList={[
+                { value: 'info', label: '📢 ' + t('普通通知') + ' (蓝色)' },
+                { value: 'urgent', label: '🚨 ' + t('紧急维护') + ' (红色)' },
+                { value: 'event', label: '🎉 ' + t('活动喜报') + ' (金色)' },
+              ]}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Typography.Text style={{ display: 'block', marginBottom: 8 }}>{t('公告内容')}</Typography.Text>
+            <TextArea
+              value={farmAnnText}
+              onChange={setFarmAnnText}
+              placeholder={t('输入公告文字，长文本将自动跑马灯滚动')}
+              rows={2}
+              maxCount={200}
+              style={{ width: '100%' }}
+            />
+          </div>
+          {farmAnnText && (
+            <div style={{
+              marginBottom: 16, padding: '10px 16px', borderRadius: 9999,
+              background: 'rgba(15,10,30,0.82)', border: '1.5px solid ' +
+                (farmAnnType === 'urgent' ? 'rgba(239,68,68,0.7)' : farmAnnType === 'event' ? 'rgba(234,179,8,0.65)' : 'rgba(99,102,241,0.6)'),
+              color: '#f1f5f9', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span>{farmAnnType === 'urgent' ? '🚨' : farmAnnType === 'event' ? '🎉' : '📢'}</span>
+              <span style={{
+                padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+                background: farmAnnType === 'urgent' ? 'rgba(239,68,68,0.2)' : farmAnnType === 'event' ? 'rgba(234,179,8,0.18)' : 'rgba(99,102,241,0.25)',
+                color: farmAnnType === 'urgent' ? '#fca5a5' : farmAnnType === 'event' ? '#fde68a' : '#a5b4fc',
+              }}>
+                {farmAnnType === 'urgent' ? t('维护') : farmAnnType === 'event' ? t('活动') : t('通知')}
+              </span>
+              <span>{farmAnnText}</span>
+            </div>
+          )}
+          <Button
+            theme='solid'
+            type='primary'
+            loading={savingFarmAnn}
+            onClick={async () => {
+              setSavingFarmAnn(true);
+              try {
+                const opts = [
+                  { key: 'FarmAnnouncementEnabled', value: farmAnnEnabled ? 'true' : 'false' },
+                  { key: 'FarmAnnouncementText', value: farmAnnText },
+                  { key: 'FarmAnnouncementType', value: farmAnnType },
+                ];
+                for (const opt of opts) {
+                  const res = await API.put('/api/option/', opt);
+                  if (!res.data.success) { showError(res.data.message); return; }
+                }
+                showSuccess(t('公告设置已保存'));
+                await loadSettings();
+              } catch (err) {
+                showError(t('保存失败'));
+              } finally {
+                setSavingFarmAnn(false);
+              }
+            }}
+          >
+            {t('保存公告设置')}
           </Button>
         </div>
       </Card>

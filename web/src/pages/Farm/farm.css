@@ -2536,3 +2536,158 @@
     height: 220px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Farm Announcement Bar — 系统广播通知栏
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --farm-ann-border-info:   rgba(99, 102, 241, 0.6);
+  --farm-ann-glow-info:     0 0 12px rgba(99, 102, 241, 0.35), 0 0 24px rgba(99, 102, 241, 0.1);
+  --farm-ann-border-urgent: rgba(239, 68, 68, 0.7);
+  --farm-ann-glow-urgent:   0 0 12px rgba(239, 68, 68, 0.4), 0 0 24px rgba(239, 68, 68, 0.12);
+  --farm-ann-border-event:  rgba(234, 179, 8, 0.65);
+  --farm-ann-glow-event:    0 0 12px rgba(234, 179, 8, 0.35), 0 0 24px rgba(234, 179, 8, 0.1);
+}
+
+.farm-ann-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-120%);
+  z-index: 9999;
+  width: max-content;
+  max-width: min(92vw, 640px);
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+  pointer-events: none;
+}
+.farm-ann-bar.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.farm-ann-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 12px;
+  border-radius: 9999px;
+  background: rgba(15, 10, 30, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1.5px solid var(--farm-ann-border-info);
+  box-shadow: var(--farm-ann-glow-info);
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+/* --- Type-specific border / glow --- */
+.farm-ann-bar.urgent .farm-ann-inner {
+  border-color: var(--farm-ann-border-urgent);
+  box-shadow: var(--farm-ann-glow-urgent);
+}
+.farm-ann-bar.event .farm-ann-inner {
+  border-color: var(--farm-ann-border-event);
+  box-shadow: var(--farm-ann-glow-event);
+}
+
+/* --- Icon with bounce --- */
+.farm-ann-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  animation: farm-ann-bounce 1.6s ease-in-out infinite;
+}
+@keyframes farm-ann-bounce {
+  0%, 100% { transform: translateY(0); }
+  30%      { transform: translateY(-3px) scale(1.12); }
+  60%      { transform: translateY(1px); }
+}
+
+/* --- Badge pill --- */
+.farm-ann-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+.farm-ann-badge.urgent {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.farm-ann-badge.event {
+  background: rgba(234, 179, 8, 0.18);
+  color: #fde68a;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+/* --- Text / Marquee container --- */
+.farm-ann-text-wrap {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%);
+}
+.farm-ann-text {
+  flex-shrink: 0;
+  padding-right: 4px;
+  color: #f1f5f9;
+  font-weight: 500;
+}
+.farm-ann-text.marquee {
+  padding-right: 60px;
+  animation: farm-ann-scroll 14s linear infinite;
+}
+@keyframes farm-ann-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* --- Close button --- */
+.farm-ann-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+.farm-ann-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+/* --- Mobile --- */
+@media (max-width: 640px) {
+  .farm-ann-bar {
+    top: 8px;
+    max-width: 96vw;
+  }
+  .farm-ann-inner {
+    padding: 6px 10px 6px 8px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .farm-ann-icon { font-size: 15px; }
+  .farm-ann-badge { font-size: 10px; padding: 1px 6px; }
+  .farm-ann-close { width: 20px; height: 20px; font-size: 10px; }
+}

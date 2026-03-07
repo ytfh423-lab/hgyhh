@@ -815,6 +815,29 @@ func WebFarmGamePlay(c *gin.Context) {
 	})
 }
 
+// ========== Farm Announcement ==========
+
+func WebFarmAnnouncement(c *gin.Context) {
+	common.OptionMapRWMutex.RLock()
+	enabled := common.OptionMap["FarmAnnouncementEnabled"]
+	text := common.OptionMap["FarmAnnouncementText"]
+	aType := common.OptionMap["FarmAnnouncementType"]
+	common.OptionMapRWMutex.RUnlock()
+
+	if enabled != "true" || text == "" {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": nil})
+		return
+	}
+	if aType == "" {
+		aType = "info"
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		"text":    text,
+		"type":    aType,
+		"enabled": true,
+	}})
+}
+
 func init() {
 	initWeather()
 }

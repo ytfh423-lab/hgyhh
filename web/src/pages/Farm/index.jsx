@@ -30,6 +30,7 @@ import DogPage from './components/DogPage';
 import AutomationPage from './components/AutomationPage';
 import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
+import FarmAnnouncementBar from './components/FarmAnnouncementBar';
 
 const { Text, Title } = Typography;
 
@@ -318,6 +319,7 @@ const Farm = () => {
 
   return (
     <div className='farm-layout'>
+      <FarmAnnouncementBar t={t} />
       <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} />
       <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
         <StatusBar farmData={farmData} t={t} />

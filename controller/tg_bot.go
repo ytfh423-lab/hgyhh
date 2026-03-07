@@ -959,6 +959,10 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_warehouse_upgrade_price":        common.TgBotFarmWarehouseUpgradePrice,
 			"farm_warehouse_capacity_per_level":   common.TgBotFarmWarehouseCapacityPerLevel,
 			"farm_warehouse_expiry_bonus_per_level": common.TgBotFarmWarehouseExpiryBonusPerLevel,
+			// 农场公告
+			"farm_announcement_enabled": common.OptionMap["FarmAnnouncementEnabled"],
+			"farm_announcement_text":    common.OptionMap["FarmAnnouncementText"],
+			"farm_announcement_type":    common.OptionMap["FarmAnnouncementType"],
 		},
 	})
 }
