@@ -2682,15 +2682,27 @@
 }
 
 /* --- Mobile --- */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .farm-ann-bar {
-    top: 8px;
-    max-width: 96vw;
+    position: relative;
+    top: 0;
+    left: 0;
+    transform: translateX(0) translateY(-100%);
+    max-width: 100%;
+    width: 100%;
+    z-index: 10;
+  }
+  .farm-ann-bar.visible {
+    transform: translateX(0) translateY(0);
   }
   .farm-ann-inner {
-    padding: 6px 10px 6px 8px;
+    padding: 8px 10px 8px 10px;
     gap: 6px;
     font-size: 12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
   }
   .farm-ann-icon { font-size: 15px; }
   .farm-ann-badge { font-size: 10px; padding: 1px 6px; }
