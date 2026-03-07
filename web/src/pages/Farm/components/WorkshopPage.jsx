@@ -1,13 +1,34 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Spin, Tag, Typography } from '@douyinfe/semi-ui';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { Button, Spin, Typography } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, formatDuration } from './utils';
 
 const { Text } = Typography;
 
+/* ═══════════════════════════════════════════════════════════════
+   ProfitBadge — 利润分级徽章
+   ═══════════════════════════════════════════════════════════════ */
+const ProfitBadge = ({ profit, multiplier, t }) => {
+  let cls = 'positive';
+  let label = `+$${profit.toFixed(2)}`;
+  if (profit < 0) { cls = 'negative'; label = `-$${Math.abs(profit).toFixed(2)}`; }
+  else if (multiplier >= 150) { cls = 'gold'; label = `🔥 +$${profit.toFixed(2)}`; }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+      <span className={`farm-ws-profit-badge ${cls}`}>{label}</span>
+      <span className='farm-ws-ratio'>{multiplier}%</span>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   WorkshopPage — 智能工厂控制台
+   ═══════════════════════════════════════════════════════════════ */
 const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const [wsData, setWsData] = useState(null);
   const [wsLoading, setWsLoading] = useState(false);
   const [tick, setTick] = useState(0);
+  const [craftingKey, setCraftingKey] = useState(null);
+  const [sortBy, setSortBy] = useState('profit');
 
   const loadWorkshop = useCallback(async () => {
     setWsLoading(true);
@@ -33,6 +54,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
   }, [tick, loadWorkshop]);
 
   const doCraft = async (key) => {
+    setCraftingKey(key);
     setWsLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/workshop/craft', { recipe_key: key });
@@ -47,6 +69,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
       showError(t('操作失败'));
     } finally {
       setWsLoading(false);
+      setCraftingKey(null);
     }
   };
 
@@ -68,6 +91,14 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     }
   };
 
+  const sortedRecipes = useMemo(() => {
+    const list = [...(wsData?.recipes || [])];
+    if (sortBy === 'profit') list.sort((a, b) => b.profit - a.profit);
+    else if (sortBy === 'time') list.sort((a, b) => a.time_secs - b.time_secs);
+    else if (sortBy === 'ratio') list.sort((a, b) => b.multiplier - a.multiplier);
+    return list;
+  }, [wsData?.recipes, sortBy]);
+
   if (wsLoading && !wsData) {
     return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
   }
@@ -75,70 +106,125 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
 
   const hasCollectable = (wsData.active || []).some(p => p.status === 2);
   const slotsAvailable = wsData.used_slots < wsData.max_slots;
-  const profitColor = (v) => v >= 0 ? '#16a34a' : '#dc2626';
 
   return (
     <div>
-      {/* Slots */}
+      {/* ═══ Factory Status Bar ═══ */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div className='farm-pill farm-pill-blue'>🏭 {t('槽位')}: {wsData.used_slots}/{wsData.max_slots}</div>
+        <div className='farm-pill farm-pill-blue'>
+          🏭 {t('产线')}: {wsData.used_slots}/{wsData.max_slots}
+        </div>
+        {slotsAvailable
+          ? <div className='farm-pill farm-pill-green'>✅ {t('有空闲槽位')}</div>
+          : <div className='farm-pill farm-pill-red'>⛔ {t('满载运转')}</div>
+        }
         {hasCollectable && (
-          <Button theme='solid' type='warning' size='small' loading={wsLoading} onClick={doCollect} className='farm-btn'>
-            📥 {t('收取全部')}
+          <Button theme='solid' type='warning' size='small' loading={wsLoading}
+            onClick={doCollect} className='farm-btn'>
+            📥 {t('收取全部成品')}
           </Button>
         )}
       </div>
 
-      {/* Active processes */}
+      {/* ═══ Active Processes ═══ */}
       {wsData.active && wsData.active.length > 0 && (
-        <div className='farm-card'>
-          <div className='farm-section-title'>⏳ {t('加工中')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className='farm-card' style={{ marginBottom: 14 }}>
+          <div className='farm-section-title'>
+            <span className='farm-ws-gear'>⚙️</span> {t('生产线运行中')}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {wsData.active.map((p) => (
-              <div key={p.id} className='farm-row'>
-                <span style={{ fontSize: 24 }}>{p.emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <Text strong>{p.name}</Text>
-                  {p.status === 2 ? (
-                    <Tag size='small' color='green' style={{ marginLeft: 6 }}>✅ {t('已完成')}</Tag>
-                  ) : (
-                    <Tag size='small' color='blue' style={{ marginLeft: 6 }}>{p.progress}% · {formatDuration(p.remaining)}</Tag>
-                  )}
-                  <Text size='small' type='tertiary' style={{ display: 'block' }}>{t('价值')}: ${p.sell_price.toFixed(2)}</Text>
-                </div>
-                {p.status === 1 && (
-                  <div className='farm-progress' style={{ width: 80 }}>
-                    <div className='farm-progress-fill' style={{ width: `${p.progress}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }} />
+              <div key={p.id} className='farm-ws-active'>
+                <span className='farm-ws-active-emoji'>{p.emoji}</span>
+                <div className='farm-ws-active-info'>
+                  <div className='farm-ws-active-name'>{p.name}</div>
+                  <div className='farm-ws-active-bar'>
+                    <div className={`farm-ws-active-fill ${p.status === 2 ? 'done' : ''}`}
+                      style={{ width: `${p.status === 2 ? 100 : p.progress}%` }} />
                   </div>
-                )}
+                  <div className='farm-ws-active-meta'>
+                    <span>
+                      {p.status === 2
+                        ? `✅ ${t('已完成')} — ${t('等待收取')}`
+                        : `⏱ ${formatDuration(p.remaining)} · ${p.progress}%`
+                      }
+                    </span>
+                    <span>${p.sell_price.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recipes */}
-      <div className='farm-card'>
-        <div className='farm-section-title'>📋 {t('配方列表')}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(wsData.recipes || []).map((r) => (
-            <div key={r.key} className='farm-row'>
-              <span style={{ fontSize: 22 }}>{r.emoji}</span>
-              <div style={{ flex: 1 }}>
-                <Text strong>{r.name}</Text>
-                <Text size='small' type='tertiary' style={{ display: 'block' }}>
-                  {t('成本')} ${r.cost.toFixed(2)} → {t('售价')} ${r.sell_price.toFixed(2)} ({r.multiplier}%)
-                  · <span style={{ color: profitColor(r.profit), fontWeight: 600 }}>{r.profit >= 0 ? '+' : ''}${r.profit.toFixed(2)}</span>
-                  · {formatDuration(r.time_secs)}
-                </Text>
-              </div>
-              <Button size='small' theme='solid' disabled={!slotsAvailable || wsLoading}
-                onClick={() => doCraft(r.key)} className='farm-btn'>
-                {t('加工')}
+      {/* ═══ Sort Controls ═══ */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+        <Text type='tertiary' size='small' style={{ marginRight: 4 }}>📋 {t('排序')}:</Text>
+        {[
+          { key: 'profit', label: '💰 ' + t('利润') },
+          { key: 'ratio', label: '📊 ' + t('利润率') },
+          { key: 'time', label: '⏱ ' + t('耗时') },
+        ].map(s => (
+          <div key={s.key}
+            className={`farm-shop-preset ${sortBy === s.key ? 'active' : ''}`}
+            onClick={() => setSortBy(s.key)}
+            style={{ cursor: 'pointer' }}>
+            {s.label}
+          </div>
+        ))}
+      </div>
+
+      {/* ═══ Recipe Pipeline ═══ */}
+      <div className='farm-ws-pipeline'>
+        {sortedRecipes.map((r) => (
+          <div key={r.key}
+            className={`farm-ws-recipe ${r.multiplier >= 150 ? 'profit-high' : ''}`}>
+            {/* Input Node */}
+            <div className='farm-ws-node'>
+              <span className='farm-ws-node-emoji'>💰</span>
+              <span className='farm-ws-node-label'>{t('成本')}</span>
+              <span className='farm-ws-node-value'>${r.cost.toFixed(2)}</span>
+            </div>
+
+            {/* Arrow 1 */}
+            <div className='farm-ws-arrow'>
+              <span className='farm-ws-arrow-line'>→</span>
+            </div>
+
+            {/* Process Node */}
+            <div className='farm-ws-node'>
+              <span className='farm-ws-node-emoji'>{r.emoji}</span>
+              <span className='farm-ws-node-label'>{r.name}</span>
+              <span className='farm-ws-arrow-time'>⏱ {formatDuration(r.time_secs)}</span>
+            </div>
+
+            {/* Arrow 2 */}
+            <div className='farm-ws-arrow'>
+              <span className='farm-ws-arrow-line'>→</span>
+            </div>
+
+            {/* Output Node */}
+            <div className='farm-ws-node'>
+              <span className='farm-ws-node-emoji'>📦</span>
+              <span className='farm-ws-node-label'>{t('售价')}</span>
+              <span className='farm-ws-node-value'>${r.sell_price.toFixed(2)}</span>
+            </div>
+
+            {/* Profit + Action */}
+            <div className='farm-ws-profit'>
+              <ProfitBadge profit={r.profit} multiplier={r.multiplier} t={t} />
+              <Button size='small' theme='solid'
+                disabled={!slotsAvailable || wsLoading}
+                loading={craftingKey === r.key}
+                onClick={() => doCraft(r.key)}
+                className='farm-btn'
+                style={{ minWidth: 60 }}>
+                {craftingKey === r.key ? t('投料中') : '⚙️ ' + t('加工')}
               </Button>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );

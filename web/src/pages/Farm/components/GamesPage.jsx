@@ -1,17 +1,332 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Spin, Tag, Banner, Typography } from '@douyinfe/semi-ui';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { Button, Spin, Typography } from '@douyinfe/semi-ui';
 import { API, showError } from './utils';
 
 const { Text } = Typography;
 
+/* ═══════════════════════════════════════════════════════════════
+   WHEEL_SECTORS — 转盘扇区颜色
+   ═══════════════════════════════════════════════════════════════ */
+const WHEEL_COLORS = [
+  '#ef4444', '#3b82f6', '#22c55e', '#f59e0b',
+  '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6',
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   SpinningWheel — 真实旋转转盘（CSS transform）
+   ═══════════════════════════════════════════════════════════════ */
+const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
+  const wheelRef = useRef(null);
+  const [rotation, setRotation] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const sectors = result?.sectors || [
+    '🎁', '💰', '🍀', '⭐', '🎯', '🏆', '💎', '🌟',
+  ];
+  const sectorCount = sectors.length;
+  const sectorAngle = 360 / sectorCount;
+
+  const handleSpin = async () => {
+    if (spinning || gameLoading) return;
+    setShowResult(false);
+    const data = await onSpin();
+    if (!data) return;
+    // Calculate target angle: prize_index tells us where to land
+    const prizeIdx = data.prize_index ?? Math.floor(Math.random() * sectorCount);
+    // Pointer is at top (0°). Sector 0 starts at 0°.
+    // To land on prizeIdx, rotate so that sector's center aligns with top.
+    const targetSectorCenter = prizeIdx * sectorAngle + sectorAngle / 2;
+    const extraSpins = 5 * 360; // 5 full rotations
+    const newRotation = rotation + extraSpins + (360 - targetSectorCenter);
+    setRotation(newRotation);
+    // Show result after spin animation
+    setTimeout(() => setShowResult(true), 4200);
+  };
+
+  // Draw sectors with conic-gradient
+  const conicStops = sectors.map((_, i) => {
+    const color = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    const start = (i * sectorAngle).toFixed(1);
+    const end = ((i + 1) * sectorAngle).toFixed(1);
+    return `${color} ${start}deg ${end}deg`;
+  }).join(', ');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div className='farm-wheel-container'>
+        <div className='farm-wheel-pointer'>📍</div>
+        <div ref={wheelRef}
+          className={`farm-wheel ${rotation > 0 ? 'spinning' : ''}`}
+          style={{
+            background: `conic-gradient(${conicStops})`,
+            transform: `rotate(${rotation}deg)`,
+          }}>
+          {/* Sector labels */}
+          {sectors.map((label, i) => {
+            const angle = i * sectorAngle + sectorAngle / 2;
+            return (
+              <div key={i} style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                transform: `rotate(${angle}deg) translateY(-90px)`,
+                transformOrigin: '0 0',
+                fontSize: 20,
+                marginLeft: -10,
+                marginTop: -10,
+              }}>
+                {label}
+              </div>
+            );
+          })}
+        </div>
+        <div className='farm-wheel-center'>🎰</div>
+      </div>
+
+      <Button theme='solid' size='large' onClick={handleSpin}
+        loading={gameLoading} className='farm-btn'
+        style={{ minWidth: 140, fontWeight: 700 }}>
+        🎡 {t('转一次')} ($1)
+      </Button>
+
+      {showResult && result && (
+        <div className='farm-game-result'>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+            {result.prize_label}
+          </div>
+          <span className={`farm-ws-profit-badge ${result.net >= 0 ? 'positive' : 'negative'}`}
+            style={{ fontSize: 14 }}>
+            {result.net >= 0 ? '+' : ''}{result.net.toFixed(2)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ScratchCard — Canvas 刮刮卡
+   ═══════════════════════════════════════════════════════════════ */
+const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
+  const canvasRef = useRef(null);
+  const [scratching, setScratching] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [started, setStarted] = useState(false);
+  const isDrawing = useRef(false);
+
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    // Fill with scratch coating
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grad.addColorStop(0, '#6366f1');
+    grad.addColorStop(1, '#8b5cf6');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Add text hint
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✨ ' + t('刮开此处') + ' ✨', canvas.width / 2, canvas.height / 2);
+  }, [t]);
+
+  useEffect(() => {
+    if (result && !revealed) {
+      setStarted(true);
+      setTimeout(() => initCanvas(), 50);
+    }
+  }, [result, revealed, initCanvas]);
+
+  const getPos = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+  };
+
+  const scratch = (pos) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 22, 0, Math.PI * 2);
+    ctx.fill();
+    // Check percentage scratched
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let cleared = 0;
+    for (let i = 3; i < imgData.data.length; i += 4) {
+      if (imgData.data[i] === 0) cleared++;
+    }
+    const pct = cleared / (imgData.data.length / 4);
+    if (pct > 0.55) {
+      setRevealed(true);
+    }
+  };
+
+  const onPointerDown = (e) => { e.preventDefault(); isDrawing.current = true; scratch(getPos(e)); };
+  const onPointerMove = (e) => { e.preventDefault(); if (isDrawing.current) scratch(getPos(e)); };
+  const onPointerUp = () => { isDrawing.current = false; };
+
+  const handleBuy = async () => {
+    setRevealed(false);
+    setStarted(false);
+    await onScratch();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      {started && result ? (
+        <>
+          <div className='farm-scratch-container'
+            onMouseDown={onPointerDown} onMouseMove={onPointerMove} onMouseUp={onPointerUp} onMouseLeave={onPointerUp}
+            onTouchStart={onPointerDown} onTouchMove={onPointerMove} onTouchEnd={onPointerUp}>
+            {/* Prize layer underneath */}
+            <div className='farm-scratch-prize'>
+              <span className='farm-scratch-prize-emoji'>{result.win_symbol || '🎁'}</span>
+              <span className='farm-scratch-prize-label'>{result.prize_label}</span>
+              <span style={{ fontSize: 12, color: result.net >= 0 ? '#4ade80' : '#ef4444', fontWeight: 700 }}>
+                {result.net >= 0 ? '+' : ''}{result.net.toFixed(2)}
+              </span>
+            </div>
+            {/* Scratch canvas on top */}
+            {!revealed && <canvas ref={canvasRef} className='farm-scratch-canvas' />}
+          </div>
+          {revealed && (
+            <div className='farm-game-result'>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>
+                {result.win_symbol}×3 → {result.prize_label}
+              </div>
+              <div className='farm-game-result-pills'>
+                <span className={`farm-ws-profit-badge ${result.net >= 0 ? 'positive' : 'negative'}`}>
+                  {result.net >= 0 ? '+' : ''}{result.net.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ padding: 20, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎰</div>
+          <Button theme='solid' size='large' onClick={handleBuy}
+            loading={gameLoading} className='farm-btn'
+            style={{ minWidth: 140, fontWeight: 700 }}>
+            🃏 {t('刮一张')} ($0.50)
+          </Button>
+        </div>
+      )}
+      {started && revealed && (
+        <Button size='small' theme='light' onClick={handleBuy}
+          loading={gameLoading} className='farm-btn'>
+          🔄 {t('再来一张')}
+        </Button>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   GameModal — 游戏机风格弹窗（带动画延迟）
+   ═══════════════════════════════════════════════════════════════ */
+const GameModal = ({ game, result, onClose, onReplay, gameLoading, t }) => {
+  const [phase, setPhase] = useState('loading'); // loading -> result
+
+  useEffect(() => {
+    if (result) {
+      setPhase('loading');
+      // Simulate 2.5s "game running" animation
+      const timer = setTimeout(() => setPhase('result'), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [result]);
+
+  if (!game) return null;
+
+  return (
+    <div className='farm-game-overlay' onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className='farm-game-modal'>
+        {/* Header */}
+        <div className='farm-game-modal-header'>
+          <span className='farm-game-modal-emoji'>{game.emoji}</span>
+          <div>
+            <div className='farm-game-modal-title'>{game.name}</div>
+            <div className='farm-game-modal-sub'>{game.desc} · ${game.price.toFixed(2)}</div>
+          </div>
+          <div className='farm-game-modal-close' onClick={onClose}>✕</div>
+        </div>
+
+        {/* Body */}
+        <div className='farm-game-modal-body'>
+          {phase === 'loading' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '30px 0' }}>
+              <div style={{ fontSize: 56 }}>{game.emoji}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className='farm-ws-gear' style={{ fontSize: 24 }}>⚙️</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--farm-text-2)' }}>
+                  {t('游戏进行中')}...
+                </span>
+              </div>
+              {/* Animated progress bar */}
+              <div style={{ width: '80%', height: 6, borderRadius: 3, background: 'var(--farm-surface-alt)', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 3,
+                  background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+                  animation: 'farm-game-loading-bar 2.5s ease-in-out forwards',
+                  width: '0%',
+                }} />
+              </div>
+            </div>
+          )}
+
+          {phase === 'result' && result && (
+            <div className='farm-game-result' style={{ width: '100%' }}>
+              <div className='farm-game-result-text'>
+                {result.result_text}
+              </div>
+              <div className='farm-game-result-pills'>
+                <span className='farm-pill farm-pill-blue'>{t('下注')}: ${result.bet.toFixed(2)}</span>
+                <span className={`farm-pill ${result.net >= 0 ? 'farm-pill-green' : 'farm-pill-red'}`}>
+                  {result.net >= 0 ? '+' : ''}{result.net.toFixed(2)}
+                </span>
+                <span className='farm-pill farm-pill-purple'>{result.multi}x</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {phase === 'result' && (
+          <div className='farm-game-modal-footer'>
+            <Button theme='light' onClick={onClose} className='farm-btn'>
+              {t('关闭')}
+            </Button>
+            <Button theme='solid' onClick={onReplay}
+              loading={gameLoading} className='farm-btn'
+              style={{ fontWeight: 700 }}>
+              🔄 {t('再来一次')} (${game.price.toFixed(2)})
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   GamesPage — 农场游乐场主组件
+   ═══════════════════════════════════════════════════════════════ */
 const GamesPage = ({ loadFarm, t }) => {
   const [gameLoading, setGameLoading] = useState(false);
   const [wheelResult, setWheelResult] = useState(null);
   const [scratchResult, setScratchResult] = useState(null);
-  const [scratchRevealed, setScratchRevealed] = useState(false);
   const [history, setHistory] = useState([]);
   const [miniGames, setMiniGames] = useState([]);
-  const [miniResult, setMiniResult] = useState(null);
+  // Modal state
+  const [modalGame, setModalGame] = useState(null);
+  const [modalResult, setModalResult] = useState(null);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -32,20 +347,17 @@ const GamesPage = ({ loadFarm, t }) => {
   const spinWheel = async () => {
     setGameLoading(true);
     setWheelResult(null);
-    setMiniResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/wheel');
-      if (res.success) { setWheelResult(res.data); loadFarm(); loadHistory(); }
-      else showError(res.message);
-    } catch (err) { showError(t('操作失败')); }
+      if (res.success) { setWheelResult(res.data); loadFarm(); loadHistory(); return res.data; }
+      else { showError(res.message); return null; }
+    } catch (err) { showError(t('操作失败')); return null; }
     finally { setGameLoading(false); }
   };
 
   const doScratch = async () => {
     setGameLoading(true);
     setScratchResult(null);
-    setScratchRevealed(false);
-    setMiniResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/scratch');
       if (res.success) { setScratchResult(res.data); loadFarm(); loadHistory(); }
@@ -54,106 +366,56 @@ const GamesPage = ({ loadFarm, t }) => {
     finally { setGameLoading(false); }
   };
 
-  const playMiniGame = async (gameKey) => {
+  const playMiniGame = async (game) => {
     setGameLoading(true);
-    setMiniResult(null);
-    setWheelResult(null);
-    setScratchResult(null);
+    setModalGame(game);
+    setModalResult(null);
     try {
-      const { data: res } = await API.post('/api/farm/game/play', { game_key: gameKey });
-      if (res.success) { setMiniResult(res.data); loadFarm(); loadHistory(); }
-      else showError(res.message);
-    } catch (err) { showError(t('操作失败')); }
+      const { data: res } = await API.post('/api/farm/game/play', { game_key: game.key });
+      if (res.success) { setModalResult(res.data); loadFarm(); loadHistory(); }
+      else { showError(res.message); setModalGame(null); }
+    } catch (err) { showError(t('操作失败')); setModalGame(null); }
     finally { setGameLoading(false); }
   };
 
+  const closeModal = () => { setModalGame(null); setModalResult(null); };
+
   return (
     <div>
-      {/* Wheel & Scratch */}
+      {/* ═══ Wheel & Scratch Cards ═══ */}
       <div className='farm-grid farm-grid-2'>
         <div className='farm-card' style={{ marginBottom: 0 }}>
-          <div className='farm-section-title'>🎡 {t('幸运转盘')} ($1/{t('次')})</div>
-          <Button theme='solid' onClick={spinWheel} loading={gameLoading} className='farm-btn' style={{ marginBottom: 8 }}>
-            🎰 {t('转一次')}
-          </Button>
-          {wheelResult && (
-            <Banner type={wheelResult.net >= 0 ? 'success' : 'warning'} closeIcon={null} style={{ borderRadius: 10 }}
-              description={<span>{t('中奖')}: <strong>{wheelResult.prize_label}</strong> ({wheelResult.net >= 0 ? '+' : ''}{wheelResult.net.toFixed(2)})</span>} />
-          )}
+          <div className='farm-section-title'>🎡 {t('幸运转盘')}</div>
+          <SpinningWheel onSpin={spinWheel} spinning={gameLoading}
+            result={wheelResult} gameLoading={gameLoading} t={t} />
         </div>
 
         <div className='farm-card' style={{ marginBottom: 0 }}>
-          <div className='farm-section-title'>🎰 {t('刮刮卡')} ($0.50/{t('次')})</div>
-          <Button theme='solid' onClick={doScratch} loading={gameLoading} className='farm-btn' style={{ marginBottom: 8 }}>
-            🃏 {t('刮一张')}
-          </Button>
-          {scratchResult && (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 8, maxWidth: 180 }}>
-                {scratchResult.grid.flat().map((sym, i) => (
-                  <div key={i} onClick={() => setScratchRevealed(true)} style={{
-                    width: 50, height: 50, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 24, cursor: 'pointer',
-                    background: scratchRevealed ? 'var(--farm-glass-bg)' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                    border: '1px solid var(--farm-glass-border)', transition: 'all 0.3s',
-                  }}>
-                    {scratchRevealed ? sym : '?'}
-                  </div>
-                ))}
-              </div>
-              {scratchRevealed && (
-                <Banner type={scratchResult.net >= 0 ? 'success' : 'warning'} closeIcon={null} style={{ borderRadius: 10 }}
-                  description={<span>{scratchResult.win_symbol}×3 → <strong>{scratchResult.prize_label}</strong></span>} />
-              )}
-            </div>
-          )}
+          <div className='farm-section-title'>🎰 {t('刮刮卡')}</div>
+          <ScratchCard onScratch={doScratch} result={scratchResult}
+            gameLoading={gameLoading} t={t} />
         </div>
       </div>
 
-      {/* Mini-Game Result */}
-      {miniResult && (
-        <div className='farm-card farm-card-glow-purple' style={{ marginTop: 14 }}>
-          <div className='farm-section-title' style={{ fontSize: 16 }}>
-            {miniResult.game_emoji} {miniResult.game_name}
-          </div>
-          <div style={{ whiteSpace: 'pre-wrap', marginBottom: 12, padding: '10px 14px', borderRadius: 10,
-            background: 'var(--farm-glass-bg)', fontSize: 13, lineHeight: 1.6 }}>
-            {miniResult.result_text}
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className='farm-pill farm-pill-blue'>{t('下注')}: ${miniResult.bet.toFixed(2)}</div>
-            <div className={`farm-pill ${miniResult.net >= 0 ? 'farm-pill-green' : 'farm-pill-red'}`}>
-              {t('收益')}: {miniResult.net >= 0 ? '+' : ''}{miniResult.net.toFixed(2)}
-            </div>
-            <div className='farm-pill farm-pill-purple'>{miniResult.multi}x</div>
-            <Button size='small' theme='solid' onClick={() => playMiniGame(miniResult.game_key)}
-              loading={gameLoading} className='farm-btn'>
-              🔄 {t('再来一次')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* All Mini-Games */}
+      {/* ═══ Mini-Games Grid ═══ */}
       {miniGames.length > 0 && (
         <div className='farm-card' style={{ marginTop: 14 }}>
           <div className='farm-section-title'>🎮 {t('农场小游戏')} ({miniGames.length})</div>
-          <div className='farm-grid farm-grid-4'>
+          <div className='farm-game-grid'>
             {miniGames.map((g) => (
-              <div key={g.key} className='farm-item-card'
-                onClick={() => !gameLoading && playMiniGame(g.key)}
+              <div key={g.key} className='farm-game-tile'
+                onClick={() => !gameLoading && playMiniGame(g)}
                 style={{ opacity: gameLoading ? 0.6 : 1, cursor: gameLoading ? 'not-allowed' : 'pointer' }}>
-                <span style={{ fontSize: 28, display: 'block', marginBottom: 4 }}>{g.emoji}</span>
-                <Text strong size='small' style={{ display: 'block' }}>{g.name}</Text>
-                <Text type='tertiary' size='small' style={{ display: 'block', fontSize: 11 }}>{g.desc}</Text>
-                <Text type='success' size='small' style={{ display: 'block', marginTop: 2 }}>${g.price.toFixed(2)}</Text>
+                <span className='farm-game-tile-emoji'>{g.emoji}</span>
+                <span className='farm-game-tile-name'>{g.name}</span>
+                <span className='farm-game-tile-price'>${g.price.toFixed(2)}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* History */}
+      {/* ═══ History ═══ */}
       {history.length > 0 && (
         <div className='farm-card' style={{ marginTop: 14 }}>
           <div className='farm-section-title'>📜 {t('游戏记录')}</div>
@@ -169,6 +431,14 @@ const GamesPage = ({ loadFarm, t }) => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* ═══ Game Modal ═══ */}
+      {modalGame && (
+        <GameModal game={modalGame} result={modalResult}
+          onClose={closeModal}
+          onReplay={() => playMiniGame(modalGame)}
+          gameLoading={gameLoading} t={t} />
       )}
     </div>
   );
