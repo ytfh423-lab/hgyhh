@@ -16,6 +16,17 @@ const WHEEL_COLORS = [
 /* ═══════════════════════════════════════════════════════════════
    SpinningWheel — 真实旋转转盘（CSS transform）
    ═══════════════════════════════════════════════════════════════ */
+const WHEEL_PRIZES = [
+  { symbol: '🎁', label: '$0', color: '#ef4444' },
+  { symbol: '💰', label: '$0.50', color: '#3b82f6' },
+  { symbol: '🍀', label: '$1', color: '#22c55e' },
+  { symbol: '⭐', label: '$1.50', color: '#f59e0b' },
+  { symbol: '🎯', label: '$2', color: '#8b5cf6' },
+  { symbol: '🏆', label: '$3', color: '#06b6d4' },
+  { symbol: '💎', label: '$5', color: '#ec4899' },
+  { symbol: '🌟', label: '$10', color: '#14b8a6' },
+];
+
 const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
   const wheelRef = useRef(null);
   const [rotation, setRotation] = useState(0);
@@ -87,6 +98,23 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
         style={{ minWidth: 140, fontWeight: 700 }}>
         🎡 {t('转一次')} ($1)
       </Button>
+
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px 8px',
+        width: '100%', maxWidth: 280, marginTop: 4,
+        padding: '8px 10px', borderRadius: 10,
+        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+      }}>
+        {WHEEL_PRIZES.map((p, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 12, padding: '2px 0',
+          }}>
+            <span style={{ fontSize: 15 }}>{p.symbol}</span>
+            <span style={{ color: p.color, fontWeight: 700 }}>{p.label}</span>
+          </div>
+        ))}
+      </div>
 
       {showResult && result && (
         <div className='farm-game-result'>
