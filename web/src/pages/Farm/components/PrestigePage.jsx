@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button, Spin, Banner, Typography } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from './utils';
+import FarmConfirmModal from './FarmConfirmModal';
 
 const { Text, Title } = Typography;
 
 const PrestigePage = ({ loadFarm, t }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [prestigeLoading, setPrestigeLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -20,12 +23,13 @@ const PrestigePage = ({ loadFarm, t }) => {
   useEffect(() => { load(); }, [load]);
 
   const doPrestige = async () => {
-    if (!window.confirm(t('转生将重置所有进度（保留成就和图鉴），确定吗？'))) return;
+    setPrestigeLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/prestige');
       if (res.success) { showSuccess(res.message); load(); loadFarm(); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
+    finally { setPrestigeLoading(false); setShowConfirm(false); }
   };
 
   if (loading && !data) return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
@@ -68,9 +72,22 @@ const PrestigePage = ({ loadFarm, t }) => {
       </div>
       <Banner type='warning' style={{ marginBottom: 12, borderRadius: 10 }}
         description={t('转生将重置：等级、地块、仓库、狗、牧场、加工。保留：成就、图鉴。获得永久收入加成。')} />
-      <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={doPrestige} className='farm-btn'>
+      <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={() => setShowConfirm(true)} className='farm-btn'>
         {data.can_prestige ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)` : `${t('需要')} Lv.${data.min_level}`}
       </Button>
+
+      <FarmConfirmModal
+        visible={showConfirm}
+        title={t('确认转生')}
+        message={t('转生将重置所有进度（保留成就和图鉴），确定吗？')}
+        icon={<span style={{ fontSize: 28 }}>🔄</span>}
+        confirmText={t('确认转生')}
+        cancelText={t('取消')}
+        confirmType='warning'
+        loading={prestigeLoading}
+        onConfirm={doPrestige}
+        onCancel={() => setShowConfirm(false)}
+      />
     </div>
   );
 };
