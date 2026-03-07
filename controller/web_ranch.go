@@ -122,7 +122,7 @@ func WebRanchView(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -183,7 +183,7 @@ func WebRanchBuy(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -255,7 +255,7 @@ func WebRanchFeed(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -334,7 +334,7 @@ func WebRanchWater(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -413,7 +413,7 @@ func WebRanchSlaughter(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -480,7 +480,7 @@ func WebRanchSlaughterStore(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -548,7 +548,7 @@ func WebRanchCleanManure(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -604,7 +604,7 @@ func WebRanchCleanup(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 

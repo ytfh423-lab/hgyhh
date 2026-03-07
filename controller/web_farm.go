@@ -38,7 +38,7 @@ func webFarmQuotaFloat(quota int) float64 {
 }
 
 // checkFeatureLevel 检查用户是否达到功能解锁等级，未达到则返回错误并return false
-func checkFeatureLevel(c *gin.Context, tgId string, requiredLevel int, featureName string) bool {
+func webCheckFeatureLevel(c *gin.Context, tgId string, requiredLevel int, featureName string) bool {
 	userLevel := model.GetFarmLevel(tgId)
 	if userLevel < requiredLevel {
 		c.JSON(http.StatusOK, gin.H{
@@ -574,7 +574,7 @@ func WebFarmStealTargets(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
 		return
 	}
 	targets, err := model.GetMatureFarmTargets(tgId)
@@ -599,7 +599,7 @@ func WebFarmSteal(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
 		return
 	}
 	var req struct {
@@ -1065,7 +1065,7 @@ func WebFarmDog(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
 		return
 	}
 
@@ -1132,7 +1132,7 @@ func WebFarmBuyDog(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
 		return
 	}
 
@@ -1184,7 +1184,7 @@ func WebFarmFeedDog(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
 		return
 	}
 
@@ -1761,7 +1761,7 @@ func WebFarmWorkshopView(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
 		return
 	}
 
@@ -1855,7 +1855,7 @@ func WebFarmWorkshopCraft(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
 		return
 	}
 
@@ -1908,7 +1908,7 @@ func WebFarmWorkshopCollect(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
 		return
 	}
 
@@ -1960,7 +1960,7 @@ func WebFarmFishView(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
 		return
 	}
 
@@ -2055,7 +2055,7 @@ func WebFarmFishDo(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
 		return
 	}
 
@@ -2117,7 +2117,7 @@ func WebFarmFishSell(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
 		return
 	}
 
@@ -2254,7 +2254,7 @@ func WebFarmMortgageLoan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmBankUnlockLevel, "银行") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmBankUnlockLevel, "银行") {
 		return
 	}
 
@@ -2365,7 +2365,7 @@ func WebFarmBankRepay(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmBankUnlockLevel, "银行") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmBankUnlockLevel, "银行") {
 		return
 	}
 
@@ -2622,7 +2622,7 @@ func WebFarmFishStore(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钓鱼") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钓鱼") {
 		return
 	}
 
@@ -2676,7 +2676,7 @@ func WebFarmWorkshopCollectStore(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
 		return
 	}
 

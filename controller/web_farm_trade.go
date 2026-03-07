@@ -15,7 +15,7 @@ func WebFarmTradeList(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
 		return
 	}
 	page := 1
@@ -65,7 +65,7 @@ func WebFarmTradeCreate(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
 		return
 	}
 	var req struct {
@@ -108,7 +108,7 @@ func WebFarmTradeBuy(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
 		return
 	}
 	var req struct {
@@ -157,7 +157,7 @@ func WebFarmTradeCancel(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
 		return
 	}
 	var req struct {
@@ -189,7 +189,7 @@ func WebFarmTradeHistory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockTrading, "交易所") {
 		return
 	}
 	trades, _ := model.GetTradeHistory(tgId, 20)

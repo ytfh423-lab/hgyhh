@@ -205,7 +205,7 @@ func WebFarmEncyclopedia(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockEncyclopedia, "图鉴") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockEncyclopedia, "图鉴") {
 		return
 	}
 
@@ -305,7 +305,7 @@ func WebFarmClaimCollection(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockEncyclopedia, "图鉴") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockEncyclopedia, "图鉴") {
 		return
 	}
 	var req struct {
@@ -402,7 +402,7 @@ func WebFarmAutomationView(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockAutomation, "自动化") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockAutomation, "自动化") {
 		return
 	}
 	autos, _ := model.GetAutomations(tgId)
@@ -433,7 +433,7 @@ func WebFarmAutomationBuy(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockAutomation, "自动化") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockAutomation, "自动化") {
 		return
 	}
 	var req struct {
@@ -474,7 +474,7 @@ func WebFarmLeaderboard(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockLeaderboard, "排行榜") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockLeaderboard, "排行榜") {
 		return
 	}
 	boardType := c.DefaultQuery("type", "balance")
@@ -513,7 +513,7 @@ func WebFarmGameWheel(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 	price := common.TgBotFarmWheelPrice
@@ -568,7 +568,7 @@ func WebFarmGameScratch(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 	price := common.TgBotFarmScratchPrice
@@ -634,7 +634,7 @@ func WebFarmGameHistory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 	logs, _ := model.GetRecentGameLogs(tgId, 20)
@@ -678,7 +678,7 @@ func WebFarmGamePlay(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 
