@@ -778,6 +778,205 @@
   }
 }
 
+/* ====== Plot Grid (Overview) ====== */
+
+.farm-plot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 1200px) {
+  .farm-plot-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .farm-plot-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+/* Plot card base */
+.farm-plot-card {
+  border-radius: var(--farm-radius);
+  background: var(--farm-surface);
+  border: 1px solid var(--farm-border);
+  padding: 14px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--farm-shadow-sm);
+}
+
+.farm-plot-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--farm-shadow-lg);
+  border-color: var(--farm-border-strong);
+}
+
+.farm-plot-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: var(--farm-radius) var(--farm-radius) 0 0;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.farm-plot-card:hover::before {
+  opacity: 1;
+}
+
+/* Empty plot */
+.farm-plot-empty {
+  border-style: dashed;
+  border-width: 2px;
+  border-color: var(--farm-border-strong);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.farm-plot-empty:hover {
+  opacity: 0.75;
+  transform: none;
+  box-shadow: var(--farm-shadow-sm);
+}
+
+/* Growing plot */
+.farm-plot-growing::before {
+  background: linear-gradient(90deg, #3b82f6, #06b6d4);
+  opacity: 0.7;
+}
+
+.farm-plot-growing:hover::before { opacity: 1; }
+
+/* Mature plot — breathing glow */
+.farm-plot-mature {
+  border-color: rgba(34, 197, 94, 0.4);
+  animation: farm-breathe 2.5s ease-in-out infinite;
+}
+
+.farm-plot-mature::before {
+  background: linear-gradient(90deg, #22c55e, #34d399);
+  opacity: 1;
+}
+
+@keyframes farm-breathe {
+  0%, 100% { box-shadow: var(--farm-shadow), 0 0 12px rgba(34, 197, 94, 0.15); }
+  50% { box-shadow: var(--farm-shadow-lg), 0 0 24px rgba(34, 197, 94, 0.35), 0 0 48px rgba(34, 197, 94, 0.1); }
+}
+
+/* Event plot — danger pulse */
+.farm-plot-event {
+  border-color: rgba(239, 68, 68, 0.4);
+  animation: farm-danger-pulse 2s ease-in-out infinite;
+}
+
+.farm-plot-event::before {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  opacity: 1;
+}
+
+@keyframes farm-danger-pulse {
+  0%, 100% { box-shadow: var(--farm-shadow), 0 0 8px rgba(239, 68, 68, 0.1); }
+  50% { box-shadow: var(--farm-shadow), 0 0 18px rgba(239, 68, 68, 0.3); }
+}
+
+/* Wilting plot */
+.farm-plot-wilting {
+  border-color: rgba(245, 158, 11, 0.4);
+  animation: farm-wilt-pulse 2s ease-in-out infinite;
+}
+
+.farm-plot-wilting::before {
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  opacity: 1;
+}
+
+@keyframes farm-wilt-pulse {
+  0%, 100% { box-shadow: var(--farm-shadow), 0 0 8px rgba(245, 158, 11, 0.1); }
+  50% { box-shadow: var(--farm-shadow), 0 0 18px rgba(245, 158, 11, 0.3); }
+}
+
+/* Buy land card */
+.farm-plot-buy {
+  border: 2px dashed rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.03);
+}
+
+.farm-plot-buy:hover {
+  border-color: rgba(52, 211, 153, 0.6);
+  background: rgba(52, 211, 153, 0.08);
+  box-shadow: 0 0 24px rgba(52, 211, 153, 0.15);
+}
+
+/* Dashboard stat card */
+.farm-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--farm-surface);
+  border: 1px solid var(--farm-border);
+  border-radius: var(--farm-radius);
+  flex: 1 1 140px;
+  min-width: 0;
+  box-shadow: var(--farm-shadow-sm);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.farm-stat-card:hover {
+  box-shadow: var(--farm-shadow);
+  transform: translateY(-1px);
+}
+
+/* Overview action bar */
+.farm-overview-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--farm-surface);
+  border: 1px solid var(--farm-border);
+  border-radius: var(--farm-radius);
+  align-items: center;
+  box-shadow: var(--farm-shadow-sm);
+}
+
+/* Plot expanded action panel */
+.farm-plot-actions {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--farm-border);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  animation: farm-fade-in 0.15s ease;
+}
+
+@media (max-width: 768px) {
+  .farm-stat-card {
+    padding: 8px 12px;
+    gap: 8px;
+    flex: 1 1 100px;
+  }
+
+  .farm-plot-card {
+    padding: 10px;
+  }
+
+  .farm-overview-actions {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+}
+
 @keyframes farm-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
