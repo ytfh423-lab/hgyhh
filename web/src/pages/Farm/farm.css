@@ -1972,6 +1972,7 @@
 /* Prize Pool Card */
 .farm-prize-pool-card {
   justify-content: flex-start;
+  overflow: hidden;
 }
 
 .farm-prize-pool-list {
@@ -1980,6 +1981,8 @@
   gap: 8px;
   flex: 1;
   justify-content: center;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .farm-prize-pool-row {
