@@ -152,6 +152,19 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
+	// 检查信用贷款违约
+	creditDefaulted, _ := model.CheckCreditLoanDefault(tgId)
+	if creditDefaulted {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账号已被封禁。"})
+		return
+	}
+	// 检查抵押贷款违约
+	mortgageDefaulted, mortgagePenalty := model.CheckMortgageDefault(tgId)
+	if mortgageDefaulted && mortgagePenalty == "ban" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！你的平台账号已被封禁。"})
+		return
+	}
+
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
@@ -2108,6 +2121,12 @@ func WebFarmBankView(c *gin.Context) {
 		return
 	}
 
+	// 检查信用贷款违约
+	creditDefaulted, creditPenalty := model.CheckCreditLoanDefault(tgId)
+	if creditDefaulted && creditPenalty == "ban" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账号已被封禁。"})
+		return
+	}
 	// 检查抵押贷款违约
 	defaulted, penalty := model.CheckMortgageDefault(tgId)
 	if defaulted && penalty == "ban" {
@@ -2402,6 +2421,10 @@ func WebFarmWarehouseView(c *gin.Context) {
 		return
 	}
 
+	whLevel := model.GetWarehouseLevel(tgId)
+	maxSlots := model.GetWarehouseMaxSlots(whLevel)
+	expiryMultiplier := model.GetWarehouseExpiryMultiplier(whLevel)
+
 	items, _ := model.GetWarehouseItems(tgId)
 	totalCount := model.GetWarehouseTotalCount(tgId)
 	season := getCurrentSeason()
@@ -2430,11 +2453,11 @@ func WebFarmWarehouseView(c *gin.Context) {
 				entry["season_pct"] = getSeasonPriceMultiplier(crop)
 			}
 		} else if item.Category == "meat" {
-			expiry := int64(common.TgBotFarmWarehouseMeatExpiry)
+			expiry := int64(common.TgBotFarmWarehouseMeatExpiry) * int64(expiryMultiplier) / 100
 			entry["expire_at"] = item.StoredAt + expiry
 			entry["expire_remain"] = item.StoredAt + expiry - now
 		} else if item.Category == "recipe" {
-			expiry := int64(common.TgBotFarmWarehouseRecipeExpiry)
+			expiry := int64(common.TgBotFarmWarehouseRecipeExpiry) * int64(expiryMultiplier) / 100
 			entry["expire_at"] = item.StoredAt + expiry
 			entry["expire_remain"] = item.StoredAt + expiry - now
 		}
@@ -2442,17 +2465,29 @@ func WebFarmWarehouseView(c *gin.Context) {
 		itemList = append(itemList, entry)
 	}
 
+	// 计算下一级升级信息
+	nextLevel := whLevel + 1
+	canUpgrade := whLevel < common.TgBotFarmWarehouseMaxLevel
+	upgradePrice := common.TgBotFarmWarehouseUpgradePrice * whLevel // 每级递增
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"items":        itemList,
-			"total":        totalCount,
-			"max_slots":    common.TgBotFarmWarehouseMaxSlots,
-			"season":       season,
-			"season_name":  seasonNames[season],
-			"days_left":    getSeasonDaysLeft(),
-			"meat_expiry":  common.TgBotFarmWarehouseMeatExpiry,
-			"recipe_expiry": common.TgBotFarmWarehouseRecipeExpiry,
+			"items":            itemList,
+			"total":            totalCount,
+			"max_slots":        maxSlots,
+			"warehouse_level":  whLevel,
+			"max_level":        common.TgBotFarmWarehouseMaxLevel,
+			"can_upgrade":      canUpgrade,
+			"upgrade_price":    webFarmQuotaFloat(upgradePrice),
+			"next_capacity":    model.GetWarehouseMaxSlots(nextLevel),
+			"next_expiry_pct":  model.GetWarehouseExpiryMultiplier(nextLevel),
+			"expiry_pct":       expiryMultiplier,
+			"season":           season,
+			"season_name":      seasonNames[season],
+			"days_left":        getSeasonDaysLeft(),
+			"meat_expiry":      int64(common.TgBotFarmWarehouseMeatExpiry) * int64(expiryMultiplier) / 100,
+			"recipe_expiry":    int64(common.TgBotFarmWarehouseRecipeExpiry) * int64(expiryMultiplier) / 100,
 		},
 	})
 }
@@ -2554,7 +2589,9 @@ func WebFarmFishStore(c *gin.Context) {
 		if fd == nil {
 			continue
 		}
-		if currentTotal+storedCount+fi.Quantity > common.TgBotFarmWarehouseMaxSlots {
+		whLevel := model.GetWarehouseLevel(tgId)
+		whMax := model.GetWarehouseMaxSlots(whLevel)
+		if currentTotal+storedCount+fi.Quantity > whMax {
 			continue
 		}
 		_ = model.AddToWarehouseWithCategory(tgId, "fish_"+fishKey, fi.Quantity, "fish")
@@ -2599,7 +2636,9 @@ func WebFarmWorkshopCollectStore(c *gin.Context) {
 			if r == nil {
 				continue
 			}
-			if currentTotal+stored+1 > common.TgBotFarmWarehouseMaxSlots {
+			whLevel := model.GetWarehouseLevel(tgId)
+			whMax := model.GetWarehouseMaxSlots(whLevel)
+			if currentTotal+stored+1 > whMax {
 				continue
 			}
 			_ = model.AddToWarehouseWithCategory(tgId, "recipe_"+r.Key, 1, "recipe")
@@ -2661,7 +2700,9 @@ func WebFarmHarvestStore(c *gin.Context) {
 			if realYield < 0 {
 				realYield = 0
 			}
-			if currentTotal+storedTotal+realYield > common.TgBotFarmWarehouseMaxSlots {
+			whLevel := model.GetWarehouseLevel(tgId)
+			whMax := model.GetWarehouseMaxSlots(whLevel)
+			if currentTotal+storedTotal+realYield > whMax {
 				continue
 			}
 			_ = model.AddToWarehouse(tgId, crop.Key, realYield)
@@ -2686,6 +2727,56 @@ func WebFarmHarvestStore(c *gin.Context) {
 		"data": gin.H{
 			"stored": stored,
 			"total":  storedTotal,
+		},
+	})
+}
+
+// WebFarmWarehouseUpgrade 升级仓库等级
+func WebFarmWarehouseUpgrade(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+
+	whLevel := model.GetWarehouseLevel(tgId)
+	maxLevel := common.TgBotFarmWarehouseMaxLevel
+	if whLevel >= maxLevel {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("仓库已达最高等级 %d", maxLevel)})
+		return
+	}
+
+	upgradePrice := common.TgBotFarmWarehouseUpgradePrice * whLevel
+	if user.Quota < upgradePrice {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！升级需要 $%.2f，当前余额 $%.2f", webFarmQuotaFloat(upgradePrice), webFarmQuotaFloat(user.Quota))})
+		return
+	}
+
+	err := model.DecreaseUserQuota(user.Id, upgradePrice)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
+		return
+	}
+
+	newLevel := whLevel + 1
+	err = model.SetWarehouseLevel(tgId, newLevel)
+	if err != nil {
+		_ = model.IncreaseUserQuota(user.Id, upgradePrice, true)
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "升级失败，已退款"})
+		return
+	}
+
+	newCapacity := model.GetWarehouseMaxSlots(newLevel)
+	newExpiryPct := model.GetWarehouseExpiryMultiplier(newLevel)
+	model.AddFarmLog(tgId, "warehouse_upgrade", -upgradePrice, fmt.Sprintf("仓库升级至%d级", newLevel))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("仓库升级成功！等级 %d → %d", whLevel, newLevel),
+		"data": gin.H{
+			"level":      newLevel,
+			"capacity":   newCapacity,
+			"expiry_pct": newExpiryPct,
+			"cost":       webFarmQuotaFloat(upgradePrice),
 		},
 	})
 }

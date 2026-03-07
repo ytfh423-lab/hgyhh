@@ -846,7 +846,9 @@ func doRanchSlaughterStore(chatId int64, editMsgId int, tgId string, animalId in
 	}
 
 	currentTotal := model.GetWarehouseTotalCount(tgId)
-	if currentTotal+1 > common.TgBotFarmWarehouseMaxSlots {
+	whLevel := model.GetWarehouseLevel(tgId)
+	whMax := model.GetWarehouseMaxSlots(whLevel)
+	if currentTotal+1 > whMax {
 		farmSend(chatId, editMsgId, "❌ 仓库已满！请先出售仓库物品", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "📦 查看仓库", CallbackData: "farm_warehouse"}},

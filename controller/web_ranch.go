@@ -500,7 +500,9 @@ func WebRanchSlaughterStore(c *gin.Context) {
 	}
 
 	currentTotal := model.GetWarehouseTotalCount(tgId)
-	if currentTotal+1 > common.TgBotFarmWarehouseMaxSlots {
+	whLevel := model.GetWarehouseLevel(tgId)
+	whMax := model.GetWarehouseMaxSlots(whLevel)
+	if currentTotal+1 > whMax {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库已满！请先出售仓库物品"})
 		return
 	}

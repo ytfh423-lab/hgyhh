@@ -1444,7 +1444,9 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 				realYield = 0
 			}
 
-			if currentTotal+storedTotal+realYield > common.TgBotFarmWarehouseMaxSlots {
+			whLevel := model.GetWarehouseLevel(tgId)
+			whMax := model.GetWarehouseMaxSlots(whLevel)
+			if currentTotal+storedTotal+realYield > whMax {
 				details += fmt.Sprintf("\n%s %s: ❌ 仓库已满", crop.Emoji, crop.Name)
 				continue
 			}
@@ -2933,7 +2935,9 @@ func doFarmStoreFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		if fd == nil {
 			continue
 		}
-		if currentTotal+storedCount+fi.Quantity > common.TgBotFarmWarehouseMaxSlots {
+		whLevel := model.GetWarehouseLevel(tgId)
+		whMax := model.GetWarehouseMaxSlots(whLevel)
+		if currentTotal+storedCount+fi.Quantity > whMax {
 			details += fmt.Sprintf("\n%s %s: ❌ 仓库已满", fd.Emoji, fd.Name)
 			continue
 		}
@@ -3481,7 +3485,9 @@ func doFarmCollectStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			if r == nil {
 				continue
 			}
-			if currentTotal+stored+1 > common.TgBotFarmWarehouseMaxSlots {
+			whLevel := model.GetWarehouseLevel(tgId)
+			whMax := model.GetWarehouseMaxSlots(whLevel)
+			if currentTotal+stored+1 > whMax {
 				details += fmt.Sprintf("\n%s %s: ❌ 仓库已满", r.Emoji, r.Name)
 				continue
 			}
@@ -3984,8 +3990,10 @@ func showFarmWarehouse(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	season := getCurrentSeason()
 	daysLeft := getSeasonDaysLeft()
 	totalCount := model.GetWarehouseTotalCount(tgId)
-	text := fmt.Sprintf("📦 仓库 (%d/%d)\n当前: %s (还剩%d天)\n\n",
-		totalCount, common.TgBotFarmWarehouseMaxSlots, getSeasonName(season), daysLeft)
+	whLevel := model.GetWarehouseLevel(tgId)
+	whMax := model.GetWarehouseMaxSlots(whLevel)
+	text := fmt.Sprintf("📦 仓库 Lv.%d (%d/%d)\n当前: %s (还剩%d天)\n\n",
+		whLevel, totalCount, whMax, getSeasonName(season), daysLeft)
 
 	now := time.Now().Unix()
 	var rows [][]TgInlineKeyboardButton

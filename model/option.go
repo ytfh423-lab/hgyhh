@@ -187,6 +187,10 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmWarehouseMaxSlots"] = strconv.Itoa(common.TgBotFarmWarehouseMaxSlots)
 	common.OptionMap["TgBotFarmWarehouseMeatExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseMeatExpiry)
 	common.OptionMap["TgBotFarmWarehouseRecipeExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseRecipeExpiry)
+	common.OptionMap["TgBotFarmWarehouseMaxLevel"] = strconv.Itoa(common.TgBotFarmWarehouseMaxLevel)
+	common.OptionMap["TgBotFarmWarehouseUpgradePrice"] = strconv.Itoa(common.TgBotFarmWarehouseUpgradePrice)
+	common.OptionMap["TgBotFarmWarehouseCapacityPerLevel"] = strconv.Itoa(common.TgBotFarmWarehouseCapacityPerLevel)
+	common.OptionMap["TgBotFarmWarehouseExpiryBonusPerLevel"] = strconv.Itoa(common.TgBotFarmWarehouseExpiryBonusPerLevel)
 	common.OptionMap["WeChatServerAddress"] = ""
 	common.OptionMap["WeChatServerToken"] = ""
 	common.OptionMap["WeChatAccountQRCodeImageURL"] = ""
@@ -769,6 +773,17 @@ func updateOptionMap(key string, value string) (err error) {
 		if common.TgBotFarmWarehouseRecipeExpiry <= 0 {
 			common.TgBotFarmWarehouseRecipeExpiry = 432000
 		}
+	case "TgBotFarmWarehouseMaxLevel":
+		common.TgBotFarmWarehouseMaxLevel, _ = strconv.Atoi(value)
+		if common.TgBotFarmWarehouseMaxLevel < 1 {
+			common.TgBotFarmWarehouseMaxLevel = 10
+		}
+	case "TgBotFarmWarehouseUpgradePrice":
+		common.TgBotFarmWarehouseUpgradePrice, _ = strconv.Atoi(value)
+	case "TgBotFarmWarehouseCapacityPerLevel":
+		common.TgBotFarmWarehouseCapacityPerLevel, _ = strconv.Atoi(value)
+	case "TgBotFarmWarehouseExpiryBonusPerLevel":
+		common.TgBotFarmWarehouseExpiryBonusPerLevel, _ = strconv.Atoi(value)
 	case "TurnstileSiteKey":
 		common.TurnstileSiteKey = value
 	case "TurnstileSecretKey":

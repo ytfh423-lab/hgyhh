@@ -949,7 +949,11 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_season_days":          common.TgBotFarmSeasonDays,
 			"farm_season_in_bonus":      common.TgBotFarmSeasonInBonus,
 			"farm_season_off_bonus":     common.TgBotFarmSeasonOffBonus,
-			"farm_warehouse_max_slots":  common.TgBotFarmWarehouseMaxSlots,
+			"farm_warehouse_base_slots":          common.TgBotFarmWarehouseMaxSlots,
+			"farm_warehouse_max_level":            common.TgBotFarmWarehouseMaxLevel,
+			"farm_warehouse_upgrade_price":        common.TgBotFarmWarehouseUpgradePrice,
+			"farm_warehouse_capacity_per_level":   common.TgBotFarmWarehouseCapacityPerLevel,
+			"farm_warehouse_expiry_bonus_per_level": common.TgBotFarmWarehouseExpiryBonusPerLevel,
 		},
 	})
 }

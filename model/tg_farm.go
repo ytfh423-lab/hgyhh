@@ -128,11 +128,13 @@ func ClearFarmPlot(id int) error {
 
 // ========== TgFarmWarehouse ==========
 
-// CleanSpoiledWarehouse 清理过期物品（肉类3天，加工食品5天）
+// CleanSpoiledWarehouse 清理过期物品（根据仓库等级调整保质期）
 func CleanSpoiledWarehouse(telegramId string) {
 	now := time.Now().Unix()
-	meatExpiry := int64(common.TgBotFarmWarehouseMeatExpiry)
-	recipeExpiry := int64(common.TgBotFarmWarehouseRecipeExpiry)
+	whLevel := GetWarehouseLevel(telegramId)
+	multiplier := int64(GetWarehouseExpiryMultiplier(whLevel))
+	meatExpiry := int64(common.TgBotFarmWarehouseMeatExpiry) * multiplier / 100
+	recipeExpiry := int64(common.TgBotFarmWarehouseRecipeExpiry) * multiplier / 100
 	// 删除过期肉类
 	DB.Where("telegram_id = ? AND category = ? AND stored_at > 0 AND stored_at + ? < ?", telegramId, "meat", meatExpiry, now).Delete(&TgFarmWarehouse{})
 	// 删除过期加工品
@@ -796,6 +798,63 @@ func CheckMortgageDefault(telegramId string) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+// CheckCreditLoanDefault 检查信用贷款是否逾期，执行封禁
+// 返回: defaulted bool, penalty string
+func CheckCreditLoanDefault(telegramId string) (bool, string) {
+	var loans []TgFarmLoan
+	now := time.Now().Unix()
+	// 找到所有逾期的信用贷款（type=0）
+	DB.Where("telegram_id = ? AND loan_type = 0 AND status = 0 AND due_at < ?", telegramId, now).Find(&loans)
+	if len(loans) == 0 {
+		return false, ""
+	}
+
+	for _, loan := range loans {
+		// 标记为违约
+		DB.Model(&TgFarmLoan{}).Where("id = ?", loan.Id).Update("status", 2)
+	}
+
+	// 信用贷款逾期直接封禁账号
+	_ = BanUserByTelegramId(telegramId)
+	AddFarmLog(telegramId, "credit_default", 0, "信用贷款逾期违约-账号封禁")
+	return true, "ban"
+}
+
+// ========== 仓库等级系统 ==========
+
+// GetWarehouseLevel 获取用户仓库等级（最低1）
+func GetWarehouseLevel(telegramId string) int {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").First(&item).Error
+	if err != nil || item.Quantity < 1 {
+		return 1
+	}
+	return item.Quantity
+}
+
+// SetWarehouseLevel 设置用户仓库等级
+func SetWarehouseLevel(telegramId string, level int) error {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").First(&item).Error
+	if err != nil {
+		return DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_warehouse_level", Quantity: level}).Error
+	}
+	return DB.Model(&TgFarmItem{}).Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").Update("quantity", level).Error
+}
+
+// GetWarehouseMaxSlots 根据等级计算仓库最大容量
+func GetWarehouseMaxSlots(level int) int {
+	base := common.TgBotFarmWarehouseMaxSlots
+	perLevel := common.TgBotFarmWarehouseCapacityPerLevel
+	return base + (level-1)*perLevel
+}
+
+// GetWarehouseExpiryMultiplier 根据等级计算保质期倍率（百分比，100=不变，150=1.5倍）
+func GetWarehouseExpiryMultiplier(level int) int {
+	bonus := common.TgBotFarmWarehouseExpiryBonusPerLevel
+	return 100 + (level-1)*bonus
 }
 
 // ========== 管理员功能 ==========

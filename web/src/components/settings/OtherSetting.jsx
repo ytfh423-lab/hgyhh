@@ -54,6 +54,10 @@ const OtherSetting = () => {
     FarmBetaEnabled: 'false',
     FarmBetaMaxSlots: '100',
     FarmBetaAdminBypass: 'true',
+    TgBotFarmWarehouseMaxLevel: '10',
+    TgBotFarmWarehouseUpgradePrice: '2000000',
+    TgBotFarmWarehouseCapacityPerLevel: '50',
+    TgBotFarmWarehouseExpiryBonusPerLevel: '20',
     CheckinLeaderboardLimit: '',
   });
   let [loading, setLoading] = useState(false);
@@ -91,6 +95,7 @@ const OtherSetting = () => {
     FarmBetaEnabled: false,
     FarmBetaMaxSlots: false,
     FarmBetaAdminBypass: false,
+    TgBotFarmWarehouseUpgrade: false,
     CheckinLeaderboardLimit: false,
     About: false,
     Footer: false,
@@ -571,6 +576,78 @@ const OtherSetting = () => {
                   </div>
                   <Text type='tertiary' size='small'>
                     {t('开启内测模式后，农场将在倒计时结束前关闭。到达目标时间后，仅有预约且排名在名额内的用户可以访问农场。管理员绕过选项可让管理员在内测期间自由测试。')}
+                  </Text>
+                </div>
+              </Form.Slot>
+              <Form.Slot label={t('仓库升级系统')}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{t('最高等级')}:</span>
+                      <input
+                        type='number'
+                        value={inputs.TgBotFarmWarehouseMaxLevel}
+                        onChange={(e) => setInputs((prev) => ({ ...prev, TgBotFarmWarehouseMaxLevel: e.target.value }))}
+                        style={{ width: 70, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--semi-color-border)', background: 'var(--semi-color-bg-1)', color: 'var(--semi-color-text-0)' }}
+                        min={1}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{t('升级基础价格(quota)')}:</span>
+                      <input
+                        type='number'
+                        value={inputs.TgBotFarmWarehouseUpgradePrice}
+                        onChange={(e) => setInputs((prev) => ({ ...prev, TgBotFarmWarehouseUpgradePrice: e.target.value }))}
+                        style={{ width: 120, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--semi-color-border)', background: 'var(--semi-color-bg-1)', color: 'var(--semi-color-text-0)' }}
+                        min={0}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{t('每级增加容量')}:</span>
+                      <input
+                        type='number'
+                        value={inputs.TgBotFarmWarehouseCapacityPerLevel}
+                        onChange={(e) => setInputs((prev) => ({ ...prev, TgBotFarmWarehouseCapacityPerLevel: e.target.value }))}
+                        style={{ width: 80, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--semi-color-border)', background: 'var(--semi-color-bg-1)', color: 'var(--semi-color-text-0)' }}
+                        min={0}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{t('每级增加保质期%')}:</span>
+                      <input
+                        type='number'
+                        value={inputs.TgBotFarmWarehouseExpiryBonusPerLevel}
+                        onChange={(e) => setInputs((prev) => ({ ...prev, TgBotFarmWarehouseExpiryBonusPerLevel: e.target.value }))}
+                        style={{ width: 80, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--semi-color-border)', background: 'var(--semi-color-bg-1)', color: 'var(--semi-color-text-0)' }}
+                        min={0}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      onClick={async () => {
+                        setLoadingInput((prev) => ({ ...prev, TgBotFarmWarehouseUpgrade: true }));
+                        try {
+                          await updateOption('TgBotFarmWarehouseMaxLevel', inputs.TgBotFarmWarehouseMaxLevel);
+                          await updateOption('TgBotFarmWarehouseUpgradePrice', inputs.TgBotFarmWarehouseUpgradePrice);
+                          await updateOption('TgBotFarmWarehouseCapacityPerLevel', inputs.TgBotFarmWarehouseCapacityPerLevel);
+                          await updateOption('TgBotFarmWarehouseExpiryBonusPerLevel', inputs.TgBotFarmWarehouseExpiryBonusPerLevel);
+                          showSuccess(t('设置已更新'));
+                        } catch (e) {
+                          showError(t('设置更新失败'));
+                        } finally {
+                          setLoadingInput((prev) => ({ ...prev, TgBotFarmWarehouseUpgrade: false }));
+                        }
+                      }}
+                      loading={loadingInput['TgBotFarmWarehouseUpgrade']}
+                    >
+                      {t('保存仓库升级设置')}
+                    </Button>
+                  </div>
+                  <Text type='tertiary' size='small'>
+                    {t('升级价格 = 基础价格 × 当前等级。每级提升容量和保质期。例如：基础价格200万quota，2级升3级花费400万quota。')}
                   </Text>
                 </div>
               </Form.Slot>
