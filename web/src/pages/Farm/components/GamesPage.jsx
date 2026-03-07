@@ -302,6 +302,11 @@ const GamesPage = ({ loadFarm, t }) => {
 
   const openGame = (game) => {
     if (gameLoading) return;
+    const entry = GAME_REGISTRY[game.key];
+    if (!entry?.get?.()) {
+      showError(t('该游戏尚未上线，敬请期待'));
+      return;
+    }
     setModalGame(game);
   };
 
@@ -347,14 +352,16 @@ const GamesPage = ({ loadFarm, t }) => {
           <div className='farm-game-grid'>
             {miniGames.map((g) => {
               const reg = GAME_REGISTRY[g.key];
+              const online = !!reg?.get?.();
               return (
                 <div key={g.key} className='farm-game-tile'
                   onClick={() => openGame(g)}
-                  style={{ opacity: gameLoading ? 0.6 : 1, cursor: gameLoading ? 'not-allowed' : 'pointer' }}>
+                  style={{ opacity: gameLoading ? 0.6 : online ? 1 : 0.45, cursor: gameLoading ? 'not-allowed' : 'pointer' }}>
                   <span className='farm-game-tile-emoji'>{g.emoji}</span>
                   <span className='farm-game-tile-name'>{g.name}</span>
                   <span className='farm-game-tile-price'>${g.price.toFixed(2)}</span>
-                  {reg && <span className={`farm-game-tile-badge ${reg.cat}`}>{reg.catLabel}</span>}
+                  {online && reg && <span className={`farm-game-tile-badge ${reg.cat}`}>{reg.catLabel}</span>}
+                  {!online && <span className='farm-game-tile-badge' style={{ background: 'rgba(255,255,255,0.08)', color: '#888' }}>🚧{t('未上线')}</span>}
                 </div>
               );
             })}
