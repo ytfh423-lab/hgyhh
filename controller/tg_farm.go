@@ -945,8 +945,8 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		{Text: lockTag("🏆 成就", common.TgBotFarmUnlockAchieve), CallbackData: "farm_achieve"},
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "� 市场", CallbackData: "farm_market"},
-		{Text: "� 记录", CallbackData: "farm_logs"},
+		{Text: "📈 市场", CallbackData: "farm_market"},
+		{Text: "📋 记录", CallbackData: "farm_logs"},
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("🏦 银行", common.TgBotFarmBankUnlockLevel), CallbackData: "farm_bank"},

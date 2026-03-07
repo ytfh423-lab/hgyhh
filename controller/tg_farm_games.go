@@ -26,31 +26,31 @@ var miniGames = []miniGameDef{
 	{"milking", "挤奶比赛", "🐄", "比比谁挤奶多", 350000},
 	{"sunflower", "猜向日葵", "🌻", "猜向日葵能长多高", 250000},
 	{"beekeep", "采蜜任务", "🐝", "采集蜂蜜避开蜂刺", 400000},
-	{"fruitpick", "摘果子", "�", "爬树摘果看运气", 300000},
+	{"fruitpick", "摘果子", "🍎", "爬树摘果看运气", 300000},
 	{"sheepcount", "数羊", "🐑", "数对羊群赢奖励", 200000},
 	{"cornrace", "掰玉米", "🌽", "限时掰玉米比赛", 350000},
-	{"rooster", "斗鸡", "�", "公鸡擂台对决", 400000},
-	{"horserace", "赛马", "�", "农场赛马押注", 500000},
+	{"rooster", "斗鸡", "🐓", "公鸡擂台对决", 400000},
+	{"horserace", "赛马", "🏇", "农场赛马押注", 500000},
 	{"sheepdog", "牧羊犬", "🐕", "指挥牧羊犬赶羊", 350000},
 	{"seedling", "育苗", "🌱", "培育优质种苗", 300000},
-	{"pumpkin", "南瓜大赛", "�", "种出最大的南瓜", 500000},
+	{"pumpkin", "南瓜大赛", "🎃", "种出最大的南瓜", 500000},
 	{"pigchase", "追猪", "🐷", "抓住逃跑的猪", 300000},
 	{"duckherd", "赶鸭子", "🦆", "把鸭子赶进池塘", 250000},
 	{"thresh", "打谷", "🌾", "打谷脱粒比速度", 400000},
 	{"grape", "踩葡萄", "🍇", "踩葡萄酿酒比赛", 350000},
-	{"fishcomp", "钓鱼赛", "�", "钓鱼大赛比大小", 400000},
-	{"weed", "除草", "�", "除草速度大比拼", 250000},
-	{"woodchop", "劈柴", "�", "劈柴比赛看力量", 300000},
+	{"fishcomp", "钓鱼赛", "🎣", "钓鱼大赛比大小", 400000},
+	{"weed", "除草", "🌿", "除草速度大比拼", 250000},
+	{"woodchop", "劈柴", "🪓", "劈柴比赛看力量", 300000},
 	{"lasso", "套牛", "🐮", "套住奔跑的牛", 450000},
 	{"pullcarrot", "拔萝卜", "🥕", "拔萝卜看大小", 200000},
 	{"mushroom", "采蘑菇", "🍄", "采蘑菇避开毒蘑菇", 350000},
-	{"hatchegg", "孵蛋", "�", "孵出稀有品种", 500000},
+	{"hatchegg", "孵蛋", "🐣", "孵出稀有品种", 500000},
 	{"weather", "天气预报", "🌈", "预测明天天气", 250000},
-	{"produce", "农产品评比", "�", "参加农产品博览会", 600000},
+	{"produce", "农产品评比", "🏆", "参加农产品博览会", 600000},
 	{"tame", "驯马", "🐴", "驯服野马", 450000},
 	{"scarecrow", "扎稻草人", "👒", "扎稻草人赶乌鸦", 300000},
 	{"foxhunt", "赶狐狸", "🦊", "保护鸡舍赶走狐狸", 350000},
-	{"harvest", "抢收比赛", "�‍🌾", "暴风雨前抢收庄稼", 400000},
+	{"harvest", "抢收比赛", "👨‍🌾", "暴风雨前抢收庄稼", 400000},
 }
 
 var miniGameMap map[string]*miniGameDef
@@ -304,7 +304,7 @@ func playEggHunt() (string, float64) {
 		r := rand.Intn(100)
 		switch {
 		case r < 10:
-			text += fmt.Sprintf("窝%d: � 母鸡啄你！-1\n", i); total--
+			text += fmt.Sprintf("窝%d: 🐔 母鸡啄你！-1\n", i); total--
 		case r < 30:
 			text += fmt.Sprintf("窝%d: 空窝\n", i)
 		case r < 70:
@@ -342,7 +342,7 @@ func playMilking() (string, float64) {
 	case totalMilk >= 100: return text + "🏆 挤奶冠军！5倍！", 5
 	case totalMilk >= 70: return text + "🎉 产量不错！3倍！", 3
 	case totalMilk >= 40: return text + "✨ 够喝了！1.5倍！", 1.5
-	case totalMilk >= 20: return text + "� 少了点", 0.8
+	case totalMilk >= 20: return text + "👍 少了点", 0.8
 	default: return text + "😢 牛不配合...", 0
 	}
 }
@@ -389,7 +389,7 @@ func playBeekeep() (string, float64) {
 // 6. 摘果子
 func playFruitPick() (string, float64) {
 	fruits := []struct{ emoji, name string; pts int }{
-		{"🍎", "苹果", 2}, {"�", "梨子", 2}, {"�", "桃子", 3}, {"🍒", "樱桃", 4}, {"🌟", "金苹果", 10},
+		{"🍎", "苹果", 2}, {"🍐", "梨子", 2}, {"🍑", "桃子", 3}, {"🍒", "樱桃", 4}, {"🌟", "金苹果", 10},
 	}
 	weights := []int{30, 25, 20, 15, 3}
 	totalW := 93
@@ -445,7 +445,7 @@ func playCornRace() (string, float64) {
 	case total >= 35: return text + "🏆 玉米王！5倍！", 5
 	case total >= 25: return text + "🎉 大丰收！3倍！", 3
 	case total >= 18: return text + "✨ 不错！1.5倍！", 1.5
-	case total >= 10: return text + "� 还行", 0.8
+	case total >= 10: return text + "👍 还行", 0.8
 	default: return text + "😢 手太慢了...", 0
 	}
 }
@@ -470,7 +470,7 @@ func playRooster() (string, float64) {
 
 // 10. 赛马
 func playHorseRace() (string, float64) {
-	horses := []struct{ emoji, name string }{{"�", "烈焰"}, {"�", "疾风"}, {"🐴", "闪电"}, {"🐴", "雷鸣"}}
+	horses := []struct{ emoji, name string }{{"🏇", "烈焰"}, {"🏇", "疾风"}, {"🐴", "闪电"}, {"🐴", "雷鸣"}}
 	speeds := make([]int, 4); for i := range speeds { speeds[i] = rand.Intn(100) }
 	myHorse := rand.Intn(4)
 	type entry struct{ idx, spd int }
@@ -562,7 +562,7 @@ func playPumpkinContest() (string, float64) {
 
 // 14. 追猪
 func playPigChase() (string, float64) {
-	text := "� 猪从猪圈跑了！快追！\n\n"
+	text := "🐷 猪从猪圈跑了！快追！\n\n"
 	caught := false
 	for step := 1; step <= 5; step++ {
 		r := rand.Intn(100)
@@ -576,7 +576,7 @@ func playPigChase() (string, float64) {
 	}
 	text += "\n"
 	if !caught { return text + "😢 猪跑太快了...", 0 }
-	return text + "� 成功抓回！3倍！", 3
+	return text + "🎉 成功抓回！3倍！", 3
 }
 
 // 15. 赶鸭子
@@ -635,7 +635,7 @@ func playGrapeStomp() (string, float64) {
 	case totalJuice >= 90: return text + "🏆 酿酒大师！5倍！", 5
 	case totalJuice >= 65: return text + "🎉 佳酿！3倍！", 3
 	case totalJuice >= 40: return text + "✨ 还行！1.5倍！", 1.5
-	case totalJuice >= 20: return text + "� 少了点", 0.8
+	case totalJuice >= 20: return text + "👍 少了点", 0.8
 	default: return text + "😢 踩不出汁...", 0
 	}
 }
@@ -643,7 +643,7 @@ func playGrapeStomp() (string, float64) {
 // 18. 钓鱼赛
 func playFishComp() (string, float64) {
 	fishes := []struct{ emoji, name string; pts int }{
-		{"�", "鲫鱼", 1}, {"�", "鲤鱼", 2}, {"�", "鲶鱼", 3}, {"🦐", "大虾", 4}, {"�", "大鱼王", 8},
+		{"🐟", "鲫鱼", 1}, {"🐟", "鲤鱼", 2}, {"🐠", "鲶鱼", 3}, {"🦐", "大虾", 4}, {"🐡", "大鱼王", 8},
 	}
 	weights := []int{30, 25, 20, 15, 5}; totalW := 95
 	text := "🎣 农场池塘钓鱼赛！\n\n"
@@ -668,7 +668,7 @@ func playFishComp() (string, float64) {
 // 19. 除草
 func playWeed() (string, float64) {
 	total := 10; weeded := 0
-	text := fmt.Sprintf("� 田地里有%d棵杂草！\n\n", total)
+	text := fmt.Sprintf("🌿 田地里有%d棵杂草！\n\n", total)
 	for i := 1; i <= total; i++ {
 		r := rand.Intn(100)
 		if r < 60 { weeded++
@@ -677,7 +677,7 @@ func playWeed() (string, float64) {
 	if weeded < 0 { weeded = 0 }
 	text += fmt.Sprintf("\n除掉: %d/%d\n\n", weeded, total)
 	switch {
-	case weeded >= 9: return text + "� 除草达人！5倍！", 5
+	case weeded >= 9: return text + "🏆 除草达人！5倍！", 5
 	case weeded >= 7: return text + "🎉 干净！3倍！", 3
 	case weeded >= 5: return text + "✨ 还行！1.5倍！", 1.5
 	case weeded >= 3: return text + "👍 凑合", 0.8
