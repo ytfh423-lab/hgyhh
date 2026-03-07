@@ -34,6 +34,60 @@ import FarmAnnouncementBar from './components/FarmAnnouncementBar';
 
 const { Text, Title } = Typography;
 
+class FarmErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('[Farm] Page crash:', error, info);
+  }
+  componentDidUpdate(prevProps) {
+    if (prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          minHeight: 'calc(100vh - 120px)', padding: 24,
+        }}>
+          <div style={{
+            textAlign: 'center', padding: '48px 36px', maxWidth: 420, width: '100%',
+            background: 'rgba(15, 23, 20, 0.85)', backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 16,
+            boxShadow: '0 0 30px rgba(239, 68, 68, 0.08), 0 8px 32px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
+              页面加载出错
+            </h3>
+            <p style={{ margin: '0 0 16px', color: '#94a3b8', fontSize: 13 }}>
+              {this.state.error?.message || '未知错误'}
+            </p>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              style={{
+                padding: '8px 24px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)',
+                background: 'rgba(59,130,246,0.15)', color: '#60a5fa',
+                fontWeight: 600, fontSize: 13, cursor: 'pointer',
+              }}
+            >
+              重试
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const seasonCssVar = { 0: 'var(--farm-spring)', 1: 'var(--farm-summer)', 2: 'var(--farm-autumn)', 3: 'var(--farm-winter)' };
 
 const mobileQuickTabs = [
@@ -347,7 +401,9 @@ const Farm = () => {
         <StatusBar farmData={farmData} t={t} />
         <div className='farm-content'>
           <div className='farm-content-inner'>
-            {renderPage()}
+            <FarmErrorBoundary resetKey={activePage}>
+              {renderPage()}
+            </FarmErrorBoundary>
           </div>
         </div>
       </div>
