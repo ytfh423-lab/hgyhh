@@ -64,51 +64,33 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: '100%', justifyContent: 'center' }}>
-        <div className='farm-wheel-container'>
-          <div className='farm-wheel-pointer'>📍</div>
-          <div ref={wheelRef}
-            className={`farm-wheel ${rotation > 0 ? 'spinning' : ''}`}
-            style={{
-              background: `conic-gradient(${conicStops})`,
-              transform: `rotate(${rotation}deg)`,
-            }}>
-            {/* Sector labels */}
-            {sectors.map((label, i) => {
-              const angle = i * sectorAngle + sectorAngle / 2;
-              return (
-                <div key={i} style={{
-                  position: 'absolute',
-                  top: '50%', left: '50%',
-                  transform: `rotate(${angle}deg) translateY(-90px)`,
-                  transformOrigin: '0 0',
-                  fontSize: 20,
-                  marginLeft: -10,
-                  marginTop: -10,
-                }}>
-                  {label}
-                </div>
-              );
-            })}
-          </div>
-          <div className='farm-wheel-center'>🎰</div>
+      <div className='farm-wheel-container'>
+        <div className='farm-wheel-pointer'>📍</div>
+        <div ref={wheelRef}
+          className={`farm-wheel ${rotation > 0 ? 'spinning' : ''}`}
+          style={{
+            background: `conic-gradient(${conicStops})`,
+            transform: `rotate(${rotation}deg)`,
+          }}>
+          {/* Sector labels */}
+          {sectors.map((label, i) => {
+            const angle = i * sectorAngle + sectorAngle / 2;
+            return (
+              <div key={i} style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                transform: `rotate(${angle}deg) translateY(-90px)`,
+                transformOrigin: '0 0',
+                fontSize: 20,
+                marginLeft: -10,
+                marginTop: -10,
+              }}>
+                {label}
+              </div>
+            );
+          })}
         </div>
-
-        <div style={{
-          display: 'flex', flexDirection: 'column', gap: 6,
-          padding: '10px 12px', borderRadius: 10,
-          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>{t('奖池')}</div>
-          {WHEEL_PRIZES.map((p, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
-            }}>
-              <span style={{ fontSize: 16 }}>{p.symbol}</span>
-              <span style={{ color: p.color, fontWeight: 700 }}>{p.label}</span>
-            </div>
-          ))}
-        </div>
+        <div className='farm-wheel-center'>🎰</div>
       </div>
 
       <Button theme='solid' size='large' onClick={handleSpin}
@@ -327,14 +309,31 @@ const GamesPage = ({ loadFarm, t }) => {
 
   return (
     <div>
-      {/* ═══ Wheel & Scratch ═══ */}
-      <div className='farm-grid farm-grid-2'>
-        <div className='farm-card' style={{ marginBottom: 0 }}>
+      {/* ═══ Wheel / Prize Pool / Scratch — 3-column grid ═══ */}
+      <div className='farm-games-top-grid'>
+        {/* Col 1: 幸运转盘 */}
+        <div className='farm-card farm-games-col'>
           <div className='farm-section-title'>🎡 {t('幸运转盘')}</div>
           <SpinningWheel onSpin={spinWheel} spinning={gameLoading}
             result={wheelResult} gameLoading={gameLoading} t={t} />
         </div>
-        <div className='farm-card' style={{ marginBottom: 0 }}>
+
+        {/* Col 2: 奖池一览 */}
+        <div className='farm-card farm-games-col farm-prize-pool-card'>
+          <div className='farm-section-title'>🏆 {t('奖池一览')}</div>
+          <div className='farm-prize-pool-list'>
+            {WHEEL_PRIZES.map((p, i) => (
+              <div key={i} className='farm-prize-pool-row'>
+                <span className='farm-prize-pool-symbol'>{p.symbol}</span>
+                <span className='farm-prize-pool-label' style={{ color: p.color }}>{p.label}</span>
+                <span className='farm-prize-pool-bar' style={{ background: p.color, width: `${Math.max(12, parseFloat(p.label.replace('$', '')) * 10)}%` }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Col 3: 刮刮卡 */}
+        <div className='farm-card farm-games-col'>
           <div className='farm-section-title'>🎰 {t('刮刮卡')}</div>
           <ScratchCard onScratch={doScratch} result={scratchResult}
             gameLoading={gameLoading} t={t} />

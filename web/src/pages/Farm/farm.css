@@ -1955,6 +1955,69 @@
   justify-content: space-between;
 }
 
+/* Games Top Grid — 3-column: Wheel | Prize Pool | Scratch */
+.farm-games-top-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.farm-games-col {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Prize Pool Card */
+.farm-prize-pool-card {
+  justify-content: flex-start;
+}
+
+.farm-prize-pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.farm-prize-pool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s;
+}
+
+.farm-prize-pool-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.farm-prize-pool-symbol {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 26px;
+  text-align: center;
+}
+
+.farm-prize-pool-label {
+  font-weight: 700;
+  font-size: 14px;
+  min-width: 42px;
+}
+
+.farm-prize-pool-bar {
+  height: 4px;
+  border-radius: 2px;
+  opacity: 0.45;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+}
+
 /* Spinning Wheel */
 .farm-wheel-container {
   position: relative;
@@ -2515,6 +2578,9 @@
     width: 95%;
     max-height: 90vh;
   }
+  .farm-games-top-grid {
+    grid-template-columns: 1fr;
+  }
   .farm-wheel-container, .farm-wheel {
     width: 220px;
     height: 220px;
@@ -2522,6 +2588,19 @@
   .farm-scratch-container {
     width: 240px;
     height: 160px;
+  }
+  .farm-prize-pool-list {
+    gap: 4px;
+  }
+  .farm-prize-pool-row {
+    padding: 4px 8px;
+  }
+  .farm-prize-pool-symbol {
+    font-size: 15px;
+    width: 22px;
+  }
+  .farm-prize-pool-label {
+    font-size: 12px;
   }
   .farm-game-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
