@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Spin } from '@douyinfe/semi-ui';
+import { HorseRaceGame, TugOfWarGame, ClickBlitzGame, RhythmKeysGame, CircleDrawGame } from './GamesMashing';
+import { FishingBarGame, PowerChopGame, LassoGame, AnglePowerGame, WaterCatchGame } from './GamesTiming';
 
 /* ═══════════════════════════════════════════════════════════════
    PlaceholderGame — 尚未实现的游戏占位符
@@ -23,31 +25,19 @@ const PlaceholderGame = ({ game, onComplete, t }) => {
    GAME_REGISTRY — 30 个游戏 Key → 组件 + 分类
    动态导入对应引擎组件
    ═══════════════════════════════════════════════════════════════ */
-let _mashingGames = null;
-let _timingGames = null;
-
-const lazyMashing = () => {
-  if (!_mashingGames) _mashingGames = require('./GamesMashing');
-  return _mashingGames;
-};
-const lazyTiming = () => {
-  if (!_timingGames) _timingGames = require('./GamesTiming');
-  return _timingGames;
-};
-
 const GAME_REGISTRY = {
   // ═══ 第一类: ⚡ 极限手速与耐力 ═══
-  horserace:  { get: () => lazyMashing().HorseRaceGame,  cat: 'cat1', catLabel: '⚡手速' },
-  woodchop:   { get: () => lazyMashing().TugOfWarGame,    cat: 'cat1', catLabel: '⚡手速' },
-  weed:       { get: () => lazyMashing().ClickBlitzGame,  cat: 'cat1', catLabel: '⚡手速' },
-  milking:    { get: () => lazyMashing().RhythmKeysGame,  cat: 'cat1', catLabel: '⚡手速' },
-  thresh:     { get: () => lazyMashing().CircleDrawGame,  cat: 'cat1', catLabel: '⚡手速' },
+  horserace:  { get: () => HorseRaceGame,  cat: 'cat1', catLabel: '⚡手速' },
+  woodchop:   { get: () => TugOfWarGame,    cat: 'cat1', catLabel: '⚡手速' },
+  weed:       { get: () => ClickBlitzGame,  cat: 'cat1', catLabel: '⚡手速' },
+  milking:    { get: () => RhythmKeysGame,  cat: 'cat1', catLabel: '⚡手速' },
+  thresh:     { get: () => CircleDrawGame,  cat: 'cat1', catLabel: '⚡手速' },
   // ═══ 第二类: 🎯 精准时机与预判 ═══
-  fishcomp:   { get: () => lazyTiming().FishingBarGame,   cat: 'cat2', catLabel: '🎯时机' },
-  harvest:    { get: () => lazyTiming().PowerChopGame,    cat: 'cat2', catLabel: '🎯时机' },
-  lasso:      { get: () => lazyTiming().LassoGame,        cat: 'cat2', catLabel: '🎯时机' },
-  pullcarrot: { get: () => lazyTiming().AnglePowerGame,   cat: 'cat2', catLabel: '🎯时机' },
-  seedling:   { get: () => lazyTiming().WaterCatchGame,   cat: 'cat2', catLabel: '🎯时机' },
+  fishcomp:   { get: () => FishingBarGame,   cat: 'cat2', catLabel: '🎯时机' },
+  harvest:    { get: () => PowerChopGame,    cat: 'cat2', catLabel: '🎯时机' },
+  lasso:      { get: () => LassoGame,        cat: 'cat2', catLabel: '🎯时机' },
+  pullcarrot: { get: () => AnglePowerGame,   cat: 'cat2', catLabel: '🎯时机' },
+  seedling:   { get: () => WaterCatchGame,   cat: 'cat2', catLabel: '🎯时机' },
   // ═══ 第三类: 👀 动态反应与捕捉 (待实现) ═══
   egghunt:    { get: () => null, cat: 'cat3', catLabel: '👀反应' },
   bugcatch:   { get: () => null, cat: 'cat3', catLabel: '👀反应' },
