@@ -1,16 +1,11 @@
-import React, { useState, lazy, Suspense } from 'react';
-import { Button, Tag, Spin, Typography } from '@douyinfe/semi-ui';
-import { RefreshCw, Droplets, FlaskConical, LandPlot, Wheat, Package, Box, List, ArrowUp, Pill } from 'lucide-react';
+import React from 'react';
+import { Button, Tag, Typography } from '@douyinfe/semi-ui';
+import { RefreshCw, Droplets, FlaskConical, LandPlot, Wheat, Package, ArrowUp, Pill } from 'lucide-react';
 import { formatBalance, formatDuration } from './utils';
 
 const { Text } = Typography;
 
-const Farm3DView = lazy(() => import('../Farm3D'));
-
 const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t }) => {
-  const [viewMode, setViewMode] = useState('3d');
-  const [selectedPlotIndex, setSelectedPlotIndex] = useState(null);
-
   if (!farmData) return null;
 
   const handleWater = (idx) => doAction('/api/farm/water', { plot_index: idx });
@@ -35,11 +30,6 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
       {/* Action Bar */}
       <div className='farm-card farm-toolbar'>
         <div className='farm-toolbar-left'>
-          <Button size='small' icon={viewMode === '3d' ? <List size={14} /> : <Box size={14} />}
-            theme='borderless' onClick={() => setViewMode(viewMode === '3d' ? 'list' : '3d')}
-            className='farm-btn' style={{ fontWeight: 600 }}>
-            {viewMode === '3d' ? t('列表') : '3D'}
-          </Button>
           <Button size='small' icon={<RefreshCw size={14} />} theme='borderless' onClick={loadFarm} loading={loading} className='farm-btn' />
         </div>
         <div className='farm-toolbar-right'>
@@ -81,34 +71,8 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
         </div>
       </div>
 
-      {/* 3D View */}
-      {viewMode === '3d' && (
-        <div style={{ marginTop: 16 }}>
-          <Suspense fallback={
-            <div className='farm-canvas-wrap' style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'linear-gradient(180deg, #bae6fd 0%, #e0f2fe 40%, #dcfce7 100%)',
-            }}>
-              <Spin size='large' />
-            </div>
-          }>
-            <Farm3DView
-              farmData={farmData}
-              doAction={doAction}
-              t={t}
-              selectedPlotIndex={selectedPlotIndex}
-              setSelectedPlotIndex={setSelectedPlotIndex}
-            />
-          </Suspense>
-          <div style={{ textAlign: 'center', marginTop: 8, opacity: 0.5 }}>
-            <Text type='tertiary' size='small'>🖱️ {t('拖拽旋转 · 滚轮缩放 · 点击地块查看详情')}</Text>
-          </div>
-        </div>
-      )}
-
       {/* List View */}
-      {viewMode === 'list' && (
-        <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16 }}>
           {activePlots.length > 0 && (
             <div className='farm-grid farm-grid-2'>
               {activePlots.map((plot) => (
@@ -241,8 +205,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
               </Text>
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 };
