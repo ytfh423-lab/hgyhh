@@ -205,6 +205,9 @@ func WebFarmEncyclopedia(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockEncyclopedia, "图鉴") {
+		return
+	}
 
 	backfillCollections(tgId)
 
@@ -302,6 +305,9 @@ func WebFarmClaimCollection(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockEncyclopedia, "图鉴") {
+		return
+	}
 	var req struct {
 		Category string `json:"category"`
 	}
@@ -396,6 +402,9 @@ func WebFarmAutomationView(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockAutomation, "自动化") {
+		return
+	}
 	autos, _ := model.GetAutomations(tgId)
 	autoMap := make(map[string]bool)
 	for _, a := range autos {
@@ -422,6 +431,9 @@ func WebFarmAutomationView(c *gin.Context) {
 func WebFarmAutomationBuy(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockAutomation, "自动化") {
 		return
 	}
 	var req struct {
@@ -462,6 +474,9 @@ func WebFarmLeaderboard(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockLeaderboard, "排行榜") {
+		return
+	}
 	boardType := c.DefaultQuery("type", "balance")
 	entries, err := model.GetFarmLeaderboard(boardType, 20)
 	if err != nil {
@@ -496,6 +511,9 @@ func WebFarmLeaderboard(c *gin.Context) {
 func WebFarmGameWheel(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 	price := common.TgBotFarmWheelPrice
@@ -548,6 +566,9 @@ func WebFarmGameWheel(c *gin.Context) {
 func WebFarmGameScratch(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 	price := common.TgBotFarmScratchPrice
@@ -613,6 +634,9 @@ func WebFarmGameHistory(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
+		return
+	}
 	logs, _ := model.GetRecentGameLogs(tgId, 20)
 	type logItem struct {
 		GameType string  `json:"game_type"`
@@ -652,6 +676,9 @@ func WebFarmGameList(c *gin.Context) {
 func WebFarmGamePlay(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockGames, "小游戏") {
 		return
 	}
 

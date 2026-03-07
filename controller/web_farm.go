@@ -37,6 +37,19 @@ func webFarmQuotaFloat(quota int) float64 {
 	return float64(quota) / common.QuotaPerUnit
 }
 
+// checkFeatureLevel 检查用户是否达到功能解锁等级，未达到则返回错误并return false
+func checkFeatureLevel(c *gin.Context, tgId string, requiredLevel int, featureName string) bool {
+	userLevel := model.GetFarmLevel(tgId)
+	if userLevel < requiredLevel {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("%s需要等级 %d 才能解锁（当前等级 %d）", featureName, requiredLevel, userLevel),
+		})
+		return false
+	}
+	return true
+}
+
 type webPlotInfo struct {
 	PlotIndex     int     `json:"plot_index"`
 	Status        int     `json:"status"`
@@ -561,6 +574,9 @@ func WebFarmStealTargets(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
+		return
+	}
 	targets, err := model.GetMatureFarmTargets(tgId)
 	if err != nil || len(targets) == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
@@ -581,6 +597,9 @@ func WebFarmStealTargets(c *gin.Context) {
 func WebFarmSteal(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
 		return
 	}
 	var req struct {
@@ -1046,6 +1065,9 @@ func WebFarmDog(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
+		return
+	}
 
 	dog, err := model.GetFarmDog(tgId)
 	if err != nil {
@@ -1110,6 +1132,9 @@ func WebFarmBuyDog(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
+		return
+	}
 
 	_, err := model.GetFarmDog(tgId)
 	if err == nil {
@@ -1157,6 +1182,9 @@ func WebFarmBuyDog(c *gin.Context) {
 func WebFarmFeedDog(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockDog, "狗狗") {
 		return
 	}
 
@@ -1733,6 +1761,9 @@ func WebFarmWorkshopView(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+		return
+	}
 
 	procs, _ := model.GetFarmProcesses(tgId)
 	now := time.Now().Unix()
@@ -1824,6 +1855,9 @@ func WebFarmWorkshopCraft(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+		return
+	}
 
 	var req struct {
 		RecipeKey string `json:"recipe_key"`
@@ -1874,6 +1908,9 @@ func WebFarmWorkshopCollect(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
+		return
+	}
 
 	procs, _ := model.GetFarmProcesses(tgId)
 	now := time.Now().Unix()
@@ -1921,6 +1958,9 @@ func WebFarmWorkshopCollect(c *gin.Context) {
 func WebFarmFishView(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
 		return
 	}
 
@@ -2015,6 +2055,9 @@ func WebFarmFishDo(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
+		return
+	}
 
 	// 冷却检查
 	lastFish := model.GetLastFishTime(tgId)
@@ -2072,6 +2115,9 @@ func WebFarmFishDo(c *gin.Context) {
 func WebFarmFishSell(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钱鱼") {
 		return
 	}
 
@@ -2208,6 +2254,9 @@ func WebFarmMortgageLoan(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmBankUnlockLevel, "银行") {
+		return
+	}
 
 	var req struct {
 		Amount int `json:"amount"`
@@ -2314,6 +2363,9 @@ func WebFarmBankLoan(c *gin.Context) {
 func WebFarmBankRepay(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmBankUnlockLevel, "银行") {
 		return
 	}
 
@@ -2570,6 +2622,9 @@ func WebFarmFishStore(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockFish, "钓鱼") {
+		return
+	}
 
 	fishItems, _ := model.GetFishItems(tgId)
 	if len(fishItems) == 0 {
@@ -2619,6 +2674,9 @@ func WebFarmFishStore(c *gin.Context) {
 func WebFarmWorkshopCollectStore(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockWorkshop, "加工坊") {
 		return
 	}
 

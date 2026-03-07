@@ -122,6 +122,9 @@ func WebRanchView(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+		return
+	}
 
 	animals, err := model.GetRanchAnimals(tgId)
 	if err != nil {
@@ -178,6 +181,9 @@ func WebRanchView(c *gin.Context) {
 func WebRanchBuy(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -247,6 +253,9 @@ func WebRanchBuy(c *gin.Context) {
 func WebRanchFeed(c *gin.Context) {
 	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -325,6 +334,9 @@ func WebRanchWater(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+		return
+	}
 
 	var req struct {
 		AnimalId int `json:"animal_id"`
@@ -401,6 +413,9 @@ func WebRanchSlaughter(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+		return
+	}
 
 	var req struct {
 		AnimalId int `json:"animal_id"`
@@ -463,6 +478,9 @@ func WebRanchSlaughter(c *gin.Context) {
 func WebRanchSlaughterStore(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
@@ -530,6 +548,9 @@ func WebRanchCleanManure(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
+		return
+	}
 
 	animals, err := model.GetRanchAnimals(tgId)
 	if err != nil {
@@ -581,6 +602,9 @@ func WebRanchCleanManure(c *gin.Context) {
 func WebRanchCleanup(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
+		return
+	}
+	if !checkFeatureLevel(c, tgId, common.TgBotFarmUnlockRanch, "牧场") {
 		return
 	}
 
