@@ -7,6 +7,14 @@ const TYPE_THEMES = {
   event:  { border: 'var(--farm-ann-border-event)',  glow: 'var(--farm-ann-glow-event)',  badge: '🎉', badgeLabel: '活动', badgeClass: 'event' },
 };
 
+const hashText = (str) => {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return 'farm_ann_' + (h >>> 0).toString(36);
+};
+
 const FarmAnnouncementBar = ({ t }) => {
   const [announcement, setAnnouncement] = useState(null);
   const [dismissed, setDismissed] = useState(false);
@@ -19,7 +27,7 @@ const FarmAnnouncementBar = ({ t }) => {
     try {
       const { data: res } = await API.get('/api/farm/announcement');
       if (res.success && res.data && res.data.enabled) {
-        const key = 'farm_ann_dismissed_' + btoa(res.data.text).slice(0, 16);
+        const key = hashText(res.data.text);
         if (sessionStorage.getItem(key)) return;
         setAnnouncement(res.data);
         setTimeout(() => setVisible(true), 100);
@@ -40,8 +48,7 @@ const FarmAnnouncementBar = ({ t }) => {
     setVisible(false);
     setTimeout(() => setDismissed(true), 350);
     if (announcement) {
-      const key = 'farm_ann_dismissed_' + btoa(announcement.text).slice(0, 16);
-      sessionStorage.setItem(key, '1');
+      sessionStorage.setItem(hashText(announcement.text), '1');
     }
   };
 
