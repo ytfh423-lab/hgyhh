@@ -222,24 +222,24 @@ type dailyTaskDef struct {
 }
 
 var taskPool = []dailyTaskDef{
-	{"plant", "种植作物", "🌱", 2, 200000},
-	{"harvest", "收获作物", "🌾", 1, 300000},
-	{"fish", "钓鱼", "🎣", 3, 250000},
-	{"steal", "偷菜", "🕵️", 1, 200000},
-	{"craft", "加工产品", "🏭", 1, 300000},
-	{"shop", "购买道具", "🏪", 2, 150000},
-	{"ranch_feed", "喂食动物", "🌾", 2, 200000},
-	{"ranch_water", "喂水动物", "💧", 2, 150000},
-	{"fish_sell", "出售鱼获", "💰", 1, 200000},
-	{"craft_sell", "收取加工品", "📥", 1, 250000},
-	{"ranch_sell", "出售肉类", "🥩", 1, 300000},
-	{"water", "浇水", "💧", 3, 150000},
-	{"warehouse_sell", "仓库出售", "📦", 1, 200000},
-	{"trade", "交易", "🔄", 1, 250000},
-	{"game", "玩小游戏", "🎰", 2, 150000},
+	{"plant", "种植作物", "🌱", 2, 700000},
+	{"harvest", "收获作物", "🌾", 1, 600000},
+	{"fish", "钓鱼", "🎣", 3, 1000000},
+	{"steal", "偷菜", "🕵️", 1, 600000},
+	{"craft", "加工产品", "🏭", 1, 700000},
+	{"shop", "购买道具", "🏪", 2, 650000},
+	{"ranch_feed", "喂食动物", "🌾", 2, 650000},
+	{"ranch_water", "喂水动物", "💧", 2, 650000},
+	{"fish_sell", "出售鱼获", "💰", 1, 650000},
+	{"craft_sell", "收取加工品", "📥", 1, 700000},
+	{"ranch_sell", "出售肉类", "🥩", 1, 750000},
+	{"water", "浇水", "💧", 3, 800000},
+	{"warehouse_sell", "仓库出售", "📦", 1, 650000},
+	{"trade", "交易", "🔄", 1, 700000},
+	{"game", "玩小游戏", "🎰", 2, 600000},
 }
 
-const dailyTaskCount = 4
+var dailyTaskCount = 10
 
 type achievementDef struct {
 	Key         string
@@ -2213,6 +2213,8 @@ func doFarmWaterAll(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
+	model.AddFarmLog(tgId, "water", 0, fmt.Sprintf("一键浇水%d块地", wateredCount))
+
 	text := fmt.Sprintf("💧 一键浇水完成！共浇水 %d 块地\n%s", wateredCount, details)
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
@@ -2286,6 +2288,8 @@ func doFarmWater(chatId int64, editMsgId int, tgId string, plotIdx int, from *Tg
 	if crop != nil {
 		cropName = crop.Emoji + crop.Name
 	}
+
+	model.AddFarmLog(tgId, "water", 0, fmt.Sprintf("浇水%d号地%s", plotIdx+1, cropName))
 
 	msg := fmt.Sprintf("💧 浇水成功！\n\n%d号地 %s", plotIdx+1, cropName)
 	if wasDrought {
