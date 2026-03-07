@@ -64,33 +64,51 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div className='farm-wheel-container'>
-        <div className='farm-wheel-pointer'>📍</div>
-        <div ref={wheelRef}
-          className={`farm-wheel ${rotation > 0 ? 'spinning' : ''}`}
-          style={{
-            background: `conic-gradient(${conicStops})`,
-            transform: `rotate(${rotation}deg)`,
-          }}>
-          {/* Sector labels */}
-          {sectors.map((label, i) => {
-            const angle = i * sectorAngle + sectorAngle / 2;
-            return (
-              <div key={i} style={{
-                position: 'absolute',
-                top: '50%', left: '50%',
-                transform: `rotate(${angle}deg) translateY(-90px)`,
-                transformOrigin: '0 0',
-                fontSize: 20,
-                marginLeft: -10,
-                marginTop: -10,
-              }}>
-                {label}
-              </div>
-            );
-          })}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: '100%', justifyContent: 'center' }}>
+        <div className='farm-wheel-container'>
+          <div className='farm-wheel-pointer'>📍</div>
+          <div ref={wheelRef}
+            className={`farm-wheel ${rotation > 0 ? 'spinning' : ''}`}
+            style={{
+              background: `conic-gradient(${conicStops})`,
+              transform: `rotate(${rotation}deg)`,
+            }}>
+            {/* Sector labels */}
+            {sectors.map((label, i) => {
+              const angle = i * sectorAngle + sectorAngle / 2;
+              return (
+                <div key={i} style={{
+                  position: 'absolute',
+                  top: '50%', left: '50%',
+                  transform: `rotate(${angle}deg) translateY(-90px)`,
+                  transformOrigin: '0 0',
+                  fontSize: 20,
+                  marginLeft: -10,
+                  marginTop: -10,
+                }}>
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+          <div className='farm-wheel-center'>🎰</div>
         </div>
-        <div className='farm-wheel-center'>🎰</div>
+
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 6,
+          padding: '10px 12px', borderRadius: 10,
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>{t('奖池')}</div>
+          {WHEEL_PRIZES.map((p, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
+            }}>
+              <span style={{ fontSize: 16 }}>{p.symbol}</span>
+              <span style={{ color: p.color, fontWeight: 700 }}>{p.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <Button theme='solid' size='large' onClick={handleSpin}
@@ -98,23 +116,6 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
         style={{ minWidth: 140, fontWeight: 700 }}>
         🎡 {t('转一次')} ($1)
       </Button>
-
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px 8px',
-        width: '100%', maxWidth: 280, marginTop: 4,
-        padding: '8px 10px', borderRadius: 10,
-        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-      }}>
-        {WHEEL_PRIZES.map((p, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontSize: 12, padding: '2px 0',
-          }}>
-            <span style={{ fontSize: 15 }}>{p.symbol}</span>
-            <span style={{ color: p.color, fontWeight: 700 }}>{p.label}</span>
-          </div>
-        ))}
-      </div>
 
       {showResult && result && (
         <div className='farm-game-result'>
