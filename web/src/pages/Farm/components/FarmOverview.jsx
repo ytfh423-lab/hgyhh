@@ -116,7 +116,7 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
           background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.2)',
           fontSize: 12, fontWeight: 600, color: 'var(--farm-leaf)',
         }}>
-          🌾 {t('点击展开操作')}
+          🌾 {t('已成熟，可收获')}
         </div>
       )}
 
@@ -132,43 +132,41 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
         </div>
       )}
 
-      {/* ── Expanded action panel ── */}
-      {expanded && (
-        <div className='farm-plot-actions'>
-          {needsWater && (
-            <Button size='small' icon={<Droplets size={12} />}
-              onClick={e => { e.stopPropagation(); handleWater(plot.plot_index); }}
-              loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(90,143,180,0.12)', border: '1px solid rgba(90,143,180,0.3)', color: 'var(--farm-sky)' }}>
-              {t('浇水')}
-            </Button>
-          )}
-          {st === 1 && plot.fertilized === 0 && (
-            <Button size='small' icon={<FlaskConical size={12} />}
-              onClick={e => { e.stopPropagation(); handleFertilize(plot.plot_index); }}
-              loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(74,124,63,0.12)', border: '1px solid rgba(74,124,63,0.3)', color: 'var(--farm-leaf)' }}>
-              {t('施肥')}
-            </Button>
-          )}
-          {st === 3 && plot.event_type !== 'drought' && (
-            <Button size='small' icon={<Pill size={12} />}
-              onClick={e => { e.stopPropagation(); handleTreat(plot.plot_index); }}
-              loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(200,146,42,0.12)', border: '1px solid rgba(200,146,42,0.3)', color: 'var(--farm-harvest)' }}>
-              {t('治疗')}
-            </Button>
-          )}
-          {soilLv < soilMax && (
-            <Button size='small' icon={<ArrowUp size={12} />}
-              onClick={e => { e.stopPropagation(); handleUpgradeSoil(plot.plot_index); }}
-              loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(138,108,176,0.12)', border: '1px solid rgba(138,108,176,0.3)', color: '#b094d0' }}>
-              {t('升级')} Lv.{soilLv + 1}
-            </Button>
-          )}
-        </div>
-      )}
+      {/* ── Action panel (always visible) ── */}
+      <div className='farm-plot-actions'>
+        {needsWater && (
+          <Button size='small' icon={<Droplets size={12} />}
+            onClick={e => { e.stopPropagation(); handleWater(plot.plot_index); }}
+            loading={actionLoading} className='farm-btn'
+            style={{ background: 'rgba(90,143,180,0.12)', border: '1px solid rgba(90,143,180,0.3)', color: 'var(--farm-sky)' }}>
+            {t('浇水')}
+          </Button>
+        )}
+        {st === 1 && plot.fertilized === 0 && (
+          <Button size='small' icon={<FlaskConical size={12} />}
+            onClick={e => { e.stopPropagation(); handleFertilize(plot.plot_index); }}
+            loading={actionLoading} className='farm-btn'
+            style={{ background: 'rgba(74,124,63,0.12)', border: '1px solid rgba(74,124,63,0.3)', color: 'var(--farm-leaf)' }}>
+            {t('施肥')}
+          </Button>
+        )}
+        {st === 3 && plot.event_type !== 'drought' && (
+          <Button size='small' icon={<Pill size={12} />}
+            onClick={e => { e.stopPropagation(); handleTreat(plot.plot_index); }}
+            loading={actionLoading} className='farm-btn'
+            style={{ background: 'rgba(200,146,42,0.12)', border: '1px solid rgba(200,146,42,0.3)', color: 'var(--farm-harvest)' }}>
+            {t('治疗')}
+          </Button>
+        )}
+        {soilLv < soilMax && (
+          <Button size='small' icon={<ArrowUp size={12} />}
+            onClick={e => { e.stopPropagation(); handleUpgradeSoil(plot.plot_index); }}
+            loading={actionLoading} className='farm-btn'
+            style={{ background: 'rgba(138,108,176,0.12)', border: '1px solid rgba(138,108,176,0.3)', color: '#b094d0' }}>
+            {t('升级')} Lv.{soilLv + 1}
+          </Button>
+        )}
+      </div>
     </div>
   );
 };
