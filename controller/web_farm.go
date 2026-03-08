@@ -411,12 +411,14 @@ func WebFarmPlant(c *gin.Context) {
 		}
 	}
 
-	if rand.Intn(100) < common.TgBotFarmEventChance {
+	// 教程期间不触发随机事件
+	inTutorial := model.IsFarmTutorialActive(tgId)
+	if !inTutorial && rand.Intn(100) < common.TgBotFarmEventChance {
 		targetPlot.EventType = "bugs"
 		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
-	if targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
+	if !inTutorial && targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
 		targetPlot.EventType = "drought"
 		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
@@ -972,6 +974,18 @@ func WebFarmWater(c *gin.Context) {
 	}
 
 	_ = model.WaterFarmPlot(target.Id)
+
+	// 教程期间：浇水后直接让作物成熟
+	if model.IsFarmTutorialActive(tgId) && target.Status == 1 {
+		crop := farmCropMap[target.CropType]
+		if crop != nil {
+			now := time.Now().Unix()
+			target.PlantedAt = now - crop.GrowSecs - 1 // 确保已过成熟时间
+			target.EventType = ""
+			target.EventAt = 0
+			_ = model.UpdateFarmPlot(target)
+		}
+	}
 
 	msg := "浇水成功！"
 	if wasDrought {

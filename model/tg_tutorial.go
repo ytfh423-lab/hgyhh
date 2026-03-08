@@ -112,6 +112,15 @@ func GetPendingForcedTutorial(tgId string) (*TgFarmTutorialState, error) {
 	return &s, nil
 }
 
+// IsFarmTutorialActive 快速判断用户是否在强制教程中
+func IsFarmTutorialActive(tgId string) bool {
+	var count int64
+	DB.Model(&TgFarmTutorialState{}).
+		Where("telegram_id = ? AND tutorial_required = 1 AND tutorial_completed = 0 AND tutorial_started = 1", tgId).
+		Count(&count)
+	return count > 0
+}
+
 // ───── 旧 TgFarmTutorial 兼容函数（保留，但不再主力使用）─────
 
 func GetTutorialState(tgId string) (*TgFarmTutorial, error) {
