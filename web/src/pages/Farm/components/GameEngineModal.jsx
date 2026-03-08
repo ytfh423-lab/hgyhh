@@ -79,7 +79,7 @@ const EngineModal = ({ game, onClose, onPlayApi, gameLoading, t }) => {
   const handleEngineComplete = async (normalized, raw) => {
     setGameScore({ normalized, raw });
     setPhase('calling');
-    const result = await onPlayApi(game.key);
+    const result = await onPlayApi(game.key, normalized);
     setApiResult(result);
     setPhase('result');
   };

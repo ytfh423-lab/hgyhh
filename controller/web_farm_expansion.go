@@ -701,11 +701,19 @@ func WebFarmGamePlay(c *gin.Context) {
 	}
 
 	var req struct {
-		GameKey string `json:"game_key"`
+		GameKey string  `json:"game_key"`
+		Score   float64 `json:"score"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.GameKey == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "缺少 game_key"})
 		return
+	}
+	// clamp score to [0,1]
+	if req.Score < 0 {
+		req.Score = 0
+	}
+	if req.Score > 1 {
+		req.Score = 1
 	}
 
 	g := miniGameMap[req.GameKey]
@@ -724,71 +732,61 @@ func WebFarmGamePlay(c *gin.Context) {
 	var resultText string
 	var multi float64
 
-	switch req.GameKey {
-	case "bugcatch":
-		resultText, multi = playBugCatch()
-	case "egghunt":
-		resultText, multi = playEggHunt()
-	case "milking":
-		resultText, multi = playMilking()
-	case "sunflower":
-		resultText, multi = playSunflower()
-	case "beekeep":
-		resultText, multi = playBeekeep()
-	case "fruitpick":
-		resultText, multi = playFruitPick()
-	case "sheepcount":
-		resultText, multi = playSheepCount()
-	case "cornrace":
-		resultText, multi = playCornRace()
-	case "rooster":
-		resultText, multi = playRooster()
-	case "horserace":
-		resultText, multi = playHorseRace()
-	case "sheepdog":
-		resultText, multi = playSheepdog()
-	case "seedling":
-		resultText, multi = playSeedling()
-	case "pumpkin":
-		resultText, multi = playPumpkinContest()
-	case "pigchase":
-		resultText, multi = playPigChase()
-	case "duckherd":
-		resultText, multi = playDuckHerd()
-	case "thresh":
-		resultText, multi = playThresh()
-	case "grape":
-		resultText, multi = playGrapeStomp()
-	case "fishcomp":
-		resultText, multi = playFishComp()
-	case "weed":
-		resultText, multi = playWeed()
-	case "woodchop":
-		resultText, multi = playWoodChop()
-	case "lasso":
-		resultText, multi = playLasso()
-	case "pullcarrot":
-		resultText, multi = playPullCarrot()
-	case "mushroom":
-		resultText, multi = playMushroom()
-	case "hatchegg":
-		resultText, multi = playHatchEgg()
-	case "weather":
-		resultText, multi = playWeather()
-	case "produce":
-		resultText, multi = playProduce()
-	case "tame":
-		resultText, multi = playTame()
-	case "scarecrow":
-		resultText, multi = playScarecrow()
-	case "foxhunt":
-		resultText, multi = playFoxHunt()
-	case "harvest":
-		resultText, multi = playHarvestRace()
-	default:
-		model.IncreaseUserQuota(user.Id, price, true)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "未知游戏"})
-		return
+	// 有前端引擎的游戏：用前端传来的 score 决定倍率
+	engineGames := map[string]bool{
+		"horserace": true, "woodchop": true, "weed": true, "milking": true, "thresh": true,
+		"fishcomp": true, "harvest": true, "lasso": true, "pullcarrot": true, "seedling": true,
+	}
+
+	if engineGames[req.GameKey] {
+		resultText, multi = scoreToGameResult(req.Score, g.Name, g.Emoji)
+	} else {
+		switch req.GameKey {
+		case "bugcatch":
+			resultText, multi = playBugCatch()
+		case "egghunt":
+			resultText, multi = playEggHunt()
+		case "sunflower":
+			resultText, multi = playSunflower()
+		case "beekeep":
+			resultText, multi = playBeekeep()
+		case "fruitpick":
+			resultText, multi = playFruitPick()
+		case "sheepcount":
+			resultText, multi = playSheepCount()
+		case "cornrace":
+			resultText, multi = playCornRace()
+		case "rooster":
+			resultText, multi = playRooster()
+		case "sheepdog":
+			resultText, multi = playSheepdog()
+		case "pumpkin":
+			resultText, multi = playPumpkinContest()
+		case "pigchase":
+			resultText, multi = playPigChase()
+		case "duckherd":
+			resultText, multi = playDuckHerd()
+		case "grape":
+			resultText, multi = playGrapeStomp()
+		case "mushroom":
+			resultText, multi = playMushroom()
+		case "hatchegg":
+			resultText, multi = playHatchEgg()
+		case "weather":
+			resultText, multi = playWeather()
+		case "produce":
+			resultText, multi = playProduce()
+		case "tame":
+			resultText, multi = playTame()
+		case "scarecrow":
+			resultText, multi = playScarecrow()
+		case "foxhunt":
+			resultText, multi = playFoxHunt()
+		default:
+			model.IncreaseUserQuota(user.Id, price, true)
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "未知游戏"})
+			return
+		}
 	}
 
 	actualWin := int(float64(price) * multi)

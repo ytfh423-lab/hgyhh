@@ -10,6 +10,44 @@ import (
 	"github.com/QuantumNous/new-api/model"
 )
 
+// scoreToGameResult 根据前端引擎传来的 score(0~1) 决定倍率和结果文案
+func scoreToGameResult(score float64, gameName, emoji string) (string, float64) {
+	// 加入少量随机浮动，避免完全可预测
+	jitter := (rand.Float64() - 0.5) * 0.1 // ±5%
+	adj := score + jitter
+	if adj < 0 {
+		adj = 0
+	}
+	if adj > 1 {
+		adj = 1
+	}
+
+	var label string
+	var multi float64
+	switch {
+	case adj >= 0.95:
+		label = "🏆 完美表现！4倍奖励！"
+		multi = 4
+	case adj >= 0.8:
+		label = "🥇 非常出色！3倍奖励！"
+		multi = 3
+	case adj >= 0.6:
+		label = "🥈 表现不错！2倍奖励！"
+		multi = 2
+	case adj >= 0.4:
+		label = "👍 还不错！1.5倍！"
+		multi = 1.5
+	case adj >= 0.2:
+		label = "😅 差一点点…0.5倍"
+		multi = 0.5
+	default:
+		label = "😢 下次加油..."
+		multi = 0
+	}
+	text := fmt.Sprintf("%s %s\n\n%s", emoji, gameName, label)
+	return text, multi
+}
+
 // ========== 农场小游戏定义 ==========
 
 type miniGameDef struct {

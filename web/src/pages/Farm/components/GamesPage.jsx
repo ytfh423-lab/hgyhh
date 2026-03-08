@@ -165,7 +165,7 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
     const ctx = canvas.getContext('2d');
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 22, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, 30, 0, Math.PI * 2);
     ctx.fill();
     // Check percentage scratched
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -174,7 +174,7 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
       if (imgData.data[i] === 0) cleared++;
     }
     const pct = cleared / (imgData.data.length / 4);
-    if (pct > 0.55) {
+    if (pct > 0.35) {
       setRevealed(true);
     }
   };
@@ -290,10 +290,10 @@ const GamesPage = ({ loadFarm, t }) => {
   };
 
   // Called by EngineModal after game engine completes
-  const playApi = async (gameKey) => {
+  const playApi = async (gameKey, score) => {
     setGameLoading(true);
     try {
-      const { data: res } = await API.post('/api/farm/game/play', { game_key: gameKey });
+      const { data: res } = await API.post('/api/farm/game/play', { game_key: gameKey, score: score ?? 0 });
       if (res.success) { loadFarm(); loadHistory(); return res.data; }
       else { showError(res.message); return null; }
     } catch (err) { showError(t('操作失败')); return null; }
