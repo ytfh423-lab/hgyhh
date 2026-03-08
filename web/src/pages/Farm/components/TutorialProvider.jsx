@@ -99,7 +99,9 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     try {
       await API.post('/api/farm/tutorial/unlock', { feature_key: flowKey });
     } catch (e) { /* ignore */ }
-    startFlow(flowKey, 'forced', 0);
+    const flow = tutorialFlows[flowKey];
+    const mode = flow?.skippable ? 'replay' : 'forced';
+    startFlow(flowKey, mode, 0);
   }, []);
 
   // ────── 启动教程流程 ──────

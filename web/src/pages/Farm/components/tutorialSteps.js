@@ -156,50 +156,35 @@ const farmBasicSteps = [
 ];
 
 // ══════════════════════════════════════════════
-//  树场教程 (treefarm) — 解锁时强制触发
+//  树场教程 (treefarm) — 解锁时触发，可跳过
 // ══════════════════════════════════════════════
 const treefarmSteps = [
   {
     id: 'tf-1', flowKey: 'treefarm', featureKey: 'treefarm', page: 'overview',
     stepKey: 'tree-unlock', title: '🌲 树场已解锁！',
-    content: '恭喜！你解锁了树场系统。树场是长期投资——种下树木，定期收获果实或伐木获取大量资源。跟我来体验一次完整流程！',
+    content: '恭喜！你解锁了树场系统。树场是长期投资——种下树木，定期收获果实或伐木获取大量资源。',
     targetSelector: null, placement: 'center',
     actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 1,
   },
   {
     id: 'tf-2', flowKey: 'treefarm', featureKey: 'treefarm', page: 'overview',
     stepKey: 'go-treefarm', title: '进入树场',
-    content: '点击左侧导航栏的「🌲 树场」进入树场页面。',
+    content: '点击左侧「🌲 树场」进入树场页面看看。',
     targetSelector: '[data-tutorial="nav-treefarm"]', placement: 'right',
     actionType: 'navigate', navigateTo: 'treefarm',
     allowManualNext: false, lockScope: 'full', required: true, sortOrder: 2,
   },
   {
     id: 'tf-3', flowKey: 'treefarm', featureKey: 'treefarm', page: 'treefarm',
-    stepKey: 'tree-grid', title: '树位总览',
-    content: '这里是你的林地。每个空树位都可以种植一棵树。点击空树位选择树种进行种植。',
+    stepKey: 'tree-grid', title: '🌲 林地总览',
+    content: '这里是你的林地。每个空树位可以种一棵树，点击空树位选择树种即可种植。树木生长较慢但产出价值高，可以浇水加速。新手推荐普通木材树。',
     targetSelector: '.tree-farm-grid', placement: 'bottom',
-    actionType: 'highlight-only', allowManualNext: true, lockScope: 'page', required: true, sortOrder: 3,
-  },
-  {
-    id: 'tf-4', flowKey: 'treefarm', featureKey: 'treefarm', page: 'treefarm',
-    stepKey: 'do-plant-tree', title: '种植一棵树',
-    content: '点击一个空树位，选择树种，完成种植！新手推荐普通木材树。',
-    targetSelector: '.tree-slot-status-0', placement: 'bottom',
-    actionType: 'wait-action', actionEvent: 'plant-tree',
-    allowManualNext: false, lockScope: 'page', required: true, sortOrder: 4,
-  },
-  {
-    id: 'tf-5', flowKey: 'treefarm', featureKey: 'treefarm', page: 'treefarm',
-    stepKey: 'tree-planted', title: '种植成功！🌱',
-    content: '树木已种下！树木生长较慢，但产出价值高。你可以浇水加速生长。树木成熟后可以采集果实或直接伐木。',
-    targetSelector: null, placement: 'center',
-    actionType: 'highlight-only', allowManualNext: true, lockScope: null, required: true, sortOrder: 5,
+    actionType: 'highlight-only', allowManualNext: true, lockScope: null, required: true, sortOrder: 3,
   },
 ];
 
 // ══════════════════════════════════════════════
-//  市场教程 (market) — 解锁时强制触发
+//  市场教程 (market) — 解锁时触发，可跳过
 // ══════════════════════════════════════════════
 const marketSteps = [
   {
@@ -227,7 +212,7 @@ const marketSteps = [
 ];
 
 // ══════════════════════════════════════════════
-//  仓库教程 (warehouse) — 解锁时可选触发
+//  仓库教程 (warehouse) — 解锁时触发，可跳过
 // ══════════════════════════════════════════════
 const warehouseSteps = [
   {
@@ -240,7 +225,7 @@ const warehouseSteps = [
 ];
 
 // ══════════════════════════════════════════════
-//  任务教程 (tasks) — 首次进入时触发
+//  任务教程 (tasks) — 解锁时触发，可跳过
 // ══════════════════════════════════════════════
 const tasksSteps = [
   {
@@ -271,6 +256,7 @@ export const tutorialFlows = {
     emoji: '🌲',
     steps: treefarmSteps,
     unlockLevel: 5,
+    skippable: true,
   },
   market: {
     featureKey: 'market',
@@ -278,6 +264,7 @@ export const tutorialFlows = {
     emoji: '📈',
     steps: marketSteps,
     unlockLevel: 2,
+    skippable: true,
   },
   warehouse: {
     featureKey: 'warehouse',
@@ -285,6 +272,7 @@ export const tutorialFlows = {
     emoji: '📦',
     steps: warehouseSteps,
     unlockLevel: 1,
+    skippable: true,
   },
   tasks: {
     featureKey: 'tasks',
@@ -292,6 +280,7 @@ export const tutorialFlows = {
     emoji: '📝',
     steps: tasksSteps,
     unlockLevel: 1,
+    skippable: true,
   },
 };
 
