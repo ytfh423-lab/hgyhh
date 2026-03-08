@@ -133,6 +133,9 @@ const TgBotPage = () => {
   const [savingFarmAnn, setSavingFarmAnn] = useState(false);
   const [savingFarm, setSavingFarm] = useState(false);
   const [resetLevel, setResetLevel] = useState(1);
+  // ===== 农场用户列表 =====
+  const [farmUsers, setFarmUsers] = useState([]);
+  const [farmUsersLoading, setFarmUsersLoading] = useState(false);
   const [lotteryPrizes, setLotteryPrizes] = useState([]);
   const [lotteryPrizesLoading, setLotteryPrizesLoading] = useState(false);
   const [lotteryPrizeTotal, setLotteryPrizeTotal] = useState(0);
@@ -458,12 +461,22 @@ const TgBotPage = () => {
     },
   ];
 
+  const loadFarmUsers = useCallback(async () => {
+    setFarmUsersLoading(true);
+    try {
+      const { data: res } = await API.get('/api/tgbot/farm/users');
+      if (res.success) setFarmUsers(res.data || []);
+    } catch (err) { /* ignore */ }
+    finally { setFarmUsersLoading(false); }
+  }, []);
+
   useEffect(() => {
     loadSettings();
     loadCategories();
     loadWebhookInfo();
     loadLotteryPrizes();
-  }, [loadSettings, loadWebhookInfo]);
+    loadFarmUsers();
+  }, [loadSettings, loadWebhookInfo, loadFarmUsers]);
 
   // ===== 分类 CRUD =====
   const openCreateModal = () => {
@@ -1346,6 +1359,44 @@ const TgBotPage = () => {
             {t('保存公告设置')}
           </Button>
         </div>
+      </Card>
+
+      {/* ===== 农场活跃用户 ===== */}
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>🌾 {t('农场活跃用户')} ({farmUsers.length})</span>
+            <Button size='small' theme='light' onClick={loadFarmUsers} loading={farmUsersLoading}>{t('刷新')}</Button>
+          </div>
+        }
+        className='mt-4'
+      >
+        <Table
+          dataSource={farmUsers}
+          loading={farmUsersLoading}
+          pagination={{ pageSize: 20 }}
+          size='small'
+          empty={t('暂无活跃农场用户')}
+          columns={[
+            {
+              title: t('用户'),
+              dataIndex: 'username',
+              render: (text, record) => (
+                <span>
+                  {record.display_name || record.username || record.farm_id}
+                  {record.user_id > 0 && <Tag size='small' color='blue' style={{ marginLeft: 6 }}>ID:{record.user_id}</Tag>}
+                </span>
+              ),
+            },
+            { title: t('农场ID'), dataIndex: 'farm_id', width: 120 },
+            { title: t('等级'), dataIndex: 'farm_level', width: 70, render: v => `Lv.${v}`, sorter: (a, b) => a.farm_level - b.farm_level, defaultSortOrder: 'descend' },
+            { title: t('总地块'), dataIndex: 'total_plots', width: 80 },
+            { title: t('种植中'), dataIndex: 'active_plots', width: 80, render: v => <span style={{ color: 'var(--semi-color-success)' }}>{v}</span> },
+            { title: t('已成熟'), dataIndex: 'mature_plots', width: 80, render: v => v > 0 ? <span style={{ color: 'var(--semi-color-warning)' }}>{v}</span> : '0' },
+            { title: t('余额'), dataIndex: 'balance', width: 100, render: v => `$${v?.toFixed(2) || '0.00'}`, sorter: (a, b) => a.balance - b.balance },
+          ]}
+          rowKey='farm_id'
+        />
       </Card>
 
       {/* ===== 管理操作 ===== */}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -867,6 +869,73 @@ func GetWarehouseExpiryMultiplier(level int) int {
 }
 
 // ========== 管理员功能 ==========
+
+// ActiveFarmUser 活跃农场用户信息
+type ActiveFarmUser struct {
+	FarmId      string  `json:"farm_id"`
+	UserId      int     `json:"user_id"`
+	Username    string  `json:"username"`
+	DisplayName string  `json:"display_name"`
+	TotalPlots  int     `json:"total_plots"`
+	ActivePlots int     `json:"active_plots"`
+	MaturePlots int     `json:"mature_plots"`
+	FarmLevel   int     `json:"farm_level"`
+	Balance     float64 `json:"balance"`
+}
+
+// GetActiveFarmUsers 获取所有真正在玩农场的用户（有非空地块）
+func GetActiveFarmUsers() ([]ActiveFarmUser, error) {
+	// 1. 获取所有有地块的 distinct telegram_id
+	type plotStat struct {
+		TelegramId  string
+		Total       int
+		Active      int
+		Mature      int
+	}
+	var stats []plotStat
+	err := DB.Model(&TgFarmPlot{}).
+		Select("telegram_id, COUNT(*) as total, SUM(CASE WHEN status > 0 THEN 1 ELSE 0 END) as active, SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as mature").
+		Group("telegram_id").
+		Having("SUM(CASE WHEN status > 0 THEN 1 ELSE 0 END) > 0").
+		Find(&stats).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var result []ActiveFarmUser
+	for _, s := range stats {
+		u := ActiveFarmUser{
+			FarmId:      s.TelegramId,
+			TotalPlots:  s.Total,
+			ActivePlots: s.Active,
+			MaturePlots: s.Mature,
+			FarmLevel:   GetFarmLevel(s.TelegramId),
+		}
+		// 尝试关联 User 表
+		var user User
+		if strings.HasPrefix(s.TelegramId, "u_") {
+			idStr := strings.TrimPrefix(s.TelegramId, "u_")
+			uid, _ := strconv.Atoi(idStr)
+			if uid > 0 {
+				if e := DB.Select("id, username, display_name, quota").Where("id = ?", uid).First(&user).Error; e == nil {
+					u.UserId = user.Id
+					u.Username = user.Username
+					u.DisplayName = user.DisplayName
+					u.Balance = float64(user.Quota) / 500000.0
+				}
+			}
+		} else {
+			if e := DB.Select("id, username, display_name, quota").Where("telegram_id = ?", s.TelegramId).First(&user).Error; e == nil {
+				u.UserId = user.Id
+				u.Username = user.Username
+				u.DisplayName = user.DisplayName
+				u.Balance = float64(user.Quota) / 500000.0
+			}
+		}
+		result = append(result, u)
+	}
+	return result, nil
+}
 
 // ResetNegativeBalanceUsers 将所有余额为负数的用户重置为0
 func ResetNegativeBalanceUsers() (int64, error) {

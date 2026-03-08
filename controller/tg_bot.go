@@ -1435,3 +1435,17 @@ func AdminResetAllFarmLevels(c *gin.Context) {
 		"data":    gin.H{"affected": affected, "level": req.Level},
 	})
 }
+
+// AdminGetFarmUsers 获取当前真正在玩农场的用户列表
+func AdminGetFarmUsers(c *gin.Context) {
+	users, err := model.GetActiveFarmUsers()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    users,
+		"total":   len(users),
+	})
+}

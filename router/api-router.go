@@ -167,6 +167,7 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.DELETE("/lottery/prizes/:id", controller.DeleteTgBotLotteryPrize)
 			tgBotRoute.GET("/settings", controller.GetTgBotSettings)
 			tgBotRoute.GET("/lottery/settings", controller.GetTgBotLotterySettings)
+			tgBotRoute.GET("/farm/users", controller.AdminGetFarmUsers)
 			tgBotRoute.POST("/farm/reset-negative-balances", controller.AdminResetNegativeBalances)
 			tgBotRoute.POST("/farm/reset-all-levels", controller.AdminResetAllFarmLevels)
 			tgBotRoute.POST("/farm/beta-cleanup", controller.AdminBetaCleanup)
