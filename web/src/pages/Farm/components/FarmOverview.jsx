@@ -253,6 +253,22 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
 
   return (
     <div>
+      {/* ═══ Weather Banner ═══ */}
+      {farmData.weather && (
+        <div className='farm-card' style={{ padding: '8px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(90,143,180,0.06)', border: '1px solid rgba(90,143,180,0.15)' }}>
+          <span style={{ fontSize: 22 }}>{farmData.weather.emoji}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--farm-text-0)' }}>{farmData.weather.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--farm-text-2)' }}>{farmData.weather.effects}</div>
+          </div>
+          {farmData.weather.ends_in > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--farm-text-3)', whiteSpace: 'nowrap' }}>
+              ⏱ {formatDuration(farmData.weather.ends_in)}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ═══ Dashboard Stats ═══ */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
         <StatCard emoji='💰' label={t('余额')} value={formatBalance(farmData.balance)} accent='var(--farm-leaf)' />

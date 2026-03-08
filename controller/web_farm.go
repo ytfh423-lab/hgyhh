@@ -185,6 +185,21 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
+	// 阵雨天气自动浇水所有生长中的地块
+	w := GetCurrentWeather()
+	if w.Type == 1 {
+		now := time.Now().Unix()
+		for _, plot := range plots {
+			if plot.Status == 1 && plot.LastWateredAt > 0 {
+				waterInterval := int64(common.TgBotFarmWaterInterval)
+				if now-plot.LastWateredAt >= waterInterval/2 {
+					_ = model.WaterFarmPlot(plot.Id)
+					plot.LastWateredAt = now
+				}
+			}
+		}
+	}
+
 	var plotInfos []webPlotInfo
 	for _, plot := range plots {
 		plotInfos = append(plotInfos, buildPlotInfo(plot))
@@ -280,6 +295,7 @@ func WebFarmView(c *gin.Context) {
 			return gin.H{
 				"type": w.Type, "type_key": w.TypeKey, "name": w.Name, "emoji": w.Emoji,
 				"effects": w.Effects, "ends_in": w.EndsAt - time.Now().Unix(),
+				"season": getCurrentSeason(),
 			}
 		}(),
 			"prestige_level": model.GetPrestigeLevel(tgId),
