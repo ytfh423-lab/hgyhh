@@ -219,6 +219,14 @@ var TgBotFarmAutoFeederPrice = 8000000
 var TgBotFarmScarecrowPrice = 3000000
 var TgBotFarmScarecrowDefenseRate = 30
 
+// 树场系统
+var TgBotFarmUnlockTreeFarm = 5          // 树场解锁等级
+var TgBotTreeFarmSlotPrice = 3000000     // 扩展树位价格 (quota)
+var TgBotTreeFarmWaterInterval = 14400   // 浇水间隔秒数（4小时）
+var TgBotTreeFarmWaterBonus = 15         // 浇水加速百分比
+var TgBotTreeFarmFertilizerBonus = 20    // 施肥加速百分比
+var TgBotTreeFarmStumpClearSecs = 7200   // 树桩清理冷却秒数（默认2小时）
+
 // 交易系统
 var TgBotFarmTradeFee = 5
 var TgBotFarmTradeMaxListings = 10

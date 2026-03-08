@@ -412,6 +412,21 @@ func SetApiRouter(router *gin.Engine) {
 			ranchRoute.POST("/cleanup", controller.WebRanchCleanup)
 		}
 
+		treeFarmRoute := apiRouter.Group("/tree")
+		treeFarmRoute.Use(middleware.UserAuth())
+		treeFarmRoute.Use(controller.CheckFarmBetaAccess())
+		{
+			treeFarmRoute.GET("/view", controller.WebTreeFarmView)
+			treeFarmRoute.GET("/types", controller.WebTreeFarmTypes)
+			treeFarmRoute.POST("/plant", controller.WebTreeFarmPlant)
+			treeFarmRoute.POST("/water", controller.WebTreeFarmWater)
+			treeFarmRoute.POST("/fertilize", controller.WebTreeFarmFertilize)
+			treeFarmRoute.POST("/harvest", controller.WebTreeFarmHarvest)
+			treeFarmRoute.POST("/chop", controller.WebTreeFarmChop)
+			treeFarmRoute.POST("/clear", controller.WebTreeFarmClearStump)
+			treeFarmRoute.POST("/buyslot", controller.WebTreeFarmBuySlot)
+		}
+
 		pubInvRoute := apiRouter.Group("/public_invcode")
 		{
 			pubInvRoute.GET("/", controller.GetPublicInviteCodes)

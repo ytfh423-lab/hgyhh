@@ -237,6 +237,15 @@ func GetFarmItems(telegramId string) ([]*TgFarmItem, error) {
 	return items, err
 }
 
+func GetFarmItemQuantity(telegramId string, itemType string) (int, error) {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, itemType).First(&item).Error
+	if err != nil {
+		return 0, err
+	}
+	return item.Quantity, nil
+}
+
 func IncrementFarmItem(telegramId string, itemType string, qty int) error {
 	var item TgFarmItem
 	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, itemType).First(&item).Error
@@ -1176,6 +1185,7 @@ func CleanupAllBetaFarmData() (int, int64, error) {
 	DB.Where("1 = 1").Delete(&TgFarmPrestige{})
 	DB.Where("1 = 1").Delete(&TgFarmGameLog{})
 	DB.Where("1 = 1").Delete(&TgFarmAutomation{})
+	DB.Where("1 = 1").Delete(&TgTreeSlot{})
 
 	// 4. 重置所有内测预约的协议接受状态
 	DB.Model(&FarmBetaReservation{}).Where("agreement_accepted_at > 0").Update("agreement_accepted_at", 0)

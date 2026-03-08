@@ -15,6 +15,7 @@ const navGroups = [
       { key: 'ranch', label: '牧场', emoji: '🐄' },
       { key: 'fish', label: '钓鱼', emoji: '🎣' },
       { key: 'workshop', label: '加工坊', emoji: '🏭' },
+      { key: 'treefarm', label: '树场', emoji: '🌲' },
     ],
   },
   {

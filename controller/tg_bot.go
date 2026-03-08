@@ -941,6 +941,13 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_unlock_games":         common.TgBotFarmUnlockGames,
 			"farm_unlock_encyclopedia":  common.TgBotFarmUnlockEncyclopedia,
 			"farm_unlock_automation":    common.TgBotFarmUnlockAutomation,
+			"farm_unlock_tree_farm":     common.TgBotFarmUnlockTreeFarm,
+			// 树场系统
+			"tree_farm_slot_price":      common.TgBotTreeFarmSlotPrice,
+			"tree_farm_water_interval":  common.TgBotTreeFarmWaterInterval,
+			"tree_farm_water_bonus":     common.TgBotTreeFarmWaterBonus,
+			"tree_farm_fert_bonus":      common.TgBotTreeFarmFertilizerBonus,
+			"tree_farm_stump_clear_secs": common.TgBotTreeFarmStumpClearSecs,
 			"farm_level_prices":         common.OptionMap["TgBotFarmLevelPrices"],
 			// 银行贷款
 			"farm_bank_admin_id":        common.TgBotFarmBankAdminId,

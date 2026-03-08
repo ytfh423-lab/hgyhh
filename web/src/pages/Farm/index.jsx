@@ -28,6 +28,7 @@ import StealPage from './components/StealPage';
 import GamesPage from './components/GamesPage';
 import DogPage from './components/DogPage';
 import AutomationPage from './components/AutomationPage';
+import TreeFarmPage from './components/TreeFarmPage';
 import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
@@ -457,6 +458,8 @@ const Farm = () => {
         return <DogPage {...commonProps} />;
       case 'automation':
         return <AutomationPage loadFarm={loadFarm} t={t} />;
+      case 'treefarm':
+        return <TreeFarmPage {...commonProps} />;
       case 'prestige':
         return <PrestigePage loadFarm={loadFarm} t={t} />;
       case 'logs':

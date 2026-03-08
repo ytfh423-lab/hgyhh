@@ -166,6 +166,13 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmUnlockMarket"] = strconv.Itoa(common.TgBotFarmUnlockMarket)
 	common.OptionMap["TgBotFarmUnlockTasks"] = strconv.Itoa(common.TgBotFarmUnlockTasks)
 	common.OptionMap["TgBotFarmUnlockAchieve"] = strconv.Itoa(common.TgBotFarmUnlockAchieve)
+	// 树场系统
+	common.OptionMap["TgBotFarmUnlockTreeFarm"] = strconv.Itoa(common.TgBotFarmUnlockTreeFarm)
+	common.OptionMap["TgBotTreeFarmSlotPrice"] = strconv.Itoa(common.TgBotTreeFarmSlotPrice)
+	common.OptionMap["TgBotTreeFarmWaterInterval"] = strconv.Itoa(common.TgBotTreeFarmWaterInterval)
+	common.OptionMap["TgBotTreeFarmWaterBonus"] = strconv.Itoa(common.TgBotTreeFarmWaterBonus)
+	common.OptionMap["TgBotTreeFarmFertilizerBonus"] = strconv.Itoa(common.TgBotTreeFarmFertilizerBonus)
+	common.OptionMap["TgBotTreeFarmStumpClearSecs"] = strconv.Itoa(common.TgBotTreeFarmStumpClearSecs)
 	// 等级价格用逗号分隔存储
 	levelPriceStrs := make([]string, len(common.TgBotFarmLevelPrices))
 	for i, p := range common.TgBotFarmLevelPrices {
@@ -727,6 +734,21 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmUnlockTasks, _ = strconv.Atoi(value)
 	case "TgBotFarmUnlockAchieve":
 		common.TgBotFarmUnlockAchieve, _ = strconv.Atoi(value)
+	case "TgBotFarmUnlockTreeFarm":
+		common.TgBotFarmUnlockTreeFarm, _ = strconv.Atoi(value)
+		if common.TgBotFarmUnlockTreeFarm < 1 {
+			common.TgBotFarmUnlockTreeFarm = 1
+		}
+	case "TgBotTreeFarmSlotPrice":
+		common.TgBotTreeFarmSlotPrice, _ = strconv.Atoi(value)
+	case "TgBotTreeFarmWaterInterval":
+		common.TgBotTreeFarmWaterInterval, _ = strconv.Atoi(value)
+	case "TgBotTreeFarmWaterBonus":
+		common.TgBotTreeFarmWaterBonus, _ = strconv.Atoi(value)
+	case "TgBotTreeFarmFertilizerBonus":
+		common.TgBotTreeFarmFertilizerBonus, _ = strconv.Atoi(value)
+	case "TgBotTreeFarmStumpClearSecs":
+		common.TgBotTreeFarmStumpClearSecs, _ = strconv.Atoi(value)
 	case "TgBotFarmLevelPrices":
 		parts := strings.Split(value, ",")
 		var prices []int

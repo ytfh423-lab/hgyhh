@@ -299,6 +299,7 @@ func migrateDB() error {
 		&TgFarmPrestige{},
 		&TgFarmGameLog{},
 		&TgFarmAutomation{},
+		&TgTreeSlot{},
 		&PublicInviteCode{},
 		&FarmBetaReservation{},
 	)
