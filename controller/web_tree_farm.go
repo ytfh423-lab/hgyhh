@@ -114,14 +114,41 @@ var treeFarmTrees = []treeDef{
 
 var treeFarmTreeMap map[string]*treeDef
 
+// ========== 树场产品定义（供市场/仓库/交易使用） ==========
+
+type treeProductDef struct {
+	Key       string
+	Name      string
+	Emoji     string
+	BasePrice int // quota per unit
+}
+
+var treeProducts = []treeProductDef{
+	{"lumber", "木材", "🪵", 300000},
+	{"pinecone", "松果", "🌰", 50000},
+	{"hardwood", "硬木", "🪓", 500000},
+	{"acorn", "橡果", "🌰", 80000},
+	{"resin", "树脂", "🧴", 250000},
+	{"apple", "苹果", "🍎", 200000},
+	{"cherry", "樱桃", "🍒", 180000},
+	{"bamboo_shoot", "竹笋", "🎍", 100000},
+	{"bamboo_pole", "竹竿", "🎋", 150000},
+}
+
+var treeProductMap map[string]*treeProductDef
+
 func init() {
 	treeFarmTreeMap = make(map[string]*treeDef)
 	for i := range treeFarmTrees {
 		treeFarmTreeMap[treeFarmTrees[i].Key] = &treeFarmTrees[i]
 	}
+	treeProductMap = make(map[string]*treeProductDef)
+	for i := range treeProducts {
+		treeProductMap[treeProducts[i].Key] = &treeProducts[i]
+	}
 }
 
-// ========== helpers ==========
+// ========== helpers ===========
 
 func getTreeGrowSecs(tree *treeDef, slot *model.TgTreeSlot) int64 {
 	growSecs := tree.GrowSecs
@@ -152,24 +179,28 @@ func getTreeStumpClearSecs(tree *treeDef) int64 {
 	return int64(common.TgBotTreeFarmStumpClearSecs)
 }
 
-func calcTreeYield(yields []treeYieldItem) (int, []map[string]interface{}) {
-	totalQuota := 0
-	var details []map[string]interface{}
+type yieldResult struct {
+	ItemKey string
+	Name    string
+	Emoji   string
+	Amount  int
+}
+
+func calcTreeYieldItems(yields []treeYieldItem) []yieldResult {
+	var results []yieldResult
 	for _, y := range yields {
 		amount := y.AmountMin
 		if y.AmountMax > y.AmountMin {
 			amount = y.AmountMin + rand.Intn(y.AmountMax-y.AmountMin+1)
 		}
-		value := amount * y.UnitPrice
-		totalQuota += value
-		details = append(details, map[string]interface{}{
-			"item":   y.Name,
-			"emoji":  y.Emoji,
-			"amount": amount,
-			"value":  webFarmQuotaFloat(value),
+		results = append(results, yieldResult{
+			ItemKey: y.ItemKey,
+			Name:    y.Name,
+			Emoji:   y.Emoji,
+			Amount:  amount,
 		})
 	}
-	return totalQuota, details
+	return results
 }
 
 // ========== 树场查看 ==========
@@ -511,9 +542,9 @@ func WebTreeFarmFertilize(c *gin.Context) {
 	})
 }
 
-// WebTreeFarmHarvest 采收果实（重复采集型树木）
+// WebTreeFarmHarvest 采收果实（重复采集型树木），产物存入仓库
 func WebTreeFarmHarvest(c *gin.Context) {
-	user, tgId, ok := getWebFarmUser(c)
+	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
 		return
 	}
@@ -554,24 +585,51 @@ func WebTreeFarmHarvest(c *gin.Context) {
 		}
 	}
 
-	totalQuota, details := calcTreeYield(tree.HarvestYield)
-	_ = model.IncreaseUserQuota(user.Id, totalQuota, true)
+	// 检查仓库容量
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	whLevel := model.GetWarehouseLevel(tgId)
+	whMax := model.GetWarehouseMaxSlots(whLevel)
+
+	items := calcTreeYieldItems(tree.HarvestYield)
+	totalItems := 0
+	for _, item := range items {
+		totalItems += item.Amount
+	}
+	if currentTotal+totalItems > whMax {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库空间不足！请先出售仓库物品"})
+		return
+	}
+
+	// 存入仓库
+	var details []map[string]interface{}
+	for _, item := range items {
+		_ = model.AddToWarehouseWithCategory(tgId, "wood_"+item.ItemKey, item.Amount, "wood")
+		details = append(details, map[string]interface{}{
+			"item":   item.Name,
+			"emoji":  item.Emoji,
+			"amount": item.Amount,
+		})
+	}
 	_ = model.HarvestTree(slot.Id, now)
-	model.AddFarmLog(tgId, "tree_harvest", totalQuota, fmt.Sprintf("采收%s%s", tree.Emoji, tree.Name))
+
+	msg := fmt.Sprintf("采收%s%s：", tree.Emoji, tree.Name)
+	for _, item := range items {
+		msg += fmt.Sprintf("%s%s×%d ", item.Emoji, item.Name, item.Amount)
+	}
+	model.AddFarmLog(tgId, "tree_harvest", 0, msg)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("采收成功！获得 $%.2f", webFarmQuotaFloat(totalQuota)),
+		"message": fmt.Sprintf("采收成功！产物已存入仓库"),
 		"data": gin.H{
-			"total":   webFarmQuotaFloat(totalQuota),
 			"details": details,
 		},
 	})
 }
 
-// WebTreeFarmChop 伐木
+// WebTreeFarmChop 伐木，产物存入仓库
 func WebTreeFarmChop(c *gin.Context) {
-	user, tgId, ok := getWebFarmUser(c)
+	_, tgId, ok := getWebFarmUser(c)
 	if !ok {
 		return
 	}
@@ -603,18 +661,45 @@ func WebTreeFarmChop(c *gin.Context) {
 		return
 	}
 
-	now := time.Now().Unix()
-	totalQuota, details := calcTreeYield(tree.ChopYield)
+	// 检查仓库容量
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	whLevel := model.GetWarehouseLevel(tgId)
+	whMax := model.GetWarehouseMaxSlots(whLevel)
 
-	_ = model.IncreaseUserQuota(user.Id, totalQuota, true)
+	items := calcTreeYieldItems(tree.ChopYield)
+	totalItems := 0
+	for _, item := range items {
+		totalItems += item.Amount
+	}
+	if currentTotal+totalItems > whMax {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "仓库空间不足！请先出售仓库物品"})
+		return
+	}
+
+	now := time.Now().Unix()
+
+	// 存入仓库
+	var details []map[string]interface{}
+	for _, item := range items {
+		_ = model.AddToWarehouseWithCategory(tgId, "wood_"+item.ItemKey, item.Amount, "wood")
+		details = append(details, map[string]interface{}{
+			"item":   item.Name,
+			"emoji":  item.Emoji,
+			"amount": item.Amount,
+		})
+	}
 	_ = model.ChopTree(slot.Id, now)
-	model.AddFarmLog(tgId, "tree_chop", totalQuota, fmt.Sprintf("伐木%s%s", tree.Emoji, tree.Name))
+
+	msg := fmt.Sprintf("伐木%s%s：", tree.Emoji, tree.Name)
+	for _, item := range items {
+		msg += fmt.Sprintf("%s%s×%d ", item.Emoji, item.Name, item.Amount)
+	}
+	model.AddFarmLog(tgId, "tree_chop", 0, msg)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("伐木成功！获得 $%.2f", webFarmQuotaFloat(totalQuota)),
+		"message": "伐木成功！产物已存入仓库",
 		"data": gin.H{
-			"total":   webFarmQuotaFloat(totalQuota),
 			"details": details,
 		},
 	})

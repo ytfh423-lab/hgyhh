@@ -111,6 +111,7 @@ const MarketChart = ({ t }) => {
     { key: 'fish', label: '🐟 ' + t('鱼类') },
     { key: 'meat', label: '🥩 ' + t('肉类') },
     { key: 'recipe', label: '🏭 ' + t('加工品') },
+    { key: 'wood', label: '🪵 ' + t('木材') },
   ];
 
   return (
@@ -230,6 +231,7 @@ const MarketPage = ({ t }) => {
     { key: 'fish', label: '🐟 ' + t('鱼类') },
     { key: 'meat', label: '🥩 ' + t('肉类') },
     { key: 'recipe', label: '🏭 ' + t('加工品') },
+    { key: 'wood', label: '🪵 ' + t('木材') },
   ];
 
   const allPrices = marketData.prices || [];

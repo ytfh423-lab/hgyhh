@@ -235,6 +235,11 @@ func getTradeItemInfo(itemKey string) (name, emoji, category string) {
 			return r.Name, r.Emoji, "recipe"
 		}
 	}
+	for _, tp := range treeProducts {
+		if tp.Key == itemKey || "wood_"+tp.Key == itemKey {
+			return tp.Name, tp.Emoji, "wood"
+		}
+	}
 	return itemKey, "📦", "crop"
 }
 
@@ -257,6 +262,11 @@ func getTradeCategory(itemKey string) (string, string) {
 	for _, r := range recipes {
 		if r.Key == itemKey || "recipe_"+r.Key == itemKey {
 			return r.Key, "recipe"
+		}
+	}
+	for _, tp := range treeProducts {
+		if tp.Key == itemKey || "wood_"+tp.Key == itemKey {
+			return tp.Key, "wood"
 		}
 	}
 	return itemKey, "crop"

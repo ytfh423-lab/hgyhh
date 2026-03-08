@@ -3934,6 +3934,15 @@ func warehouseItemName(item *model.TgFarmWarehouse) (string, string) {
 			return rd.Emoji, rd.Name
 		}
 		return "🍽️", item.CropType
+	case "wood":
+		woodKey := item.CropType
+		if len(woodKey) > 5 && woodKey[:5] == "wood_" {
+			woodKey = woodKey[5:]
+		}
+		if tp := treeProductMap[woodKey]; tp != nil {
+			return tp.Emoji, tp.Name
+		}
+		return "🪵", item.CropType
 	default:
 		if crop := farmCropMap[item.CropType]; crop != nil {
 			return crop.Emoji, crop.Name
@@ -3969,6 +3978,15 @@ func warehouseItemSellPrice(item *model.TgFarmWarehouse) int {
 		}
 		if rd := recipeMap[recipeKey]; rd != nil {
 			return applyMarket(rd.SellPrice, "recipe_"+recipeKey)
+		}
+		return 0
+	case "wood":
+		woodKey := item.CropType
+		if len(woodKey) > 5 && woodKey[:5] == "wood_" {
+			woodKey = woodKey[5:]
+		}
+		if tp := treeProductMap[woodKey]; tp != nil {
+			return applyMarket(tp.BasePrice, "wood_"+woodKey)
 		}
 		return 0
 	default:

@@ -32,6 +32,11 @@ func getWarehouseItemMarketPrice(cropType string) int {
 			return applyMarket(r.SellPrice, "recipe_"+r.Key)
 		}
 	}
+	for _, tp := range treeProducts {
+		if "wood_"+tp.Key == cropType || tp.Key == cropType {
+			return applyMarket(tp.BasePrice, "wood_"+tp.Key)
+		}
+	}
 	return 500000
 }
 

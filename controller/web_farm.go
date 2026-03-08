@@ -1371,6 +1371,20 @@ func WebFarmMarket(c *gin.Context) {
 		})
 	}
 
+	// 树场产品
+	for _, tp := range treeProducts {
+		m := getMarketMultiplier("wood_" + tp.Key)
+		prices = append(prices, priceInfo{
+			Key:        "wood_" + tp.Key,
+			Name:       tp.Name,
+			Emoji:      tp.Emoji,
+			Category:   "wood",
+			BasePrice:  webFarmQuotaFloat(tp.BasePrice),
+			Multiplier: m,
+			CurPrice:   webFarmQuotaFloat(applyMarket(tp.BasePrice, "wood_"+tp.Key)),
+		})
+	}
+
 	marketMu.RLock()
 	nextRefresh := marketNextUpdate - time.Now().Unix()
 	marketMu.RUnlock()
