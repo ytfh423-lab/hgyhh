@@ -743,6 +743,21 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		updateFarmPlotStatus(plot)
 	}
 
+	// 灌溉系统 或 阵雨天气：自动浇水
+	wBot := GetCurrentWeather()
+	if model.HasAutomation(tgId, "irrigation") || wBot.Type == 1 {
+		now := time.Now().Unix()
+		waterInterval := int64(common.TgBotFarmWaterInterval)
+		for _, plot := range plots {
+			if plot.Status == 1 && plot.LastWateredAt > 0 {
+				if now-plot.LastWateredAt >= waterInterval/2 {
+					_ = model.WaterFarmPlot(plot.Id)
+					plot.LastWateredAt = now
+				}
+			}
+		}
+	}
+
 	userLevel := model.GetFarmLevel(tgId)
 	season := getCurrentSeason()
 	daysLeft := getSeasonDaysLeft()
@@ -1588,6 +1603,19 @@ func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string, from
 			},
 		}, from)
 		return
+	}
+
+	// 检查对方是否有稻草人
+	if model.HasAutomation(victimId, "scarecrow") {
+		if rand.Intn(100) < common.TgBotFarmScarecrowDefenseRate {
+			farmSend(chatId, editMsgId, "🧑‍🌾 对方的稻草人吓跑了你，偷菜失败！", &TgInlineKeyboardMarkup{
+				InlineKeyboard: [][]TgInlineKeyboardButton{
+					{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
+						{Text: "🔙 返回", CallbackData: "farm"}},
+				},
+			}, from)
+			return
+		}
 	}
 
 	// 检查对方是否有看门狗

@@ -185,13 +185,14 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
-	// 阵雨天气自动浇水所有生长中的地块
+	// 自动浇水：灌溉系统已安装 或 阵雨天气
 	w := GetCurrentWeather()
-	if w.Type == 1 {
+	hasIrrigation := model.HasAutomation(tgId, "irrigation")
+	if hasIrrigation || w.Type == 1 {
 		now := time.Now().Unix()
+		waterInterval := int64(common.TgBotFarmWaterInterval)
 		for _, plot := range plots {
 			if plot.Status == 1 && plot.LastWateredAt > 0 {
-				waterInterval := int64(common.TgBotFarmWaterInterval)
 				if now-plot.LastWateredAt >= waterInterval/2 {
 					_ = model.WaterFarmPlot(plot.Id)
 					plot.LastWateredAt = now
@@ -733,6 +734,14 @@ func WebFarmSteal(c *gin.Context) {
 	if recentSteals > 0 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("冷却中！%d分钟内只能偷同一人一次", common.TgBotFarmStealCooldown/60)})
 		return
+	}
+
+	// Check victim's scarecrow
+	if model.HasAutomation(req.VictimId, "scarecrow") {
+		if rand.Intn(100) < common.TgBotFarmScarecrowDefenseRate {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "对方的稻草人吓跑了你，偷菜失败！🧑‍🌾"})
+			return
+		}
 	}
 
 	// Check victim's dog

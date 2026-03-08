@@ -422,7 +422,7 @@ func WebFarmAutomationView(c *gin.Context) {
 
 	items := []autoInfo{
 		{"irrigation", "灌溉系统", "💧", "自动浇水所有地块", autoMap["irrigation"], webFarmQuotaFloat(common.TgBotFarmIrrigationPrice)},
-		{"autofeeder", "自动喂食器", "🌾", "自动喂食牧场动物", autoMap["autofeeder"], webFarmQuotaFloat(common.TgBotFarmAutoFeederPrice)},
+		{"auto_feeder", "自动喂食器", "🌾", "自动喂食牧场动物", autoMap["auto_feeder"], webFarmQuotaFloat(common.TgBotFarmAutoFeederPrice)},
 		{"scarecrow", "稻草人", "🧑‍🌾", "阻挡30%偷菜尝试", autoMap["scarecrow"], webFarmQuotaFloat(common.TgBotFarmScarecrowPrice)},
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
@@ -444,8 +444,8 @@ func WebFarmAutomationBuy(c *gin.Context) {
 		return
 	}
 
-	prices := map[string]int{"irrigation": common.TgBotFarmIrrigationPrice, "autofeeder": common.TgBotFarmAutoFeederPrice, "scarecrow": common.TgBotFarmScarecrowPrice}
-	names := map[string]string{"irrigation": "灌溉系统", "autofeeder": "自动喂食器", "scarecrow": "稻草人"}
+	prices := map[string]int{"irrigation": common.TgBotFarmIrrigationPrice, "auto_feeder": common.TgBotFarmAutoFeederPrice, "scarecrow": common.TgBotFarmScarecrowPrice}
+	names := map[string]string{"irrigation": "灌溉系统", "auto_feeder": "自动喂食器", "scarecrow": "稻草人"}
 
 	price, exists := prices[req.Type]
 	if !exists {

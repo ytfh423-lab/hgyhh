@@ -178,6 +178,40 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		updateRanchAnimalStatus(a)
 	}
 
+	// 自动喂食器：自动喂食和喂水（免费）
+	if model.HasAutomation(tgId, "auto_feeder") {
+		now := time.Now().Unix()
+		feedInterval := int64(common.TgBotRanchFeedInterval)
+		waterInterval := int64(common.TgBotRanchWaterInterval)
+		for _, a := range animals {
+			if a.Status == 5 {
+				continue
+			}
+			needsFeed := now >= a.LastFedAt+feedInterval
+			needsWater := now >= a.LastWateredAt+waterInterval
+			changed := false
+			if needsFeed {
+				_ = model.FeedRanchAnimal(a.Id)
+				a.LastFedAt = now
+				changed = true
+			}
+			if needsWater {
+				_ = model.WaterRanchAnimal(a.Id)
+				a.LastWateredAt = now
+				changed = true
+			}
+			if changed && (a.Status == 3 || a.Status == 4) {
+				def := ranchAnimalMap[a.AnimalType]
+				if def != nil && now-a.PurchasedAt >= *def.GrowSecs {
+					a.Status = 2
+				} else {
+					a.Status = 1
+				}
+				_ = model.UpdateRanchAnimal(a)
+			}
+		}
+	}
+
 	text := "🐄 我的牧场\n\n"
 	if len(animals) == 0 {
 		text += "🏚️ 牧场空空如也，去购买动物吧！\n"
