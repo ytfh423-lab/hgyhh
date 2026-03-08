@@ -191,11 +191,38 @@ const BuyLandCard = ({ price, onClick, actionLoading, t }) => (
    ═══════════════════════════════════════════════════════════════ */
 const TutorialRestartButton = ({ t }) => {
   const tutorial = useTutorial();
+  const [showMenu, setShowMenu] = useState(false);
   if (!tutorial || !tutorial.loaded) return null;
+  if (tutorial.isActive) return null; // 教程进行中不显示
+
+  const flows = tutorial.tutorialFlows || {};
+
+  // 只有基础教程完成后才显示
+  const basicDone = tutorial.featuresState?.farm_basic?.tutorial_completed;
+  if (!basicDone) return null;
+
   return (
-    <button className='tutorial-restart-btn' onClick={tutorial.restartTutorial} title={t('重新开始新手引导')}>
-      📖 {t('新手引导')}
-    </button>
+    <div style={{ position: 'relative' }}>
+      <button className='tutorial-restart-btn' onClick={() => setShowMenu(!showMenu)} title={t('教学回看')}>
+        📖 {t('教学回看')}
+      </button>
+      {showMenu && (
+        <div className='tutorial-replay-menu'>
+          {Object.entries(flows).map(([key, flow]) => {
+            const fs = tutorial.featuresState?.[key];
+            const completed = fs && fs.tutorial_completed;
+            return (
+              <button key={key} className='tutorial-replay-item'
+                onClick={() => { setShowMenu(false); tutorial.restartTutorial(key); }}>
+                <span>{flow.emoji}</span>
+                <span>{t(flow.label)}</span>
+                {completed && <span className='tutorial-replay-check'>✅</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 };
 

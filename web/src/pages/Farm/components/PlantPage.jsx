@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Empty, Tag, Typography } from '@douyinfe/semi-ui';
 import { formatDuration } from './utils';
 import { showError } from './utils';
+import tutorialEvents from './tutorialEvents';
 
 const { Text } = Typography;
 
@@ -31,7 +32,7 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
           {crops.map((crop) => (
             <div key={crop.key}
               className={`farm-item-card ${selectedCrop === crop.key ? 'selected' : ''}`}
-              onClick={() => setSelectedCrop(crop.key)}
+              onClick={() => { setSelectedCrop(crop.key); tutorialEvents.emitAction('select-crop', { cropKey: crop.key }); }}
               style={{ textAlign: 'left', padding: '10px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 22 }}>{crop.emoji}</span>

@@ -33,6 +33,7 @@ import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
 import TutorialProvider from './components/TutorialProvider';
+import tutorialEvents from './components/tutorialEvents';
 import { FEATURE_LEVEL_MAP } from './constants';
 
 const { Text, Title } = Typography;
@@ -208,6 +209,20 @@ const Farm = () => {
       if (res.success) {
         showSuccess(res.message || t('操作成功'));
         loadFarm();
+
+        // 教程事件：根据 API url 发射对应动作事件
+        if (url.includes('/farm/plant')) tutorialEvents.emitAction('plant-crop', body);
+        else if (url.includes('/farm/water')) tutorialEvents.emitAction('water-crop', body);
+        else if (url.includes('/farm/fertilize')) tutorialEvents.emitAction('fertilize-crop', body);
+        else if (url.includes('/farm/harvest')) tutorialEvents.emitAction('harvest-crop', body);
+        else if (url.includes('/farm/warehouse/sellall')) tutorialEvents.emitAction('sell-item', body);
+        else if (url.includes('/farm/warehouse/sell')) tutorialEvents.emitAction('sell-item', body);
+        else if (url.includes('/tree/plant')) tutorialEvents.emitAction('plant-tree', body);
+        else if (url.includes('/tree/water')) tutorialEvents.emitAction('water-tree', body);
+        else if (url.includes('/tree/harvest')) tutorialEvents.emitAction('harvest-tree', body);
+        else if (url.includes('/tree/chop')) tutorialEvents.emitAction('chop-tree', body);
+        else if (url.includes('/farm/tasks/claim')) tutorialEvents.emitAction('claim-task', body);
+
         return res;
       } else {
         showError(res.message);

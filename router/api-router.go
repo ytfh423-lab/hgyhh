@@ -409,6 +409,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/tutorial/complete", controller.WebFarmTutorialComplete)
 			farmRoute.POST("/tutorial/skip", controller.WebFarmTutorialSkip)
 			farmRoute.POST("/tutorial/restart", controller.WebFarmTutorialRestart)
+			farmRoute.POST("/tutorial/unlock", controller.WebFarmTutorialUnlock)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

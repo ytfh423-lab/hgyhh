@@ -3354,7 +3354,7 @@
 .tutorial-mask-full {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.7);
   z-index: 99990;
   pointer-events: auto;
 }
@@ -3543,9 +3543,119 @@
   color: rgba(251, 191, 36, 0.95);
 }
 
+/* 高亮边框动画 */
+.tutorial-highlight-border {
+  animation: tutorial-border-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tutorial-border-pulse {
+  0%, 100% { border-color: rgba(251, 191, 36, 0.7); box-shadow: 0 0 8px rgba(251, 191, 36, 0.2); }
+  50% { border-color: rgba(251, 191, 36, 0.3); box-shadow: 0 0 4px rgba(251, 191, 36, 0.05); }
+}
+
+/* 强制教学标记 */
+.tutorial-forced-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(184, 66, 51, 0.15);
+  border: 1px solid rgba(184, 66, 51, 0.3);
+  color: #f87171;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* 操作提示 */
+.tutorial-action-hint {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px dashed rgba(251, 191, 36, 0.3);
+  color: rgba(251, 191, 36, 0.85);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  text-align: center;
+  animation: tutorial-hint-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tutorial-hint-pulse {
+  0%, 100% { border-color: rgba(251, 191, 36, 0.3); }
+  50% { border-color: rgba(251, 191, 36, 0.6); }
+}
+
+/* 禁用的下一步按钮 */
+.tutorial-btn-disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  background: rgba(120, 120, 120, 0.3) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.tutorial-btn-disabled:hover {
+  box-shadow: none !important;
+}
+
+/* 操作按钮左侧容器 */
+.tutorial-actions-left {
+  display: flex;
+  gap: 8px;
+}
+
+/* 教学回看下拉菜单 */
+.tutorial-replay-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(28, 25, 23, 0.98);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tutorial-replay-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.tutorial-replay-item:hover {
+  background: rgba(251, 191, 36, 0.1);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.tutorial-replay-check {
+  margin-left: auto;
+  font-size: 12px;
+}
+
 @media (max-width: 768px) {
   .tutorial-tooltip {
     width: calc(100vw - 32px);
     max-width: none;
+  }
+  .tutorial-replay-menu {
+    right: -8px;
+    min-width: 160px;
   }
 }
