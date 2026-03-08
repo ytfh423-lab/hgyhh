@@ -67,7 +67,7 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
       )}
 
       {/* Plot selection */}
-      <div className='farm-card'>
+      <div className='farm-card' data-tutorial='plot-selection'>
         <div className='farm-section-title'>📍 {t('选择空地种植')}</div>
         {emptyPlots.length === 0 ? (
           <Empty description={t('没有空地了')} style={{ padding: '20px 0' }} />

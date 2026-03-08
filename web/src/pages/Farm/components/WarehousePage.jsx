@@ -104,7 +104,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
       {items.length === 0 ? (
         <Empty description={t('仓库空空如也，收获时选择「收获到仓库」来存储作物')} />
       ) : (
-        <div className='farm-card'>
+        <div className='farm-card' data-tutorial='warehouse-items'>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div className='farm-section-title' style={{ marginBottom: 0 }}>📦 {t('库存')}</div>
             <Button theme='solid' type='warning' size='small' onClick={handleSellAll}
