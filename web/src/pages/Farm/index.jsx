@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
-import { Sprout, Lock, Clock, ShieldAlert } from 'lucide-react';
+import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { Link } from 'react-router-dom';
@@ -157,8 +157,10 @@ const Farm = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [activePage, setActivePage] = useState('overview');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-  const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS'
+  const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS' | 'BETA_AGREEMENT_REQUIRED'
   const [betaMessage, setBetaMessage] = useState('');
+  const [agreementLoading, setAgreementLoading] = useState(false);
+  const [agreementChecked, setAgreementChecked] = useState(false);
 
   const loadFarm = useCallback(async () => {
     setLoading(true);
@@ -167,7 +169,7 @@ const Farm = () => {
       if (res.success) {
         setFarmData(res.data);
         setBetaGate(null);
-      } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS') {
+      } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS' || res.code === 'BETA_AGREEMENT_REQUIRED') {
         setBetaGate(res.code);
         setBetaMessage(res.message);
       } else {
@@ -225,13 +227,94 @@ const Farm = () => {
     );
   }
 
+  const handleAcceptAgreement = async () => {
+    if (!agreementChecked) return;
+    setAgreementLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/beta/accept-agreement');
+      if (res.success) {
+        setBetaGate(null);
+        loadFarm();
+      } else {
+        showError(res.message);
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setAgreementLoading(false);
+    }
+  };
+
   if (betaGate) {
+    // 内测协议页面
+    if (betaGate === 'BETA_AGREEMENT_REQUIRED') {
+      return (
+        <div className='farm-agreement-wrap'>
+          <div className='farm-agreement-card'>
+            <div className='farm-agreement-icon'>
+              <ScrollText size={48} strokeWidth={1.5} />
+            </div>
+            <h2 className='farm-agreement-title'>{t('内测参与协议')}</h2>
+            <p className='farm-agreement-subtitle'>{t('欢迎参加农场内测！在开始之前，请仔细阅读以下协议内容。')}</p>
+
+            <div className='farm-agreement-content'>
+              <div className='farm-agreement-section'>
+                <h3>📋 {t('协议条款')}</h3>
+                <ol>
+                  <li>
+                    <strong>{t('内测周期')}</strong>
+                    <p>{t('本次内测持续 2 周（14 天）。内测结束后，农场功能将暂时关闭，等待正式版本上线。')}</p>
+                  </li>
+                  <li>
+                    <strong>{t('数据清除')}</strong>
+                    <p>{t('内测期间产生的所有数据（包括但不限于：农场地块、作物、余额、等级、成就、仓库物品、牧场动物等）在内测结束后将全部清除，不会保留到正式上线版本。')}</p>
+                  </li>
+                  <li>
+                    <strong>{t('内测目的')}</strong>
+                    <p>{t('本次内测旨在测试游戏功能、平衡性和稳定性。您的参与和反馈将帮助我们优化正式版本。')}</p>
+                  </li>
+                  <li>
+                    <strong>{t('功能变动')}</strong>
+                    <p>{t('内测期间，游戏内容、数值、规则等可能随时调整，恕不另行通知。')}</p>
+                  </li>
+                  <li>
+                    <strong>{t('免责声明')}</strong>
+                    <p>{t('内测版本可能存在 Bug 或不稳定情况，由此造成的数据丢失或异常，我们将尽力修复但不做赔偿承诺。')}</p>
+                  </li>
+                </ol>
+              </div>
+
+              <div className='farm-agreement-highlight'>
+                <strong>⚠️ {t('重要提醒')}</strong>
+                <p>{t('内测期间的所有数据（余额、作物、等级等）将在内测结束后全部清零，不会保留到正式版本。请知悉并理解。')}</p>
+              </div>
+            </div>
+
+            <label className='farm-agreement-checkbox' onClick={() => setAgreementChecked(!agreementChecked)}>
+              <div className={`farm-agreement-check ${agreementChecked ? 'checked' : ''}`}>
+                {agreementChecked && <CheckCircle size={18} />}
+              </div>
+              <span>{t('我已阅读并同意以上内测协议内容')}</span>
+            </label>
+
+            <button
+              className={`farm-agreement-btn ${agreementChecked ? '' : 'disabled'}`}
+              onClick={handleAcceptAgreement}
+              disabled={!agreementChecked || agreementLoading}
+            >
+              {agreementLoading ? t('提交中...') : t('同意协议，进入农场')}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0a0a0a' }}>
         <div style={{
           textAlign: 'center', padding: '48px 32px', maxWidth: 440,
           background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(251,191,36,0.12)',
-          borderRadius: 16, backdropFilter: 'blur(16px)',
+          borderRadius: 16,
         }}>
           {betaGate === 'BETA_NOT_STARTED' ? (
             <>

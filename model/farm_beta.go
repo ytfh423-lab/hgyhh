@@ -8,9 +8,10 @@ import (
 
 // FarmBetaReservation 农场内测预约记录
 type FarmBetaReservation struct {
-	Id         int   `json:"id" gorm:"primaryKey;autoIncrement"`
-	UserId     int   `json:"user_id" gorm:"uniqueIndex"`
-	ReservedAt int64 `json:"reserved_at" gorm:"autoCreateTime"`
+	Id                  int   `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserId              int   `json:"user_id" gorm:"uniqueIndex"`
+	ReservedAt          int64 `json:"reserved_at" gorm:"autoCreateTime"`
+	AgreementAcceptedAt int64 `json:"agreement_accepted_at" gorm:"default:0"`
 }
 
 func (FarmBetaReservation) TableName() string {
@@ -70,4 +71,20 @@ func GetUserBetaRank(userId int) int64 {
 	var rank int64
 	DB.Model(&FarmBetaReservation{}).Where("id <= ?", reservation.Id).Count(&rank)
 	return rank
+}
+
+// HasAcceptedBetaAgreement checks if the user has accepted the beta agreement
+func HasAcceptedBetaAgreement(userId int) bool {
+	var reservation FarmBetaReservation
+	err := DB.Where("user_id = ?", userId).First(&reservation).Error
+	if err != nil {
+		return false
+	}
+	return reservation.AgreementAcceptedAt > 0
+}
+
+// AcceptBetaAgreement marks the user as having accepted the beta agreement
+func AcceptBetaAgreement(userId int) error {
+	return DB.Model(&FarmBetaReservation{}).Where("user_id = ?", userId).
+		Update("agreement_accepted_at", time.Now().Unix()).Error
 }

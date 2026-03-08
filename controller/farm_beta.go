@@ -104,6 +104,31 @@ func FarmBetaReserve(c *gin.Context) {
 	})
 }
 
+// FarmBetaAcceptAgreement allows a user to accept the beta agreement
+func FarmBetaAcceptAgreement(c *gin.Context) {
+	userId := c.GetInt("id")
+	if userId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
+		return
+	}
+
+	if !model.HasFarmBetaAccess(userId) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你没有内测资格"})
+		return
+	}
+
+	err := model.AcceptBetaAgreement(userId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "操作失败，请稍后再试"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "已同意内测协议",
+	})
+}
+
 // CheckFarmBetaAccess is a middleware that gates farm access based on beta status
 func CheckFarmBetaAccess() func(c *gin.Context) {
 	return func(c *gin.Context) {
@@ -161,6 +186,17 @@ func CheckFarmBetaAccess() func(c *gin.Context) {
 				"success": false,
 				"message": "你的预约排名超出内测名额，暂时无法访问",
 				"code":    "BETA_NO_ACCESS",
+			})
+			c.Abort()
+			return
+		}
+
+		// Check if user has accepted the beta agreement
+		if !model.HasAcceptedBetaAgreement(userId) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "请先阅读并同意内测协议",
+				"code":    "BETA_AGREEMENT_REQUIRED",
 			})
 			c.Abort()
 			return

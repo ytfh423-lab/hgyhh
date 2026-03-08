@@ -324,6 +324,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			farmBetaRoute.GET("/status", controller.FarmBetaStatus)
 			farmBetaRoute.POST("/reserve", controller.FarmBetaReserve)
+			farmBetaRoute.POST("/accept-agreement", controller.FarmBetaAcceptAgreement)
 		}
 
 		farmRoute := apiRouter.Group("/farm")
