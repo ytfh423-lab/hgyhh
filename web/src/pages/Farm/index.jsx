@@ -226,7 +226,7 @@ const Farm = () => {
       const { data: res } = await API.post(url, body);
       if (res.success) {
         showSuccess(res.message || t('操作成功'));
-        loadFarm();
+        await loadFarm();
         if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: res });
         return res;
       } else {

@@ -184,6 +184,24 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
+	// 教程兜底：已浇水但仍在生长的教程作物强制成熟
+	if model.IsFarmTutorialActive(tgId) {
+		now := time.Now().Unix()
+		for _, plot := range plots {
+			// 仅对 Status=1 且已浇过水（LastWateredAt > PlantedAt）的作物生效
+			if plot.Status == 1 && plot.LastWateredAt > plot.PlantedAt {
+				crop := farmCropMap[plot.CropType]
+				if crop != nil {
+					plot.PlantedAt = now - crop.GrowSecs - 1
+					plot.Status = 2
+					plot.EventType = ""
+					plot.EventAt = 0
+					_ = model.UpdateFarmPlot(plot)
+				}
+			}
+		}
+	}
+
 	var plotInfos []webPlotInfo
 	for _, plot := range plots {
 		plotInfos = append(plotInfos, buildPlotInfo(plot))

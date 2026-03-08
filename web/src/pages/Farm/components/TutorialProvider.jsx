@@ -70,6 +70,7 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, farmData, loadFar
     setActiveFlowKey(flowKey);
     setTutorialMode(mode);
     setCurrentStep(idx);
+    syncStep(flowKey, idx);
 
     // 确保导航到目标步骤所在页面
     const targetStep = flowSteps[idx];
