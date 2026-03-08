@@ -328,6 +328,34 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
           />
         )}
       </div>
+
+      {/* ═══ Backpack: Seeds & Items ═══ */}
+      {(farmData.items || []).length > 0 && (
+        <div className='farm-card' style={{ marginTop: 14 }}>
+          <div className='farm-section-title' style={{ marginBottom: 8 }}>📦 {t('背包')}</div>
+          {(farmData.items || []).map(item => (
+            <div key={item.key} className='farm-row' style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 20 }}>{item.emoji}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Text strong size='small'>{item.name}</Text>
+                <span className='farm-pill' style={{ fontSize: 11, marginLeft: 6 }}>×{item.quantity}</span>
+                {item.category === 'seed' && (
+                  <Text type='tertiary' size='small' style={{ marginLeft: 8 }}>
+                    {t('买入')} ${item.seed_cost?.toFixed(2)}
+                  </Text>
+                )}
+              </div>
+              {item.category === 'seed' && (
+                <Button size='small' theme='solid' type='warning'
+                  onClick={() => doAction('/api/farm/sell/seed', { seed_key: item.crop_key, quantity: item.quantity })}
+                  loading={actionLoading} className='farm-btn'>
+                  💰 {t('出售')}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

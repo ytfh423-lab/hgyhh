@@ -237,7 +237,22 @@ func WebFarmView(c *gin.Context) {
 				"name":     def.Name,
 				"emoji":    def.Emoji,
 				"quantity": item.Quantity,
+				"category": "item",
 			})
+		} else if strings.HasPrefix(item.ItemType, "seed_") {
+			cropKey := strings.TrimPrefix(item.ItemType, "seed_")
+			crop := farmCropMap[cropKey]
+			if crop != nil {
+				itemInfos = append(itemInfos, map[string]interface{}{
+					"key":       item.ItemType,
+					"name":      crop.Name + "种子",
+					"emoji":     crop.Emoji,
+					"quantity":  item.Quantity,
+					"category":  "seed",
+					"crop_key":  cropKey,
+					"seed_cost": webFarmQuotaFloat(crop.SeedCost),
+				})
+			}
 		}
 	}
 
@@ -592,6 +607,62 @@ func WebFarmBuyItem(c *gin.Context) {
 			"quantity":   req.Quantity,
 			"total_cost": webFarmQuotaFloat(totalCost),
 		},
+	})
+}
+
+// WebFarmSellSeed 出售库存种子（半价退回）
+func WebFarmSellSeed(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		SeedKey  string `json:"seed_key"`
+		Quantity int    `json:"quantity"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+	if req.Quantity < 1 {
+		req.Quantity = 1
+	}
+
+	// 校验种子类型
+	cropKey := req.SeedKey
+	if !strings.HasPrefix(cropKey, "seed_") {
+		cropKey = "seed_" + cropKey
+	}
+	realCropKey := strings.TrimPrefix(cropKey, "seed_")
+	crop := farmCropMap[realCropKey]
+	if crop == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知种子"})
+		return
+	}
+
+	// 检查库存
+	qty, _ := model.GetFarmItemQuantity(tgId, cropKey)
+	if qty < req.Quantity {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("库存不足！当前仅有 %d 个", qty)})
+		return
+	}
+
+	// 扣库存
+	for i := 0; i < req.Quantity; i++ {
+		if err := model.DecrementFarmItem(tgId, cropKey); err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣除库存失败"})
+			return
+		}
+	}
+
+	// 半价退回
+	refund := crop.SeedCost * req.Quantity / 2
+	_ = model.IncreaseUserQuota(user.Id, refund, true)
+	model.AddFarmLog(tgId, "shop", refund, fmt.Sprintf("出售%s%s种子×%d", crop.Emoji, crop.Name, req.Quantity))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("出售 %s%s种子 ×%d，获得 $%.2f", crop.Emoji, crop.Name, req.Quantity, webFarmQuotaFloat(refund)),
 	})
 }
 
