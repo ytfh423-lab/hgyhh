@@ -359,10 +359,6 @@ func WebFarmPlant(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知作物"})
 		return
 	}
-	if user.Quota < crop.SeedCost {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！种子需要 $%.2f", webFarmQuotaFloat(crop.SeedCost))})
-		return
-	}
 
 	plots, err := model.GetOrCreateFarmPlots(tgId)
 	if err != nil {
@@ -382,12 +378,25 @@ func WebFarmPlant(c *gin.Context) {
 		return
 	}
 
-	err = model.DecreaseUserQuota(user.Id, crop.SeedCost)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
-		return
+	// 优先消耗库存种子，库存不足则从余额扣费
+	seedKey := "seed_" + crop.Key
+	usedInventory := false
+	if errSeed := model.DecrementFarmItem(tgId, seedKey); errSeed == nil {
+		usedInventory = true
+		model.AddFarmLog(tgId, "plant", 0, fmt.Sprintf("使用库存种子种植%s%s", crop.Emoji, crop.Name))
+	} else {
+		if user.Quota < crop.SeedCost {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！种子需要 $%.2f（也可在商店提前购买种子）", webFarmQuotaFloat(crop.SeedCost))})
+			return
+		}
+		err = model.DecreaseUserQuota(user.Id, crop.SeedCost)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
+			return
+		}
+		model.AddFarmLog(tgId, "plant", -crop.SeedCost, fmt.Sprintf("种植%s%s", crop.Emoji, crop.Name))
 	}
-	model.AddFarmLog(tgId, "plant", -crop.SeedCost, fmt.Sprintf("种植%s%s", crop.Emoji, crop.Name))
+	_ = usedInventory
 
 	now := time.Now().Unix()
 	targetPlot.CropType = crop.Key
@@ -534,15 +543,30 @@ func WebFarmBuyItem(c *gin.Context) {
 	if req.Quantity > 99 {
 		req.Quantity = 99
 	}
+	var unitCost int
+	var itemEmoji, itemName, inventoryKey string
+
 	item := farmItemMap[req.ItemKey]
-	if item == nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知道具"})
-		return
+	if item != nil {
+		unitCost = item.Cost
+		if req.ItemKey == "dogfood" {
+			unitCost = common.TgBotFarmDogFoodPrice
+		}
+		itemEmoji = item.Emoji
+		itemName = item.Name
+		inventoryKey = req.ItemKey
+	} else {
+		crop := farmCropMap[req.ItemKey]
+		if crop == nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知道具"})
+			return
+		}
+		unitCost = crop.SeedCost
+		itemEmoji = crop.Emoji
+		itemName = crop.Name + "种子"
+		inventoryKey = "seed_" + crop.Key
 	}
-	unitCost := item.Cost
-	if req.ItemKey == "dogfood" {
-		unitCost = common.TgBotFarmDogFoodPrice
-	}
+
 	totalCost := unitCost * req.Quantity
 	if user.Quota < totalCost {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！需要 $%.2f（单价 $%.2f × %d）", webFarmQuotaFloat(totalCost), webFarmQuotaFloat(unitCost), req.Quantity)})
@@ -553,16 +577,16 @@ func WebFarmBuyItem(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "扣费失败"})
 		return
 	}
-	err = model.IncrementFarmItem(tgId, req.ItemKey, req.Quantity)
+	err = model.IncrementFarmItem(tgId, inventoryKey, req.Quantity)
 	if err != nil {
 		_ = model.IncreaseUserQuota(user.Id, totalCost, true)
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "购买失败"})
 		return
 	}
-	model.AddFarmLog(tgId, "shop", -totalCost, fmt.Sprintf("购买%s%s×%d", item.Emoji, item.Name, req.Quantity))
+	model.AddFarmLog(tgId, "shop", -totalCost, fmt.Sprintf("购买%s%s×%d", itemEmoji, itemName, req.Quantity))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("购买 %s%s ×%d 成功！", item.Emoji, item.Name, req.Quantity),
+		"message": fmt.Sprintf("购买 %s%s ×%d 成功！", itemEmoji, itemName, req.Quantity),
 		"data": gin.H{
 			"item":       req.ItemKey,
 			"quantity":   req.Quantity,

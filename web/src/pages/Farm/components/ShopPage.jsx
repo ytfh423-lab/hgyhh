@@ -10,7 +10,8 @@ const { Text } = Typography;
 const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const [shopData, setShopData] = useState(null);
   const [shopLoading, setShopLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tool');
+  const [crops, setCrops] = useState([]);
+  const [activeTab, setActiveTab] = useState('seed');
   const [selectedKey, setSelectedKey] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [scrolledBottom, setScrolledBottom] = useState(false);
@@ -28,8 +29,12 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const loadShop = useCallback(async () => {
     setShopLoading(true);
     try {
-      const shopRes = await API.get('/api/farm/shop');
+      const [shopRes, cropRes] = await Promise.all([
+        API.get('/api/farm/shop'),
+        API.get('/api/farm/crops'),
+      ]);
       if (shopRes.data.success) setShopData(shopRes.data.data);
+      if (cropRes.data.success) setCrops(cropRes.data.data || []);
     } catch (err) { /* ignore */ }
     finally { setShopLoading(false); }
   }, []);
@@ -49,6 +54,21 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   // Normalize all items into a unified list with category tags
   const allItems = useMemo(() => {
     const list = [];
+    // Seeds
+    crops.forEach(cr => list.push({
+      key: cr.key || cr.name,
+      category: 'seed',
+      emoji: cr.emoji,
+      name: cr.name,
+      price: cr.seed_cost,
+      desc: `${formatDuration(cr.grow_secs)} \u00b7 1~${cr.max_yield}${t('\u4e2a')}`,
+      isSeed: true,
+      grow_secs: cr.grow_secs,
+      max_yield: cr.max_yield,
+      unit_price: cr.unit_price,
+      max_value: cr.max_value,
+      maxQty: 50,
+    }));
     // Shop items
     (shopData?.items || []).forEach(item => list.push({
       key: item.key,
@@ -75,9 +95,10 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       });
     }
     return list;
-  }, [shopData, t]);
+  }, [crops, shopData, t]);
 
   const tabs = [
+    { key: 'seed', label: '🌱 ' + t('种子'), count: allItems.filter(i => i.category === 'seed').length },
     { key: 'tool', label: '🔧 ' + t('道具'), count: allItems.filter(i => i.category === 'tool').length },
     { key: 'livestock', label: '🐾 ' + t('牲畜'), count: allItems.filter(i => i.category === 'livestock').length },
   ];
@@ -195,7 +216,25 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
                     <div className='farm-shop-stat-label'>💰 {t('单价')}</div>
                     <div className='farm-shop-stat-value'>${selected.price?.toFixed(2)}</div>
                   </div>
-                  {!selected.isDog && (
+                  {selected.isSeed && (
+                    <>
+                      <div className='farm-shop-stat'>
+                        <div className='farm-shop-stat-label'>⏱ {t('生长周期')}</div>
+                        <div className='farm-shop-stat-value'>{formatDuration(selected.grow_secs)}</div>
+                      </div>
+                      <div className='farm-shop-stat'>
+                        <div className='farm-shop-stat-label'>📦 {t('产量范围')}</div>
+                        <div className='farm-shop-stat-value'>1~{selected.max_yield}</div>
+                      </div>
+                      <div className='farm-shop-stat'>
+                        <div className='farm-shop-stat-label'>📈 {t('最高收益')}</div>
+                        <div className='farm-shop-stat-value' style={{ color: 'var(--farm-leaf)' }}>
+                          ${selected.max_value?.toFixed(2)}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {!selected.isSeed && !selected.isDog && (
                     <div className='farm-shop-stat'>
                       <div className='farm-shop-stat-label'>� {t('说明')}</div>
                       <div className='farm-shop-stat-value' style={{ fontSize: 12 }}>{selected.desc}</div>
