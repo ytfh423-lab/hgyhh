@@ -1,11 +1,163 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Spin, Typography } from '@douyinfe/semi-ui';
-import { RefreshCw } from 'lucide-react';
+import { Button, Spin, Typography, Tag } from '@douyinfe/semi-ui';
+import { RefreshCw, X } from 'lucide-react';
 import { VChart } from '@visactor/react-vchart';
 import { API, showError, CHART_PALETTE } from './utils';
 
 const { Text } = Typography;
 
+/* ═══════════════════════════════════════════════════════════════
+   MarketTips — 市场情报面板
+   ═══════════════════════════════════════════════════════════════ */
+const MarketTips = ({ tips, seasonName, seasonDaysLeft, t }) => {
+  if (!tips || tips.length === 0) return null;
+  return (
+    <div className='farm-card' style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div className='farm-section-title' style={{ marginBottom: 0 }}>📋 {t('市场情报')}</div>
+        {seasonName && (
+          <Tag size='small' color='blue' style={{ borderRadius: 12 }}>
+            {seasonName} · {t('剩余')}{seasonDaysLeft}{t('天')}
+          </Tag>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {tips.map((tip, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+            borderRadius: 8, fontSize: 12.5, lineHeight: 1.5,
+            background: tip.type === 'event' ? 'var(--semi-color-warning-light-default)'
+              : tip.type === 'trend' ? 'var(--semi-color-primary-light-default)'
+              : 'var(--farm-glass-bg)',
+          }}>
+            <span style={{ flexShrink: 0 }}>{tip.icon}</span>
+            <span style={{ color: 'var(--farm-text-1)' }}>{tip.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ItemDetailPanel — 商品详情面板（点击行展开）
+   ═══════════════════════════════════════════════════════════════ */
+const ItemDetailPanel = ({ itemKey, onClose, t }) => {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!itemKey) return;
+    setLoading(true);
+    API.get('/api/farm/market/detail?key=' + itemKey)
+      .then(({ data: res }) => { if (res.success) setDetail(res.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [itemKey]);
+
+  if (!itemKey) return null;
+
+  if (loading) return (
+    <div className='farm-card' style={{ marginTop: 12 }}>
+      <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+    </div>
+  );
+  if (!detail) return null;
+
+  const factorColor = (v) => v > 0 ? 'var(--farm-leaf)' : v < 0 ? 'var(--farm-danger)' : 'var(--farm-text-2)';
+  const factorSign = (v) => v > 0 ? '+' + v : String(v);
+
+  // mini chart from history
+  const historyPoints = detail.history || [];
+  const miniChartData = historyPoints.map((p, i) => ({
+    time: new Date(p.timestamp * 1000).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    value: p.multiplier,
+  }));
+
+  const miniSpec = miniChartData.length >= 2 ? {
+    type: 'area',
+    data: { values: miniChartData },
+    xField: 'time', yField: 'value',
+    point: { visible: false },
+    line: { style: { lineWidth: 2, stroke: detail.change >= 0 ? '#22c55e' : '#ef4444' } },
+    area: { style: { fill: { gradient: 'linear', x0: 0, y0: 0, x1: 0, y1: 1, stops: [
+      { offset: 0, color: detail.change >= 0 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)' },
+      { offset: 1, color: 'rgba(0,0,0,0)' },
+    ] } } },
+    axes: [
+      { orient: 'left', visible: false },
+      { orient: 'bottom', visible: false },
+    ],
+    markLine: [{ y: 100, line: { style: { stroke: '#888', lineWidth: 1, lineDash: [4, 3] } } }],
+    tooltip: { dimension: { content: (data) => data.map(d => ({ key: t('倍率'), value: (d.datum?.value ?? d.value) + '%' })) } },
+    height: 160, padding: 0, animation: false,
+  } : null;
+
+  return (
+    <div className='farm-card' style={{ marginTop: 12, position: 'relative' }}>
+      <Button size='small' icon={<X size={14} />} theme='borderless' onClick={onClose}
+        style={{ position: 'absolute', right: 8, top: 8 }} className='farm-btn' />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 28 }}>{detail.emoji}</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{detail.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--farm-text-2)' }}>
+            {t('基价')}: ${detail.base_price?.toFixed(2)} · {t('当前')}: ${detail.cur_price?.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: detail.change >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
+            {detail.multiplier}%
+          </div>
+          <div style={{ fontSize: 12, color: detail.change >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
+            {detail.trend_arrow} {detail.trend_tag} ({detail.change >= 0 ? '+' : ''}{detail.change}%)
+          </div>
+        </div>
+      </div>
+
+      {/* mini chart */}
+      {miniSpec && (
+        <div style={{ marginBottom: 12, borderRadius: 8, overflow: 'hidden', background: 'var(--farm-glass-bg)' }}>
+          <VChart spec={miniSpec} />
+        </div>
+      )}
+
+      {/* 影响因素 */}
+      {detail.factors && detail.factors.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--farm-text-1)' }}>📊 {t('影响因素')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {detail.factors.map((f, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px',
+                borderRadius: 8, background: 'var(--farm-glass-bg)', fontSize: 12,
+              }}>
+                <span style={{ flexShrink: 0 }}>{f.icon}</span>
+                <span style={{ fontWeight: 600, minWidth: 32 }}>{f.name}</span>
+                <span style={{ color: factorColor(f.value), fontWeight: 700, minWidth: 36, textAlign: 'right' }}>
+                  {factorSign(f.value)}
+                </span>
+                <span style={{ color: 'var(--farm-text-2)', flex: 1 }}>{f.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 价格区间 */}
+      <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--farm-text-2)' }}>
+        <span>{t('价格区间')}: {detail.min_multiplier}% ~ {detail.max_multiplier}%</span>
+        <span>·</span>
+        <span>{t('趋势动量')}: {detail.trend >= 0 ? '+' : ''}{detail.trend}</span>
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   MarketChart — 波动图组件
+   ═══════════════════════════════════════════════════════════════ */
 const MarketChart = ({ t }) => {
   const [historyData, setHistoryData] = useState(null);
   const [chartCat, setChartCat] = useState('crop');
@@ -185,6 +337,7 @@ const MarketPage = ({ t }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [sortBy, setSortBy] = useState('change');
   const [sortDir, setSortDir] = useState('desc');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const loadMarket = useCallback(async () => {
     setMarketLoading(true);
@@ -247,41 +400,34 @@ const MarketPage = ({ t }) => {
     switch (sortBy) {
       case 'name': va = a.name; vb = b.name; return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
       case 'price': va = a.cur_price; vb = b.cur_price; break;
-      case 'change': va = a.multiplier; vb = b.multiplier; break;
+      case 'change': va = Math.abs(a.change || 0); vb = Math.abs(b.change || 0); break;
       case 'base': va = a.base_price; vb = b.base_price; break;
-      default: va = a.multiplier; vb = b.multiplier;
+      default: va = Math.abs(a.change || 0); vb = Math.abs(b.change || 0);
     }
     return sortDir === 'asc' ? va - vb : vb - va;
   });
 
-  const upCount = allPrices.filter(p => p.multiplier > 100).length;
-  const downCount = allPrices.filter(p => p.multiplier < 100).length;
-  const flatCount = allPrices.filter(p => p.multiplier === 100).length;
+  const upCount = allPrices.filter(p => (p.change || 0) > 0).length;
+  const downCount = allPrices.filter(p => (p.change || 0) < 0).length;
+  const flatCount = allPrices.filter(p => (p.change || 0) === 0).length;
 
-  const changeClass = (m) => m > 100 ? 'farm-market-change-up' : m < 100 ? 'farm-market-change-down' : 'farm-market-change-flat';
-  const changeText = (m) => {
-    const diff = m - 100;
-    if (diff > 0) return `+${diff.toFixed(0)}%`;
-    if (diff < 0) return `${diff.toFixed(0)}%`;
+  const changeClass = (p) => (p.change || 0) > 0 ? 'farm-market-change-up' : (p.change || 0) < 0 ? 'farm-market-change-down' : 'farm-market-change-flat';
+  const changeText = (p) => {
+    const diff = p.change || 0;
+    if (diff > 0) return `+${diff}%`;
+    if (diff < 0) return `${diff}%`;
     return '0%';
-  };
-  const trendArrow = (m) => {
-    if (m >= 150) return '🔥';
-    if (m >= 120) return '↑↑';
-    if (m > 100) return '↑';
-    if (m === 100) return '—';
-    if (m >= 80) return '↓';
-    if (m >= 50) return '↓↓';
-    return '💀';
   };
 
   return (
     <div>
-      {/* ═══ Top Bar: countdown + refresh ═══ */}
+      {/* ═══ Top Bar: season + countdown + refresh ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className='farm-pill farm-pill-blue'>⏱️ {t('下次刷新')}: {formatCountdown(countdown)}</div>
-          <div className='farm-pill'>🔄 {t('每')} {marketData.refresh_hours}h</div>
+          {marketData.season_name && (
+            <div className='farm-pill farm-pill-blue'>{marketData.season_name}</div>
+          )}
+          <div className='farm-pill'>⏱️ {formatCountdown(countdown)}</div>
           <div className='farm-market-summary'>
             <span className='farm-market-summary-item'>
               <span style={{ color: 'var(--farm-leaf)', fontWeight: 700 }}>▲ {upCount}</span>
@@ -298,6 +444,14 @@ const MarketPage = ({ t }) => {
         </div>
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadMarket} loading={marketLoading} className='farm-btn' />
       </div>
+
+      {/* ═══ Market Tips ═══ */}
+      <MarketTips
+        tips={marketData.tips}
+        seasonName={marketData.season_name}
+        seasonDaysLeft={marketData.season_days_left}
+        t={t}
+      />
 
       {/* ═══ Chart ═══ */}
       <MarketChart t={t} />
@@ -355,7 +509,9 @@ const MarketPage = ({ t }) => {
             {t('暂无数据')}
           </div>
         ) : sorted.map(p => (
-          <div key={p.key} className='farm-market-row'>
+          <div key={p.key} className={`farm-market-row ${selectedItem === p.key ? 'active' : ''}`}
+            onClick={() => setSelectedItem(selectedItem === p.key ? null : p.key)}
+            style={{ cursor: 'pointer' }}>
             <div className='farm-market-col-name'>
               <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{p.emoji}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--farm-text-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -363,13 +519,13 @@ const MarketPage = ({ t }) => {
               </span>
             </div>
             <div className='farm-market-col-price'>
-              <span style={{ fontSize: 14, fontWeight: 700, color: p.multiplier >= 100 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: (p.change || 0) >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
                 ${p.cur_price.toFixed(2)}
               </span>
             </div>
             <div className='farm-market-col-change'>
-              <span className={`farm-market-change-pill ${changeClass(p.multiplier)}`}>
-                {changeText(p.multiplier)}
+              <span className={`farm-market-change-pill ${changeClass(p)}`}>
+                {changeText(p)}
               </span>
             </div>
             <div className='farm-market-col-base'>
@@ -378,15 +534,18 @@ const MarketPage = ({ t }) => {
               </span>
             </div>
             <div className='farm-market-col-trend'>
-              <span style={{ fontSize: 14 }}>{trendArrow(p.multiplier)}</span>
+              <span style={{ fontSize: 13 }}>{p.trend_arrow || '→'}</span>
             </div>
           </div>
         ))}
       </div>
 
+      {/* ═══ Item Detail Panel ═══ */}
+      <ItemDetailPanel itemKey={selectedItem} onClose={() => setSelectedItem(null)} t={t} />
+
       {/* ═══ Footer info ═══ */}
       <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 11, color: 'var(--farm-text-3)' }}>
-        {t('共')} {filtered.length} {t('项')} · {t('点击表头排序')}
+        {t('共')} {filtered.length} {t('项')} · {t('点击商品查看详情')}
       </div>
     </div>
   );

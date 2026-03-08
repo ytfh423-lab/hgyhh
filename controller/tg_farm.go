@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -349,22 +348,13 @@ var farmItemMap map[string]*farmItemDef
 
 const farmMaxSteals = 2
 
-// ========== 市场价格波动 ==========
+// ========== 市场价格波动（桥接新引擎） ==========
 
-var marketPrices map[string]int // key -> multiplier percentage (e.g. 150 = 150%)
-var marketMu sync.RWMutex
-var marketLastUpdate int64
-var marketNextUpdate int64
-
-// 市场价格历史（用于波动图）
+// marketSnapshot 保持与旧系统兼容的快照格式
 type marketSnapshot struct {
 	Timestamp int64          `json:"timestamp"`
 	Prices    map[string]int `json:"prices"` // key -> multiplier%
 }
-
-var marketHistory []marketSnapshot
-
-const marketHistoryMaxLen = 48 // 保留最近48次快照
 
 func init() {
 	farmCropMap = make(map[string]*farmCropDef)
@@ -387,69 +377,19 @@ func init() {
 	for i := range recipes {
 		recipeMap[recipes[i].Key] = &recipes[i]
 	}
-	marketPrices = make(map[string]int)
-	refreshMarketPrices()
 }
 
-func refreshMarketPrices() {
-	marketMu.Lock()
-	defer marketMu.Unlock()
-	now := time.Now().Unix()
-	minM := common.TgBotMarketMinMultiplier
-	maxM := common.TgBotMarketMaxMultiplier
-	rng := maxM - minM + 1
-	// 作物价格
-	for _, crop := range farmCrops {
-		marketPrices["crop_"+crop.Key] = minM + rand.Intn(rng)
-	}
-	// 鱼价格
-	for _, fish := range fishTypes {
-		marketPrices["fish_"+fish.Key] = minM + rand.Intn(rng)
-	}
-	// 肉价格
-	for _, key := range []string{"chicken", "duck", "goose", "pig", "sheep", "cow"} {
-		marketPrices["meat_"+key] = minM + rand.Intn(rng)
-	}
-	// 加工品价格
-	for _, r := range recipes {
-		marketPrices["recipe_"+r.Key] = minM + rand.Intn(rng)
-	}
-	marketLastUpdate = now
-	marketNextUpdate = now + int64(common.TgBotMarketRefreshHours*3600)
-
-	// 保存快照到历史
-	snapshot := marketSnapshot{
-		Timestamp: now,
-		Prices:    make(map[string]int, len(marketPrices)),
-	}
-	for k, v := range marketPrices {
-		snapshot.Prices[k] = v
-	}
-	marketHistory = append(marketHistory, snapshot)
-	if len(marketHistory) > marketHistoryMaxLen {
-		marketHistory = marketHistory[len(marketHistory)-marketHistoryMaxLen:]
-	}
-}
-
+// ensureMarketFresh 确保市场价格是最新的（桥接新引擎）
 func ensureMarketFresh() {
-	marketMu.RLock()
-	next := marketNextUpdate
-	marketMu.RUnlock()
-	if time.Now().Unix() >= next {
-		refreshMarketPrices()
-	}
+	ensureMarketEngine()
 }
 
+// getMarketMultiplier 获取商品倍率%（桥接新引擎）
 func getMarketMultiplier(key string) int {
-	ensureMarketFresh()
-	marketMu.RLock()
-	defer marketMu.RUnlock()
-	if m, ok := marketPrices[key]; ok {
-		return m
-	}
-	return 100 // default 100%
+	return getMarketMultiplierNew(key)
 }
 
+// applyMarket 应用市场倍率到基础价格
 func applyMarket(basePrice int, marketKey string) int {
 	m := getMarketMultiplier(marketKey)
 	return basePrice * m / 100
@@ -2776,9 +2716,7 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	// 市场倒计时
 	ensureMarketFresh()
-	marketMu.RLock()
-	nextRefresh := marketNextUpdate - now
-	marketMu.RUnlock()
+	nextRefresh := getMarketNextRefresh()
 	if nextRefresh > 0 {
 		text += fmt.Sprintf("\n📈 市场%dh后刷新\n", nextRefresh/3600+1)
 	}
@@ -3528,51 +3466,66 @@ func doFarmCollectStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 func showFarmMarket(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	ensureMarketFresh()
 
-	now := time.Now().Unix()
-	marketMu.RLock()
-	nextRefresh := marketNextUpdate - now
-	marketMu.RUnlock()
-	if nextRefresh < 0 {
-		nextRefresh = 0
-	}
-
+	nextRefresh := getMarketNextRefresh()
 	text := fmt.Sprintf("📈 市场行情（%dh刷新一次，%dh后刷新）\n\n", common.TgBotMarketRefreshHours, nextRefresh/3600+1)
 
 	season := getCurrentSeason()
 	text += fmt.Sprintf("当前: %s\n\n", getSeasonName(season))
+
+	// 市场情报
+	tips := getMarketTips()
+	if len(tips) > 0 {
+		text += "📋 市场情报:\n"
+		maxTips := 5
+		if len(tips) < maxTips {
+			maxTips = len(tips)
+		}
+		for _, tip := range tips[:maxTips] {
+			text += fmt.Sprintf("  %s %s\n", tip.Icon, tip.Text)
+		}
+		text += "\n"
+	}
+
 	text += "🌾 作物:\n"
 	for _, crop := range farmCrops {
 		m := getMarketMultiplier("crop_" + crop.Key)
-		tag := marketTag(m)
+		tag, arrow, _ := getMarketPriceTrend("crop_" + crop.Key)
 		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
 		seasonPrice := applySeasonPrice(marketPrice, &crop)
 		sTag := "应季"
 		if !isCropInSeason(&crop) {
 			sTag = "反季"
 		}
-		text += fmt.Sprintf("  %s %s 市场%d%% %s×%s%d%% = %s\n",
-			crop.Emoji, crop.Name, m, tag, sTag, getSeasonPriceMultiplier(&crop), farmQuotaStr(seasonPrice))
+		text += fmt.Sprintf("  %s %s %d%% %s%s ×%s%d%% = %s\n",
+			crop.Emoji, crop.Name, m, arrow, tag, sTag, getSeasonPriceMultiplier(&crop), farmQuotaStr(seasonPrice))
 	}
 
 	text += "\n🐟 鱼类:\n"
 	for _, fish := range fishTypes {
 		m := getMarketMultiplier("fish_" + fish.Key)
-		tag := marketTag(m)
-		text += fmt.Sprintf("  %s %s %d%% %s %s\n", fish.Emoji, fish.Name, m, tag, farmQuotaStr(applyMarket(fish.SellPrice, "fish_"+fish.Key)))
+		tag, arrow, _ := getMarketPriceTrend("fish_" + fish.Key)
+		text += fmt.Sprintf("  %s %s %d%% %s%s %s\n", fish.Emoji, fish.Name, m, arrow, tag, farmQuotaStr(applyMarket(fish.SellPrice, "fish_"+fish.Key)))
 	}
 
 	text += "\n🥩 肉类:\n"
 	for _, a := range ranchAnimals {
 		m := getMarketMultiplier("meat_" + a.Key)
-		tag := marketTag(m)
-		text += fmt.Sprintf("  %s %s肉 %d%% %s %s\n", a.Emoji, a.Name, m, tag, farmQuotaStr(applyMarket(*a.MeatPrice, "meat_"+a.Key)))
+		tag, arrow, _ := getMarketPriceTrend("meat_" + a.Key)
+		text += fmt.Sprintf("  %s %s肉 %d%% %s%s %s\n", a.Emoji, a.Name, m, arrow, tag, farmQuotaStr(applyMarket(*a.MeatPrice, "meat_"+a.Key)))
 	}
 
 	text += "\n🏭 加工品:\n"
 	for _, r := range recipes {
 		m := getMarketMultiplier("recipe_" + r.Key)
-		tag := marketTag(m)
-		text += fmt.Sprintf("  %s %s %d%% %s %s\n", r.Emoji, r.Name, m, tag, farmQuotaStr(applyMarket(r.SellPrice, "recipe_"+r.Key)))
+		tag, arrow, _ := getMarketPriceTrend("recipe_" + r.Key)
+		text += fmt.Sprintf("  %s %s %d%% %s%s %s\n", r.Emoji, r.Name, m, arrow, tag, farmQuotaStr(applyMarket(r.SellPrice, "recipe_"+r.Key)))
+	}
+
+	text += "\n🪵 木材:\n"
+	for _, tp := range treeProducts {
+		m := getMarketMultiplier("wood_" + tp.Key)
+		tag, arrow, _ := getMarketPriceTrend("wood_" + tp.Key)
+		text += fmt.Sprintf("  %s %s %d%% %s%s %s\n", tp.Emoji, tp.Name, m, arrow, tag, farmQuotaStr(applyMarket(tp.BasePrice, "wood_"+tp.Key)))
 	}
 
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
@@ -3584,6 +3537,9 @@ func showFarmMarket(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			{
 				{Text: "📊 肉类波动图", CallbackData: "farm_chart_meat"},
 				{Text: "📊 加工品波动图", CallbackData: "farm_chart_recipe"},
+			},
+			{
+				{Text: "📊 木材波动图", CallbackData: "farm_chart_wood"},
 			},
 			{{Text: "🔙 返回农场", CallbackData: "farm"}},
 		},
@@ -3628,6 +3584,9 @@ func doFarmMarketChart(chatId int64, editMsgId int, tgId string, category string
 			{
 				{Text: "📊 肉类", CallbackData: "farm_chart_meat"},
 				{Text: "📊 加工品", CallbackData: "farm_chart_recipe"},
+			},
+			{
+				{Text: "📊 木材", CallbackData: "farm_chart_wood"},
 			},
 			{{Text: "📈 返回市场", CallbackData: "farm_market"}},
 		},

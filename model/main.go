@@ -300,6 +300,9 @@ func migrateDB() error {
 		&TgFarmGameLog{},
 		&TgFarmAutomation{},
 		&TgTreeSlot{},
+		&TgMarketPriceHistory{},
+		&TgMarketEvent{},
+		&TgMarketSupplyDemand{},
 		&PublicInviteCode{},
 		&FarmBetaReservation{},
 	)

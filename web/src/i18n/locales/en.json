@@ -3014,6 +3014,12 @@
     "一次性伐木": "One-time chop",
     "选择树种": "Select Tree",
     "号树位": "Slot",
-    "木材": "Wood"
+    "木材": "Wood",
+    "市场情报": "Market Intelligence",
+    "影响因素": "Price Factors",
+    "价格区间": "Price Range",
+    "趋势动量": "Trend Momentum",
+    "当前": "Current",
+    "点击商品查看详情": "Click item for details"
   }
 }

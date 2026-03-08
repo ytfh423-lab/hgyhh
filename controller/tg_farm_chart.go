@@ -56,6 +56,11 @@ var chartCategoryColors = map[string][]color.RGBA{
 		{0x16, 0xa3, 0x4a, 0xff}, {0xa3, 0xe6, 0x35, 0xff}, {0xf4, 0x3f, 0x5e, 0xff},
 		{0x65, 0xa3, 0x0d, 0xff},
 	},
+	"wood": {
+		{0x8b, 0x5c, 0x2a, 0xff}, {0xa0, 0x6a, 0x34, 0xff}, {0x6b, 0x8e, 0x23, 0xff},
+		{0xd2, 0x69, 0x1e, 0xff}, {0xbc, 0x8f, 0x40, 0xff}, {0x22, 0x8b, 0x22, 0xff},
+		{0xda, 0xa5, 0x20, 0xff}, {0x55, 0x6b, 0x2f, 0xff}, {0xcd, 0x85, 0x3f, 0xff},
+	},
 }
 
 type chartItem struct {
@@ -89,6 +94,12 @@ func getChartItems(category string) []chartItem {
 			items = append(items, chartItem{"recipe_" + r.Key, r.Emoji + r.Name})
 		}
 		return items
+	case "wood":
+		var items []chartItem
+		for _, tp := range treeProducts {
+			items = append(items, chartItem{"wood_" + tp.Key, tp.Emoji + tp.Name})
+		}
+		return items
 	}
 	return nil
 }
@@ -103,16 +114,15 @@ func getCategoryTitle(category string) string {
 		return "🥩 肉类市场波动"
 	case "recipe":
 		return "🏭 加工品市场波动"
+	case "wood":
+		return "🪵 木材市场波动"
 	}
 	return "📈 市场波动"
 }
 
 // generateMarketChartPNG 生成指定类别的市场波动图
 func generateMarketChartPNG(category string) ([]byte, error) {
-	marketMu.RLock()
-	history := make([]marketSnapshot, len(marketHistory))
-	copy(history, marketHistory)
-	marketMu.RUnlock()
+	history := getMarketHistorySnapshots()
 
 	if len(history) < 2 {
 		return nil, fmt.Errorf("数据不足，至少需要2个历史快照")

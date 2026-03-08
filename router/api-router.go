@@ -170,6 +170,13 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.POST("/farm/reset-negative-balances", controller.AdminResetNegativeBalances)
 			tgBotRoute.POST("/farm/reset-all-levels", controller.AdminResetAllFarmLevels)
 			tgBotRoute.POST("/farm/beta-cleanup", controller.AdminBetaCleanup)
+			tgBotRoute.GET("/market/events", controller.WebMarketAdminGetEvents)
+			tgBotRoute.POST("/market/events", controller.WebMarketAdminCreateEvent)
+			tgBotRoute.PUT("/market/events", controller.WebMarketAdminUpdateEvent)
+			tgBotRoute.DELETE("/market/events/:id", controller.WebMarketAdminDeleteEvent)
+			tgBotRoute.GET("/market/config", controller.WebMarketAdminGetConfig)
+			tgBotRoute.PUT("/market/config/item", controller.WebMarketAdminUpdateItemConfig)
+			tgBotRoute.POST("/market/refresh", controller.WebMarketAdminForceRefresh)
 		}
 
 		// Subscription billing (plans, purchase, admin management)
@@ -396,6 +403,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/trade/buy", controller.WebFarmTradeBuy)
 			farmRoute.POST("/trade/cancel", controller.WebFarmTradeCancel)
 			farmRoute.GET("/trade/history", controller.WebFarmTradeHistory)
+			farmRoute.GET("/market/detail", controller.WebMarketItemDetail)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

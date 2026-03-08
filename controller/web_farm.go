@@ -1299,7 +1299,7 @@ func WebFarmLogs(c *gin.Context) {
 
 // ========== 市场 ==========
 
-// WebFarmMarket returns current market prices
+// WebFarmMarket returns current market prices with trend info and tips
 func WebFarmMarket(c *gin.Context) {
 	ensureMarketFresh()
 
@@ -1310,94 +1310,56 @@ func WebFarmMarket(c *gin.Context) {
 		Category   string  `json:"category"`
 		BasePrice  float64 `json:"base_price"`
 		Multiplier int     `json:"multiplier"`
+		PrevMult   int     `json:"prev_multiplier"`
 		CurPrice   float64 `json:"cur_price"`
+		Change     int     `json:"change"`
+		TrendTag   string  `json:"trend_tag"`
+		TrendArrow string  `json:"trend_arrow"`
+		TrendColor string  `json:"trend_color"`
 	}
 
+	configs := getAllMarketConfigs()
 	var prices []priceInfo
 
-	// 作物
-	for _, crop := range farmCrops {
-		m := getMarketMultiplier("crop_" + crop.Key)
+	for _, cfg := range configs {
+		state := getMarketItemState(cfg.Key)
+		mult := 100
+		prevMult := 100
+		if state != nil {
+			mult = state.Multiplier
+			prevMult = state.PrevMultiplier
+		}
+		tag, arrow, clr := getMarketPriceTrend(cfg.Key)
 		prices = append(prices, priceInfo{
-			Key:        "crop_" + crop.Key,
-			Name:       crop.Name,
-			Emoji:      crop.Emoji,
-			Category:   "crop",
-			BasePrice:  webFarmQuotaFloat(crop.UnitPrice),
-			Multiplier: m,
-			CurPrice:   webFarmQuotaFloat(applyMarket(crop.UnitPrice, "crop_"+crop.Key)),
+			Key:        cfg.Key,
+			Name:       cfg.Name,
+			Emoji:      cfg.Emoji,
+			Category:   cfg.Category,
+			BasePrice:  webFarmQuotaFloat(cfg.BasePrice),
+			Multiplier: mult,
+			PrevMult:   prevMult,
+			CurPrice:   webFarmQuotaFloat(cfg.BasePrice * mult / 100),
+			Change:     mult - prevMult,
+			TrendTag:   tag,
+			TrendArrow: arrow,
+			TrendColor: clr,
 		})
 	}
 
-	// 鱼
-	for _, fish := range fishTypes {
-		m := getMarketMultiplier("fish_" + fish.Key)
-		prices = append(prices, priceInfo{
-			Key:        "fish_" + fish.Key,
-			Name:       fish.Name,
-			Emoji:      fish.Emoji,
-			Category:   "fish",
-			BasePrice:  webFarmQuotaFloat(fish.SellPrice),
-			Multiplier: m,
-			CurPrice:   webFarmQuotaFloat(applyMarket(fish.SellPrice, "fish_"+fish.Key)),
-		})
-	}
-
-	// 肉类
-	for _, a := range ranchAnimals {
-		m := getMarketMultiplier("meat_" + a.Key)
-		prices = append(prices, priceInfo{
-			Key:        "meat_" + a.Key,
-			Name:       a.Name + "肉",
-			Emoji:      a.Emoji,
-			Category:   "meat",
-			BasePrice:  webFarmQuotaFloat(*a.MeatPrice),
-			Multiplier: m,
-			CurPrice:   webFarmQuotaFloat(applyMarket(*a.MeatPrice, "meat_"+a.Key)),
-		})
-	}
-
-	// 加工品
-	for _, r := range recipes {
-		m := getMarketMultiplier("recipe_" + r.Key)
-		prices = append(prices, priceInfo{
-			Key:        "recipe_" + r.Key,
-			Name:       r.Name,
-			Emoji:      r.Emoji,
-			Category:   "recipe",
-			BasePrice:  webFarmQuotaFloat(r.SellPrice),
-			Multiplier: m,
-			CurPrice:   webFarmQuotaFloat(applyMarket(r.SellPrice, "recipe_"+r.Key)),
-		})
-	}
-
-	// 树场产品
-	for _, tp := range treeProducts {
-		m := getMarketMultiplier("wood_" + tp.Key)
-		prices = append(prices, priceInfo{
-			Key:        "wood_" + tp.Key,
-			Name:       tp.Name,
-			Emoji:      tp.Emoji,
-			Category:   "wood",
-			BasePrice:  webFarmQuotaFloat(tp.BasePrice),
-			Multiplier: m,
-			CurPrice:   webFarmQuotaFloat(applyMarket(tp.BasePrice, "wood_"+tp.Key)),
-		})
-	}
-
-	marketMu.RLock()
-	nextRefresh := marketNextUpdate - time.Now().Unix()
-	marketMu.RUnlock()
-	if nextRefresh < 0 {
-		nextRefresh = 0
-	}
+	nextRefresh := getMarketNextRefresh()
+	tips := getMarketTips()
+	season := getCurrentSeason()
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"prices":       prices,
-			"next_refresh": nextRefresh,
+			"prices":        prices,
+			"next_refresh":  nextRefresh,
 			"refresh_hours": common.TgBotMarketRefreshHours,
+			"tips":          tips,
+			"season":        season,
+			"season_name":   getSeasonName(season),
+			"season_days_left": getSeasonDaysLeft(),
 		},
 	})
 }
@@ -1406,10 +1368,7 @@ func WebFarmMarket(c *gin.Context) {
 func WebFarmMarketHistory(c *gin.Context) {
 	ensureMarketFresh()
 
-	marketMu.RLock()
-	history := make([]marketSnapshot, len(marketHistory))
-	copy(history, marketHistory)
-	marketMu.RUnlock()
+	history := getMarketHistorySnapshots()
 
 	type historyPoint struct {
 		Timestamp int64          `json:"timestamp"`
@@ -1432,17 +1391,9 @@ func WebFarmMarketHistory(c *gin.Context) {
 		Category string `json:"category"`
 	}
 	var items []itemMeta
-	for _, crop := range farmCrops {
-		items = append(items, itemMeta{"crop_" + crop.Key, crop.Name, crop.Emoji, "crop"})
-	}
-	for _, fish := range fishTypes {
-		items = append(items, itemMeta{"fish_" + fish.Key, fish.Name, fish.Emoji, "fish"})
-	}
-	for _, a := range ranchAnimals {
-		items = append(items, itemMeta{"meat_" + a.Key, a.Name + "肉", a.Emoji, "meat"})
-	}
-	for _, r := range recipes {
-		items = append(items, itemMeta{"recipe_" + r.Key, r.Name, r.Emoji, "recipe"})
+	configs := getAllMarketConfigs()
+	for _, cfg := range configs {
+		items = append(items, itemMeta{cfg.Key, cfg.Name, cfg.Emoji, cfg.Category})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -2585,6 +2536,7 @@ func WebFarmWarehouseSell(c *gin.Context) {
 
 	_ = model.RemoveFromWarehouse(tgId, req.ItemKey, item.Quantity)
 	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
+	model.RecordMarketSell(req.ItemKey, item.Quantity)
 	model.AddFarmLog(tgId, "warehouse_sell", totalValue, fmt.Sprintf("仓库出售%s×%d", name, item.Quantity))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -2615,6 +2567,7 @@ func WebFarmWarehouseSellAll(c *gin.Context) {
 	for _, item := range items {
 		unitPrice := warehouseItemSellPrice(item)
 		totalValue += item.Quantity * unitPrice
+		model.RecordMarketSell(item.CropType, item.Quantity)
 		_ = model.RemoveFromWarehouse(tgId, item.CropType, item.Quantity)
 	}
 
