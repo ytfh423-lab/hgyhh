@@ -24,7 +24,7 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
   };
 
   return (
-    <div>
+    <div data-tutorial='plant-page'>
       {/* Crop selection */}
       <div className='farm-card'>
         <div className='farm-section-title'>🌱 {t('选择作物')}</div>
