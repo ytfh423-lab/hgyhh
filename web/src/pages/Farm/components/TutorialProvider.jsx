@@ -54,24 +54,22 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
       setLoaded(true);
       if (!state) return;
 
-      // 1. 检查基础教程
+      // 1. 检查基础教程（未完成 → 每次刷新从头开始）
       if (state.needs_basic_tutorial) {
         startFlow('farm_basic', 'forced', 0);
         return;
       }
 
-      // 2. 检查是否有未完成的强制教程
+      // 2. 检查是否有未完成的强制教程（从头开始）
       if (state.pending_forced) {
-        const pk = state.pending_forced.feature_key;
-        const ps = state.pending_forced.current_step || 0;
-        startFlow(pk, 'forced', ps);
+        startFlow(state.pending_forced.feature_key, 'forced', 0);
         return;
       }
 
-      // 3. 检查基础教程进行中但未完成
+      // 3. 检查基础教程进行中但未完成（从头开始）
       const basicState = state.features?.farm_basic;
       if (basicState && !basicState.tutorial_completed && basicState.tutorial_started) {
-        startFlow('farm_basic', 'forced', basicState.current_step || 0);
+        startFlow('farm_basic', 'forced', 0);
       }
     });
   }, [loadState]);
