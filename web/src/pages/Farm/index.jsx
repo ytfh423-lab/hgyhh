@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
-import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle } from 'lucide-react';
+import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { Link } from 'react-router-dom';
@@ -157,7 +157,7 @@ const Farm = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [activePage, setActivePage] = useState('overview');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-  const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS' | 'BETA_AGREEMENT_REQUIRED'
+  const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS' | 'BETA_AGREEMENT_REQUIRED' | 'BETA_EXPIRED'
   const [betaMessage, setBetaMessage] = useState('');
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
@@ -169,7 +169,7 @@ const Farm = () => {
       if (res.success) {
         setFarmData(res.data);
         setBetaGate(null);
-      } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS' || res.code === 'BETA_AGREEMENT_REQUIRED') {
+      } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS' || res.code === 'BETA_AGREEMENT_REQUIRED' || res.code === 'BETA_EXPIRED') {
         setBetaGate(res.code);
         setBetaMessage(res.message);
       } else {
@@ -304,6 +304,34 @@ const Farm = () => {
             >
               {agreementLoading ? t('提交中...') : t('同意协议，进入农场')}
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (betaGate === 'BETA_EXPIRED') {
+      return (
+        <div className='farm-agreement-wrap'>
+          <div className='farm-agreement-card' style={{ textAlign: 'center' }}>
+            <div className='farm-agreement-icon'>
+              <TimerOff size={48} strokeWidth={1.5} />
+            </div>
+            <h2 className='farm-agreement-title'>{t('内测已结束')}</h2>
+            <p className='farm-agreement-subtitle' style={{ marginBottom: 20 }}>
+              {t('感谢您参与农场内测！本次内测周期已结束。')}
+            </p>
+            <div className='farm-agreement-highlight' style={{ textAlign: 'left', marginTop: 0, marginBottom: 24 }}>
+              <strong>📋 {t('清理说明')}</strong>
+              <p>{t('根据内测协议，内测期间产生的所有数据（地块、作物、余额、等级、成就等）已全部清除，内测期间获得的额度已回收。')}</p>
+            </div>
+            <p style={{ color: 'var(--farm-text-2)', fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              {t('正式版本上线时，所有玩家将从零开始。届时欢迎回来体验完整版农场！')}
+            </p>
+            <Link to='/'>
+              <button className='farm-agreement-btn'>
+                {t('返回首页')}
+              </button>
+            </Link>
           </div>
         </div>
       );

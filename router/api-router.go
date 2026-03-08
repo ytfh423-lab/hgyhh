@@ -169,6 +169,7 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.GET("/lottery/settings", controller.GetTgBotLotterySettings)
 			tgBotRoute.POST("/farm/reset-negative-balances", controller.AdminResetNegativeBalances)
 			tgBotRoute.POST("/farm/reset-all-levels", controller.AdminResetAllFarmLevels)
+			tgBotRoute.POST("/farm/beta-cleanup", controller.AdminBetaCleanup)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

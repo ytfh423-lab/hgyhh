@@ -1115,3 +1115,70 @@ func GetFarmLogs(telegramId string, limit, offset int) ([]*TgFarmLog, int64, err
 	err := DB.Where("telegram_id = ?", telegramId).Order("id desc").Limit(limit).Offset(offset).Find(&logs).Error
 	return logs, total, err
 }
+
+// ========== 内测数据清理 ==========
+
+// CleanupAllBetaFarmData 清理所有内测农场数据并回收用户净收益额度
+// 返回: 清理的用户数, 回收的总额度, error
+func CleanupAllBetaFarmData() (int, int64, error) {
+	// 1. 获取所有参与农场的用户（从 farm_logs 汇总净收益）
+	type userEarning struct {
+		TelegramId string
+		NetEarning int64
+	}
+	var earnings []userEarning
+	err := DB.Model(&TgFarmLog{}).
+		Select("telegram_id, COALESCE(SUM(amount), 0) as net_earning").
+		Group("telegram_id").
+		Having("COALESCE(SUM(amount), 0) > 0").
+		Scan(&earnings).Error
+	if err != nil {
+		return 0, 0, fmt.Errorf("查询用户收益失败: %w", err)
+	}
+
+	// 2. 回收每个用户的净收益额度
+	var totalReclaimed int64
+	for _, e := range earnings {
+		if e.NetEarning <= 0 {
+			continue
+		}
+		// 通过 telegram_id 找到用户并扣减额度
+		var user User
+		findErr := DB.Where("telegram_id = ?", e.TelegramId).First(&user).Error
+		if findErr != nil {
+			continue
+		}
+		// 扣减额度，最多扣到0
+		reclaimAmount := e.NetEarning
+		if int64(user.Quota) < reclaimAmount {
+			reclaimAmount = int64(user.Quota)
+		}
+		if reclaimAmount > 0 {
+			DB.Model(&User{}).Where("id = ?", user.Id).Update("quota", gorm.Expr("CASE WHEN quota >= ? THEN quota - ? ELSE 0 END", reclaimAmount, reclaimAmount))
+			totalReclaimed += reclaimAmount
+		}
+	}
+
+	// 3. 删除所有农场相关数据（按表逐个清空）
+	DB.Where("1 = 1").Delete(&TgFarmPlot{})
+	DB.Where("1 = 1").Delete(&TgFarmItem{})
+	DB.Where("1 = 1").Delete(&TgFarmStealLog{})
+	DB.Where("1 = 1").Delete(&TgFarmDog{})
+	DB.Where("1 = 1").Delete(&TgRanchAnimal{})
+	DB.Where("1 = 1").Delete(&TgFarmLog{})
+	DB.Where("1 = 1").Delete(&TgFarmProcess{})
+	DB.Where("1 = 1").Delete(&TgFarmTaskClaim{})
+	DB.Where("1 = 1").Delete(&TgFarmAchievement{})
+	DB.Where("1 = 1").Delete(&TgFarmLoan{})
+	DB.Where("1 = 1").Delete(&TgFarmWarehouse{})
+	DB.Where("1 = 1").Delete(&TgFarmCollection{})
+	DB.Where("1 = 1").Delete(&TgFarmTrade{})
+	DB.Where("1 = 1").Delete(&TgFarmPrestige{})
+	DB.Where("1 = 1").Delete(&TgFarmGameLog{})
+	DB.Where("1 = 1").Delete(&TgFarmAutomation{})
+
+	// 4. 重置所有内测预约的协议接受状态
+	DB.Model(&FarmBetaReservation{}).Where("agreement_accepted_at > 0").Update("agreement_accepted_at", 0)
+
+	return len(earnings), totalReclaimed, nil
+}

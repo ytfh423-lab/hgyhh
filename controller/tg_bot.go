@@ -1383,6 +1383,25 @@ func AdminResetNegativeBalances(c *gin.Context) {
 	})
 }
 
+// AdminBetaCleanup manually triggers beta farm data cleanup and quota reclamation
+func AdminBetaCleanup(c *gin.Context) {
+	common.SysLog("Admin: manually triggered farm beta data cleanup")
+	userCount, totalReclaimed, err := model.CleanupAllBetaFarmData()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "清理失败: " + err.Error()})
+		return
+	}
+	common.SysLog(fmt.Sprintf("Admin: farm beta cleanup done: %d users, reclaimed %d quota", userCount, totalReclaimed))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("内测数据清理完成：%d 个用户的数据已清除，回收额度 %d", userCount, totalReclaimed),
+		"data": gin.H{
+			"user_count":      userCount,
+			"total_reclaimed": totalReclaimed,
+		},
+	})
+}
+
 // AdminResetAllFarmLevels resets all users' farm level to a specified value
 func AdminResetAllFarmLevels(c *gin.Context) {
 	var req struct {

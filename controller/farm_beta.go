@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -9,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+var betaCleanupOnce sync.Once
 
 // FarmBetaStatus returns the beta status for the current user (or public info if not logged in)
 func FarmBetaStatus(c *gin.Context) {
@@ -30,11 +34,28 @@ func FarmBetaStatus(c *gin.Context) {
 		}
 	}
 
+	// Calculate beta end time
+	betaExpired := false
+	betaEndTime := ""
+	if farmOpen && countdownDate != "" {
+		start, err := time.Parse(time.RFC3339, countdownDate)
+		if err == nil {
+			end := start.Add(time.Duration(common.FarmBetaDurationDays) * 24 * time.Hour)
+			betaEndTime = end.Format(time.RFC3339)
+			if time.Now().After(end) {
+				betaExpired = true
+			}
+		}
+	}
+
 	result := gin.H{
-		"beta_enabled":   betaEnabled,
-		"farm_open":      farmOpen,
-		"max_slots":      maxSlots,
-		"total_reserved": totalReserved,
+		"beta_enabled":    betaEnabled,
+		"farm_open":       farmOpen,
+		"beta_expired":    betaExpired,
+		"beta_end_time":   betaEndTime,
+		"beta_duration":   common.FarmBetaDurationDays,
+		"max_slots":       maxSlots,
+		"total_reserved":  totalReserved,
 		"slots_remaining": int64(maxSlots) - totalReserved,
 	}
 
@@ -153,16 +174,42 @@ func CheckFarmBetaAccess() func(c *gin.Context) {
 		common.OptionMapRWMutex.RUnlock()
 
 		if countdownDate != "" {
-			t, err := time.Parse(time.RFC3339, countdownDate)
-			if err == nil && time.Now().Before(t) {
-				// Farm hasn't opened yet
-				c.JSON(http.StatusOK, gin.H{
-					"success": false,
-					"message": "农场内测尚未开启，请等待倒计时结束",
-					"code":    "BETA_NOT_STARTED",
-				})
-				c.Abort()
-				return
+			start, err := time.Parse(time.RFC3339, countdownDate)
+			if err == nil {
+				if time.Now().Before(start) {
+					// Farm hasn't opened yet
+					c.JSON(http.StatusOK, gin.H{
+						"success": false,
+						"message": "农场内测尚未开启，请等待倒计时结束",
+						"code":    "BETA_NOT_STARTED",
+					})
+					c.Abort()
+					return
+				}
+
+				// Check if beta period has expired (start + duration)
+				betaEnd := start.Add(time.Duration(common.FarmBetaDurationDays) * 24 * time.Hour)
+				if time.Now().After(betaEnd) {
+					// Beta expired — trigger one-time cleanup in background
+					betaCleanupOnce.Do(func() {
+						go func() {
+							common.SysLog("Farm beta expired, starting automatic data cleanup...")
+							userCount, totalReclaimed, err := model.CleanupAllBetaFarmData()
+							if err != nil {
+								common.SysError(fmt.Sprintf("Farm beta cleanup error: %v", err))
+							} else {
+								common.SysLog(fmt.Sprintf("Farm beta cleanup done: %d users, reclaimed %d quota", userCount, totalReclaimed))
+							}
+						}()
+					})
+					c.JSON(http.StatusOK, gin.H{
+						"success": false,
+						"message": "内测已结束，所有内测数据已清除。感谢您的参与！",
+						"code":    "BETA_EXPIRED",
+					})
+					c.Abort()
+					return
+				}
 			}
 		}
 
