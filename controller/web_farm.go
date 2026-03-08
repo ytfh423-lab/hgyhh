@@ -26,11 +26,12 @@ func getWebFarmUser(c *gin.Context) (*model.User, string, bool) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "用户不存在"})
 		return nil, "", false
 	}
-	if user.TelegramId == "" {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先绑定 Telegram 账号后才能使用农场功能"})
-		return nil, "", false
+	// 优先用 TelegramId，未绑定则用 u_{userId} 作为农场标识
+	farmId := user.TelegramId
+	if farmId == "" {
+		farmId = fmt.Sprintf("u_%d", user.Id)
 	}
-	return user, user.TelegramId, true
+	return user, farmId, true
 }
 
 func webFarmQuotaFloat(quota int) float64 {
