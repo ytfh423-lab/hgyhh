@@ -28,128 +28,130 @@
 //  基础教程流程 (farm_basic) — 首次进入，不可跳过
 // ══════════════════════════════════════════════
 const farmBasicSteps = [
-  // ── 阶段1: 认识总览 ──
+  // ── 欢迎 ──
   {
     id: 'fb-1', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
     stepKey: 'welcome', title: '欢迎来到农场！',
-    content: '这是你的专属农场。接下来我会手把手教你完成第一次种植、浇水、收获和出售——跟着做就行！',
+    content: '这是你的专属农场 🌾 接下来我会带你快速了解每个功能区域——不需要操作，看完就能上手！',
     targetSelector: null, placement: 'center',
     actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 1,
   },
+
+  // ── 总览页介绍 ──
   {
     id: 'fb-2', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
-    stepKey: 'statusbar', title: '资源栏',
-    content: '最上方是你的资源栏：💰金币、⭐等级、🌾地块数量、☁️天气。所有操作都会影响这些数值。',
+    stepKey: 'statusbar', title: '💰 资源栏',
+    content: '最上方是你的资源栏：金币余额、等级经验、地块数量和当前天气。所有操作都会影响这些数值。',
     targetSelector: '.farm-statusbar', placement: 'bottom',
     actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 2,
   },
   {
     id: 'fb-3', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
-    stepKey: 'plot-grid', title: '你的农田',
-    content: '这些是你的地块。空地可以种植作物。接下来我们去种下你的第一颗作物！',
+    stepKey: 'plot-grid', title: '🌱 农田地块',
+    content: '这里展示你的所有地块。空地可以种植作物，种下后会显示生长进度。作物成熟后可以收获。',
     targetSelector: '.farm-plot-grid', placement: 'top',
     actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 3,
   },
-
-  // ── 阶段2: 首次种植教学 ──
   {
     id: 'fb-4', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
+    stepKey: 'quick-actions', title: '⚡ 快捷操作',
+    content: '这里有「全部浇水」和「全部施肥」按钮，可以一键照料所有作物。浇水保持生长，施肥加速成熟。',
+    targetSelector: '.farm-overview-actions', placement: 'bottom',
+    actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 4,
+  },
+
+  // ── 种植页介绍 ──
+  {
+    id: 'fb-5', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
     stepKey: 'go-plant', title: '前往种植页',
-    content: '点击左侧导航栏的「🌱 种植」进入种植页面。',
+    content: '点击左侧「🌱 种植」查看可种植的作物。',
     targetSelector: '[data-tutorial="nav-plant"]', placement: 'right',
     actionType: 'navigate', navigateTo: 'plant',
-    allowManualNext: false, lockScope: 'full', required: true, sortOrder: 4,
-  },
-  {
-    id: 'fb-5', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'plant',
-    stepKey: 'select-crop', title: '选择作物',
-    content: '点击任意一种作物来选中它。新手推荐 🌾小麦 或 🥔土豆，价格便宜、见效快！',
-    targetSelector: '[data-tutorial="plant-page"]', placement: 'center',
-    actionType: 'wait-action', actionEvent: 'select-crop',
-    allowManualNext: false, lockScope: 'page', required: true, sortOrder: 5,
+    allowManualNext: false, lockScope: 'full', required: true, sortOrder: 5,
   },
   {
     id: 'fb-6', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'plant',
-    stepKey: 'do-plant', title: '种植到空地',
-    content: '选好作物后，点击下方任意一块空地完成种植！',
+    stepKey: 'plant-intro', title: '🌱 种植页',
+    content: '这里展示所有可种植的作物，包括种子价格、生长时间和收益。选中作物后点击空地即可种植。新手推荐 🌾小麦 或 🥔土豆——便宜又快！',
     targetSelector: '[data-tutorial="plant-page"]', placement: 'center',
-    actionType: 'wait-action', actionEvent: 'plant-crop',
-    allowManualNext: false, lockScope: 'page', required: true, sortOrder: 6,
+    actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 6,
   },
 
-  // ── 阶段3: 养成教学 ──
+  // ── 仓库页介绍 ──
   {
     id: 'fb-7', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'plant',
-    stepKey: 'back-overview-water', title: '返回总览',
-    content: '种植成功！现在回到总览页面查看作物状态。',
-    targetSelector: '[data-tutorial="nav-overview"]', placement: 'right',
-    actionType: 'navigate', navigateTo: 'overview',
+    stepKey: 'go-warehouse', title: '前往仓库',
+    content: '点击左侧「📦 仓库」查看你的库存。',
+    targetSelector: '[data-tutorial="nav-warehouse"]', placement: 'right',
+    actionType: 'navigate', navigateTo: 'warehouse',
     allowManualNext: false, lockScope: 'full', required: true, sortOrder: 7,
   },
   {
-    id: 'fb-8', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
-    stepKey: 'view-growing', title: '查看作物状态',
-    content: '看到了吗？你的作物正在生长中 🌱！进度条显示了当前的成长进度。作物需要浇水才能健康成长。',
-    targetSelector: '.farm-plot-growing', placement: 'bottom',
-    actionType: 'highlight-only', allowManualNext: true, lockScope: 'page', required: true, sortOrder: 8,
-  },
-  {
-    id: 'fb-9', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
-    stepKey: 'do-water', title: '给作物浇水',
-    content: '点击快捷操作栏的「💧 浇水」按钮，给作物浇水加速生长！',
-    targetSelector: '.farm-overview-actions', placement: 'bottom',
-    actionType: 'wait-action', actionEvent: 'water-crop',
-    allowManualNext: false, lockScope: 'page', required: true, sortOrder: 9,
+    id: 'fb-8', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'warehouse',
+    stepKey: 'warehouse-intro', title: '📦 仓库',
+    content: '收获的作物会存入仓库。你可以单独出售或全部出售。注意季节影响价格——应季便宜、反季贵，学会囤货等好时机出手！',
+    targetSelector: null, placement: 'center',
+    actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 8,
   },
 
-  // ── 阶段4: 市场/出售教学 ──
+  // ── 市场页介绍 ──
   {
-    id: 'fb-10', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
-    stepKey: 'water-done', title: '浇水成功！',
-    content: '浇水完成！作物会自动成长，成熟后可以收获。接下来让我们去仓库了解出售流程。',
+    id: 'fb-9', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'warehouse',
+    stepKey: 'go-market', title: '前往市场',
+    content: '点击左侧「� 市场」查看当前行情。',
+    targetSelector: '[data-tutorial="nav-market"]', placement: 'right',
+    actionType: 'navigate', navigateTo: 'market',
+    allowManualNext: false, lockScope: 'full', required: true, sortOrder: 9,
+  },
+  {
+    id: 'fb-10', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'market',
+    stepKey: 'market-intro', title: '📈 市场行情',
+    content: '市场价格实时波动！绿色↑表示涨价，红色↓表示跌价。在高价时出售作物可以赚更多金币。点击商品可查看详细走势。',
     targetSelector: null, placement: 'center',
     actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 10,
   },
+
+  // ── 商店页介绍 ──
   {
-    id: 'fb-11', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'overview',
-    stepKey: 'go-warehouse', title: '前往仓库',
-    content: '点击左侧导航栏的「📦 仓库」查看你的库存。',
-    targetSelector: '[data-tutorial="nav-warehouse"]', placement: 'right',
-    actionType: 'navigate', navigateTo: 'warehouse',
+    id: 'fb-11', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'market',
+    stepKey: 'go-shop', title: '前往商店',
+    content: '点击左侧「🏪 商店」看看有什么好东西。',
+    targetSelector: '[data-tutorial="nav-shop"]', placement: 'right',
+    actionType: 'navigate', navigateTo: 'shop',
     allowManualNext: false, lockScope: 'full', required: true, sortOrder: 11,
   },
   {
-    id: 'fb-12', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'warehouse',
-    stepKey: 'warehouse-intro', title: '仓库介绍',
-    content: '这里是仓库，收获的作物会自动存入这里。等有库存后你可以随时出售。现在让我们看看每日任务！',
+    id: 'fb-12', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'shop',
+    stepKey: 'shop-intro', title: '🏪 商店',
+    content: '商店出售各种实用道具：化肥加速生长、农药治虫、新地块扩展农田。随等级提升会解锁更多商品。',
     targetSelector: null, placement: 'center',
     actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 12,
   },
 
-  // ── 阶段5: 任务教学 ──
+  // ── 任务页介绍 ──
   {
-    id: 'fb-13', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'warehouse',
+    id: 'fb-13', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'shop',
     stepKey: 'go-tasks', title: '前往任务',
-    content: '点击左侧导航栏的「📝 任务」查看今日任务。',
+    content: '点击左侧「📝 任务」查看每日任务。',
     targetSelector: '[data-tutorial="nav-tasks"]', placement: 'right',
     actionType: 'navigate', navigateTo: 'tasks',
     allowManualNext: false, lockScope: 'full', required: true, sortOrder: 13,
   },
   {
     id: 'fb-14', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'tasks',
-    stepKey: 'view-tasks', title: '每日任务',
-    content: '这里列出了你的每日任务。完成对应操作后点击「领取」获得奖励。每天都会刷新新任务。',
+    stepKey: 'tasks-intro', title: '📝 每日任务',
+    content: '每天会刷新新任务，完成对应操作后点击「领取」获得金币和经验奖励。坚持做任务是升级的好方法！',
     targetSelector: null, placement: 'center',
-    actionType: 'highlight-only', allowManualNext: true, lockScope: 'page', required: true, sortOrder: 14,
+    actionType: 'highlight-only', allowManualNext: true, lockScope: 'full', required: true, sortOrder: 14,
   },
 
   // ── 完成 ──
   {
     id: 'fb-15', flowKey: 'farm_basic', featureKey: 'farm_basic', page: 'tasks',
-    stepKey: 'finish', title: '基础教学完成！🎉',
-    content: '恭喜！你已掌握农场的核心玩法：种植 → 浇水 → 收获 → 出售。随着等级提升会解锁更多功能，届时会有专属教学。点击右上角「📖」可随时回顾。',
+    stepKey: 'finish', title: '导览完成！🎉',
+    content: '恭喜！你已了解农场的核心功能。基本流程：种植 → 浇水 → 收获 → 出售。随着等级提升会解锁牧场、钓鱼、加工坊等更多玩法。现在去种下你的第一颗作物吧！',
     targetSelector: null, placement: 'center',
-    actionType: 'highlight-only', allowManualNext: true, lockScope: null, required: true, sortOrder: 17,
+    actionType: 'highlight-only', allowManualNext: true, lockScope: null, required: true, sortOrder: 15,
   },
 ];
 
