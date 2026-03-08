@@ -555,10 +555,14 @@ func WebFarmGameWheel(c *gin.Context) {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
 	net := actualWin - price
+	prizeLabel := win.Label
+	if prestige > 0 && actualWin > 0 {
+		prizeLabel = fmt.Sprintf("$%.2f", webFarmQuotaFloat(actualWin))
+	}
 	model.CreateGameLog(tgId, "wheel", price, actualWin)
-	model.AddFarmLog(tgId, "game", net, "🎡 转盘: "+win.Label)
+	model.AddFarmLog(tgId, "game", net, "🎡 转盘: "+prizeLabel)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
-		"sector_index": winIdx, "prize_label": win.Label,
+		"sector_index": winIdx, "prize_label": prizeLabel,
 		"prize_amount": webFarmQuotaFloat(actualWin), "net": webFarmQuotaFloat(net),
 	}})
 }

@@ -43,7 +43,7 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
     const data = await onSpin();
     if (!data) return;
     // Calculate target angle: prize_index tells us where to land
-    const prizeIdx = data.prize_index ?? Math.floor(Math.random() * sectorCount);
+    const prizeIdx = data.sector_index ?? Math.floor(Math.random() * sectorCount);
     // Pointer is at top (0°). Sector 0 starts at 0°.
     // To land on prizeIdx, rotate so that sector's center aligns with top.
     const targetSectorCenter = prizeIdx * sectorAngle + sectorAngle / 2;
