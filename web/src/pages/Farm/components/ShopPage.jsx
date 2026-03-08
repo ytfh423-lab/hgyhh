@@ -228,7 +228,7 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
                       </div>
                       <div className='farm-shop-stat'>
                         <div className='farm-shop-stat-label'>📈 {t('最高收益')}</div>
-                        <div className='farm-shop-stat-value' style={{ color: '#4ade80' }}>
+                        <div className='farm-shop-stat-value' style={{ color: 'var(--farm-leaf)' }}>
                           ${selected.max_value?.toFixed(2)}
                         </div>
                       </div>

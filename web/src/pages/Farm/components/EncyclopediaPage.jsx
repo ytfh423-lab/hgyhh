@@ -55,7 +55,7 @@ const EncyclopediaPage = ({ actionLoading, loadFarm, t }) => {
           <div className='farm-progress' style={{ height: 4, marginBottom: 10 }}>
             <div className='farm-progress-fill' style={{
               width: `${Math.round(cat.unlocked / cat.total * 100)}%`,
-              background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+              background: 'linear-gradient(90deg, var(--farm-sky), var(--farm-harvest))',
             }} />
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -64,9 +64,9 @@ const EncyclopediaPage = ({ actionLoading, loadFarm, t }) => {
                 padding: '8px 12px', borderRadius: 10, minWidth: 80, textAlign: 'center',
                 backdropFilter: 'var(--farm-blur)',
                 background: it.unlocked
-                  ? 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05))'
+                  ? 'linear-gradient(135deg, rgba(74,124,63,0.1), rgba(74,124,63,0.05))'
                   : 'var(--farm-glass-bg)',
-                border: it.unlocked ? '1.5px solid rgba(34,197,94,0.3)' : '1px dashed var(--farm-glass-border)',
+                border: it.unlocked ? '1.5px solid rgba(74,124,63,0.3)' : '1px dashed var(--farm-glass-border)',
                 opacity: it.unlocked ? 1 : 0.5,
                 transition: 'all 0.2s',
               }}>

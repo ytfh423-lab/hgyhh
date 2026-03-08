@@ -54,7 +54,7 @@ const TasksPage = ({ actionLoading, loadFarm, t }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(taskData.tasks || []).map((task) => (
             <div key={task.index} className='farm-row' style={{
-              background: task.claimed ? 'rgba(34,197,94,0.08)' : undefined,
+              background: task.claimed ? 'rgba(74,124,63,0.08)' : undefined,
               marginBottom: 0,
             }}>
               <span style={{ fontSize: 22 }}>{task.emoji}</span>
@@ -64,7 +64,7 @@ const TasksPage = ({ actionLoading, loadFarm, t }) => {
                   <div className='farm-progress' style={{ width: 80 }}>
                     <div className='farm-progress-fill' style={{
                       width: `${Math.min(100, (task.progress / task.target) * 100)}%`,
-                      background: task.claimed ? '#16a34a' : task.done ? '#eab308' : '#3b82f6',
+                      background: task.claimed ? 'var(--farm-leaf)' : task.done ? 'var(--farm-harvest)' : 'var(--farm-sky)',
                     }} />
                   </div>
                   <Text size='small' type='tertiary'>{task.progress}/{task.target}</Text>

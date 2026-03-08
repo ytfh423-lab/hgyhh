@@ -68,12 +68,12 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--farm-text-0)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
             {plot.crop_name}
             {soilLv > 1 && (
-              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(139,92,246,0.15)', color: '#a78bfa', fontWeight: 600 }}>
+              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(138,108,176,0.15)', color: '#b094d0', fontWeight: 600 }}>
                 Lv.{soilLv}
               </span>
             )}
             {plot.fertilized === 1 && (
-              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(6,182,212,0.15)', color: '#22d3ee', fontWeight: 600 }}>
+              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(90,143,180,0.15)', color: 'var(--farm-sky)', fontWeight: 600 }}>
                 🧴
               </span>
             )}
@@ -94,13 +94,13 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
           <div className='farm-progress' style={{ marginBottom: 6, height: 7 }}>
             <div className='farm-progress-fill' style={{
               width: `${plot.progress}%`,
-              background: 'linear-gradient(90deg, #3b82f6, #06b6d4)',
+              background: 'linear-gradient(90deg, var(--farm-sky), var(--farm-leaf))',
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
             <span style={{ color: 'var(--farm-text-2)' }}>{plot.progress}%</span>
             {plot.last_watered_at > 0 && (
-              <span style={{ color: plot.water_remain <= 0 ? '#f87171' : 'var(--farm-text-2)' }}>
+              <span style={{ color: plot.water_remain <= 0 ? 'var(--farm-danger)' : 'var(--farm-text-2)' }}>
                 💧 {plot.water_remain > 0 ? formatDuration(plot.water_remain) : t('需浇水')}
               </span>
             )}
@@ -112,8 +112,8 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
       {st === 2 && (
         <div style={{
           padding: '6px 10px', borderRadius: 8, textAlign: 'center',
-          background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
-          fontSize: 12, fontWeight: 600, color: '#4ade80',
+          background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.2)',
+          fontSize: 12, fontWeight: 600, color: 'var(--farm-leaf)',
         }}>
           🌾 {t('点击展开操作')}
         </div>
@@ -123,9 +123,9 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
       {(st === 3 || st === 4) && (
         <div style={{
           padding: '6px 10px', borderRadius: 8, textAlign: 'center',
-          background: st === 3 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
-          border: `1px solid ${st === 3 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}`,
-          fontSize: 12, fontWeight: 600, color: st === 3 ? '#f87171' : '#fbbf24',
+          background: st === 3 ? 'rgba(184,66,51,0.1)' : 'rgba(200,146,42,0.1)',
+          border: `1px solid ${st === 3 ? 'rgba(184,66,51,0.2)' : 'rgba(200,146,42,0.2)'}`,
+          fontSize: 12, fontWeight: 600, color: st === 3 ? 'var(--farm-danger)' : 'var(--farm-harvest)',
         }}>
           💀 {formatDuration(plot.death_remain)} {t('后死亡')}
         </div>
@@ -138,7 +138,7 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
             <Button size='small' icon={<Droplets size={12} />}
               onClick={e => { e.stopPropagation(); handleWater(plot.plot_index); }}
               loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa' }}>
+              style={{ background: 'rgba(90,143,180,0.12)', border: '1px solid rgba(90,143,180,0.3)', color: 'var(--farm-sky)' }}>
               {t('浇水')}
             </Button>
           )}
@@ -146,7 +146,7 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
             <Button size='small' icon={<FlaskConical size={12} />}
               onClick={e => { e.stopPropagation(); handleFertilize(plot.plot_index); }}
               loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399' }}>
+              style={{ background: 'rgba(74,124,63,0.12)', border: '1px solid rgba(74,124,63,0.3)', color: 'var(--farm-leaf)' }}>
               {t('施肥')}
             </Button>
           )}
@@ -154,7 +154,7 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
             <Button size='small' icon={<Pill size={12} />}
               onClick={e => { e.stopPropagation(); handleTreat(plot.plot_index); }}
               loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}>
+              style={{ background: 'rgba(200,146,42,0.12)', border: '1px solid rgba(200,146,42,0.3)', color: 'var(--farm-harvest)' }}>
               {t('治疗')}
             </Button>
           )}
@@ -162,7 +162,7 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
             <Button size='small' icon={<ArrowUp size={12} />}
               onClick={e => { e.stopPropagation(); handleUpgradeSoil(plot.plot_index); }}
               loading={actionLoading} className='farm-btn'
-              style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa' }}>
+              style={{ background: 'rgba(138,108,176,0.12)', border: '1px solid rgba(138,108,176,0.3)', color: '#b094d0' }}>
               {t('升级')} Lv.{soilLv + 1}
             </Button>
           )}
@@ -179,8 +179,8 @@ const BuyLandCard = ({ price, onClick, actionLoading, t }) => (
   <div className='farm-plot-card farm-plot-buy'
     onClick={onClick}
     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 130, textAlign: 'center' }}>
-    <Plus size={30} strokeWidth={1.5} style={{ color: '#34d399', marginBottom: 8 }} />
-    <span style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>{t('购买土地')}</span>
+    <Plus size={30} strokeWidth={1.5} style={{ color: 'var(--farm-leaf)', marginBottom: 8 }} />
+    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--farm-leaf)' }}>{t('购买土地')}</span>
     <span style={{ fontSize: 12, color: 'var(--farm-text-2)', marginTop: 4 }}>{price}</span>
   </div>
 );
@@ -219,11 +219,11 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
     <div>
       {/* ═══ Dashboard Stats ═══ */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-        <StatCard emoji='💰' label={t('余额')} value={formatBalance(farmData.balance)} accent='#4ade80' />
+        <StatCard emoji='💰' label={t('余额')} value={formatBalance(farmData.balance)} accent='var(--farm-leaf)' />
         <StatCard emoji='🌾' label={t('地块')} value={`${farmData.plot_count} / ${farmData.max_plots}`} />
-        {growingCount > 0 && <StatCard emoji='🌱' label={t('种植中')} value={growingCount} accent='#60a5fa' />}
-        {matureCount > 0 && <StatCard emoji='✅' label={t('可收获')} value={matureCount} accent='#4ade80' />}
-        {eventCount > 0 && <StatCard emoji='⚠️' label={t('需处理')} value={eventCount} accent='#f87171' />}
+        {growingCount > 0 && <StatCard emoji='🌱' label={t('种植中')} value={growingCount} accent='var(--farm-sky)' />}
+        {matureCount > 0 && <StatCard emoji='✅' label={t('可收获')} value={matureCount} accent='var(--farm-leaf)' />}
+        {eventCount > 0 && <StatCard emoji='⚠️' label={t('需处理')} value={eventCount} accent='var(--farm-danger)' />}
         {emptyCount > 0 && <StatCard emoji='⬜' label={t('空地')} value={emptyCount} />}
       </div>
 
@@ -237,12 +237,12 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
         {matureCount > 0 && (
           <>
             <Button size='small' icon={<Wheat size={13} />} theme='solid'
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderRadius: 8 }}
+              style={{ background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', borderRadius: 6 }}
               onClick={handleHarvest} loading={actionLoading} className='farm-btn'>
               🌾 {t('收获出售')} ({matureCount})
             </Button>
             <Button size='small' icon={<Package size={13} />} theme='solid'
-              style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)', borderRadius: 8 }}
+              style={{ background: 'linear-gradient(135deg, var(--farm-soil-light, #a0845e), var(--farm-soil))', borderRadius: 6 }}
               onClick={handleHarvestStore} loading={actionLoading} className='farm-btn'>
               📦 {t('收获入仓')}
             </Button>
@@ -250,14 +250,14 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
         )}
         {needsWaterCount > 0 && (
           <Button size='small' icon={<Droplets size={13} />}
-            style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', color: '#60a5fa', borderRadius: 8 }}
+            style={{ background: 'rgba(90,143,180,0.1)', border: '1px solid rgba(90,143,180,0.25)', color: 'var(--farm-sky)', borderRadius: 6 }}
             onClick={handleWaterAll} loading={actionLoading} className='farm-btn'>
             💧 {t('全部浇水')} ({needsWaterCount})
           </Button>
         )}
         {canFertilizeCount > 0 && (
           <Button size='small' icon={<FlaskConical size={13} />}
-            style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399', borderRadius: 8 }}
+            style={{ background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.25)', color: 'var(--farm-leaf)', borderRadius: 6 }}
             onClick={handleFertilizeAll} loading={actionLoading} className='farm-btn'>
             🧪 {t('全部施肥')} ({canFertilizeCount})
           </Button>

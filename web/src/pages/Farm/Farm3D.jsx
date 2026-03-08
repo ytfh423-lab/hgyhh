@@ -11,8 +11,8 @@ const COLS = 5;
 
 // ==================== Color Palettes ====================
 const COLORS = {
-  grass: '#4ade80',
-  grassDark: '#22c55e',
+  grass: '#6fa85e',
+  grassDark: '#4a7c3f',
   soil: '#92400e',
   soilLight: '#a16207',
   soilDry: '#78350f',
@@ -1006,7 +1006,7 @@ const Farm3DView = ({ farmData, doAction, t, selectedPlotIndex, setSelectedPlotI
         />
         <directionalLight position={[-5, 8, -5]} intensity={0.35} />
         <pointLight position={[0, 6, 0]} intensity={0.15} color='#fef3c7' />
-        <hemisphereLight args={['#87ceeb', '#4ade80', 0.35]} />
+        <hemisphereLight args={['#87ceeb', '#6fa85e', 0.35]} />
 
         <color attach='background' args={[getWeatherSkyColor(weatherType)]} />
         <fog attach='fog' args={[getWeatherSkyColor(weatherType), weatherType === 'foggy' ? 8 : 18, weatherType === 'foggy' ? 25 : 45]} />

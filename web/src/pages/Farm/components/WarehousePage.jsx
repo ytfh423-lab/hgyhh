@@ -69,7 +69,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
               {t('容量')}: <Text strong size='small'>{whData.total}/{whData.max_slots}</Text>
             </Text>
             <Text type='tertiary' size='small'>
-              {t('保质期')}: <Text strong size='small' style={{ color: expiryPct > 100 ? '#22c55e' : undefined }}>{expiryPct}%</Text>
+              {t('保质期')}: <Text strong size='small' style={{ color: expiryPct > 100 ? 'var(--farm-leaf)' : undefined }}>{expiryPct}%</Text>
             </Text>
           </div>
           {canUpgrade && (
@@ -131,7 +131,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
                   )}
                 </div>
                 <Text type='tertiary' size='small'>
-                  {t('单价')} ${r.unit_price?.toFixed(2)} · {t('总值')} <Text size='small' strong style={{ color: '#f59e0b' }}>${r.total_value?.toFixed(2)}</Text>
+                  {t('单价')} ${r.unit_price?.toFixed(2)} · {t('总值')} <Text size='small' strong style={{ color: 'var(--farm-harvest)' }}>${r.total_value?.toFixed(2)}</Text>
                 </Text>
               </div>
               <Button size='small' theme='solid' type='warning' onClick={() => handleSell(r.item_key)}

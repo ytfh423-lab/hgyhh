@@ -167,10 +167,10 @@ export const FishingBarGame = ({ game, onComplete, t }) => {
       onTouchStart={(e) => { e.preventDefault(); if (stateRef.current) stateRef.current.pressing = true; }}
       onTouchEnd={() => { if (stateRef.current) stateRef.current.pressing = false; }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 200 }}>
-        <span className='farm-gc-countdown' style={{ color: timeLeft <= 3 ? '#ef4444' : 'var(--farm-text-0)', fontSize: 22 }}>
+        <span className='farm-gc-countdown' style={{ color: timeLeft <= 3 ? 'var(--farm-danger)' : 'var(--farm-text-0)', fontSize: 22 }}>
           {timeLeft}s
         </span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: display.overlap >= 50 ? '#4ade80' : '#f59e0b' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: display.overlap >= 50 ? 'var(--farm-leaf)' : 'var(--farm-harvest)' }}>
           {display.overlap}%
         </span>
       </div>
@@ -181,7 +181,7 @@ export const FishingBarGame = ({ game, onComplete, t }) => {
           <div className='farm-gc-fishbar-zone' style={{ top: zonePx, height: zoneHPx }}>
             <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', fontSize: 16 }}>🐟</span>
           </div>
-          <div className='farm-gc-fishbar-hook' style={{ top: hookPx, background: hookInZone ? '#4ade80' : '#f43f5e', borderRadius: '50%' }}>
+          <div className='farm-gc-fishbar-hook' style={{ top: hookPx, background: hookInZone ? 'var(--farm-leaf)' : 'var(--farm-danger)', borderRadius: '50%' }}>
             🪝
           </div>
         </div>
@@ -323,7 +323,7 @@ export const PowerChopGame = ({ game, onComplete, t }) => {
       <div style={{ fontSize: 14, fontWeight: 700 }}>
         {t('第')} {round + 1}/{maxRounds} {t('刀')}
         {flashResult && (
-          <span style={{ marginLeft: 8, color: flashResult === 'good' ? '#4ade80' : '#ef4444' }}>
+          <span style={{ marginLeft: 8, color: flashResult === 'good' ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
             {flashResult === 'good' ? '✅ ' + t('好砍') + '!' : '❌ ' + t('偏了')}
           </span>
         )}
@@ -336,9 +336,9 @@ export const PowerChopGame = ({ game, onComplete, t }) => {
           position: 'absolute', top: 0, bottom: 0,
           left: `${sweetCenter - sweetHalf}%`,
           width: `${sweetHalf * 2}%`,
-          background: 'rgba(239, 68, 68, 0.25)',
-          borderLeft: '2px solid #ef4444',
-          borderRight: '2px solid #ef4444',
+          background: 'rgba(184, 66, 51, 0.25)',
+          borderLeft: '2px solid var(--farm-danger)',
+          borderRight: '2px solid var(--farm-danger)',
           zIndex: 1,
         }} />
         {/* Cursor */}
@@ -512,7 +512,7 @@ export const LassoGame = ({ game, onComplete, t }) => {
       if (s.charging || s.charge > 0) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(playerPx - 25, H - 10, 50, 8);
-        const chargeColor = s.charge < 40 ? '#4ade80' : s.charge < 75 ? '#fbbf24' : '#ef4444';
+        const chargeColor = s.charge < 40 ? '#6fa85e' : s.charge < 75 ? '#c8922a' : '#b84233';
         ctx.fillStyle = chargeColor;
         ctx.fillRect(playerPx - 25, H - 10, s.charge * 0.5, 8);
       }
@@ -764,7 +764,7 @@ export const AnglePowerGame = ({ game, onComplete, t }) => {
         {t('第')} {round + 1}/{maxRounds} {t('轮')} —
         {step === 'angle' ? ` 📐 ${t('定角度')}` : ` 💪 ${t('定力度')}`}
         {flyResult !== null && (
-          <span style={{ marginLeft: 8, color: flyResult >= 60 ? '#4ade80' : '#ef4444' }}>
+          <span style={{ marginLeft: 8, color: flyResult >= 60 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
             → {flyResult}{t('分')}!
           </span>
         )}
@@ -778,7 +778,7 @@ export const AnglePowerGame = ({ game, onComplete, t }) => {
         <div style={{
           position: 'absolute', bottom: 0, left: '50%',
           width: 3, height: 70,
-          background: step === 'angle' ? '#f43f5e' : (lockedAngle !== null ? '#4ade80' : '#6b7280'),
+          background: step === 'angle' ? 'var(--farm-danger)' : (lockedAngle !== null ? 'var(--farm-leaf)' : '#6b7280'),
           transformOrigin: 'bottom center',
           transform: `rotate(${-(step === 'angle' ? angleVal : (lockedAngle || 0)) + 45}deg)`,
           transition: step === 'power' ? 'none' : undefined,
@@ -786,13 +786,13 @@ export const AnglePowerGame = ({ game, onComplete, t }) => {
         }} />
         <div style={{ position: 'absolute', bottom: -18, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: 'var(--farm-text-2)' }}>
           {Math.round(step === 'angle' ? angleVal : (lockedAngle || 0))}°
-          {lockedAngle !== null && <span style={{ color: '#4ade80' }}> ✓</span>}
+          {lockedAngle !== null && <span style={{ color: 'var(--farm-leaf)' }}> ✓</span>}
         </div>
         {/* Target marker */}
         <div style={{
           position: 'absolute', bottom: 0, left: '50%',
           width: 2, height: 70,
-          background: 'rgba(74, 222, 128, 0.3)',
+          background: 'rgba(74, 124, 63, 0.3)',
           transformOrigin: 'bottom center',
           transform: `rotate(${-targetAngle + 45}deg)`,
           borderRadius: 2,
@@ -807,7 +807,7 @@ export const AnglePowerGame = ({ game, onComplete, t }) => {
           </div>
           <div className='farm-gc-bar power' style={{ height: 24, borderRadius: 12 }}>
             <div className='farm-gc-bar-fill' style={{ width: `${powerVal}%` }} />
-            <div className='farm-gc-bar-marker' style={{ left: `${targetPower}%`, background: '#4ade80', width: 3 }} />
+            <div className='farm-gc-bar-marker' style={{ left: `${targetPower}%`, background: 'var(--farm-leaf)', width: 3 }} />
           </div>
           <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, marginTop: 4 }}>
             {Math.round(powerVal)}%
@@ -1055,7 +1055,7 @@ export const WaterCatchGame = ({ game, onComplete, t }) => {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: W }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#60a5fa' }}>💧 {display.caught}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--farm-sky)' }}>💧 {display.caught}</span>
         <span style={{ fontSize: 14 }}>
           {'❤️'.repeat(display.lives)}{'🖤'.repeat(MAX_MISSES - display.lives)}
         </span>

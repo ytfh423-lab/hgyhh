@@ -80,7 +80,7 @@ const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
             <div className='farm-progress' style={{ flex: 1, maxWidth: 180, height: 8 }}>
               <div className='farm-progress-fill' style={{
                 width: `${dogData.hunger}%`,
-                background: dogData.hunger > 30 ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #ef4444, #dc2626)',
+                background: dogData.hunger > 30 ? 'linear-gradient(90deg, var(--farm-leaf), var(--farm-leaf))' : 'linear-gradient(90deg, var(--farm-danger), var(--farm-danger))',
               }} />
             </div>
             <Text strong size='small'>{dogData.hunger}%</Text>

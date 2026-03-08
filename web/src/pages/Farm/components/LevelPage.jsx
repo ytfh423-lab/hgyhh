@@ -59,7 +59,7 @@ const LevelPage = ({ actionLoading, loadFarm, t }) => {
             <div className='farm-progress' style={{ height: 8, marginTop: 6 }}>
               <div className='farm-progress-fill' style={{
                 width: `${pct}%`,
-                background: isMax ? 'linear-gradient(90deg, #16a34a, #22c55e)' : 'linear-gradient(90deg, #f59e0b, #eab308)',
+                background: isMax ? 'linear-gradient(90deg, var(--farm-leaf), var(--farm-leaf))' : 'linear-gradient(90deg, var(--farm-harvest), var(--farm-harvest))',
               }} />
             </div>
             <Text size='small' type='tertiary'>{lvData.level}/{lvData.max_level}</Text>
@@ -79,7 +79,7 @@ const LevelPage = ({ actionLoading, loadFarm, t }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {(lvData.unlocks || []).map((u) => (
             <div key={u.key} className='farm-row' style={{
-              background: u.unlocked ? 'rgba(34,197,94,0.08)' : undefined,
+              background: u.unlocked ? 'rgba(74,124,63,0.08)' : undefined,
               marginBottom: 0,
             }}>
               <span>{u.unlocked ? '✅' : '🔒'}</span>
@@ -98,7 +98,7 @@ const LevelPage = ({ actionLoading, loadFarm, t }) => {
             <div key={p.level} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '3px 8px',
               borderRadius: 8,
-              background: p.level === lvData.level + 1 ? 'rgba(245,158,11,0.1)' : 'transparent',
+              background: p.level === lvData.level + 1 ? 'rgba(200,146,42,0.1)' : 'transparent',
               fontWeight: p.level === lvData.level + 1 ? 600 : 400,
             }}>
               <Text style={{ width: 50 }}>Lv.{p.level}</Text>

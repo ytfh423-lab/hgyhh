@@ -74,7 +74,7 @@ const MarketChart = ({ t }) => {
       { orient: 'left', title: { visible: true, text: t('倍率') + ' %' }, min: 0 },
       { orient: 'bottom', title: { visible: false }, label: { autoRotate: true, autoRotateAngle: [-45] } },
     ],
-    markLine: [{ y: 100, line: { style: { stroke: '#ef4444', lineWidth: 1.5, lineDash: [6, 4] } }, label: { visible: true, text: '100%', style: { fill: '#ef4444', fontSize: 11, fontWeight: 'bold' } } }],
+    markLine: [{ y: 100, line: { style: { stroke: '#b84233', lineWidth: 1.5, lineDash: [6, 4] } }, label: { visible: true, text: '100%', style: { fill: '#b84233', fontSize: 11, fontWeight: 'bold' } } }],
     tooltip: {
       dimension: {
         content: (data) => {
@@ -132,9 +132,9 @@ const MarketChart = ({ t }) => {
           onClick={() => selectPreset('top5')}>🔥 Top 5</Button>
         <Button size='small' theme={visibleKeys?.size === catItems.length ? 'solid' : 'light'} className='farm-btn' style={{ fontSize: 12 }}
           onClick={() => selectPreset('all')}>{t('全部')}</Button>
-        <Button size='small' theme='light' className='farm-btn' style={{ fontSize: 12, color: '#22c55e' }}
+        <Button size='small' theme='light' className='farm-btn' style={{ fontSize: 12, color: 'var(--farm-leaf)' }}
           onClick={() => selectPreset('up')}>📈 {t('涨')}</Button>
-        <Button size='small' theme='light' className='farm-btn' style={{ fontSize: 12, color: '#ef4444' }}
+        <Button size='small' theme='light' className='farm-btn' style={{ fontSize: 12, color: 'var(--farm-danger)' }}
           onClick={() => selectPreset('down')}>📉 {t('跌')}</Button>
       </div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -153,7 +153,7 @@ const MarketChart = ({ t }) => {
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? clr : 'var(--semi-color-text-3)', flexShrink: 0 }} />
               <span>{it.emoji}{it.name}</span>
               {pct !== undefined && (
-                <span style={{ color: pct >= 100 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{pct}%</span>
+                <span style={{ color: pct >= 100 ? 'var(--farm-leaf)' : 'var(--farm-danger)', fontWeight: 600 }}>{pct}%</span>
               )}
             </div>
           );
@@ -282,10 +282,10 @@ const MarketPage = ({ t }) => {
           <div className='farm-pill'>🔄 {t('每')} {marketData.refresh_hours}h</div>
           <div className='farm-market-summary'>
             <span className='farm-market-summary-item'>
-              <span style={{ color: '#4ade80', fontWeight: 700 }}>▲ {upCount}</span>
+              <span style={{ color: 'var(--farm-leaf)', fontWeight: 700 }}>▲ {upCount}</span>
             </span>
             <span className='farm-market-summary-item'>
-              <span style={{ color: '#f87171', fontWeight: 700 }}>▼ {downCount}</span>
+              <span style={{ color: 'var(--farm-danger)', fontWeight: 700 }}>▼ {downCount}</span>
             </span>
             {flatCount > 0 && (
               <span className='farm-market-summary-item'>
@@ -361,7 +361,7 @@ const MarketPage = ({ t }) => {
               </span>
             </div>
             <div className='farm-market-col-price'>
-              <span style={{ fontSize: 14, fontWeight: 700, color: p.multiplier >= 100 ? '#4ade80' : '#f87171' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: p.multiplier >= 100 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
                 ${p.cur_price.toFixed(2)}
               </span>
             </div>

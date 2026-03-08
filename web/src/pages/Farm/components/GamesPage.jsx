@@ -9,22 +9,22 @@ const { Text } = Typography;
    WHEEL_SECTORS — 转盘扇区颜色
    ═══════════════════════════════════════════════════════════════ */
 const WHEEL_COLORS = [
-  '#ef4444', '#3b82f6', '#22c55e', '#f59e0b',
-  '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6',
+  '#b84233', '#5a8fb4', '#4a7c3f', '#c8922a',
+  '#8a6cb0', '#5a8fb4', '#a0845e', '#6fa85e',
 ];
 
 /* ═══════════════════════════════════════════════════════════════
    SpinningWheel — 真实旋转转盘（CSS transform）
    ═══════════════════════════════════════════════════════════════ */
 const WHEEL_PRIZES = [
-  { symbol: '🎁', label: '$0', color: '#ef4444' },
-  { symbol: '💰', label: '$0.50', color: '#3b82f6' },
-  { symbol: '🍀', label: '$1', color: '#22c55e' },
-  { symbol: '⭐', label: '$1.50', color: '#f59e0b' },
-  { symbol: '🎯', label: '$2', color: '#8b5cf6' },
-  { symbol: '🏆', label: '$3', color: '#06b6d4' },
-  { symbol: '💎', label: '$5', color: '#ec4899' },
-  { symbol: '🌟', label: '$10', color: '#14b8a6' },
+  { symbol: '🎁', label: '$0', color: '#b84233' },
+  { symbol: '💰', label: '$0.50', color: '#5a8fb4' },
+  { symbol: '🍀', label: '$1', color: '#4a7c3f' },
+  { symbol: '⭐', label: '$1.50', color: '#c8922a' },
+  { symbol: '🎯', label: '$2', color: '#8a6cb0' },
+  { symbol: '🏆', label: '$3', color: '#5a8fb4' },
+  { symbol: '💎', label: '$5', color: '#a0845e' },
+  { symbol: '🌟', label: '$10', color: '#4a7c3f' },
 ];
 
 const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
@@ -133,8 +133,8 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
     canvas.height = rect.height;
     // Fill with scratch coating
     const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    grad.addColorStop(0, '#6366f1');
-    grad.addColorStop(1, '#8b5cf6');
+    grad.addColorStop(0, '#6b5d4f');
+    grad.addColorStop(1, '#8a7a6a');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     // Add text hint
@@ -200,7 +200,7 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
             <div className='farm-scratch-prize'>
               <span className='farm-scratch-prize-emoji'>{result.win_symbol || '🎁'}</span>
               <span className='farm-scratch-prize-label'>{result.prize_label}</span>
-              <span style={{ fontSize: 12, color: result.net >= 0 ? '#4ade80' : '#ef4444', fontWeight: 700 }}>
+              <span style={{ fontSize: 12, color: result.net >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)', fontWeight: 700 }}>
                 {result.net >= 0 ? '+' : ''}{result.net.toFixed(2)}
               </span>
             </div>
@@ -378,7 +378,7 @@ const GamesPage = ({ loadFarm, t }) => {
               <div key={i} className='farm-row' style={{ marginBottom: 0, padding: '6px 10px' }}>
                 <Text size='small'>{h.game_type === 'wheel' ? '🎡' : h.game_type === 'scratch' ? '🎰' : '🎮'}</Text>
                 <Text size='small' style={{ flex: 1 }}>{t('下注')} ${h.bet.toFixed(2)} → ${h.win.toFixed(2)}</Text>
-                <Text size='small' strong style={{ color: h.net >= 0 ? '#22c55e' : '#ef4444' }}>
+                <Text size='small' strong style={{ color: h.net >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
                   {h.net >= 0 ? '+' : ''}{h.net.toFixed(2)}
                 </Text>
               </div>

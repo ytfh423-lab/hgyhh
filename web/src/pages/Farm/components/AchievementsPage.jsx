@@ -53,7 +53,7 @@ const AchievementsPage = ({ actionLoading, loadFarm, t }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(achData.achievements || []).map((ach) => (
             <div key={ach.key} className='farm-row' style={{
-              background: ach.unlocked ? 'rgba(34,197,94,0.08)' : undefined,
+              background: ach.unlocked ? 'rgba(74,124,63,0.08)' : undefined,
               opacity: ach.unlocked ? 1 : ach.done ? 1 : 0.6,
               marginBottom: 0,
             }}>
@@ -65,7 +65,7 @@ const AchievementsPage = ({ actionLoading, loadFarm, t }) => {
                   <div className='farm-progress' style={{ width: 80 }}>
                     <div className='farm-progress-fill' style={{
                       width: `${Math.min(100, (ach.progress / ach.target) * 100)}%`,
-                      background: ach.unlocked ? '#16a34a' : ach.done ? '#eab308' : '#3b82f6',
+                      background: ach.unlocked ? 'var(--farm-leaf)' : ach.done ? 'var(--farm-harvest)' : 'var(--farm-sky)',
                     }} />
                   </div>
                   <Text size='small' type='tertiary'>{ach.progress}/{ach.target}</Text>

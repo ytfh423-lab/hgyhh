@@ -235,7 +235,7 @@ const Farm = () => {
         }}>
           {betaGate === 'BETA_NOT_STARTED' ? (
             <>
-              <Clock size={44} style={{ color: '#fbbf24', marginBottom: 16 }} />
+              <Clock size={44} style={{ color: 'var(--farm-harvest)', marginBottom: 16 }} />
               <h2 style={{ color: '#fde68a', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
                 {t('农场内测尚未开启')}
               </h2>
@@ -245,7 +245,7 @@ const Farm = () => {
               <Link to='/'>
                 <button style={{
                   padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
-                  background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: '#000',
+                  background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', color: '#fff',
                   fontWeight: 700, fontSize: 14, cursor: 'pointer',
                 }}>
                   {t('返回首页')}
@@ -254,8 +254,8 @@ const Farm = () => {
             </>
           ) : (
             <>
-              <Lock size={44} style={{ color: '#ef4444', marginBottom: 16 }} />
-              <h2 style={{ color: '#fca5a5', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+              <Lock size={44} style={{ color: 'var(--farm-danger)', marginBottom: 16 }} />
+              <h2 style={{ color: '#d88a80', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
                 {t('暂无内测资格')}
               </h2>
               <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
@@ -264,7 +264,7 @@ const Farm = () => {
               <Link to='/'>
                 <button style={{
                   padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
-                  background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: '#000',
+                  background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', color: '#fff',
                   fontWeight: 700, fontSize: 14, cursor: 'pointer',
                 }}>
                   {t('返回首页')}

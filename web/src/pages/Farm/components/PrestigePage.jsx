@@ -55,11 +55,11 @@ const PrestigePage = ({ loadFarm, t }) => {
         </div>
         <div className='farm-kv'>
           <div className='farm-kv-label'>{t('当前加成')}</div>
-          <div className='farm-kv-value' style={{ color: '#22c55e' }}>+{data.current_bonus}%</div>
+          <div className='farm-kv-value' style={{ color: 'var(--farm-leaf)' }}>+{data.current_bonus}%</div>
         </div>
         <div className='farm-kv'>
           <div className='farm-kv-label'>{t('转生后加成')}</div>
-          <div className='farm-kv-value' style={{ color: '#8b5cf6' }}>+{data.next_bonus}%</div>
+          <div className='farm-kv-value' style={{ color: '#8a6cb0' }}>+{data.next_bonus}%</div>
         </div>
         <div className='farm-kv'>
           <div className='farm-kv-label'>{t('每次加成')}</div>

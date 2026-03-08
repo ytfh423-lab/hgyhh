@@ -21,6 +21,6 @@ export const seasonNames = ['春', '夏', '秋', '冬'];
 export const seasonEmojis = ['🌸', '☀️', '🍂', '❄️'];
 
 export const CHART_PALETTE = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899',
-  '#14b8a6', '#f97316', '#06b6d4', '#84cc16', '#e11d48', '#6366f1',
+  '#5a8fb4', '#b84233', '#4a7c3f', '#c8922a', '#8a6cb0', '#a0845e',
+  '#6fa85e', '#d4956a', '#5a8fb4', '#7a9e4e', '#b84233', '#8a6cb0',
 ];

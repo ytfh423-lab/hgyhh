@@ -116,7 +116,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
               </div>
               <div className='farm-kv'>
                 <div className='farm-kv-label'>{t('剩余')}</div>
-                <div className='farm-kv-value' style={{ color: '#ef4444' }}>{formatBalance(loan.remaining)}</div>
+                <div className='farm-kv-value' style={{ color: 'var(--farm-danger)' }}>{formatBalance(loan.remaining)}</div>
               </div>
               <div className='farm-kv'>
                 <div className='farm-kv-label'>{t('剩余天数')}</div>

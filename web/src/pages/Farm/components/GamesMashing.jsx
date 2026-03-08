@@ -17,9 +17,9 @@ export const HorseRaceGame = ({ game, onComplete, t }) => {
   const initState = () => ({
     player: { x: 5, stamina: 100, speed: 0, sprite: 0 },
     npcs: [
-      { x: 5, speed: 0.18 + Math.random() * 0.06, wobble: Math.random() * 1000, color: '#ef4444', name: '烈焰' },
-      { x: 5, speed: 0.16 + Math.random() * 0.06, wobble: Math.random() * 1000, color: '#3b82f6', name: '疾风' },
-      { x: 5, speed: 0.17 + Math.random() * 0.06, wobble: Math.random() * 1000, color: '#f59e0b', name: '雷鸣' },
+      { x: 5, speed: 0.18 + Math.random() * 0.06, wobble: Math.random() * 1000, color: '#b84233', name: '烈焰' },
+      { x: 5, speed: 0.16 + Math.random() * 0.06, wobble: Math.random() * 1000, color: '#5a8fb4', name: '疾风' },
+      { x: 5, speed: 0.17 + Math.random() * 0.06, wobble: Math.random() * 1000, color: '#c8922a', name: '雷鸣' },
     ],
     tick: 0,
     finished: false,
@@ -135,14 +135,14 @@ export const HorseRaceGame = ({ game, onComplete, t }) => {
         ctx.font = '8px sans-serif';
         ctx.fillText(lane === 0 ? t('你') : s.npcs[lane - 1].name, px, py - 16);
       };
-      drawHorse(s.player.x, 0, '🏇', '#4ade80', s.player.sprite);
+      drawHorse(s.player.x, 0, '🏇', '#6fa85e', s.player.sprite);
       s.npcs.forEach((npc, i) => {
         drawHorse(npc.x, i + 1, '🐎', npc.color, s.tick * 0.08);
       });
       // Stamina bar
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(10, H - 22, 120, 12);
-      const stColor = s.player.stamina > 40 ? '#4ade80' : s.player.stamina > 15 ? '#fbbf24' : '#ef4444';
+      const stColor = s.player.stamina > 40 ? '#6fa85e' : s.player.stamina > 15 ? '#c8922a' : '#b84233';
       ctx.fillStyle = stColor;
       ctx.fillRect(10, H - 22, s.player.stamina * 1.2, 12);
       ctx.fillStyle = '#fff';
@@ -314,11 +314,11 @@ export const TugOfWarGame = ({ game, onComplete, t }) => {
     );
   }
 
-  const posColor = pos < 35 ? '#4ade80' : pos < 65 ? '#fbbf24' : '#ef4444';
+  const posColor = pos < 35 ? 'var(--farm-leaf)' : pos < 65 ? 'var(--farm-harvest)' : 'var(--farm-danger)';
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-        <span className='farm-gc-countdown' style={{ color: timeLeft <= 3 ? '#ef4444' : 'var(--farm-text-0)', fontSize: 22 }}>
+        <span className='farm-gc-countdown' style={{ color: timeLeft <= 3 ? 'var(--farm-danger)' : 'var(--farm-text-0)', fontSize: 22 }}>
           {timeLeft}s
         </span>
         <span style={{ fontSize: 14, fontWeight: 700, color: posColor }}>
@@ -464,10 +464,10 @@ export const ClickBlitzGame = ({ game, onComplete, t }) => {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 340 }}>
-        <span className='farm-gc-countdown' style={{ color: timeLeft <= 2 ? '#ef4444' : 'var(--farm-text-0)', fontSize: 22 }}>
+        <span className='farm-gc-countdown' style={{ color: timeLeft <= 2 ? 'var(--farm-danger)' : 'var(--farm-text-0)', fontSize: 22 }}>
           {timeLeft}s
         </span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#4ade80' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--farm-leaf)' }}>
           ✅ {cleared}/{totalTargets}
         </span>
       </div>
@@ -613,10 +613,10 @@ export const RhythmKeysGame = ({ game, onComplete, t }) => {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-        <span className='farm-gc-countdown' style={{ color: timeLeft <= 2 ? '#ef4444' : 'var(--farm-text-0)', fontSize: 22 }}>
+        <span className='farm-gc-countdown' style={{ color: timeLeft <= 2 ? 'var(--farm-danger)' : 'var(--farm-text-0)', fontSize: 22 }}>
           {timeLeft}s
         </span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#4ade80' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--farm-leaf)' }}>
           ✅ {score} · 🔥 {combo}
         </span>
       </div>
@@ -631,11 +631,11 @@ export const RhythmKeysGame = ({ game, onComplete, t }) => {
             width: i === 0 ? 56 : 40,
             height: i === 0 ? 56 : 40,
             borderRadius: 10,
-            background: i === 0 ? (k === 'Q' ? 'rgba(59,130,246,0.2)' : 'rgba(168,85,247,0.2)') : 'var(--farm-surface-alt)',
-            border: i === 0 ? `3px solid ${k === 'Q' ? '#3b82f6' : '#a855f7'}` : '2px solid var(--farm-border)',
+            background: i === 0 ? (k === 'Q' ? 'rgba(90,143,180,0.2)' : 'rgba(138,108,176,0.2)') : 'var(--farm-surface-alt)',
+            border: i === 0 ? `3px solid ${k === 'Q' ? 'var(--farm-sky)' : '#8a6cb0'}` : '2px solid var(--farm-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: i === 0 ? 22 : 16, fontWeight: 800,
-            color: i === 0 ? (k === 'Q' ? '#60a5fa' : '#c084fc') : 'var(--farm-text-3)',
+            color: i === 0 ? (k === 'Q' ? 'var(--farm-sky)' : '#b094d0') : 'var(--farm-text-3)',
             opacity: 1 - i * 0.15,
             transition: 'all 0.1s',
           }}>
@@ -657,7 +657,7 @@ export const RhythmKeysGame = ({ game, onComplete, t }) => {
       </div>
 
       {combo >= 5 && (
-        <div style={{ fontSize: 16, fontWeight: 800, color: '#f59e0b', animation: 'farm-gc-pulse 0.5s infinite' }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--farm-harvest)', animation: 'farm-gc-pulse 0.5s infinite' }}>
           🔥 {combo} COMBO!
         </div>
       )}
@@ -740,7 +740,7 @@ export const CircleDrawGame = ({ game, onComplete, t }) => {
       const pct = s.progress / 100;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
-      ctx.strokeStyle = pct >= 1 ? '#4ade80' : '#8b5cf6';
+      ctx.strokeStyle = pct >= 1 ? '#6fa85e' : '#8a6cb0';
       ctx.lineWidth = 20;
       ctx.lineCap = 'round';
       ctx.stroke();
@@ -845,10 +845,10 @@ export const CircleDrawGame = ({ game, onComplete, t }) => {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 300 }}>
-        <span className='farm-gc-countdown' style={{ color: timeLeft <= 2 ? '#ef4444' : 'var(--farm-text-0)', fontSize: 22 }}>
+        <span className='farm-gc-countdown' style={{ color: timeLeft <= 2 ? 'var(--farm-danger)' : 'var(--farm-text-0)', fontSize: 22 }}>
           {timeLeft}s
         </span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: progress >= 100 ? '#4ade80' : '#8b5cf6' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: progress >= 100 ? 'var(--farm-leaf)' : '#8a6cb0' }}>
           {Math.round(progress)}%
         </span>
       </div>

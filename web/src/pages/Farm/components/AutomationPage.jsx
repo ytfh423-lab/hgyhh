@@ -36,7 +36,7 @@ const AutomationPage = ({ loadFarm, t }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {data.map(item => (
           <div key={item.type} className='farm-row' style={{
-            background: item.installed ? 'rgba(34,197,94,0.08)' : undefined,
+            background: item.installed ? 'rgba(74,124,63,0.08)' : undefined,
             marginBottom: 0,
           }}>
             <span style={{ fontSize: 28 }}>{item.emoji}</span>

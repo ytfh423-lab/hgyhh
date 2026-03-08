@@ -80,7 +80,7 @@ const LogsPage = ({ t }) => {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
-                  <Text strong size='small' style={{ color: log.amount >= 0 ? '#16a34a' : '#dc2626' }}>
+                  <Text strong size='small' style={{ color: log.amount >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
                     {log.amount >= 0 ? '+' : ''}{log.amount.toFixed(2)}
                   </Text>
                   <Text type='tertiary' size='small'>

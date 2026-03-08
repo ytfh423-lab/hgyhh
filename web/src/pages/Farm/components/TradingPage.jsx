@@ -89,7 +89,7 @@ const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
                     </Text>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <Text strong style={{ color: '#f59e0b' }}>${tr.total_price.toFixed(2)}</Text>
+                    <Text strong style={{ color: 'var(--farm-harvest)' }}>${tr.total_price.toFixed(2)}</Text>
                     <Text type='tertiary' size='small' style={{ display: 'block' }}>+{tr.fee.toFixed(2)}{t('手续费')}</Text>
                   </div>
                   <Button size='small' theme='solid' onClick={() => buyTrade(tr.id)} className='farm-btn'>{t('购买')}</Button>

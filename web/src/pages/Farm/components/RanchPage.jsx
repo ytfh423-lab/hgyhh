@@ -57,7 +57,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadRanch} loading={ranchLoading} className='farm-btn' />
         {dirtyAnimals.length > 0 && (
           <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/clean', {})}
-            loading={actionLoading} className='farm-btn' style={{ color: '#92400e', borderColor: '#f59e0b' }}>
+            loading={actionLoading} className='farm-btn' style={{ color: 'var(--farm-soil)', borderColor: 'var(--farm-harvest)' }}>
             🧹 {t('清理粪便')}({formatBalance(ranchData.manure_clean_price)})
           </Button>
         )}
@@ -95,7 +95,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                   {animal.status === 1 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div className='farm-progress' style={{ flex: 1, maxWidth: 200 }}>
-                        <div className='farm-progress-fill' style={{ width: `${animal.progress}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)' }} />
+                        <div className='farm-progress-fill' style={{ width: `${animal.progress}%`, background: 'linear-gradient(90deg, var(--farm-sky), var(--farm-leaf))' }} />
                       </div>
                       <Text type='tertiary' size='small'>{animal.progress}% · {formatDuration(animal.remaining)}</Text>
                     </div>
@@ -129,7 +129,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                       </Button>
                       <Button size='small' theme='light'
                         onClick={() => doRanchAction('/api/ranch/slaughter/store', { animal_id: animal.id })}
-                        loading={actionLoading} className='farm-btn' style={{ color: '#1e40af', borderColor: '#3b82f6' }}>
+                        loading={actionLoading} className='farm-btn' style={{ color: 'var(--farm-sky)', borderColor: 'var(--farm-sky)' }}>
                         📦 {t('存仓库')}
                       </Button>
                     </>
