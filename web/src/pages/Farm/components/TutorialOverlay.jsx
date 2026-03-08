@@ -222,7 +222,11 @@ const TutorialOverlay = ({
     return `${t('下一步')} →`;
   };
 
+  const isPending = stepPhase === 'pending';
+  const displayContent = isPending && step.pendingContent ? step.pendingContent : step.content;
+
   const getHint = () => {
+    if (isPending) return `⏳ ${t('等待条件满足...')}`;
     if (stepPhase === 'waiting_target') return `⏳ ${t('等待页面加载...')}`;
     if (stepPhase === 'validating') return `⏳ ${t('正在验证...')}`;
     if (isWait) return `👆 ${t('请完成上方高亮区域的操作')}`;
@@ -232,7 +236,7 @@ const TutorialOverlay = ({
 
   const hint = getHint();
   const arrowClass = arrowDir ? `tutorial-arrow tutorial-arrow-${arrowDir}` : '';
-  const nextDisabled = isWait; // wait-action 步骤不能手动跳过
+  const nextDisabled = isWait || isPending; // wait-action 和 pending 步骤不能手动跳过
 
   return (
     <div className="tutorial-overlay" style={{ position: 'fixed', inset: 0, zIndex: 99989 }}
@@ -255,7 +259,7 @@ const TutorialOverlay = ({
         </div>
 
         <h3 className="tutorial-title">{t(step.title)}</h3>
-        <p className="tutorial-content">{t(step.content)}</p>
+        <p className="tutorial-content">{t(displayContent)}</p>
 
         {hint && <div className="tutorial-action-hint">{hint}</div>}
 

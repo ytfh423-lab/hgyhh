@@ -17,16 +17,17 @@ export const useTutorial = () => useContext(TutorialContext);
  *   对 wait-action 步骤：active → 等待 tutorialEvents 成功事件 → completed
  *   对 info 步骤：active → 用户点下一步 → completed
  */
-const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) => {
+const TutorialProvider = ({ userLevel, activePage, onNavigate, farmData, loadFarm, t, children }) => {
   const [activeFlowKey, setActiveFlowKey] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [tutorialMode, setTutorialMode] = useState('forced'); // forced / replay
-  const [stepPhase, setStepPhase] = useState('idle'); // idle / active / validating
+  const [stepPhase, setStepPhase] = useState('idle'); // idle / active / validating / pending
   const [loaded, setLoaded] = useState(false);
   const [featuresState, setFeaturesState] = useState({});
   const initRef = useRef(false);
   const prevLevelRef = useRef(userLevel);
   const advanceTimerRef = useRef(null);
+  const validatePollRef = useRef(null);
 
   const steps = activeFlowKey ? getFlowSteps(activeFlowKey) : [];
   const step = steps[currentStep] || null;
@@ -36,6 +37,9 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
   // ────── 辅助：清理定时器 ──────
   const clearAdvanceTimer = () => {
     if (advanceTimerRef.current) { clearTimeout(advanceTimerRef.current); advanceTimerRef.current = null; }
+  };
+  const clearValidatePoll = () => {
+    if (validatePollRef.current) { clearInterval(validatePollRef.current); validatePollRef.current = null; }
   };
 
   // ────── 加载服务端教程状态 ──────
@@ -66,14 +70,20 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     setActiveFlowKey(flowKey);
     setTutorialMode(mode);
     setCurrentStep(idx);
-    setStepPhase('active');
 
-    // 确保导航到第一步所在页面
-    const first = flowSteps[idx];
-    if (first.page && first.page !== activePage && onNavigate) {
-      setTimeout(() => onNavigate(first.page), 50);
+    // 确保导航到目标步骤所在页面
+    const targetStep = flowSteps[idx];
+    if (targetStep.page && targetStep.page !== activePage && onNavigate) {
+      setTimeout(() => onNavigate(targetStep.page), 50);
     }
-  }, [activePage, onNavigate]);
+
+    // 校验步骤前置条件
+    if (targetStep.validate && targetStep.waitForValidate && farmData && !targetStep.validate(farmData)) {
+      setStepPhase('pending');
+    } else {
+      setStepPhase('active');
+    }
+  }, [activePage, onNavigate, farmData]);
 
   // ────── 完成教程 ──────
   const handleFinish = useCallback(async () => {
@@ -82,6 +92,7 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     setCurrentStep(0);
     setStepPhase('idle');
     clearAdvanceTimer();
+    clearValidatePoll();
 
     try {
       await API.post('/api/farm/tutorial/complete', { feature_key: flowKey });
@@ -103,9 +114,10 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     }
   }, [activeFlowKey, onNavigate, loadState, startFlow]);
 
-  // ────── 推进到下一步 ──────
+  // ────── 推进到下一步（含 validate 校验）──────
   const advanceStep = useCallback(() => {
     clearAdvanceTimer();
+    clearValidatePoll();
     if (!activeFlowKey) return;
 
     const nextIdx = currentStep + 1;
@@ -120,9 +132,17 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     }
 
     setCurrentStep(nextIdx);
-    setStepPhase('active');
     syncStep(activeFlowKey, nextIdx);
-  }, [activeFlowKey, currentStep, steps, activePage, onNavigate, syncStep, handleFinish]);
+
+    // 校验下一步的前置条件
+    if (nextStep.validate && nextStep.waitForValidate) {
+      if (!farmData || !nextStep.validate(farmData)) {
+        setStepPhase('pending');
+        return;
+      }
+    }
+    setStepPhase('active');
+  }, [activeFlowKey, currentStep, steps, activePage, onNavigate, syncStep, handleFinish, farmData]);
 
   // ────── 跳过/退出（仅 replay 允许）──────
   const handleSkip = useCallback(async () => {
@@ -132,6 +152,7 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     setCurrentStep(0);
     setStepPhase('idle');
     clearAdvanceTimer();
+    clearValidatePoll();
     try {
       await API.post('/api/farm/tutorial/skip', { feature_key: flowKey });
     } catch (e) { /* ignore */ }
@@ -219,6 +240,30 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     }
     return () => clearAdvanceTimer();
   }, [isActive, step, stepPhase, activePage, advanceStep]);
+
+  // ────── pending 阶段：轮询 loadFarm 等待 validate 通过 ──────
+  useEffect(() => {
+    if (!isActive || !step || stepPhase !== 'pending') {
+      clearValidatePoll();
+      return;
+    }
+    // 立即刷新一次
+    if (loadFarm) loadFarm();
+    // 每 2 秒轮询
+    validatePollRef.current = setInterval(() => {
+      if (loadFarm) loadFarm();
+    }, 2000);
+    return () => clearValidatePoll();
+  }, [isActive, step?.id, stepPhase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ────── farmData 变化时重新校验 pending 步骤 ──────
+  useEffect(() => {
+    if (!isActive || !step || stepPhase !== 'pending' || !farmData) return;
+    if (step.validate && step.validate(farmData)) {
+      clearValidatePoll();
+      setStepPhase('active');
+    }
+  }, [isActive, step, stepPhase, farmData]);
 
   // ────── 页面匹配：决定是否渲染 overlay ──────
   const shouldRender = isActive && step && (

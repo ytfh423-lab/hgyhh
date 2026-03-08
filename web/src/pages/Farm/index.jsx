@@ -493,7 +493,7 @@ const Farm = () => {
   };
 
   return (
-    <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={setActivePage} t={t}>
+    <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={setActivePage} farmData={farmData} loadFarm={loadFarm} t={t}>
       <div className='farm-layout'>
         <FarmAnnouncementBar t={t} />
         <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} userLevel={userLevel} />

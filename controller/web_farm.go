@@ -980,7 +980,9 @@ func WebFarmWater(c *gin.Context) {
 		crop := farmCropMap[target.CropType]
 		if crop != nil {
 			now := time.Now().Unix()
-			target.PlantedAt = now - crop.GrowSecs - 1 // 确保已过成熟时间
+			target.PlantedAt = now - crop.GrowSecs - 1
+			target.LastWateredAt = now // 同步内存，防止 DB.Save 覆写
+			target.Status = 2          // 直接标记成熟
 			target.EventType = ""
 			target.EventAt = 0
 			_ = model.UpdateFarmPlot(target)
@@ -1049,6 +1051,8 @@ func WebFarmWaterAll(c *gin.Context) {
 				crop := farmCropMap[plot.CropType]
 				if crop != nil {
 					plot.PlantedAt = now - crop.GrowSecs - 1
+					plot.LastWateredAt = now // 同步内存，防止 DB.Save 覆写
+					plot.Status = 2          // 直接标记成熟
 					plot.EventType = ""
 					plot.EventAt = 0
 					_ = model.UpdateFarmPlot(plot)

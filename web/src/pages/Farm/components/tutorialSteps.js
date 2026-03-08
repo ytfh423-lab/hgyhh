@@ -87,17 +87,26 @@ const farmBasicSteps = [
     content: '点击「💧 全部浇水」按钮。教程模式下浇水后作物会立即成熟！',
     targetSelector: '[data-tutorial="quick-actions"]', placement: 'bottom',
     actionType: 'wait-action', actionEvent: 'water-crop',
+    validate: (farmData) => {
+      const plots = farmData?.plots || [];
+      return plots.some(p => p.status === 1 || p.status === 4);
+    },
   },
 
   // ── 9. 收获（真实操作）──
   {
     id: 'fb-9', page: 'overview',
     title: '🌾 收获作物',
-    content: '作物已经成熟了！点击「🌾 收获出售」直接卖出，或点「� 收获入仓」存到仓库。',
+    content: '作物已经成熟了！点击「🌾 收获出售」直接卖出，或点「📦 收获入仓」存到仓库。',
     targetSelector: '[data-tutorial="quick-actions"]', placement: 'bottom',
     actionType: 'wait-action', actionEvent: 'harvest-crop',
-    // harvest-store 也算完成
     altEvents: ['harvest-store'],
+    validate: (farmData) => {
+      const plots = farmData?.plots || [];
+      return plots.some(p => p.status === 2);
+    },
+    pendingContent: '作物还在生长中，请稍等片刻...系统正在加速成熟。',
+    waitForValidate: true,
   },
 
   // ── 10. 完成 ──
