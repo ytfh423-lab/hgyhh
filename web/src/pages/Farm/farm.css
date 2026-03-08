@@ -1452,13 +1452,13 @@
 }
 
 .farm-market-change-up {
-  background: rgba(184, 66, 51, 0.12);
-  color: var(--farm-danger);
+  background: rgba(74, 124, 63, 0.12);
+  color: var(--farm-leaf);
 }
 
 .farm-market-change-down {
-  background: rgba(74, 124, 63, 0.12);
-  color: var(--farm-leaf);
+  background: rgba(184, 66, 51, 0.12);
+  color: var(--farm-danger);
 }
 
 .farm-market-change-flat {
@@ -1466,8 +1466,8 @@
   color: var(--farm-text-2);
 }
 
-[theme-mode='light'] .farm-market-change-up { color: var(--farm-danger); }
-[theme-mode='light'] .farm-market-change-down { color: var(--farm-leaf); }
+[theme-mode='light'] .farm-market-change-up { color: var(--farm-leaf); }
+[theme-mode='light'] .farm-market-change-down { color: var(--farm-danger); }
 
 .farm-market-tabs {
   display: flex;
