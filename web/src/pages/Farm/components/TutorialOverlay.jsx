@@ -140,11 +140,11 @@ const TutorialOverlay = ({
 
     switch (pl) {
       case 'bottom':
-        s = { position: 'fixed', top: targetRect.bottom + pad + arrSz, left: Math.max(pad, Math.min(cx - tw / 2, vw - tw - pad)) };
+        s = { position: 'fixed', top: Math.min(targetRect.bottom + pad + arrSz, vh - th - pad), left: Math.max(pad, Math.min(cx - tw / 2, vw - tw - pad)) };
         a = { position: 'absolute', top: -arrSz, left: Math.min(Math.max(20, cx - (s.left || 0)), tw - 20), transform: 'translateX(-50%)' };
         break;
       case 'top':
-        s = { position: 'fixed', top: targetRect.top - th - pad - arrSz, left: Math.max(pad, Math.min(cx - tw / 2, vw - tw - pad)) };
+        s = { position: 'fixed', top: Math.max(pad, targetRect.top - th - pad - arrSz), left: Math.max(pad, Math.min(cx - tw / 2, vw - tw - pad)) };
         a = { position: 'absolute', bottom: -arrSz, left: Math.min(Math.max(20, cx - (s.left || 0)), tw - 20), transform: 'translateX(-50%)' };
         break;
       case 'right':

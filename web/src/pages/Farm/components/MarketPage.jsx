@@ -79,9 +79,9 @@ const ItemDetailPanel = ({ itemKey, onClose, t }) => {
     data: { values: miniChartData },
     xField: 'time', yField: 'value',
     point: { visible: false },
-    line: { style: { lineWidth: 2, stroke: detail.change >= 0 ? '#22c55e' : '#ef4444' } },
+    line: { style: { lineWidth: 2, stroke: detail.change >= 0 ? '#ef4444' : '#22c55e' } },
     area: { style: { fill: { gradient: 'linear', x0: 0, y0: 0, x1: 0, y1: 1, stops: [
-      { offset: 0, color: detail.change >= 0 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)' },
+      { offset: 0, color: detail.change >= 0 ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)' },
       { offset: 1, color: 'rgba(0,0,0,0)' },
     ] } } },
     axes: [
@@ -107,10 +107,10 @@ const ItemDetailPanel = ({ itemKey, onClose, t }) => {
           </div>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: detail.change >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: detail.change >= 0 ? 'var(--farm-danger)' : 'var(--farm-leaf)' }}>
             {detail.multiplier}%
           </div>
-          <div style={{ fontSize: 12, color: detail.change >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
+          <div style={{ fontSize: 12, color: detail.change >= 0 ? 'var(--farm-danger)' : 'var(--farm-leaf)' }}>
             {detail.trend_arrow} {detail.trend_tag} ({detail.change >= 0 ? '+' : ''}{detail.change}%)
           </div>
         </div>
@@ -335,7 +335,7 @@ const MarketPage = ({ t }) => {
   const [marketLoading, setMarketLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [activeTab, setActiveTab] = useState('all');
-  const [sortBy, setSortBy] = useState('change');
+  const [sortBy, setSortBy] = useState('base');
   const [sortDir, setSortDir] = useState('desc');
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -519,7 +519,7 @@ const MarketPage = ({ t }) => {
               </span>
             </div>
             <div className='farm-market-col-price'>
-              <span style={{ fontSize: 14, fontWeight: 700, color: (p.change || 0) >= 0 ? 'var(--farm-leaf)' : 'var(--farm-danger)' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: (p.change || 0) >= 0 ? 'var(--farm-danger)' : 'var(--farm-leaf)' }}>
                 ${p.cur_price.toFixed(2)}
               </span>
             </div>
