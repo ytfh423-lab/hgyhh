@@ -1040,6 +1040,23 @@ func WebFarmWaterAll(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有需要浇水的地块"})
 		return
 	}
+
+	// 教程期间：浇水后直接让所有作物成熟
+	if model.IsFarmTutorialActive(tgId) {
+		now := time.Now().Unix()
+		for _, plot := range plots {
+			if plot.Status == 1 {
+				crop := farmCropMap[plot.CropType]
+				if crop != nil {
+					plot.PlantedAt = now - crop.GrowSecs - 1
+					plot.EventType = ""
+					plot.EventAt = 0
+					_ = model.UpdateFarmPlot(plot)
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功浇水 %d 块地！", watered)})
 }
 

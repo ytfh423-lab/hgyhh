@@ -28,11 +28,11 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
       {/* Crop selection */}
       <div className='farm-card'>
         <div className='farm-section-title'>🌱 {t('选择作物')}</div>
-        <div className='farm-grid farm-grid-2'>
+        <div className='farm-grid farm-grid-2' data-tutorial='crop-grid'>
           {crops.map((crop) => (
             <div key={crop.key}
               className={`farm-item-card ${selectedCrop === crop.key ? 'selected' : ''}`}
-              onClick={() => { setSelectedCrop(crop.key); tutorialEvents.emitAction('select-crop', { cropKey: crop.key }); }}
+              onClick={() => { setSelectedCrop(crop.key); tutorialEvents.emitSuccess('select-crop', { cropKey: crop.key }); }}
               style={{ textAlign: 'left', padding: '10px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 22 }}>{crop.emoji}</span>
@@ -67,7 +67,7 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
       )}
 
       {/* Plot selection */}
-      <div className='farm-card' data-tutorial='plot-selection'>
+      <div className='farm-card' data-tutorial='plot-buttons'>
         <div className='farm-section-title'>📍 {t('选择空地种植')}</div>
         {emptyPlots.length === 0 ? (
           <Empty description={t('没有空地了')} style={{ padding: '20px 0' }} />

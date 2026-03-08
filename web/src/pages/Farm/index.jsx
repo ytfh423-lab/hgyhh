@@ -202,34 +202,41 @@ const Farm = () => {
     return () => clearInterval(interval);
   }, [loadFarm]);
 
+  // 映射 API url → 教程事件名
+  const urlToEvent = (url) => {
+    if (url.includes('/farm/plant')) return 'plant-crop';
+    if (url.includes('/farm/water')) return 'water-crop';
+    if (url.includes('/farm/fertilize')) return 'fertilize-crop';
+    if (url.includes('/farm/harvest/store')) return 'harvest-store';
+    if (url.includes('/farm/harvest')) return 'harvest-crop';
+    if (url.includes('/farm/warehouse/sellall')) return 'sell-item';
+    if (url.includes('/farm/warehouse/sell')) return 'sell-item';
+    if (url.includes('/tree/plant')) return 'plant-tree';
+    if (url.includes('/tree/water')) return 'water-tree';
+    if (url.includes('/tree/harvest')) return 'harvest-tree';
+    if (url.includes('/tree/chop')) return 'chop-tree';
+    if (url.includes('/farm/tasks/claim')) return 'claim-task';
+    return null;
+  };
+
   const doAction = async (url, body) => {
     setActionLoading(true);
+    const eventName = urlToEvent(url);
     try {
       const { data: res } = await API.post(url, body);
       if (res.success) {
         showSuccess(res.message || t('操作成功'));
         loadFarm();
-
-        // 教程事件：根据 API url 发射对应动作事件
-        if (url.includes('/farm/plant')) tutorialEvents.emitAction('plant-crop', body);
-        else if (url.includes('/farm/water')) tutorialEvents.emitAction('water-crop', body);
-        else if (url.includes('/farm/fertilize')) tutorialEvents.emitAction('fertilize-crop', body);
-        else if (url.includes('/farm/harvest')) tutorialEvents.emitAction('harvest-crop', body);
-        else if (url.includes('/farm/warehouse/sellall')) tutorialEvents.emitAction('sell-item', body);
-        else if (url.includes('/farm/warehouse/sell')) tutorialEvents.emitAction('sell-item', body);
-        else if (url.includes('/tree/plant')) tutorialEvents.emitAction('plant-tree', body);
-        else if (url.includes('/tree/water')) tutorialEvents.emitAction('water-tree', body);
-        else if (url.includes('/tree/harvest')) tutorialEvents.emitAction('harvest-tree', body);
-        else if (url.includes('/tree/chop')) tutorialEvents.emitAction('chop-tree', body);
-        else if (url.includes('/farm/tasks/claim')) tutorialEvents.emitAction('claim-task', body);
-
+        if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: res });
         return res;
       } else {
         showError(res.message);
+        if (eventName) tutorialEvents.emitFail(eventName, { ...body, message: res.message });
         return null;
       }
     } catch (err) {
       showError(t('操作失败'));
+      if (eventName) tutorialEvents.emitFail(eventName, { ...body, error: err.message });
       return null;
     } finally {
       setActionLoading(false);

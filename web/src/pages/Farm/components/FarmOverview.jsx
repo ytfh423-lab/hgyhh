@@ -269,7 +269,7 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
       </div>
 
       {/* ═══ Quick Actions Bar ═══ */}
-      <div className='farm-overview-actions'>
+      <div className='farm-overview-actions' data-tutorial='quick-actions'>
         <Button size='small' icon={<RefreshCw size={13} />} theme='borderless'
           onClick={loadFarm} loading={loading} className='farm-btn'
           style={{ color: 'var(--farm-text-2)' }} />

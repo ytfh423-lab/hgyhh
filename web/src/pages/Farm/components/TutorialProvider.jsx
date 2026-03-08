@@ -9,31 +9,36 @@ const TutorialContext = createContext(null);
 export const useTutorial = () => useContext(TutorialContext);
 
 /**
- * TutorialProvider — 强制式交互教学状态机
+ * TutorialProvider v2 — 状态机驱动的教程系统
  *
- * 核心逻辑：
- * 1. 首次进入 → 自动触发 farm_basic 强制教程（不可跳过/关闭）
- * 2. 每解锁一个新功能 → 自动触发对应功能教程（不可跳过/关闭）
- * 3. 教程步骤中 actionType=wait-action → 监听 tutorialEvents 真实操作完成
- * 4. 教程步骤中 actionType=navigate → 监听页面切换
- * 5. 手动重播教程 → replay 模式（允许退出）
+ * stepPhase 生命周期:
+ *   idle → active → (validating → completed) → idle
+ *   对 navigate 步骤：active → 等待 activePage 匹配 → completed
+ *   对 wait-action 步骤：active → 等待 tutorialEvents 成功事件 → completed
+ *   对 info 步骤：active → 用户点下一步 → completed
  */
 const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) => {
-  const [activeFlowKey, setActiveFlowKey] = useState(null);  // 当前活跃的教程流程 key
-  const [currentStep, setCurrentStep] = useState(0);          // 当前步骤索引
+  const [activeFlowKey, setActiveFlowKey] = useState(null);
+  const [currentStep, setCurrentStep] = useState(0);
   const [tutorialMode, setTutorialMode] = useState('forced'); // forced / replay
+  const [stepPhase, setStepPhase] = useState('idle'); // idle / active / validating
   const [loaded, setLoaded] = useState(false);
-  const [featuresState, setFeaturesState] = useState({});      // 后端功能教程状态
+  const [featuresState, setFeaturesState] = useState({});
   const initRef = useRef(false);
   const prevLevelRef = useRef(userLevel);
+  const advanceTimerRef = useRef(null);
 
-  // 当前流程的步骤列表
   const steps = activeFlowKey ? getFlowSteps(activeFlowKey) : [];
   const step = steps[currentStep] || null;
   const isActive = !!activeFlowKey && steps.length > 0;
   const isForced = tutorialMode === 'forced';
 
-  // ────── 加载服务端状态 ──────
+  // ────── 辅助：清理定时器 ──────
+  const clearAdvanceTimer = () => {
+    if (advanceTimerRef.current) { clearTimeout(advanceTimerRef.current); advanceTimerRef.current = null; }
+  };
+
+  // ────── 加载服务端教程状态 ──────
   const loadState = useCallback(async () => {
     try {
       const { data: res } = await API.get('/api/farm/tutorial');
@@ -45,83 +50,6 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     return null;
   }, []);
 
-  // ────── 首次加载 + 自动触发 ──────
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-
-    loadState().then((state) => {
-      setLoaded(true);
-      if (!state) return;
-
-      // 1. 检查基础教程（未完成 → 每次刷新从头开始）
-      if (state.needs_basic_tutorial) {
-        startFlow('farm_basic', 'forced', 0);
-        return;
-      }
-
-      // 2. 检查是否有未完成的强制教程（从头开始）
-      if (state.pending_forced) {
-        startFlow(state.pending_forced.feature_key, 'forced', 0);
-        return;
-      }
-
-      // 3. 检查基础教程进行中但未完成（从头开始）
-      const basicState = state.features?.farm_basic;
-      if (basicState && !basicState.tutorial_completed && basicState.tutorial_started) {
-        startFlow('farm_basic', 'forced', 0);
-      }
-    });
-  }, [loadState]);
-
-  // ────── 等级变化 → 检测新功能解锁教程 ──────
-  useEffect(() => {
-    if (!loaded || !initRef.current) return;
-    const prevLevel = prevLevelRef.current;
-    prevLevelRef.current = userLevel;
-    if (userLevel <= prevLevel) return;
-    if (isActive) return; // 正在进行教程中，不打断
-
-    // 找到新解锁的功能教程
-    const unlockable = getUnlockableFlows(userLevel);
-    for (const flowKey of unlockable) {
-      const fs = featuresState[flowKey];
-      if (!fs || (!fs.tutorial_completed && !fs.tutorial_started)) {
-        // 该功能教程还没开始或不存在 → 触发
-        triggerFeatureUnlock(flowKey);
-        break;
-      }
-    }
-  }, [userLevel, loaded, isActive, featuresState]);
-
-  // ────── 触发功能解锁教程 ──────
-  const triggerFeatureUnlock = useCallback(async (flowKey) => {
-    try {
-      await API.post('/api/farm/tutorial/unlock', { feature_key: flowKey });
-    } catch (e) { /* ignore */ }
-    const flow = tutorialFlows[flowKey];
-    const mode = flow?.skippable ? 'replay' : 'forced';
-    startFlow(flowKey, mode, 0);
-  }, []);
-
-  // ────── 启动教程流程 ──────
-  const startFlow = useCallback((flowKey, mode, startStep = 0) => {
-    const flowSteps = getFlowSteps(flowKey);
-    if (flowSteps.length === 0) return;
-
-    const clamped = Math.min(startStep, flowSteps.length - 1);
-    setActiveFlowKey(flowKey);
-    setTutorialMode(mode);
-    setCurrentStep(clamped);
-
-    // 确保导航到第一步所在页面
-    const firstStep = flowSteps[clamped];
-    if (firstStep.page && firstStep.page !== activePage && onNavigate) {
-      // 延迟导航，等状态设置完
-      setTimeout(() => onNavigate(firstStep.page), 50);
-    }
-  }, [activePage, onNavigate]);
-
   // ────── 同步进度到服务端 ──────
   const syncStep = useCallback(async (flowKey, stepIdx) => {
     try {
@@ -129,8 +57,55 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     } catch (e) { /* ignore */ }
   }, []);
 
-  // ────── 下一步 ──────
-  const handleNext = useCallback(() => {
+  // ────── 启动教程流程 ──────
+  const startFlow = useCallback((flowKey, mode, startStep = 0) => {
+    const flowSteps = getFlowSteps(flowKey);
+    if (flowSteps.length === 0) return;
+
+    const idx = Math.min(startStep, flowSteps.length - 1);
+    setActiveFlowKey(flowKey);
+    setTutorialMode(mode);
+    setCurrentStep(idx);
+    setStepPhase('active');
+
+    // 确保导航到第一步所在页面
+    const first = flowSteps[idx];
+    if (first.page && first.page !== activePage && onNavigate) {
+      setTimeout(() => onNavigate(first.page), 50);
+    }
+  }, [activePage, onNavigate]);
+
+  // ────── 完成教程 ──────
+  const handleFinish = useCallback(async () => {
+    const flowKey = activeFlowKey;
+    setActiveFlowKey(null);
+    setCurrentStep(0);
+    setStepPhase('idle');
+    clearAdvanceTimer();
+
+    try {
+      await API.post('/api/farm/tutorial/complete', { feature_key: flowKey });
+    } catch (e) { /* ignore */ }
+
+    setFeaturesState(prev => ({
+      ...prev,
+      [flowKey]: { ...prev[flowKey], tutorial_completed: true, tutorial_required: false },
+    }));
+
+    if (onNavigate) onNavigate('overview');
+
+    // 检查是否有下一个待完成教程
+    const state = await loadState();
+    if (state?.pending_forced) {
+      setTimeout(() => {
+        startFlow(state.pending_forced.feature_key, 'forced', 0);
+      }, 500);
+    }
+  }, [activeFlowKey, onNavigate, loadState, startFlow]);
+
+  // ────── 推进到下一步 ──────
+  const advanceStep = useCallback(() => {
+    clearAdvanceTimer();
     if (!activeFlowKey) return;
 
     const nextIdx = currentStep + 1;
@@ -140,61 +115,23 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     }
 
     const nextStep = steps[nextIdx];
-    // 切换页面
     if (nextStep.page && nextStep.page !== activePage && onNavigate) {
       onNavigate(nextStep.page);
     }
 
     setCurrentStep(nextIdx);
+    setStepPhase('active');
     syncStep(activeFlowKey, nextIdx);
-  }, [activeFlowKey, currentStep, steps, activePage, onNavigate, syncStep]);
+  }, [activeFlowKey, currentStep, steps, activePage, onNavigate, syncStep, handleFinish]);
 
-  // ────── 上一步 ──────
-  const handlePrev = useCallback(() => {
-    if (currentStep <= 0 || !activeFlowKey) return;
-    const prevIdx = currentStep - 1;
-    const prevStep = steps[prevIdx];
-    if (prevStep.page && prevStep.page !== activePage && onNavigate) {
-      onNavigate(prevStep.page);
-    }
-    setCurrentStep(prevIdx);
-    syncStep(activeFlowKey, prevIdx);
-  }, [activeFlowKey, currentStep, steps, activePage, onNavigate, syncStep]);
-
-  // ────── 完成教程 ──────
-  const handleFinish = useCallback(async () => {
-    const flowKey = activeFlowKey;
-    setActiveFlowKey(null);
-    setCurrentStep(0);
-    try {
-      await API.post('/api/farm/tutorial/complete', { feature_key: flowKey });
-    } catch (e) { /* ignore */ }
-
-    // 更新本地状态
-    setFeaturesState(prev => ({
-      ...prev,
-      [flowKey]: { ...prev[flowKey], tutorial_completed: true, tutorial_required: false },
-    }));
-
-    // 完成后导航回总览
-    if (onNavigate) onNavigate('overview');
-
-    // 重新加载状态，检查是否有下一个待完成教程
-    const state = await loadState();
-    if (state?.pending_forced) {
-      setTimeout(() => {
-        startFlow(state.pending_forced.feature_key, 'forced', state.pending_forced.current_step || 0);
-      }, 500);
-    }
-  }, [activeFlowKey, onNavigate, loadState, startFlow]);
-
-  // ────── 跳过/退出教程（仅 replay 模式允许）──────
+  // ────── 跳过/退出（仅 replay 允许）──────
   const handleSkip = useCallback(async () => {
-    if (isForced) return; // 强制模式不允许跳过
-
+    if (isForced) return;
     const flowKey = activeFlowKey;
     setActiveFlowKey(null);
     setCurrentStep(0);
+    setStepPhase('idle');
+    clearAdvanceTimer();
     try {
       await API.post('/api/farm/tutorial/skip', { feature_key: flowKey });
     } catch (e) { /* ignore */ }
@@ -202,42 +139,92 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
 
   // ────── 手动重播教程 ──────
   const restartTutorial = useCallback(async (flowKey = 'farm_basic') => {
-    if (onNavigate && activePage !== 'overview') {
-      onNavigate('overview');
-    }
+    if (onNavigate && activePage !== 'overview') onNavigate('overview');
     try {
       await API.post('/api/farm/tutorial/restart', { feature_key: flowKey });
     } catch (e) { /* ignore */ }
-    // 延迟启动等页面切换完
     setTimeout(() => startFlow(flowKey, 'replay', 0), 100);
   }, [onNavigate, activePage, startFlow]);
 
-  // ────── 监听 tutorialEvents 推进 wait-action 步骤 ──────
+  // ────── 首次加载 + 自动触发 ──────
   useEffect(() => {
-    if (!isActive || !step || step.actionType !== 'wait-action') return;
+    if (initRef.current) return;
+    initRef.current = true;
 
-    const eventName = step.actionEvent;
-    if (!eventName) return;
+    loadState().then((state) => {
+      setLoaded(true);
+      if (!state) return;
 
-    const unsubscribe = tutorialEvents.on(`action:${eventName}`, () => {
-      // 动作完成，自动推进下一步
-      setTimeout(() => handleNext(), 300);
+      if (state.needs_basic_tutorial) {
+        startFlow('farm_basic', 'forced', 0);
+        return;
+      }
+      if (state.pending_forced) {
+        startFlow(state.pending_forced.feature_key, 'forced', 0);
+        return;
+      }
+      const basicState = state.features?.farm_basic;
+      if (basicState && !basicState.tutorial_completed && basicState.tutorial_started) {
+        startFlow('farm_basic', 'forced', 0);
+      }
     });
+  }, [loadState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    return unsubscribe;
-  }, [isActive, step, handleNext]);
-
-  // ────── 监听页面切换推进 navigate 步骤 ──────
+  // ────── 等级变化 → 检测新功能解锁教程 ──────
   useEffect(() => {
-    if (!isActive || !step || step.actionType !== 'navigate') return;
-    if (step.navigateTo && activePage === step.navigateTo) {
-      // 已经到达目标页面
-      setTimeout(() => handleNext(), 200);
-    }
-  }, [isActive, step, activePage, handleNext]);
+    if (!loaded || !initRef.current) return;
+    const prevLevel = prevLevelRef.current;
+    prevLevelRef.current = userLevel;
+    if (userLevel <= prevLevel || isActive) return;
 
-  // ────── 当前步骤页面匹配检查 ──────
-  const shouldRender = isActive && step && (step.page === activePage || step.actionType === 'navigate');
+    const unlockable = getUnlockableFlows(userLevel);
+    for (const flowKey of unlockable) {
+      const fs = featuresState[flowKey];
+      if (!fs || (!fs.tutorial_completed && !fs.tutorial_started)) {
+        (async () => {
+          try { await API.post('/api/farm/tutorial/unlock', { feature_key: flowKey }); } catch (e) { /* */ }
+          const flow = tutorialFlows[flowKey];
+          startFlow(flowKey, flow?.skippable ? 'replay' : 'forced', 0);
+        })();
+        break;
+      }
+    }
+  }, [userLevel, loaded, isActive, featuresState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ────── 核心：监听 wait-action 事件（含 altEvents）──────
+  useEffect(() => {
+    if (!isActive || !step || step.actionType !== 'wait-action' || stepPhase !== 'active') return;
+
+    const events = [step.actionEvent, ...(step.altEvents || [])].filter(Boolean);
+    if (events.length === 0) return;
+
+    const handler = (payload) => {
+      // 只在业务成功时推进
+      if (payload && payload.success === false) return;
+      setStepPhase('validating');
+      clearAdvanceTimer();
+      advanceTimerRef.current = setTimeout(() => advanceStep(), 400);
+    };
+
+    const unsubs = events.map(ev => tutorialEvents.on(`action:${ev}`, handler));
+    return () => unsubs.forEach(fn => fn());
+  }, [isActive, step, stepPhase, advanceStep]);
+
+  // ────── 核心：navigate 步骤自动推进 ──────
+  useEffect(() => {
+    if (!isActive || !step || step.actionType !== 'navigate' || stepPhase !== 'active') return;
+    if (step.navigateTo && activePage === step.navigateTo) {
+      clearAdvanceTimer();
+      advanceTimerRef.current = setTimeout(() => advanceStep(), 250);
+    }
+    return () => clearAdvanceTimer();
+  }, [isActive, step, stepPhase, activePage, advanceStep]);
+
+  // ────── 页面匹配：决定是否渲染 overlay ──────
+  const shouldRender = isActive && step && (
+    step.page === activePage ||
+    (step.actionType === 'navigate' && step.page === activePage)
+  );
 
   const contextValue = {
     isActive,
@@ -247,6 +234,7 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
     tutorialMode,
     isForced,
     step,
+    stepPhase,
     restartTutorial,
     loaded,
     featuresState,
@@ -262,8 +250,8 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, t, children }) =>
           stepIndex={currentStep}
           totalSteps={steps.length}
           isForced={isForced}
-          onNext={handleNext}
-          onPrev={handlePrev}
+          stepPhase={stepPhase}
+          onNext={advanceStep}
           onSkip={handleSkip}
           onFinish={handleFinish}
           onNavigate={onNavigate}
