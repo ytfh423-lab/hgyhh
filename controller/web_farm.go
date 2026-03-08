@@ -133,14 +133,14 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 	case 2:
 		info.StatusLabel = "已成熟"
 	case 3:
+		wiltDuration3 := int64(common.TgBotFarmWiltDuration)
+		deathAt3 := plot.EventAt + wiltDuration3
+		info.DeathRemain = deathAt3 - now
+		if info.DeathRemain < 0 {
+			info.DeathRemain = 0
+		}
 		if plot.EventType == "drought" {
 			info.StatusLabel = "天灾干旱"
-			wiltDuration := int64(common.TgBotFarmWiltDuration)
-			deathAt := plot.EventAt + wiltDuration
-			info.DeathRemain = deathAt - now
-			if info.DeathRemain < 0 {
-				info.DeathRemain = 0
-			}
 		} else {
 			info.StatusLabel = "虫害"
 		}
