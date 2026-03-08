@@ -7,11 +7,10 @@ const { Text } = Typography;
 /* ═══════════════════════════════════════════════════════════════
    ShopPage — 赛博贩卖机 Master-Detail 布局
    ═══════════════════════════════════════════════════════════════ */
-const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
+const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, onNavigate, t }) => {
   const [shopData, setShopData] = useState(null);
   const [shopLoading, setShopLoading] = useState(true);
-  const [crops, setCrops] = useState([]);
-  const [activeTab, setActiveTab] = useState('seed');
+  const [activeTab, setActiveTab] = useState('tool');
   const [selectedKey, setSelectedKey] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [scrolledBottom, setScrolledBottom] = useState(false);
@@ -29,12 +28,8 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const loadShop = useCallback(async () => {
     setShopLoading(true);
     try {
-      const [shopRes, cropRes] = await Promise.all([
-        API.get('/api/farm/shop'),
-        API.get('/api/farm/crops'),
-      ]);
+      const shopRes = await API.get('/api/farm/shop');
       if (shopRes.data.success) setShopData(shopRes.data.data);
-      if (cropRes.data.success) setCrops(cropRes.data.data || []);
     } catch (err) { /* ignore */ }
     finally { setShopLoading(false); }
   }, []);
@@ -54,21 +49,6 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   // Normalize all items into a unified list with category tags
   const allItems = useMemo(() => {
     const list = [];
-    // Seeds
-    crops.forEach(cr => list.push({
-      key: cr.key || cr.name,
-      category: 'seed',
-      emoji: cr.emoji,
-      name: cr.name,
-      price: cr.seed_cost,
-      desc: `${formatDuration(cr.grow_secs)} \u00b7 1~${cr.max_yield}${t('\u4e2a')}`,
-      isSeed: true,
-      grow_secs: cr.grow_secs,
-      max_yield: cr.max_yield,
-      unit_price: cr.unit_price,
-      max_value: cr.max_value,
-      maxQty: 50,
-    }));
     // Shop items
     (shopData?.items || []).forEach(item => list.push({
       key: item.key,
@@ -95,10 +75,9 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       });
     }
     return list;
-  }, [crops, shopData, t]);
+  }, [shopData, t]);
 
   const tabs = [
-    { key: 'seed', label: '🌱 ' + t('种子'), count: allItems.filter(i => i.category === 'seed').length },
     { key: 'tool', label: '🔧 ' + t('道具'), count: allItems.filter(i => i.category === 'tool').length },
     { key: 'livestock', label: '🐾 ' + t('牲畜'), count: allItems.filter(i => i.category === 'livestock').length },
   ];
@@ -148,6 +127,19 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       <div className='farm-card' style={{ padding: '8px 16px', marginBottom: 12 }}>
         <Text type='tertiary' size='small'>💰 {t('余额')}: </Text>
         <Text strong>{formatBalance(farmData?.balance)}</Text>
+      </div>
+
+      {/* ═══ Go to Plant Page ═══ */}
+      <div className='farm-card' style={{ padding: '10px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', border: '1px solid rgba(74,124,63,0.3)', background: 'rgba(74,124,63,0.08)' }}
+        onClick={() => onNavigate && onNavigate('plant')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 20 }}>🌱</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--farm-leaf)' }}>{t('购买种子请前往种植页面')}</div>
+            <div style={{ fontSize: 11, color: 'var(--farm-text-2)' }}>{t('在种植页面可以直接选种并播种到地块')}</div>
+          </div>
+        </div>
+        <span style={{ fontSize: 16, color: 'var(--farm-leaf)' }}>→</span>
       </div>
 
       {/* ═══ Category Tabs ═══ */}

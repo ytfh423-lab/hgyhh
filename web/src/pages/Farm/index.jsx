@@ -456,7 +456,7 @@ const Farm = () => {
       case 'market':
         return <MarketPage t={t} />;
       case 'shop':
-        return <ShopPage {...commonProps} />;
+        return <ShopPage {...commonProps} onNavigate={setActivePage} />;
       case 'warehouse':
         return <WarehousePage {...commonProps} />;
       case 'trading':
