@@ -26,6 +26,7 @@ const TutorialOverlay = ({ step, stepIndex, totalSteps, isForced, onNext, onPrev
   const isLast = stepIndex === totalSteps - 1;
   const isFirst = stepIndex === 0;
   const isCentered = step.placement === 'center' || !step.targetSelector;
+  const hasTarget = !!step.targetSelector && !!targetRect; // 遮罩挖孔独立判断
   const isWaitAction = step.actionType === 'wait-action';
   const isNavigate = step.actionType === 'navigate';
   const canManualNext = step.allowManualNext !== false;
@@ -130,7 +131,7 @@ const TutorialOverlay = ({ step, stepIndex, totalSteps, isForced, onNext, onPrev
 
   // 遮罩：clip-path 挖孔 + 高亮边框（clip-path 同时移除渲染和pointer-events，用户可点击挖孔内元素）
   const renderMask = () => {
-    if (isCentered || !targetRect) {
+    if (!hasTarget) {
       return <div className="tutorial-mask tutorial-mask-full" />;
     }
     const p = 6, r = 10;
