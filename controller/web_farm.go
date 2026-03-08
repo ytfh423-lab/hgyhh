@@ -184,24 +184,6 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
-	// 教程兜底：已浇水但仍在生长的教程作物强制成熟
-	if model.IsFarmTutorialActive(tgId) {
-		now := time.Now().Unix()
-		for _, plot := range plots {
-			// 仅对 Status=1 且已浇过水（LastWateredAt > PlantedAt）的作物生效
-			if plot.Status == 1 && plot.LastWateredAt > plot.PlantedAt {
-				crop := farmCropMap[plot.CropType]
-				if crop != nil {
-					plot.PlantedAt = now - crop.GrowSecs - 1
-					plot.Status = 2
-					plot.EventType = ""
-					plot.EventAt = 0
-					_ = model.UpdateFarmPlot(plot)
-				}
-			}
-		}
-	}
-
 	var plotInfos []webPlotInfo
 	for _, plot := range plots {
 		plotInfos = append(plotInfos, buildPlotInfo(plot))
@@ -993,20 +975,6 @@ func WebFarmWater(c *gin.Context) {
 
 	_ = model.WaterFarmPlot(target.Id)
 
-	// 教程期间：浇水后直接让作物成熟
-	if model.IsFarmTutorialActive(tgId) && target.Status == 1 {
-		crop := farmCropMap[target.CropType]
-		if crop != nil {
-			now := time.Now().Unix()
-			target.PlantedAt = now - crop.GrowSecs - 1
-			target.LastWateredAt = now // 同步内存，防止 DB.Save 覆写
-			target.Status = 2          // 直接标记成熟
-			target.EventType = ""
-			target.EventAt = 0
-			_ = model.UpdateFarmPlot(target)
-		}
-	}
-
 	msg := "浇水成功！"
 	if wasDrought {
 		msg = "天灾干旱已解除，恢复生长！"
@@ -1059,24 +1027,6 @@ func WebFarmWaterAll(c *gin.Context) {
 	if watered == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有需要浇水的地块"})
 		return
-	}
-
-	// 教程期间：浇水后直接让所有作物成熟
-	if model.IsFarmTutorialActive(tgId) {
-		now := time.Now().Unix()
-		for _, plot := range plots {
-			if plot.Status == 1 {
-				crop := farmCropMap[plot.CropType]
-				if crop != nil {
-					plot.PlantedAt = now - crop.GrowSecs - 1
-					plot.LastWateredAt = now // 同步内存，防止 DB.Save 覆写
-					plot.Status = 2          // 直接标记成熟
-					plot.EventType = ""
-					plot.EventAt = 0
-					_ = model.UpdateFarmPlot(plot)
-				}
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功浇水 %d 块地！", watered)})

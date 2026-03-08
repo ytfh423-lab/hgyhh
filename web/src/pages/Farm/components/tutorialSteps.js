@@ -14,14 +14,14 @@
 
 // ══════════════════════════════════════════════
 //  基础教程 (farm_basic) — 首次进入，不可跳过
-//  完整闭环：介绍 → 种植 → 浇水(后端即时成熟) → 收获 → 出售
+//  纯引导浏览：介绍各功能区域，不要求真实操作
 // ══════════════════════════════════════════════
 const farmBasicSteps = [
   // ── 1. 欢迎 ──
   {
     id: 'fb-1', page: 'overview',
     title: '欢迎来到农场！',
-    content: '这是你的专属农场 🌾 接下来我会带你完成第一次种植到出售的完整流程——跟着做就行！',
+    content: '这是你的专属农场 🌾 接下来带你快速了解农场的核心功能，看完就能上手！',
     targetSelector: null, placement: 'center',
     actionType: 'info',
   },
@@ -39,81 +39,61 @@ const farmBasicSteps = [
   {
     id: 'fb-3', page: 'overview',
     title: '🌱 你的农田',
-    content: '这些是你的地块。空地可以种植作物，种下后显示生长进度。接下来让我们去种下第一颗作物！',
+    content: '这些是你的地块。空地可以种植作物，种下后会显示生长进度。',
     targetSelector: '.farm-plot-grid', placement: 'top',
     actionType: 'info',
   },
 
-  // ── 4. 导航到种植页 ──
+  // ── 4. 快捷操作栏 ──
   {
     id: 'fb-4', page: 'overview',
+    title: '⚡ 快捷操作',
+    content: '这里是快捷操作栏——浇水、施肥、收获等常用功能都在这里，一键搞定！',
+    targetSelector: '[data-tutorial="quick-actions"]', placement: 'bottom',
+    actionType: 'info',
+  },
+
+  // ── 5. 导航到种植页 ──
+  {
+    id: 'fb-5', page: 'overview',
     title: '前往种植页',
-    content: '点击左侧「🌱 种植」进入种植页面。',
+    content: '点击左侧「🌱 种植」可以进入种植页面，选择作物和地块。',
     targetSelector: '[data-tutorial="nav-plant"]', placement: 'right',
     actionType: 'navigate', navigateTo: 'plant',
   },
 
-  // ── 5. 选择作物（真实操作）──
-  {
-    id: 'fb-5', page: 'plant',
-    title: '🌱 选择作物',
-    content: '点击任意一种作物来选中它。新手推荐 🥔土豆 或 🌾小麦——价格便宜、见效快！',
-    targetSelector: '[data-tutorial="crop-grid"]', placement: 'bottom',
-    actionType: 'wait-action', actionEvent: 'select-crop',
-  },
-
-  // ── 6. 点击空地种植（真实操作）──
+  // ── 6. 种植页介绍 ──
   {
     id: 'fb-6', page: 'plant',
-    title: '种植到空地',
-    content: '选好作物后，点击下方任意一块空地完成种植！教程模式下种子免费。',
-    targetSelector: '[data-tutorial="plot-buttons"]', placement: 'top',
-    actionType: 'wait-action', actionEvent: 'plant-crop',
+    title: '🌱 种植页面',
+    content: '在这里选择作物，然后点击空地即可种植。新手推荐 🥔土豆 或 🌾小麦——价格便宜、见效快！',
+    targetSelector: '[data-tutorial="crop-grid"]', placement: 'bottom',
+    actionType: 'info',
   },
 
-  // ── 7. 种植成功，回到总览 ──
+  // ── 7. 回到总览 ──
   {
     id: 'fb-7', page: 'plant',
-    title: '种植成功！🎉',
-    content: '太棒了！作物已种下。现在回到总览页面，给它浇水让它快速成熟！',
+    title: '回到总览',
+    content: '了解完种植页后，回到总览继续看看其他功能。',
     targetSelector: '[data-tutorial="nav-overview"]', placement: 'right',
     actionType: 'navigate', navigateTo: 'overview',
   },
 
-  // ── 8. 浇水（真实操作，后端即时成熟）──
+  // ── 8. 核心流程说明 ──
   {
     id: 'fb-8', page: 'overview',
-    title: '💧 给作物浇水',
-    content: '点击「💧 全部浇水」按钮。教程模式下浇水后作物会立即成熟！',
-    targetSelector: '[data-tutorial="quick-actions"]', placement: 'bottom',
-    actionType: 'wait-action', actionEvent: 'water-crop',
-    validate: (farmData) => {
-      const plots = farmData?.plots || [];
-      return plots.some(p => p.status === 1 || p.status === 4);
-    },
+    title: '� 核心流程',
+    content: '农场的核心流程是：种植 → 浇水 → 等待成熟 → 收获 → 出售赚钱。作物成熟后点击「🌾 收获出售」即可卖出！',
+    targetSelector: null, placement: 'center',
+    actionType: 'info',
   },
 
-  // ── 9. 收获（真实操作）──
+  // ── 9. 完成 ──
   {
     id: 'fb-9', page: 'overview',
-    title: '🌾 收获作物',
-    content: '作物已经成熟了！点击「🌾 收获出售」直接卖出，或点「📦 收获入仓」存到仓库。',
-    targetSelector: '[data-tutorial="quick-actions"]', placement: 'bottom',
-    actionType: 'wait-action', actionEvent: 'harvest-crop',
-    altEvents: ['harvest-store'],
-    validate: (farmData) => {
-      const plots = farmData?.plots || [];
-      return plots.some(p => p.status === 2);
-    },
-    pendingContent: '作物还在生长中，请稍等片刻...系统正在加速成熟。',
-    waitForValidate: true,
-  },
-
-  // ── 10. 完成 ──
-  {
-    id: 'fb-10', page: 'overview',
     title: '教程完成！🎉',
-    content: '恭喜！你已掌握农场核心流程：种植 → 浇水 → 收获 → 出售。随着等级提升会解锁更多功能。点击右上角「📖」可随时回顾教程。',
+    content: '恭喜！你已了解农场的基本操作。现在就去种下你的第一颗作物吧！随着等级提升会解锁更多功能。点击右上角「📖」可随时回顾教程。',
     targetSelector: null, placement: 'center',
     actionType: 'info',
   },
