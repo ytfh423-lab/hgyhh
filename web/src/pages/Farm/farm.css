@@ -3335,3 +3335,217 @@
     font-size: 28px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Tutorial Overlay — 新手引导
+   ═══════════════════════════════════════════════════════════════ */
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99989;
+  pointer-events: none;
+}
+
+.tutorial-mask {
+  pointer-events: auto;
+}
+
+.tutorial-mask-full {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 99990;
+  pointer-events: auto;
+}
+
+.tutorial-tooltip {
+  position: fixed;
+  z-index: 99991;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 20px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(28, 25, 23, 0.98), rgba(20, 18, 16, 0.98));
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(251, 191, 36, 0.08);
+  pointer-events: auto;
+  animation: tutorial-fadein 0.25s ease-out;
+}
+
+@keyframes tutorial-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tutorial-step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: rgba(251, 191, 36, 0.7);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.tutorial-progress-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.tutorial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  transition: all 0.2s;
+}
+
+.tutorial-dot.active {
+  background: rgba(251, 191, 36, 0.9);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.4);
+  width: 16px;
+  border-radius: 3px;
+}
+
+.tutorial-dot.done {
+  background: rgba(101, 163, 80, 0.7);
+}
+
+.tutorial-title {
+  margin: 0 0 8px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fde68a;
+  line-height: 1.3;
+}
+
+.tutorial-content {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tutorial-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tutorial-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+.tutorial-btn-skip {
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.tutorial-btn-skip:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tutorial-btn-prev {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tutorial-btn-prev:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tutorial-btn-next {
+  padding: 7px 18px;
+  border-radius: 7px;
+  border: none;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.9), rgba(200, 146, 42, 0.9));
+  color: #1c1917;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tutorial-btn-next:hover {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 1), rgba(200, 146, 42, 1));
+  box-shadow: 0 2px 12px rgba(251, 191, 36, 0.3);
+}
+
+/* 箭头 */
+.tutorial-arrow {
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.tutorial-arrow-bottom {
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(28, 25, 23, 0.98);
+}
+
+.tutorial-arrow-top {
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(28, 25, 23, 0.98);
+}
+
+.tutorial-arrow-right {
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid rgba(28, 25, 23, 0.98);
+}
+
+.tutorial-arrow-left {
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 8px solid rgba(28, 25, 23, 0.98);
+}
+
+/* 重启引导按钮 */
+.tutorial-restart-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.15);
+  background: rgba(251, 191, 36, 0.06);
+  color: rgba(251, 191, 36, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.tutorial-restart-btn:hover {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.12);
+  color: rgba(251, 191, 36, 0.95);
+}
+
+@media (max-width: 768px) {
+  .tutorial-tooltip {
+    width: calc(100vw - 32px);
+    max-width: none;
+  }
+}

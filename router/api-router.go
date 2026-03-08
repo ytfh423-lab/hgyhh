@@ -404,6 +404,11 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/trade/cancel", controller.WebFarmTradeCancel)
 			farmRoute.GET("/trade/history", controller.WebFarmTradeHistory)
 			farmRoute.GET("/market/detail", controller.WebMarketItemDetail)
+			farmRoute.GET("/tutorial", controller.WebFarmTutorialState)
+			farmRoute.POST("/tutorial/update", controller.WebFarmTutorialUpdate)
+			farmRoute.POST("/tutorial/complete", controller.WebFarmTutorialComplete)
+			farmRoute.POST("/tutorial/skip", controller.WebFarmTutorialSkip)
+			farmRoute.POST("/tutorial/restart", controller.WebFarmTutorialRestart)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

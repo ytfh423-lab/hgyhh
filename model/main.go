@@ -303,6 +303,7 @@ func migrateDB() error {
 		&TgMarketPriceHistory{},
 		&TgMarketEvent{},
 		&TgMarketSupplyDemand{},
+		&TgFarmTutorial{},
 		&PublicInviteCode{},
 		&FarmBetaReservation{},
 	)

@@ -102,6 +102,7 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
               return (
                 <div
                   key={item.key}
+                  data-tutorial={`nav-${item.key}`}
                   className={`farm-nav-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
                   onClick={locked ? undefined : () => onNavigate(item.key)}
                   title={locked ? `${t('需要')} Lv.${req.level} ${t('解锁')}` : ''}

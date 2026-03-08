@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Typography } from '@douyinfe/semi-ui';
 import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout } from 'lucide-react';
 import { formatBalance, formatDuration } from './utils';
+import { useTutorial } from './TutorialProvider';
 
 const { Text } = Typography;
 
@@ -188,6 +189,16 @@ const BuyLandCard = ({ price, onClick, actionLoading, t }) => (
 /* ═══════════════════════════════════════════════════════════════
    FarmOverview — 主组件
    ═══════════════════════════════════════════════════════════════ */
+const TutorialRestartButton = ({ t }) => {
+  const tutorial = useTutorial();
+  if (!tutorial || !tutorial.loaded) return null;
+  return (
+    <button className='tutorial-restart-btn' onClick={tutorial.restartTutorial} title={t('重新开始新手引导')}>
+      📖 {t('新手引导')}
+    </button>
+  );
+};
+
 const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t }) => {
   const [expandedPlot, setExpandedPlot] = useState(null);
 
@@ -218,13 +229,16 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
   return (
     <div>
       {/* ═══ Dashboard Stats ═══ */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
         <StatCard emoji='💰' label={t('余额')} value={formatBalance(farmData.balance)} accent='var(--farm-leaf)' />
         <StatCard emoji='🌾' label={t('地块')} value={`${farmData.plot_count} / ${farmData.max_plots}`} />
         {growingCount > 0 && <StatCard emoji='🌱' label={t('种植中')} value={growingCount} accent='var(--farm-sky)' />}
         {matureCount > 0 && <StatCard emoji='✅' label={t('可收获')} value={matureCount} accent='var(--farm-leaf)' />}
         {eventCount > 0 && <StatCard emoji='⚠️' label={t('需处理')} value={eventCount} accent='var(--farm-danger)' />}
         {emptyCount > 0 && <StatCard emoji='⬜' label={t('空地')} value={emptyCount} />}
+        <div style={{ marginLeft: 'auto' }}>
+          <TutorialRestartButton t={t} />
+        </div>
       </div>
 
       {/* ═══ Quick Actions Bar ═══ */}

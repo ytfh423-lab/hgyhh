@@ -32,6 +32,7 @@ import TreeFarmPage from './components/TreeFarmPage';
 import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
+import TutorialProvider from './components/TutorialProvider';
 import { FEATURE_LEVEL_MAP } from './constants';
 
 const { Text, Title } = Typography;
@@ -470,35 +471,37 @@ const Farm = () => {
   };
 
   return (
-    <div className='farm-layout'>
-      <FarmAnnouncementBar t={t} />
-      <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} userLevel={userLevel} />
-      <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
-        <StatusBar farmData={farmData} t={t} />
-        <div className='farm-content'>
-          <div className='farm-content-inner'>
-            <FarmErrorBoundary resetKey={activePage}>
-              {renderPage()}
-            </FarmErrorBoundary>
+    <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={setActivePage} t={t}>
+      <div className='farm-layout'>
+        <FarmAnnouncementBar t={t} />
+        <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} userLevel={userLevel} />
+        <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
+          <StatusBar farmData={farmData} t={t} />
+          <div className='farm-content'>
+            <div className='farm-content-inner'>
+              <FarmErrorBoundary resetKey={activePage}>
+                {renderPage()}
+              </FarmErrorBoundary>
+            </div>
           </div>
         </div>
-      </div>
-      <MobileBottomNav
-        activeKey={activePage}
-        onNavigate={setActivePage}
-        showSheet={() => setMobileSheetOpen(true)}
-        t={t}
-      />
-      {mobileSheetOpen && (
-        <MobileSheet
+        <MobileBottomNav
           activeKey={activePage}
           onNavigate={setActivePage}
-          onClose={() => setMobileSheetOpen(false)}
+          showSheet={() => setMobileSheetOpen(true)}
           t={t}
-          userLevel={userLevel}
         />
-      )}
-    </div>
+        {mobileSheetOpen && (
+          <MobileSheet
+            activeKey={activePage}
+            onNavigate={setActivePage}
+            onClose={() => setMobileSheetOpen(false)}
+            t={t}
+            userLevel={userLevel}
+          />
+        )}
+      </div>
+    </TutorialProvider>
   );
 };
 
