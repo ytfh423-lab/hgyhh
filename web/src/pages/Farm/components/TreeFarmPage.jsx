@@ -36,7 +36,7 @@ const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
   useEffect(() => { loadTree(); loadTypes(); }, [loadTree, loadTypes]);
 
   useEffect(() => {
-    const interval = setInterval(loadTree, 15000);
+    const interval = setInterval(loadTree, 30000);
     return () => clearInterval(interval);
   }, [loadTree]);
 

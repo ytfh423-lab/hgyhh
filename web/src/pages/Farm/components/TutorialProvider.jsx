@@ -250,10 +250,13 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, farmData, loadFar
     }
     // 立即刷新一次
     if (loadFarm) loadFarm();
-    // 每 2 秒轮询
+    // 每 10 秒轮询，最多 30 次
+    let pollCount = 0;
     validatePollRef.current = setInterval(() => {
+      pollCount++;
+      if (pollCount > 30) { clearValidatePoll(); return; }
       if (loadFarm) loadFarm();
-    }, 2000);
+    }, 10000);
     return () => clearValidatePoll();
   }, [isActive, step?.id, stepPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -21,7 +21,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
   useEffect(() => { loadRanch(); }, [loadRanch]);
 
   useEffect(() => {
-    const interval = setInterval(loadRanch, 15000);
+    const interval = setInterval(loadRanch, 30000);
     return () => clearInterval(interval);
   }, [loadRanch]);
 
