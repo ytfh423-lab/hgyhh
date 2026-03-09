@@ -450,8 +450,8 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 		plot.Status = 3
 		changed = true
 	}
-	// 天灾(干旱)死亡检查：status=3 + drought + 超时未处理
-	if plot.Status == 3 && plot.EventType == "drought" {
+	// 事件死亡检查：status=3 + (drought/bugs) + 超时未处理
+	if plot.Status == 3 && (plot.EventType == "drought" || plot.EventType == "bugs") {
 		wiltDuration := int64(common.TgBotFarmWiltDuration)
 		if now >= plot.EventAt+wiltDuration {
 			_ = model.ClearFarmPlot(plot.Id)

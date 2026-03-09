@@ -356,6 +356,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/upgrade-soil", controller.WebFarmUpgradeSoil)
 			farmRoute.POST("/water", controller.WebFarmWater)
 			farmRoute.POST("/water/all", controller.WebFarmWaterAll)
+			farmRoute.POST("/clear-plot", controller.WebFarmClearPlot)
 			farmRoute.GET("/dog", controller.WebFarmDog)
 			farmRoute.POST("/buydog", controller.WebFarmBuyDog)
 			farmRoute.POST("/feeddog", controller.WebFarmFeedDog)
@@ -371,6 +372,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/workshop/craft", controller.WebFarmWorkshopCraft)
 			farmRoute.POST("/workshop/collect", controller.WebFarmWorkshopCollect)
 			farmRoute.POST("/workshop/collect/store", controller.WebFarmWorkshopCollectStore)
+			farmRoute.POST("/workshop/cancel", controller.WebWorkshopCancel)
 			farmRoute.GET("/fish", controller.WebFarmFishView)
 			farmRoute.POST("/fish", controller.WebFarmFishDo)
 			farmRoute.POST("/fish/sell", controller.WebFarmFishSell)
@@ -426,6 +428,7 @@ func SetApiRouter(router *gin.Engine) {
 			ranchRoute.POST("/slaughter/store", controller.WebRanchSlaughterStore)
 			ranchRoute.POST("/clean", controller.WebRanchCleanManure)
 			ranchRoute.POST("/cleanup", controller.WebRanchCleanup)
+			ranchRoute.POST("/release", controller.WebRanchRelease)
 		}
 
 		treeFarmRoute := apiRouter.Group("/tree")

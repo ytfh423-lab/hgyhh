@@ -149,7 +149,16 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
                         : `⏱ ${formatDuration(p.remaining)} · ${p.progress}%`
                       }
                     </span>
-                    <span>${p.sell_price.toFixed(2)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>${p.sell_price.toFixed(2)}</span>
+                      {p.status !== 2 && (
+                        <Button size='small' theme='light' type='danger'
+                          onClick={() => { if (window.confirm(t('确定要取消这个加工任务吗？材料不会退还。'))) { doAction('/api/farm/workshop/cancel', { process_id: p.id }).then(r => { if (r) { loadWorkshop(); loadFarm(); } }); } }}
+                          loading={wsLoading} className='farm-btn' style={{ padding: '0 6px', fontSize: 11 }}>
+                          ✕
+                        </Button>
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>

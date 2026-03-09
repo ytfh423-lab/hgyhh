@@ -134,6 +134,13 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                       </Button>
                     </>
                   )}
+                  {animal.status !== 5 && (
+                    <Button size='small' theme='light' type='danger'
+                      onClick={() => { if (window.confirm(t('确定要放生这只动物吗？不会退款。'))) doRanchAction('/api/ranch/release', { animal_id: animal.id }); }}
+                      loading={actionLoading} className='farm-btn'>
+                      🔓 {t('放生')}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

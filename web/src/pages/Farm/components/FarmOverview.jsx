@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Typography } from '@douyinfe/semi-ui';
-import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout } from 'lucide-react';
+import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2 } from 'lucide-react';
 import { formatBalance, formatDuration } from './utils';
 import { useTutorial } from './TutorialProvider';
 
@@ -31,7 +31,7 @@ const statusClassMap = {
 };
 
 const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle, t }) => {
-  const { handleWater, handleFertilize, handleTreat, handleUpgradeSoil } = handlers;
+  const { handleWater, handleFertilize, handleTreat, handleUpgradeSoil, handleClearPlot } = handlers;
   const soilLv = plot.soil_level || 1;
   const soilMax = farmData.soil_max_level || 5;
   const st = plot.status;
@@ -166,6 +166,12 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
             {t('升级')} Lv.{soilLv + 1}
           </Button>
         )}
+        <Button size='small' icon={<Trash2 size={12} />}
+          onClick={e => { e.stopPropagation(); if (window.confirm(t('确定要铲除这块地的作物吗？'))) handleClearPlot(plot.plot_index); }}
+          loading={actionLoading} className='farm-btn'
+          style={{ background: 'rgba(184,66,51,0.08)', border: '1px solid rgba(184,66,51,0.2)', color: 'var(--farm-danger)' }}>
+          {t('铲除')}
+        </Button>
       </div>
     </div>
   );
@@ -238,8 +244,9 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
   const handleHarvestStore = () => doAction('/api/farm/harvest/store', {});
   const handleBuyLand = () => doAction('/api/farm/buyland', {});
   const handleUpgradeSoil = (idx) => doAction('/api/farm/upgrade-soil', { plot_index: idx });
+  const handleClearPlot = (idx) => doAction('/api/farm/clear-plot', { plot_index: idx });
 
-  const handlers = { handleWater, handleFertilize, handleTreat, handleUpgradeSoil };
+  const handlers = { handleWater, handleFertilize, handleTreat, handleUpgradeSoil, handleClearPlot };
 
   const plots = farmData.plots || [];
   const matureCount = plots.filter(p => p.status === 2).length;

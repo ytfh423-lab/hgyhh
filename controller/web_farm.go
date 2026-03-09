@@ -2951,3 +2951,123 @@ func WebFarmWarehouseUpgrade(c *gin.Context) {
 		},
 	})
 }
+
+// WebFarmClearPlot 铲除地块上的作物
+func WebFarmClearPlot(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		PlotIndex int `json:"plot_index"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	var target *model.TgFarmPlot
+	for _, plot := range plots {
+		if plot.PlotIndex == req.PlotIndex {
+			target = plot
+			break
+		}
+	}
+	if target == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该地块不存在"})
+		return
+	}
+	if target.Status == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该地块已经是空的"})
+		return
+	}
+	cropName := target.CropType
+	crop := farmCropMap[target.CropType]
+	if crop != nil {
+		cropName = crop.Emoji + crop.Name
+	}
+	_ = model.ClearFarmPlot(target.Id)
+	model.AddFarmLog(tgId, "clear_plot", 0, fmt.Sprintf("铲除%d号地%s", req.PlotIndex+1, cropName))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("已铲除 %d号地 的 %s", req.PlotIndex+1, cropName)})
+}
+
+// WebRanchRelease 放生牧场动物（清空槽位）
+func WebRanchRelease(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		AnimalId int `json:"animal_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.AnimalId <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+	animals, err := model.GetRanchAnimals(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	var found bool
+	var animalName string
+	for _, a := range animals {
+		if a.Id == req.AnimalId {
+			found = true
+			def := ranchAnimalMap[a.AnimalType]
+			if def != nil {
+				animalName = def.Emoji + def.Name
+			} else {
+				animalName = a.AnimalType
+			}
+			break
+		}
+	}
+	if !found {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未找到该动物"})
+		return
+	}
+	_ = model.DeleteRanchAnimal(req.AnimalId)
+	model.AddFarmLog(tgId, "ranch_release", 0, fmt.Sprintf("放生%s", animalName))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("已放生 %s", animalName)})
+}
+
+// WebWorkshopCancel 取消加工坊槽位
+func WebWorkshopCancel(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		ProcessId int `json:"process_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.ProcessId <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+	procs, err := model.GetFarmProcesses(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	var found bool
+	var recipeName string
+	for _, p := range procs {
+		if p.Id == req.ProcessId {
+			found = true
+			recipeName = p.RecipeKey
+			break
+		}
+	}
+	if !found {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未找到该加工任务"})
+		return
+	}
+	_ = model.DeleteFarmProcess(req.ProcessId)
+	model.AddFarmLog(tgId, "workshop_cancel", 0, fmt.Sprintf("取消加工%s", recipeName))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "已取消该加工任务"})
+}

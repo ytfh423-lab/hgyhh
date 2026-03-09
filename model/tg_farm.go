@@ -529,6 +529,10 @@ func CollectFarmProcess(id int) error {
 	return DB.Model(&TgFarmProcess{}).Where("id = ?", id).Update("status", 3).Error
 }
 
+func DeleteFarmProcess(id int) error {
+	return DB.Delete(&TgFarmProcess{}, id).Error
+}
+
 func CountActiveProcesses(telegramId string) int64 {
 	var count int64
 	DB.Model(&TgFarmProcess{}).Where("telegram_id = ? AND status IN (1,2)", telegramId).Count(&count)
