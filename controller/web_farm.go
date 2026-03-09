@@ -1793,8 +1793,15 @@ func WebFarmAchievements(c *gin.Context) {
 		Reward      float64 `json:"reward"`
 	}
 	var achList []achInfo
+	farmLevel := model.GetFarmLevel(tgId)
 	for _, ach := range achievements {
-		progress := model.CountTotalActions(tgId, ach.Action)
+		var progress int64
+		switch ach.Action {
+		case "levelup":
+			progress = int64(farmLevel)
+		default:
+			progress = model.CountTotalActions(tgId, ach.Action)
+		}
 		achList = append(achList, achInfo{
 			Key:         ach.Key,
 			Name:        ach.Name,
@@ -1848,7 +1855,12 @@ func WebFarmClaimAchievement(c *gin.Context) {
 		return
 	}
 
-	progress := model.CountTotalActions(tgId, ach.Action)
+	var progress int64
+	if ach.Action == "levelup" {
+		progress = int64(model.GetFarmLevel(tgId))
+	} else {
+		progress = model.CountTotalActions(tgId, ach.Action)
+	}
 	if progress < ach.Target {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("成就未达成（%d/%d）", progress, ach.Target)})
 		return

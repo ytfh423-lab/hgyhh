@@ -3167,10 +3167,16 @@ func showFarmAchievements(chatId int64, editMsgId int, tgId string, from *TgUser
 	}
 
 	text := "🏆 成就\n\n"
+	farmLevel := model.GetFarmLevel(tgId)
 	var rows [][]TgInlineKeyboardButton
 	for _, ach := range achievements {
 		isUnlocked := unlockedSet[ach.Key]
-		progress := model.CountTotalActions(tgId, ach.Action)
+		var progress int64
+		if ach.Action == "levelup" {
+			progress = int64(farmLevel)
+		} else {
+			progress = model.CountTotalActions(tgId, ach.Action)
+		}
 		done := progress >= ach.Target
 
 		statusIcon := "⬜"
@@ -3227,7 +3233,12 @@ func doFarmClaimAchievement(chatId int64, editMsgId int, tgId string, achKey str
 		return
 	}
 
-	progress := model.CountTotalActions(tgId, ach.Action)
+	var progress int64
+	if ach.Action == "levelup" {
+		progress = int64(model.GetFarmLevel(tgId))
+	} else {
+		progress = model.CountTotalActions(tgId, ach.Action)
+	}
 	if progress < ach.Target {
 		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 成就未达成（%d/%d）", progress, ach.Target), &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
