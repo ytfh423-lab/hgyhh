@@ -27,6 +27,7 @@ const navGroups = [
       { key: 'shop', label: '商店', emoji: '🏪' },
       { key: 'warehouse', label: '仓库', emoji: '📦' },
       { key: 'trading', label: '交易所', emoji: '🔄' },
+      { key: 'entrust', label: '委托', emoji: '🤝' },
       { key: 'bank', label: '银行', emoji: '🏦' },
     ],
   },

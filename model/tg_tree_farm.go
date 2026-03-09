@@ -48,6 +48,12 @@ func GetOrCreateTreeSlots(telegramId string) ([]*TgTreeSlot, error) {
 	return slots, nil
 }
 
+func GetTreeSlotById(id int) (*TgTreeSlot, error) {
+	var slot TgTreeSlot
+	err := DB.Where("id = ?", id).First(&slot).Error
+	return &slot, err
+}
+
 func GetTreeSlot(telegramId string, slotIndex int) (*TgTreeSlot, error) {
 	var slot TgTreeSlot
 	err := DB.Where("telegram_id = ? AND slot_index = ?", telegramId, slotIndex).First(&slot).Error

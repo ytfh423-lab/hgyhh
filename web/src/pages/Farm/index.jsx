@@ -31,6 +31,8 @@ import AutomationPage from './components/AutomationPage';
 import TreeFarmPage from './components/TreeFarmPage';
 import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
+import EntrustPage from './components/EntrustPage';
+import EntrustWorkPage from './components/EntrustWorkPage';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
@@ -160,6 +162,7 @@ const Farm = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [activePage, setActivePage] = useState('overview');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [entrustWorkTaskId, setEntrustWorkTaskId] = useState(null);
   const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS' | 'BETA_AGREEMENT_REQUIRED' | 'BETA_EXPIRED'
   const [betaMessage, setBetaMessage] = useState('');
   const [agreementLoading, setAgreementLoading] = useState(false);
@@ -425,6 +428,10 @@ const Farm = () => {
   }
 
   const currentSeason = farmData.weather?.season ?? 0;
+  const navigateTo = useCallback((page) => {
+    setActivePage(page);
+    if (page !== 'entrust') setEntrustWorkTaskId(null);
+  }, []);
   const commonProps = { farmData, loadFarm, actionLoading, doAction, t };
   const userLevel = farmData.user_level || 1;
 
@@ -436,7 +443,7 @@ const Farm = () => {
         <LockedPage
           feature={req}
           userLevel={userLevel}
-          onGoToLevel={() => setActivePage('level')}
+          onGoToLevel={() => navigateTo('level')}
           t={t}
         />
       );
@@ -456,11 +463,16 @@ const Farm = () => {
       case 'market':
         return <MarketPage t={t} />;
       case 'shop':
-        return <ShopPage {...commonProps} onNavigate={setActivePage} />;
+        return <ShopPage {...commonProps} onNavigate={navigateTo} />;
       case 'warehouse':
         return <WarehousePage {...commonProps} />;
       case 'trading':
         return <TradingPage {...commonProps} />;
+      case 'entrust':
+        if (entrustWorkTaskId) {
+          return <EntrustWorkPage taskId={entrustWorkTaskId} onBack={() => setEntrustWorkTaskId(null)} t={t} />;
+        }
+        return <EntrustPage {...commonProps} onEnterWork={(id) => setEntrustWorkTaskId(id)} />;
       case 'bank':
         return <BankPage {...commonProps} />;
       case 'level':
@@ -493,10 +505,10 @@ const Farm = () => {
   };
 
   return (
-    <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={setActivePage} farmData={farmData} loadFarm={loadFarm} t={t}>
+    <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={navigateTo} farmData={farmData} loadFarm={loadFarm} t={t}>
       <div className='farm-layout'>
         <FarmAnnouncementBar t={t} />
-        <Sidebar activeKey={activePage} onNavigate={setActivePage} t={t} farmData={farmData} userLevel={userLevel} />
+        <Sidebar activeKey={activePage} onNavigate={navigateTo} t={t} farmData={farmData} userLevel={userLevel} />
         <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
           <StatusBar farmData={farmData} t={t} />
           <div className='farm-content'>
@@ -509,14 +521,14 @@ const Farm = () => {
         </div>
         <MobileBottomNav
           activeKey={activePage}
-          onNavigate={setActivePage}
+          onNavigate={navigateTo}
           showSheet={() => setMobileSheetOpen(true)}
           t={t}
         />
         {mobileSheetOpen && (
           <MobileSheet
             activeKey={activePage}
-            onNavigate={setActivePage}
+            onNavigate={navigateTo}
             onClose={() => setMobileSheetOpen(false)}
             t={t}
             userLevel={userLevel}

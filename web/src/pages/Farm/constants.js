@@ -11,6 +11,7 @@ export const FEATURE_LEVEL_MAP = {
   workshop: { level: 4, name: '加工坊', emoji: '🏭' },
   games: { level: 4, name: '小游戏', emoji: '🎰' },
   trading: { level: 5, name: '交易所', emoji: '🔄' },
+  entrust: { level: 3, name: '委托', emoji: '🤝' },
   automation: { level: 6, name: '自动化', emoji: '⚡' },
   treefarm: { level: 5, name: '树场', emoji: '🌲' },
 };

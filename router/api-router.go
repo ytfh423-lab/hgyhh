@@ -414,6 +414,17 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/tutorial/skip", controller.WebFarmTutorialSkip)
 			farmRoute.POST("/tutorial/restart", controller.WebFarmTutorialRestart)
 			farmRoute.POST("/tutorial/unlock", controller.WebFarmTutorialUnlock)
+
+			farmRoute.GET("/entrust/hall", controller.WebEntrustHall)
+			farmRoute.GET("/entrust/detail", controller.WebEntrustDetail)
+			farmRoute.POST("/entrust/create", controller.WebEntrustCreate)
+			farmRoute.POST("/entrust/cancel", controller.WebEntrustCancel)
+			farmRoute.POST("/entrust/accept", controller.WebEntrustAccept)
+			farmRoute.POST("/entrust/abandon", controller.WebEntrustAbandon)
+			farmRoute.GET("/entrust/my-published", controller.WebEntrustMyPublished)
+			farmRoute.GET("/entrust/my-accepted", controller.WebEntrustMyAccepted)
+			farmRoute.GET("/entrust/work", controller.WebEntrustWorkView)
+			farmRoute.POST("/entrust/work/execute", controller.WebEntrustWorkExecute)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")
