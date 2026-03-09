@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -214,9 +216,17 @@ func CheckFarmBetaAccess() func(c *gin.Context) {
 		}
 
 		// Farm is open, check if user has beta access
+		// 路径1: 通过预约获得资格
 		_, err := model.GetFarmBetaReservation(userId)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
+				// 没有预约记录，检查是否通过申请获得资格
+				if model.HasApprovedBetaApplication(userId) {
+					// 申请已通过，自动创建预约记录（确保后续流程一致）
+					_ = model.GrantBetaAccessViaApplication(userId)
+					c.Next()
+					return
+				}
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
 					"message": "你没有内测资格，无法访问农场",
@@ -251,4 +261,385 @@ func CheckFarmBetaAccess() func(c *gin.Context) {
 
 		c.Next()
 	}
+}
+
+// ========== 用户端：内测资格申请 ==========
+
+const (
+	betaAppMinReasonLen  = 10
+	betaAppMaxReasonLen  = 300
+	betaAppMaxRetries    = 3
+	betaAppRetryCooldown = 24 * 3600 // 被拒后24小时才可重新申请
+)
+
+// FarmBetaApplicationStatus 获取当前用户的申请状态
+func FarmBetaApplicationStatus(c *gin.Context) {
+	userId := c.GetInt("id")
+	if userId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
+		return
+	}
+
+	hasAccess := model.HasFarmBetaAccess(userId) || model.HasApprovedBetaApplication(userId)
+	if hasAccess {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"has_access": true,
+				"app_status": "approved",
+				"can_apply":  false,
+			},
+		})
+		return
+	}
+
+	app, err := model.GetLatestBetaApplication(userId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"has_access": false,
+				"app_status": "not_applied",
+				"can_apply":  true,
+			},
+		})
+		return
+	}
+
+	result := gin.H{
+		"has_access":        false,
+		"app_status":        app.Status,
+		"submitted_at":      app.SubmittedAt,
+		"review_note":       app.ReviewNote,
+		"reviewed_at":       app.ReviewedAt,
+		"linuxdo_profile":   app.LinuxdoProfile,
+		"application_round": app.ApplicationRound,
+	}
+
+	switch app.Status {
+	case "pending":
+		result["can_apply"] = false
+	case "rejected":
+		canRetry := app.ApplicationRound < betaAppMaxRetries
+		if canRetry && app.ReviewedAt > 0 {
+			elapsed := time.Now().Unix() - app.ReviewedAt
+			if elapsed < betaAppRetryCooldown {
+				canRetry = false
+				result["retry_after"] = app.ReviewedAt + betaAppRetryCooldown
+			}
+		}
+		result["can_apply"] = canRetry
+	case "approved":
+		result["has_access"] = true
+		result["can_apply"] = false
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+// FarmBetaApply 提交内测资格申请
+func FarmBetaApply(c *gin.Context) {
+	userId := c.GetInt("id")
+	if userId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
+		return
+	}
+
+	if model.HasFarmBetaAccess(userId) || model.HasApprovedBetaApplication(userId) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你已拥有内测资格"})
+		return
+	}
+
+	var req struct {
+		Reason         string `json:"reason"`
+		LinuxdoProfile string `json:"linuxdo_profile"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	req.Reason = strings.TrimSpace(req.Reason)
+	req.LinuxdoProfile = strings.TrimSpace(req.LinuxdoProfile)
+
+	// 校验理由长度
+	reasonRunes := []rune(req.Reason)
+	if len(reasonRunes) < betaAppMinReasonLen {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("申请理由不能少于%d个字", betaAppMinReasonLen)})
+		return
+	}
+	if len(reasonRunes) > betaAppMaxReasonLen {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("申请理由不能超过%d个字", betaAppMaxReasonLen)})
+		return
+	}
+
+	// 校验 LinuxDo 链接格式
+	if req.LinuxdoProfile != "" {
+		if !strings.HasPrefix(req.LinuxdoProfile, "https://linux.do/") && !strings.HasPrefix(req.LinuxdoProfile, "https://www.linux.do/") {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "LinuxDo 链接格式不正确，请填写完整的个人主页链接"})
+			return
+		}
+	}
+
+	// 检查是否有未处理的申请
+	existing, err := model.GetLatestBetaApplication(userId)
+	applicationRound := 1
+	if err == nil {
+		if existing.Status == "pending" {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "你已有一份申请正在审核中，请耐心等待"})
+			return
+		}
+		if existing.Status == "rejected" {
+			if existing.ApplicationRound >= betaAppMaxRetries {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": "已达到最大申请次数"})
+				return
+			}
+			if existing.ReviewedAt > 0 {
+				elapsed := time.Now().Unix() - existing.ReviewedAt
+				if elapsed < betaAppRetryCooldown {
+					c.JSON(http.StatusOK, gin.H{"success": false, "message": "申请被拒绝后需等待24小时才能重新申请"})
+					return
+				}
+			}
+			applicationRound = existing.ApplicationRound + 1
+		}
+	}
+
+	app := &model.FarmBetaApplication{
+		UserId:           userId,
+		Reason:           req.Reason,
+		LinuxdoProfile:   req.LinuxdoProfile,
+		Status:           "pending",
+		ApplicationRound: applicationRound,
+	}
+	if err := model.CreateBetaApplication(app); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "提交失败，请稍后重试"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "申请已提交，请等待审核结果",
+	})
+}
+
+// ========== 管理员端：内测资格申请审核 ==========
+
+// AdminBetaApplicationList 管理员获取申请列表
+func AdminBetaApplicationList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	status := c.Query("status") // pending / approved / rejected / ""
+
+	apps, total, err := model.GetBetaApplicationList(page, pageSize, status)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载失败"})
+		return
+	}
+
+	var list []gin.H
+	for _, app := range apps {
+		// 获取用户信息
+		user, _ := model.GetUserById(app.UserId, false)
+		username := ""
+		displayName := ""
+		if user != nil {
+			username = user.Username
+			displayName = user.DisplayName
+		}
+
+		notifyStatus := "unavailable"
+		if app.LinuxdoProfile != "" {
+			notifyStatus = "available"
+		}
+
+		list = append(list, gin.H{
+			"id":                app.Id,
+			"user_id":           app.UserId,
+			"username":          username,
+			"display_name":      displayName,
+			"reason":            app.Reason,
+			"linuxdo_profile":   app.LinuxdoProfile,
+			"notify_status":     notifyStatus,
+			"status":            app.Status,
+			"submitted_at":      app.SubmittedAt,
+			"reviewed_at":       app.ReviewedAt,
+			"reviewed_by":       app.ReviewedBy,
+			"review_note":       app.ReviewNote,
+			"application_round": app.ApplicationRound,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"list":  list,
+			"total": total,
+			"page":  page,
+		},
+	})
+}
+
+// AdminBetaApplicationDetail 管理员获取申请详情
+func AdminBetaApplicationDetail(c *gin.Context) {
+	appId, _ := strconv.Atoi(c.Query("id"))
+	if appId <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	app, err := model.GetBetaApplicationById(appId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "申请不存在"})
+		return
+	}
+
+	user, _ := model.GetUserById(app.UserId, false)
+	username := ""
+	displayName := ""
+	email := ""
+	if user != nil {
+		username = user.Username
+		displayName = user.DisplayName
+		email = user.Email
+	}
+
+	hasExistingAccess := model.HasFarmBetaAccess(app.UserId)
+
+	// 获取历史申请
+	history, _ := model.GetUserBetaApplicationHistory(app.UserId)
+	var historyList []gin.H
+	for _, h := range history {
+		historyList = append(historyList, gin.H{
+			"id":           h.Id,
+			"reason":       h.Reason,
+			"status":       h.Status,
+			"submitted_at": h.SubmittedAt,
+			"reviewed_at":  h.ReviewedAt,
+			"review_note":  h.ReviewNote,
+			"round":        h.ApplicationRound,
+		})
+	}
+
+	notifyStatus := "unavailable"
+	notifyMsg := "未填写 LinuxDo 链接，不做通知"
+	if app.LinuxdoProfile != "" {
+		notifyStatus = "available"
+		notifyMsg = "可手动私信通知"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":                  app.Id,
+			"user_id":             app.UserId,
+			"username":            username,
+			"display_name":        displayName,
+			"email":               email,
+			"reason":              app.Reason,
+			"linuxdo_profile":     app.LinuxdoProfile,
+			"notify_status":       notifyStatus,
+			"notify_message":      notifyMsg,
+			"status":              app.Status,
+			"submitted_at":        app.SubmittedAt,
+			"reviewed_at":         app.ReviewedAt,
+			"reviewed_by":         app.ReviewedBy,
+			"review_note":         app.ReviewNote,
+			"application_round":   app.ApplicationRound,
+			"has_existing_access": hasExistingAccess,
+			"history":             historyList,
+		},
+	})
+}
+
+// AdminBetaApplicationApprove 管理员审核通过
+func AdminBetaApplicationApprove(c *gin.Context) {
+	adminId := c.GetInt("id")
+	var req struct {
+		AppId      int    `json:"app_id"`
+		ReviewNote string `json:"review_note"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.AppId <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	app, err := model.GetBetaApplicationById(req.AppId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "申请不存在"})
+		return
+	}
+
+	if app.Status == "approved" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该申请已通过，无需重复操作"})
+		return
+	}
+
+	// 更新申请状态
+	now := time.Now().Unix()
+	_ = model.UpdateBetaApplicationFields(req.AppId, map[string]interface{}{
+		"status":      "approved",
+		"reviewed_at": now,
+		"reviewed_by": adminId,
+		"review_note": strings.TrimSpace(req.ReviewNote),
+	})
+
+	// 真正发放资格（幂等）
+	if err := model.GrantBetaAccessViaApplication(app.UserId); err != nil {
+		common.SysError(fmt.Sprintf("GrantBetaAccess failed for user %d: %v", app.UserId, err))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "资格发放失败，请重试"})
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("Admin %d approved beta application #%d for user %d", adminId, req.AppId, app.UserId))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "审核通过，已发放内测资格",
+	})
+}
+
+// AdminBetaApplicationReject 管理员审核拒绝
+func AdminBetaApplicationReject(c *gin.Context) {
+	adminId := c.GetInt("id")
+	var req struct {
+		AppId      int    `json:"app_id"`
+		ReviewNote string `json:"review_note"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.AppId <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	app, err := model.GetBetaApplicationById(req.AppId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "申请不存在"})
+		return
+	}
+
+	if app.Status != "pending" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该申请已处理，无法重复操作"})
+		return
+	}
+
+	now := time.Now().Unix()
+	_ = model.UpdateBetaApplicationFields(req.AppId, map[string]interface{}{
+		"status":      "rejected",
+		"reviewed_at": now,
+		"reviewed_by": adminId,
+		"review_note": strings.TrimSpace(req.ReviewNote),
+	})
+
+	common.SysLog(fmt.Sprintf("Admin %d rejected beta application #%d for user %d", adminId, req.AppId, app.UserId))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "已拒绝该申请",
+	})
 }

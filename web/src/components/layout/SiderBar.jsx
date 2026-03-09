@@ -54,6 +54,7 @@ const routerMap = {
   deletion_request: '/console/deletion-request',
   checkin_leaderboard: '/console/checkin-leaderboard',
   tgbot: '/console/tgbot',
+  farm_beta_apps: '/console/farm-beta-apps',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -214,6 +215,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('TG 机器人'),
         itemKey: 'tgbot',
         to: '/console/tgbot',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('内测申请审核'),
+        itemKey: 'farm_beta_apps',
+        to: '/console/farm-beta-apps',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

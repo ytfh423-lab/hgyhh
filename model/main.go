@@ -307,6 +307,7 @@ func migrateDB() error {
 		&TgFarmTutorialState{},
 		&PublicInviteCode{},
 		&FarmBetaReservation{},
+		&FarmBetaApplication{},
 		&TgFarmEntrust{},
 		&TgFarmEntrustWorker{},
 		&TgFarmEntrustLog{},

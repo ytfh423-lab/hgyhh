@@ -49,6 +49,7 @@ import Subscription from './pages/Subscription';
 import InvitationCode from './pages/InvitationCode';
 import PublicInviteCode from './pages/PublicInviteCode';
 import Farm from './pages/Farm';
+import BetaApplicationsAdmin from './pages/Farm/BetaApplicationsAdmin';
 import DeletionRequestPage from './pages/DeletionRequest';
 import CheckinLeaderboard from './pages/CheckinLeaderboard';
 import TgBotPage from './pages/TgBot';
@@ -216,6 +217,14 @@ function App() {
           element={
             <AdminRoute>
               <TgBotPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/farm-beta-apps'
+          element={
+            <AdminRoute>
+              <BetaApplicationsAdmin />
             </AdminRoute>
           }
         />

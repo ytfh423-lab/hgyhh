@@ -33,6 +33,7 @@ import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import EntrustPage from './components/EntrustPage';
 import EntrustWorkPage from './components/EntrustWorkPage';
+import BetaApplicationGate from './components/BetaApplicationGate';
 import FarmAnnouncementBar from './components/FarmAnnouncementBar';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
@@ -369,6 +370,10 @@ const Farm = () => {
       );
     }
 
+    if (betaGate === 'BETA_NO_ACCESS') {
+      return <BetaApplicationGate />;
+    }
+
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0a0a0a' }}>
         <div style={{
@@ -376,45 +381,22 @@ const Farm = () => {
           background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(251,191,36,0.12)',
           borderRadius: 16,
         }}>
-          {betaGate === 'BETA_NOT_STARTED' ? (
-            <>
-              <Clock size={44} style={{ color: 'var(--farm-harvest)', marginBottom: 16 }} />
-              <h2 style={{ color: '#fde68a', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-                {t('农场内测尚未开启')}
-              </h2>
-              <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-                {t('内测倒计时正在进行中，请返回首页查看倒计时并预约内测资格。')}
-              </p>
-              <Link to='/'>
-                <button style={{
-                  padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
-                  background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', color: '#fff',
-                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                }}>
-                  {t('返回首页')}
-                </button>
-              </Link>
-            </>
-          ) : (
-            <>
-              <Lock size={44} style={{ color: 'var(--farm-danger)', marginBottom: 16 }} />
-              <h2 style={{ color: '#d88a80', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-                {t('暂无内测资格')}
-              </h2>
-              <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-                {betaMessage || t('你没有内测资格，无法访问农场。请返回首页预约内测名额。')}
-              </p>
-              <Link to='/'>
-                <button style={{
-                  padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
-                  background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', color: '#fff',
-                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                }}>
-                  {t('返回首页')}
-                </button>
-              </Link>
-            </>
-          )}
+          <Clock size={44} style={{ color: 'var(--farm-harvest)', marginBottom: 16 }} />
+          <h2 style={{ color: '#fde68a', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+            {t('农场内测尚未开启')}
+          </h2>
+          <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            {t('内测倒计时正在进行中，请返回首页查看倒计时并预约内测资格。')}
+          </p>
+          <Link to='/'>
+            <button style={{
+              padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
+              background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', color: '#fff',
+              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            }}>
+              {t('返回首页')}
+            </button>
+          </Link>
         </div>
       </div>
     );

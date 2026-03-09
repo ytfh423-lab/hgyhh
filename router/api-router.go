@@ -171,6 +171,10 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.POST("/farm/reset-negative-balances", controller.AdminResetNegativeBalances)
 			tgBotRoute.POST("/farm/reset-all-levels", controller.AdminResetAllFarmLevels)
 			tgBotRoute.POST("/farm/beta-cleanup", controller.AdminBetaCleanup)
+			tgBotRoute.GET("/farm/beta-applications", controller.AdminBetaApplicationList)
+			tgBotRoute.GET("/farm/beta-application/detail", controller.AdminBetaApplicationDetail)
+			tgBotRoute.POST("/farm/beta-application/approve", controller.AdminBetaApplicationApprove)
+			tgBotRoute.POST("/farm/beta-application/reject", controller.AdminBetaApplicationReject)
 			tgBotRoute.GET("/market/events", controller.WebMarketAdminGetEvents)
 			tgBotRoute.POST("/market/events", controller.WebMarketAdminCreateEvent)
 			tgBotRoute.PUT("/market/events", controller.WebMarketAdminUpdateEvent)
@@ -334,6 +338,8 @@ func SetApiRouter(router *gin.Engine) {
 			farmBetaRoute.GET("/status", controller.FarmBetaStatus)
 			farmBetaRoute.POST("/reserve", controller.FarmBetaReserve)
 			farmBetaRoute.POST("/accept-agreement", controller.FarmBetaAcceptAgreement)
+			farmBetaRoute.GET("/application/status", controller.FarmBetaApplicationStatus)
+			farmBetaRoute.POST("/application/apply", controller.FarmBetaApply)
 		}
 
 		farmRoute := apiRouter.Group("/farm")
