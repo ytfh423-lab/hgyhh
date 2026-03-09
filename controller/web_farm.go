@@ -1095,6 +1095,7 @@ func WebFarmWater(c *gin.Context) {
 	}
 
 	_ = model.WaterFarmPlot(target.Id)
+	model.AddFarmLog(tgId, "water", 0, fmt.Sprintf("浇水%d号地", req.PlotIndex+1))
 
 	msg := "浇水成功！"
 	if wasDrought {
@@ -1149,6 +1150,7 @@ func WebFarmWaterAll(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有需要浇水的地块"})
 		return
 	}
+	model.AddFarmLog(tgId, "water", 0, fmt.Sprintf("一键浇水%d块地", watered))
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功浇水 %d 块地！", watered)})
 }
