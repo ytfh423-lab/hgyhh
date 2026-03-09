@@ -168,6 +168,11 @@ const Farm = () => {
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
 
+  const navigateTo = useCallback((page) => {
+    setActivePage(page);
+    if (page !== 'entrust') setEntrustWorkTaskId(null);
+  }, []);
+
   const loadFarm = useCallback(async () => {
     setLoading(true);
     try {
@@ -428,10 +433,6 @@ const Farm = () => {
   }
 
   const currentSeason = farmData.weather?.season ?? 0;
-  const navigateTo = useCallback((page) => {
-    setActivePage(page);
-    if (page !== 'entrust') setEntrustWorkTaskId(null);
-  }, []);
   const commonProps = { farmData, loadFarm, actionLoading, doAction, t };
   const userLevel = farmData.user_level || 1;
 
