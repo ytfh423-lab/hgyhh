@@ -29,7 +29,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
   useEffect(() => { loadWarehouse(); }, [loadWarehouse]);
 
   const handleSell = async (cropKey) => {
-    const res = await doAction('/api/farm/warehouse/sell', { crop_key: cropKey });
+    const res = await doAction('/api/farm/warehouse/sell', { item_key: cropKey });
     if (res) { loadWarehouse(); loadFarm(); }
   };
 
