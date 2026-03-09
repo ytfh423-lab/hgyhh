@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Input, Typography, Spin } from '@douyinfe/semi-ui';
+import { Modal, Input, Typography, Spin, TextArea } from '@douyinfe/semi-ui';
 import { Lock, Clock, FileText, CheckCircle, XCircle, Send } from 'lucide-react';
 import { API, showError, showSuccess } from '../../../helpers';
 import { Link } from 'react-router-dom';
 
-const { TextArea } = Input;
 const { Text } = Typography;
 
 const btnStyle = {
