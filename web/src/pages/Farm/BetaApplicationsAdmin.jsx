@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Button, Card, Input, Modal, Table, Tag, Typography, Select, Space, Descriptions, Spin, TextArea, Empty, Pagination,
+  Button, Card, Input, Modal, Table, Tag, Typography, Select, Space, Descriptions, Spin, Empty, Pagination,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from '../../helpers';
 import { useTranslation } from 'react-i18next';
