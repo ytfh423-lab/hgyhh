@@ -101,7 +101,7 @@ type FarmBetaApplication struct {
 	SubmittedAt      int64  `json:"submitted_at"`
 	ReviewedAt       int64  `json:"reviewed_at" gorm:"default:0"`
 	ReviewedBy       int    `json:"reviewed_by" gorm:"default:0"`
-	ReviewNote       string `json:"review_note" gorm:"type:text;default:''"`
+	ReviewNote       string `json:"review_note" gorm:"type:text"`
 	ApplicationRound int    `json:"application_round" gorm:"default:1"`
 }
 
