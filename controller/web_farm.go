@@ -301,6 +301,26 @@ func WebFarmView(c *gin.Context) {
 		}(),
 			"prestige_level": model.GetPrestigeLevel(tgId),
 			"prestige_bonus": model.GetPrestigeLevel(tgId) * common.TgBotFarmPrestigeBonusPerLevel,
+			"task_summary": func() gin.H {
+				dateStr := todayDateStr()
+				tasks := getDailyTasks(dateStr)
+				claimed, _ := model.GetTaskClaims(tgId, dateStr)
+				done := 0
+				for i, task := range tasks {
+					progress := model.CountTodayActions(tgId, task.Action)
+					isClaimed := false
+					for _, idx := range claimed {
+						if idx == i {
+							isClaimed = true
+							break
+						}
+					}
+					if progress >= int64(task.Target) || isClaimed {
+						done++
+					}
+				}
+				return gin.H{"done": done, "total": len(tasks), "claimed": len(claimed)}
+			}(),
 		},
 	})
 }
