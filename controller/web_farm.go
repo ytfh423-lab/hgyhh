@@ -329,16 +329,28 @@ func WebFarmView(c *gin.Context) {
 func WebFarmCrops(c *gin.Context) {
 	var crops []map[string]interface{}
 	for _, crop := range farmCrops {
+		tierKey, tierName := getCropTier(&crop)
+		tags := getCropTags(&crop)
+		maxProfit := crop.MaxYield*crop.UnitPrice - crop.SeedCost
+		hours := float64(crop.GrowSecs) / 3600.0
+		avgYield := float64(1+crop.MaxYield) / 2.0
+		avgProfit := avgYield*float64(crop.UnitPrice) - float64(crop.SeedCost)
+		avgProfitPerHour := avgProfit / hours
 		crops = append(crops, map[string]interface{}{
-			"key":        crop.Key,
-			"short":      crop.Short,
-			"name":       crop.Name,
-			"emoji":      crop.Emoji,
-			"seed_cost":  webFarmQuotaFloat(crop.SeedCost),
-			"grow_secs":  crop.GrowSecs,
-			"max_yield":  crop.MaxYield,
-			"unit_price": webFarmQuotaFloat(crop.UnitPrice),
-			"max_value":  webFarmQuotaFloat(crop.MaxYield * crop.UnitPrice),
+			"key":                  crop.Key,
+			"short":                crop.Short,
+			"name":                 crop.Name,
+			"emoji":                crop.Emoji,
+			"seed_cost":            webFarmQuotaFloat(crop.SeedCost),
+			"grow_secs":            crop.GrowSecs,
+			"max_yield":            crop.MaxYield,
+			"unit_price":           webFarmQuotaFloat(crop.UnitPrice),
+			"max_value":            webFarmQuotaFloat(crop.MaxYield * crop.UnitPrice),
+			"max_profit":           webFarmQuotaFloat(maxProfit),
+			"avg_profit_per_hour":  webFarmQuotaFloat(int(avgProfitPerHour)),
+			"tier":                 tierKey,
+			"tier_name":            tierName,
+			"tags":                 tags,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": crops})
@@ -2561,6 +2573,7 @@ func WebFarmSeasonInfo(c *gin.Context) {
 	for _, crop := range farmCrops {
 		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
 		seasonPrice := applySeasonPrice(marketPrice, &crop)
+		tierKey, tierName := getCropTier(&crop)
 		crops = append(crops, gin.H{
 			"key":          crop.Key,
 			"name":         crop.Name,
@@ -2572,6 +2585,9 @@ func WebFarmSeasonInfo(c *gin.Context) {
 			"market_price": webFarmQuotaFloat(marketPrice),
 			"season_price": webFarmQuotaFloat(seasonPrice),
 			"season_pct":   getSeasonPriceMultiplier(&crop),
+			"tier":         tierKey,
+			"tier_name":    tierName,
+			"tags":         getCropTags(&crop),
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{

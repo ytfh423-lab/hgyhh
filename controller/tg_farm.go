@@ -107,32 +107,83 @@ type farmItemDef struct {
 // NOTE: all emojis below must be Unicode 6.0-11.0 for wide compatibility
 // Season: 0=春 1=夏 2=秋 3=冬
 var farmCrops = []farmCropDef{
+	// === 作物收益平衡体系 ===
+	// 档位设计（按平均利润/小时）:
+	//   ⚡极速(≤30分): ~400-480k/h  高频快刷，适合活跃玩家
+	//   🔄常规(30分~2h): ~230-330k/h  稳定收益，适合日常
+	//   ⚖均衡(2~5h):   ~196-227k/h  中等收益，省心种植
+	//   💤离线(5h+):    ~193-207k/h  最高总收益，适合睡前/上班前种
+	// 长周期作物每小时收益略低，但单次总收益远高于短周期
 	// 原有作物
 	{"carrot", "car", "胡萝卜", "🌰", 50000, 1800, 2, 170000, SeasonSpring},
 	{"tomato", "tom", "番茄", "🍅", 150000, 3600, 5, 135000, SeasonSummer},
 	{"pumpkin", "pum", "南瓜", "🎃", 350000, 7200, 6, 250000, SeasonAutumn},
-	{"blueberry", "blu", "蓝莓", "🍇", 75000, 10800, 25, 10000, SeasonSpring},
+	{"blueberry", "blu", "蓝莓", "🍇", 200000, 10800, 10, 160000, SeasonSpring},
 	{"strawberry", "str", "草莓", "🍓", 750000, 14400, 6, 470000, SeasonSpring},
 	{"watermelon", "wat", "西瓜", "🍉", 1250000, 21600, 8, 535000, SeasonSummer},
-	{"mango", "man", "芒果", "🍊", 75000, 25200, 50, 5000, SeasonSummer},
-	{"corn", "cor", "玉米", "🌽", 50000, 54000, 20, 10000, SeasonAutumn},
+	{"mango", "man", "芒果", "🍊", 350000, 25200, 8, 400000, SeasonSummer},
+	{"corn", "cor", "玉米", "🌽", 500000, 54000, 10, 650000, SeasonAutumn},
 	// 蔬菜
 	{"potato", "pot", "土豆", "🥔", 40000, 1200, 3, 100000, SeasonSpring},
 	{"eggplant", "egg", "茄子", "🍆", 80000, 2400, 4, 120000, SeasonSummer},
 	{"pepper", "pep", "辣椒", "🌶️", 120000, 3000, 6, 90000, SeasonSummer},
 	{"cucumber", "cuc", "黄瓜", "🥒", 60000, 1500, 5, 80000, SeasonSpring},
 	{"broccoli", "bro", "西兰花", "🥦", 200000, 4800, 3, 280000, SeasonAutumn},
-	{"garlic", "gar", "大蒜", "🧄", 100000, 5400, 8, 60000, SeasonWinter},
-	{"onion", "oni", "洋葱", "🧅", 70000, 3600, 7, 55000, SeasonAutumn},
+	{"garlic", "gar", "大蒜", "🧄", 100000, 5400, 8, 100000, SeasonWinter},
+	{"onion", "oni", "洋葱", "🧅", 70000, 3600, 7, 80000, SeasonAutumn},
 	{"lettuce", "let", "生菜", "🥬", 30000, 900, 4, 60000, SeasonSpring},
 	// 水果
 	{"apple", "app", "苹果", "🍎", 300000, 7200, 4, 300000, SeasonAutumn},
 	{"peach", "pea", "桃子", "🍑", 450000, 10800, 5, 350000, SeasonSummer},
 	{"cherry", "che", "樱桃", "🍒", 500000, 9000, 10, 180000, SeasonSpring},
-	{"lemon", "lem", "柠檬", "🍋", 180000, 5400, 6, 130000, SeasonWinter},
+	{"lemon", "lem", "柠檬", "🍋", 180000, 5400, 6, 150000, SeasonWinter},
 	{"pear", "par", "梨子", "🍐", 250000, 7200, 5, 220000, SeasonAutumn},
-	{"kiwi", "kiw", "猕猴桃", "🥝", 600000, 14400, 8, 280000, SeasonWinter},
+	{"kiwi", "kiw", "猕猴桃", "🥝", 500000, 14400, 8, 300000, SeasonWinter},
 	{"banana", "ban", "香蕉", "🍌", 900000, 18000, 7, 480000, SeasonSummer},
+}
+
+// getCropTier 返回作物档位 key 和中文名
+func getCropTier(crop *farmCropDef) (string, string) {
+	hours := float64(crop.GrowSecs) / 3600.0
+	switch {
+	case hours <= 0.5:
+		return "sprint", "⚡极速"
+	case hours <= 2.0:
+		return "active", "🔄常规"
+	case hours <= 5.0:
+		return "balanced", "⚖均衡"
+	default:
+		return "afk", "💤离线"
+	}
+}
+
+// getCropTags 返回作物价值标签列表
+func getCropTags(crop *farmCropDef) []string {
+	var tags []string
+	hours := float64(crop.GrowSecs) / 3600.0
+	maxProfit := crop.MaxYield*crop.UnitPrice - crop.SeedCost
+
+	if hours >= 8 {
+		tags = append(tags, "睡前种植")
+	} else if hours >= 5 {
+		tags = append(tags, "适合离线")
+	}
+	if maxProfit >= 4000000 {
+		tags = append(tags, "高总收益")
+	}
+	if hours <= 0.5 {
+		tags = append(tags, "快速回本")
+	}
+	if isCropInSeason(crop) {
+		tags = append(tags, "当季作物")
+	}
+	// 每小时平均利润
+	avgYield := float64(1+crop.MaxYield) / 2.0
+	avgProfitPerHour := (avgYield*float64(crop.UnitPrice) - float64(crop.SeedCost)) / hours
+	if avgProfitPerHour >= 400000 {
+		tags = append(tags, "高效快刷")
+	}
+	return tags
 }
 
 var farmItems = []farmItemDef{
@@ -1064,13 +1115,14 @@ func showFarmPlantCrops(chatId int64, editMsgId int, tgId string, from *TgUser) 
 	var rows [][]TgInlineKeyboardButton
 	for _, crop := range farmCrops {
 		maxValue := crop.MaxYield * crop.UnitPrice
+		_, tierName := getCropTier(&crop)
 		seasonTag := seasonEmojis[crop.Season] + seasonNames[crop.Season]
 		inSeason := ""
 		if isCropInSeason(&crop) {
 			inSeason = " ✅应季"
 		}
-		text += fmt.Sprintf("%s %s [%s%s] - 种子%s | %s | 产量1~%d×%s\n",
-			crop.Emoji, crop.Name, seasonTag, inSeason, farmQuotaStr(crop.SeedCost),
+		text += fmt.Sprintf("%s %s %s [%s%s] - 种子%s | %s | 产量1~%d | 最高%s\n",
+			crop.Emoji, crop.Name, tierName, seasonTag, inSeason, farmQuotaStr(crop.SeedCost),
 			formatDuration(crop.GrowSecs), crop.MaxYield, farmQuotaStr(maxValue))
 		btnTag := ""
 		if isCropInSeason(&crop) {
@@ -1451,9 +1503,11 @@ func showFarmShop(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text := "🏪 农场商店\n\n"
 	text += "📌 种子（在「种植」中直接购买并种下）：\n"
 	for _, crop := range farmCrops {
-		text += fmt.Sprintf("  %s %s - %s | %s | 产量1~%d×%s\n",
-			crop.Emoji, crop.Name, farmQuotaStr(crop.SeedCost),
-			formatDuration(crop.GrowSecs), crop.MaxYield, farmQuotaStr(crop.UnitPrice))
+		_, tierName := getCropTier(&crop)
+		maxProfit := crop.MaxYield*crop.UnitPrice - crop.SeedCost
+		text += fmt.Sprintf("  %s %s %s - %s | %s | 1~%d个 | 利润%s\n",
+			crop.Emoji, crop.Name, tierName, farmQuotaStr(crop.SeedCost),
+			formatDuration(crop.GrowSecs), crop.MaxYield, farmQuotaStr(maxProfit))
 	}
 	text += "\n📌 道具：\n"
 	var rows [][]TgInlineKeyboardButton
