@@ -55,6 +55,7 @@ const routerMap = {
   checkin_leaderboard: '/console/checkin-leaderboard',
   tgbot: '/console/tgbot',
   farm_beta_apps: '/console/farm-beta-apps',
+  farm_beta_ai_config: '/console/farm-beta-ai-config',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -221,6 +222,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('内测申请审核'),
         itemKey: 'farm_beta_apps',
         to: '/console/farm-beta-apps',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('AI 审核配置'),
+        itemKey: 'farm_beta_ai_config',
+        to: '/console/farm-beta-ai-config',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

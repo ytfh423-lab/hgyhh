@@ -381,6 +381,16 @@ func FarmBetaApply(c *gin.Context) {
 		}
 	}
 
+	// 检查每日名额
+	dailyQuota := model.GetBetaAIDailyQuota()
+	if dailyQuota > 0 {
+		todayApproved := model.CountTodayApprovedBetaApplications()
+		if todayApproved >= int64(dailyQuota) {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日内测名额已满，请明天再来申请"})
+			return
+		}
+	}
+
 	// 检查是否有未处理的申请
 	existing, err := model.GetLatestBetaApplication(userId)
 	applicationRound := 1
@@ -415,6 +425,11 @@ func FarmBetaApply(c *gin.Context) {
 	if err := model.CreateBetaApplication(app); err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "提交失败，请稍后重试"})
 		return
+	}
+
+	// 异步触发 AI 审核（如果已开启）
+	if model.IsBetaAIReviewEnabled() {
+		go ExecuteAIReview(app)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -473,6 +488,10 @@ func AdminBetaApplicationList(c *gin.Context) {
 			"reviewed_by":       app.ReviewedBy,
 			"review_note":       app.ReviewNote,
 			"application_round": app.ApplicationRound,
+			"ai_decision":       app.AiDecision,
+			"ai_confidence":     app.AiConfidence,
+			"ai_summary":        app.AiSummary,
+			"ai_review_log_id":  app.AiReviewLogId,
 		})
 	}
 
@@ -534,6 +553,28 @@ func AdminBetaApplicationDetail(c *gin.Context) {
 		notifyMsg = "可手动私信通知"
 	}
 
+	// AI 审核日志
+	var aiLogs []gin.H
+	if app.AiReviewLogId > 0 {
+		logs, _ := model.GetAIReviewLogsByApplicationId(app.Id)
+		for _, l := range logs {
+			aiLogs = append(aiLogs, gin.H{
+				"id":            l.Id,
+				"ai_decision":   l.AiDecision,
+				"ai_confidence": l.AiConfidence,
+				"ai_score":      l.AiScore,
+				"ai_summary":    l.AiSummary,
+				"ai_reasons":    l.AiReasons,
+				"final_action":  l.FinalAction,
+				"model_name":    l.ModelName,
+				"status":        l.Status,
+				"error_message": l.ErrorMessage,
+				"prompt_version": l.PromptVersion,
+				"created_at":    l.CreatedAt,
+			})
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -554,6 +595,11 @@ func AdminBetaApplicationDetail(c *gin.Context) {
 			"application_round":   app.ApplicationRound,
 			"has_existing_access": hasExistingAccess,
 			"history":             historyList,
+			"ai_decision":         app.AiDecision,
+			"ai_confidence":       app.AiConfidence,
+			"ai_summary":          app.AiSummary,
+			"ai_review_log_id":    app.AiReviewLogId,
+			"ai_logs":             aiLogs,
 		},
 	})
 }

@@ -13,6 +13,13 @@ const STATUS_MAP = {
   rejected: { text: '已拒绝', color: 'red' },
 };
 
+const AI_DECISION_MAP = {
+  approve: { text: '建议通过', color: 'green' },
+  reject: { text: '建议拒绝', color: 'red' },
+  manual_review: { text: '转人工', color: 'orange' },
+  error: { text: 'AI错误', color: 'grey' },
+};
+
 const formatTime = (ts) => {
   if (!ts) return '-';
   return new Date(ts * 1000).toLocaleString('zh-CN');
@@ -186,6 +193,23 @@ const BetaApplicationsAdmin = () => {
       render: (val) => `${val}/3`,
     },
     {
+      title: 'AI建议',
+      dataIndex: 'ai_decision',
+      width: 100,
+      render: (val, record) => {
+        if (!val) return <Tag color='default' size='small'>未审</Tag>;
+        const d = AI_DECISION_MAP[val] || { text: val, color: 'default' };
+        return (
+          <span>
+            <Tag color={d.color} size='small'>{d.text}</Tag>
+            {record.ai_confidence > 0 && (
+              <Text type='tertiary' size='small' style={{ marginLeft: 4 }}>{(record.ai_confidence * 100).toFixed(0)}%</Text>
+            )}
+          </span>
+        );
+      },
+    },
+    {
       title: '操作',
       width: 80,
       render: (_, record) => (
@@ -287,11 +311,49 @@ const BetaApplicationsAdmin = () => {
               )}
             </Card>
 
+            {detailData.ai_decision && (
+              <Card title='AI 审核结果' size='small' style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  <Tag color={(AI_DECISION_MAP[detailData.ai_decision] || {}).color || 'default'} size='small'>
+                    {(AI_DECISION_MAP[detailData.ai_decision] || {}).text || detailData.ai_decision}
+                  </Tag>
+                  {detailData.ai_confidence > 0 && (
+                    <Text size='small'>置信度: {(detailData.ai_confidence * 100).toFixed(0)}%</Text>
+                  )}
+                </div>
+                {detailData.ai_summary && (
+                  <Text size='small' style={{ display: 'block', marginBottom: 4 }}>
+                    <strong>摘要:</strong> {detailData.ai_summary}
+                  </Text>
+                )}
+                {detailData.ai_logs && detailData.ai_logs.length > 0 && detailData.ai_logs.map((log) => (
+                  <div key={log.id} style={{ fontSize: 12, marginTop: 4, padding: '6px 8px', background: 'var(--semi-color-fill-0)', borderRadius: 4 }}>
+                    <Space>
+                      <Text type='tertiary' size='small'>模型: {log.model_name}</Text>
+                      <Text type='tertiary' size='small'>评分: {log.ai_score || '-'}</Text>
+                      <Text type='tertiary' size='small'>Prompt v{log.prompt_version}</Text>
+                      <Text type='tertiary' size='small'>{formatTime(log.created_at)}</Text>
+                    </Space>
+                    {log.ai_reasons && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type='tertiary' size='small'>理由: {log.ai_reasons}</Text>
+                      </div>
+                    )}
+                    {log.error_message && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type='danger' size='small'>错误: {log.error_message}</Text>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </Card>
+            )}
+
             {detailData.reviewed_at > 0 && (
               <Card title='审核信息' size='small' style={{ marginBottom: 12 }}>
                 <Descriptions
                   data={[
-                    { key: '审核人ID', value: detailData.reviewed_by || '-' },
+                    { key: '审核人ID', value: detailData.reviewed_by === 0 ? 'AI 自动' : (detailData.reviewed_by || '-') },
                     { key: '审核时间', value: formatTime(detailData.reviewed_at) },
                     { key: '审核备注', value: detailData.review_note || '-' },
                   ]}

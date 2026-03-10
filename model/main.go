@@ -308,6 +308,8 @@ func migrateDB() error {
 		&PublicInviteCode{},
 		&FarmBetaReservation{},
 		&FarmBetaApplication{},
+		&FarmBetaAIConfig{},
+		&FarmBetaAIReviewLog{},
 		&TgFarmEntrust{},
 		&TgFarmEntrustWorker{},
 		&TgFarmEntrustLog{},

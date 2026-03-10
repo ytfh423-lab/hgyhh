@@ -57,6 +57,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     deletion_request: true,
     tgbot: true,
     farm_beta_apps: true,
+    farm_beta_ai_config: true,
     subscription: true,
     setting: true,
   },

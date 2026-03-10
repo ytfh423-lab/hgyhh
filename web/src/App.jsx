@@ -50,6 +50,7 @@ import InvitationCode from './pages/InvitationCode';
 import PublicInviteCode from './pages/PublicInviteCode';
 import Farm from './pages/Farm';
 import BetaApplicationsAdmin from './pages/Farm/BetaApplicationsAdmin';
+import BetaAIConfigAdmin from './pages/Farm/BetaAIConfigAdmin';
 import DeletionRequestPage from './pages/DeletionRequest';
 import CheckinLeaderboard from './pages/CheckinLeaderboard';
 import TgBotPage from './pages/TgBot';
@@ -225,6 +226,14 @@ function App() {
           element={
             <AdminRoute>
               <BetaApplicationsAdmin />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/farm-beta-ai-config'
+          element={
+            <AdminRoute>
+              <BetaAIConfigAdmin />
             </AdminRoute>
           }
         />

@@ -102,7 +102,11 @@ type FarmBetaApplication struct {
 	ReviewedAt       int64  `json:"reviewed_at" gorm:"default:0"`
 	ReviewedBy       int    `json:"reviewed_by" gorm:"default:0"`
 	ReviewNote       string `json:"review_note" gorm:"type:text"`
-	ApplicationRound int    `json:"application_round" gorm:"default:1"`
+	ApplicationRound int     `json:"application_round" gorm:"default:1"`
+	AiDecision       string  `json:"ai_decision" gorm:"type:varchar(20)"`
+	AiConfidence     float64 `json:"ai_confidence" gorm:"default:0"`
+	AiSummary        string  `json:"ai_summary" gorm:"type:text"`
+	AiReviewLogId    int     `json:"ai_review_log_id" gorm:"default:0"`
 }
 
 func (FarmBetaApplication) TableName() string {
