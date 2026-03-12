@@ -145,6 +145,11 @@ const TgBotPage = () => {
   const [fishDailyMaxActions, setFishDailyMaxActions] = useState(60);
   const [fishDailyMaxIncome, setFishDailyMaxIncome] = useState(100000000);
   const [fishRiskEnabled, setFishRiskEnabled] = useState(true);
+  // 收益CAP模型
+  const [fishIncomeCapEnabled, setFishIncomeCapEnabled] = useState(true);
+  const [fishDailyIncomeCap, setFishDailyIncomeCap] = useState(25000000);
+  const [fishOverCapEnabled, setFishOverCapEnabled] = useState(true);
+  const [fishOverCapRatio, setFishOverCapRatio] = useState(10);
   // 钓鱼权重
   const [fishNothingWeight, setFishNothingWeight] = useState(20);
   const [fishWeightConfig, setFishWeightConfig] = useState([]);
@@ -265,6 +270,11 @@ const TgBotPage = () => {
         setFishDailyMaxActions(data.fish_daily_max_actions ?? 60);
         setFishDailyMaxIncome(data.fish_daily_max_income ?? 100000000);
         setFishRiskEnabled(data.fish_risk_enabled ?? true);
+        // 收益CAP模型
+        setFishIncomeCapEnabled(data.fish_income_cap_enabled ?? true);
+        setFishDailyIncomeCap(data.fish_daily_income_cap ?? 25000000);
+        setFishOverCapEnabled(data.fish_over_cap_enabled ?? true);
+        setFishOverCapRatio(data.fish_over_cap_ratio ?? 10);
         // 钓鱼权重
         setFishNothingWeight(data.fish_nothing_weight ?? 20);
         if (Array.isArray(data.fish_weight_config)) setFishWeightConfig(data.fish_weight_config);
@@ -1178,16 +1188,46 @@ const TgBotPage = () => {
             <Typography.Text style={{ width: 200 }}>{t('稀有鱼衰减(%)')}</Typography.Text>
             <InputNumber value={fishFatigueDecay} onChange={setFishFatigueDecay} min={0} max={100} style={{ width: 120 }} />
           </div>
-          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>🚫 {t('每日上限')}</Typography.Title>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>� {t('收益CAP模型')}</Typography.Title>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <Typography.Text style={{ width: 200 }}>{t('每日最大次数')}</Typography.Text>
+            <Typography.Text style={{ width: 200 }}>{t('启用收益CAP模型')}</Typography.Text>
+            <Switch checked={fishIncomeCapEnabled} onChange={setFishIncomeCapEnabled} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('启用后以收益上限为主要限制，次数仅作风控')}</Typography.Text>
+          </div>
+          {fishIncomeCapEnabled && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <Typography.Text style={{ width: 200 }}>{t('单日收益上限(额度)')}</Typography.Text>
+                <InputNumber value={fishDailyIncomeCap} onChange={setFishDailyIncomeCap} min={0} step={1000000} style={{ width: 180 }} />
+                <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (fishDailyIncomeCap / 500000).toFixed(2)}</Typography.Text>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <Typography.Text style={{ width: 200 }}>{t('超CAP后继续钓鱼')}</Typography.Text>
+                <Switch checked={fishOverCapEnabled} onChange={setFishOverCapEnabled} />
+                <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('允许超过上限后以休闲模式继续')}</Typography.Text>
+              </div>
+              {fishOverCapEnabled && (
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                  <Typography.Text style={{ width: 200 }}>{t('超CAP收益比例(%)')}</Typography.Text>
+                  <InputNumber value={fishOverCapRatio} onChange={setFishOverCapRatio} min={0} max={100} style={{ width: 120 }} />
+                  <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('0=无收益，10=获得10%收益')}</Typography.Text>
+                </div>
+              )}
+            </>
+          )}
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>�🚫 {t('安全上限')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('每日安全次数上限')}</Typography.Text>
             <InputNumber value={fishDailyMaxActions} onChange={setFishDailyMaxActions} min={1} max={500} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{fishIncomeCapEnabled ? t('仅作风控保底，不应先于收益CAP生效') : t('核心次数限制')}</Typography.Text>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <Typography.Text style={{ width: 200 }}>{t('每日最大收入(额度)')}</Typography.Text>
-            <InputNumber value={fishDailyMaxIncome} onChange={setFishDailyMaxIncome} min={0} step={1000000} style={{ width: 180 }} />
-            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (fishDailyMaxIncome / 500000).toFixed(2)}</Typography.Text>
-          </div>
+          {!fishIncomeCapEnabled && (
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+              <Typography.Text style={{ width: 200 }}>{t('每日最大收入(额度)')}</Typography.Text>
+              <InputNumber value={fishDailyMaxIncome} onChange={setFishDailyMaxIncome} min={0} step={1000000} style={{ width: 180 }} />
+              <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (fishDailyMaxIncome / 500000).toFixed(2)}</Typography.Text>
+            </div>
+          )}
           <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>🛡️ {t('风控检测')}</Typography.Title>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <Typography.Text style={{ width: 200 }}>{t('启用反挂机风控')}</Typography.Text>
@@ -1453,6 +1493,11 @@ const TgBotPage = () => {
                   { key: 'TgBotFishDailyMaxActions', value: String(fishDailyMaxActions) },
                   { key: 'TgBotFishDailyMaxIncome', value: String(fishDailyMaxIncome) },
                   { key: 'TgBotFishRiskEnabled', value: String(fishRiskEnabled) },
+                  // 收益CAP模型
+                  { key: 'TgBotFishIncomeCapEnabled', value: String(fishIncomeCapEnabled) },
+                  { key: 'TgBotFishDailyIncomeCap', value: String(fishDailyIncomeCap) },
+                  { key: 'TgBotFishOverCapEnabled', value: String(fishOverCapEnabled) },
+                  { key: 'TgBotFishOverCapRatio', value: String(fishOverCapRatio) },
                   { key: 'TgBotFishNothingWeight', value: String(fishNothingWeight) },
                   { key: 'TgBotFishWeights', value: fishWeightConfig.map(f => f.weight).join(',') },
                 ];

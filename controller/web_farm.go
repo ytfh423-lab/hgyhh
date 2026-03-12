@@ -2347,28 +2347,41 @@ func WebFarmFishView(c *gin.Context) {
 		nothingPct = math.Round(float64(common.TgBotFishNothingWeight)*1000.0/float64(adjTotal)) / 10.0
 	}
 
+	// 收益CAP状态
+	capEnabled := common.TgBotFishIncomeCapEnabled
+	dailyIncomeCap := common.TgBotFishDailyIncomeCap
+	overCap := capEnabled && dailyIncome >= dailyIncomeCap
+	overCapEnabled := common.TgBotFishOverCapEnabled
+	overCapRatio := common.TgBotFishOverCapRatio
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"bait_count":      baitCount,
-			"cooldown":        cdRemain,
-			"stamina":         stamina,
-			"stamina_max":     common.TgBotFishStaminaMax,
-			"stamina_cost":    common.TgBotFishStaminaCost,
-			"recover_in":      recoverIn,
-			"recover_amount":  common.TgBotFishStaminaRecoverAmount,
-			"daily_count":     dailyCount,
-			"daily_max":       common.TgBotFishDailyMaxActions,
-			"daily_income":    webFarmQuotaFloat(dailyIncome),
-			"daily_max_income": webFarmQuotaFloat(common.TgBotFishDailyMaxIncome),
-			"fatigue_active":  fatigueActive,
+			"bait_count":        baitCount,
+			"cooldown":          cdRemain,
+			"stamina":           stamina,
+			"stamina_max":       common.TgBotFishStaminaMax,
+			"stamina_cost":      common.TgBotFishStaminaCost,
+			"recover_in":        recoverIn,
+			"recover_amount":    common.TgBotFishStaminaRecoverAmount,
+			"daily_count":       dailyCount,
+			"daily_max":         common.TgBotFishDailyMaxActions,
+			"daily_income":      webFarmQuotaFloat(dailyIncome),
+			"daily_max_income":  webFarmQuotaFloat(common.TgBotFishDailyMaxIncome),
+			"fatigue_active":    fatigueActive,
 			"fatigue_threshold": common.TgBotFishFatigueThreshold,
-			"fatigue_decay":   common.TgBotFishFatigueDecay,
-			"inventory":       inventory,
-			"total_value":     webFarmQuotaFloat(totalValue),
-			"fish_types":      types,
-			"nothing_chance":  nothingPct,
-			"bait_price":      webFarmQuotaFloat(common.TgBotFishBaitPrice),
+			"fatigue_decay":     common.TgBotFishFatigueDecay,
+			"inventory":         inventory,
+			"total_value":       webFarmQuotaFloat(totalValue),
+			"fish_types":        types,
+			"nothing_chance":    nothingPct,
+			"bait_price":        webFarmQuotaFloat(common.TgBotFishBaitPrice),
+			// 收益CAP模型
+			"cap_enabled":       capEnabled,
+			"daily_income_cap":  webFarmQuotaFloat(dailyIncomeCap),
+			"over_cap":          overCap,
+			"over_cap_enabled":  overCapEnabled,
+			"over_cap_ratio":    overCapRatio,
 		},
 	})
 }
@@ -2385,16 +2398,33 @@ func WebFarmFishDo(c *gin.Context) {
 
 	now := time.Now().Unix()
 
-	// 1. 每日上限检查
+	// 1. 每日限制检查
 	dailyCount := model.GetFishDailyCount(tgId)
-	if dailyCount >= common.TgBotFishDailyMaxActions {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼次数已达上限"})
-		return
-	}
 	dailyIncome := model.GetFishDailyIncome(tgId)
-	if dailyIncome >= common.TgBotFishDailyMaxIncome {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼收入已达上限"})
-		return
+
+	// 收益CAP模型：主限制是收益CAP，次数上限仅作宽松风控
+	if common.TgBotFishIncomeCapEnabled {
+		// 风控次数上限（极宽松，正常玩家不应触及）
+		if dailyCount >= common.TgBotFishDailyMaxActions {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼次数已达安全上限，明天再来吧"})
+			return
+		}
+		// 收益CAP检查：超过CAP后根据配置决定是否允许继续
+		overCap := dailyIncome >= common.TgBotFishDailyIncomeCap
+		if overCap && !common.TgBotFishOverCapEnabled {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼收益已达上限，明天再来吧"})
+			return
+		}
+	} else {
+		// 旧模型：双重硬限制（兼容）
+		if dailyCount >= common.TgBotFishDailyMaxActions {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼次数已达上限"})
+			return
+		}
+		if dailyIncome >= common.TgBotFishDailyMaxIncome {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼收入已达上限"})
+			return
+		}
 	}
 
 	// 2. 体力检查
@@ -2430,7 +2460,7 @@ func WebFarmFishDo(c *gin.Context) {
 		model.AddFarmLog(tgId, "fish_risk", 0, "钓鱼行为异常：操作间隔高度一致")
 	}
 
-	// 7. 随机钓鱼（含疲劳衰减）
+	// 7. 随机钓鱼（含疲劳衰减，兼容旧模型）
 	fish := randomFishWithFatigue(tgId)
 
 	// 8. 增加每日计数
@@ -2438,6 +2468,10 @@ func WebFarmFishDo(c *gin.Context) {
 
 	// 获取最新体力用于返回
 	newStamina, newRecoverIn := model.GetFishStamina(tgId)
+
+	// 重新读取每日收入（用于判断是否超CAP）
+	currentDailyIncome := model.GetFishDailyIncome(tgId)
+	overCap := common.TgBotFishIncomeCapEnabled && currentDailyIncome >= common.TgBotFishDailyIncomeCap
 
 	if fish == nil {
 		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
@@ -2448,29 +2482,55 @@ func WebFarmFishDo(c *gin.Context) {
 				"caught":     false,
 				"stamina":    newStamina,
 				"recover_in": newRecoverIn,
+				"over_cap":   overCap,
 			},
 		})
 		return
 	}
 
+	// 9. 计算实际收益（超CAP时按比例衰减）
+	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
+	effectiveValue := fishValue
+	isOverCapCatch := false
+	if common.TgBotFishIncomeCapEnabled && dailyIncome >= common.TgBotFishDailyIncomeCap {
+		// 超CAP：收益按比例衰减
+		effectiveValue = fishValue * common.TgBotFishOverCapRatio / 100
+		isOverCapCatch = true
+	}
+
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
-	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
-	model.IncrFishDailyIncome(tgId, fishValue)
-	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
+	model.IncrFishDailyIncome(tgId, effectiveValue)
+	if isOverCapCatch {
+		model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s](休闲模式%d%%)", fish.Emoji, fish.Name, fish.Rarity, common.TgBotFishOverCapRatio))
+	} else {
+		model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
+	}
+
+	// 钓完后重新检查是否超CAP
+	newDailyIncome := model.GetFishDailyIncome(tgId)
+	newOverCap := common.TgBotFishIncomeCapEnabled && newDailyIncome >= common.TgBotFishDailyIncomeCap
+
+	msg := fmt.Sprintf("钓到了 %s %s！", fish.Emoji, fish.Name)
+	if isOverCapCatch {
+		msg = fmt.Sprintf("🎣 休闲模式：钓到了 %s %s（收益%d%%）", fish.Emoji, fish.Name, common.TgBotFishOverCapRatio)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("钓到了 %s %s！", fish.Emoji, fish.Name),
+		"message": msg,
 		"data": gin.H{
-			"caught":     true,
-			"fish_key":   fish.Key,
-			"fish_name":  fish.Name,
-			"fish_emoji": fish.Emoji,
-			"rarity":     fish.Rarity,
-			"sell_price": webFarmQuotaFloat(fish.SellPrice),
-			"stamina":    newStamina,
-			"recover_in": newRecoverIn,
+			"caught":          true,
+			"fish_key":        fish.Key,
+			"fish_name":       fish.Name,
+			"fish_emoji":      fish.Emoji,
+			"rarity":          fish.Rarity,
+			"sell_price":      webFarmQuotaFloat(fish.SellPrice),
+			"effective_price": webFarmQuotaFloat(effectiveValue),
+			"over_cap":        newOverCap,
+			"over_cap_catch":  isOverCapCatch,
+			"stamina":         newStamina,
+			"recover_in":      newRecoverIn,
 		},
 	})
 }

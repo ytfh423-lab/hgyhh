@@ -160,13 +160,18 @@ var TgBotFishStaminaMax = 20                      // 钓鱼体力上限
 var TgBotFishStaminaCost = 1                      // 每次钓鱼消耗体力
 var TgBotFishStaminaRecoverInterval = 300          // 体力恢复间隔秒（默认5分钟）
 var TgBotFishStaminaRecoverAmount = 1              // 每次恢复体力量
-var TgBotFishFatigueEnabled = true                 // 是否开启疲劳衰减
+var TgBotFishFatigueEnabled = true                 // 是否开启疲劳衰减（兼容旧配置，新模型下建议关闭）
 var TgBotFishFatigueThreshold = 30                 // 每日钓鱼N次后进入疲劳
 var TgBotFishFatigueDecay = 50                     // 疲劳时稀有鱼概率衰减%
-var TgBotFishDailyMaxActions = 60                  // 每日最大有效钓鱼次数
-var TgBotFishDailyMaxIncome = 100000000            // 每日最大钓鱼收入（quota，默认$200）
+var TgBotFishDailyMaxActions = 200                 // 每日安全次数上限（宽松风控，非核心限制）
+var TgBotFishDailyMaxIncome = 100000000            // 每日最大钓鱼收入（兼容旧配置，新模型下由CAP替代）
 var TgBotFishRiskEnabled = true                    // 是否开启钓鱼风控检测
 var TgBotFishNothingWeight = 20                    // 空军概率权重
+// 收益CAP模型（方案B：只限制单日总收益）
+var TgBotFishIncomeCapEnabled = true               // 是否启用收益CAP模型（启用后次数上限仅作风控保底）
+var TgBotFishDailyIncomeCap = 25000000             // 单日有效收益上限（quota，默认$50）
+var TgBotFishOverCapEnabled = true                 // 超过收益CAP后是否允许继续钓鱼
+var TgBotFishOverCapRatio = 10                     // 超CAP后收益比例%（默认10%，0=无收益）
 // 每条鱼的概率权重（与 fishTypes 顺序一一对应，共24条）
 var TgBotFishWeightsParsed = []int{
 	80, 70, 60, 55, 48, 40, 35, 30, // 普通

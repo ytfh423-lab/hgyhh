@@ -164,6 +164,11 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFishDailyMaxIncome"] = strconv.Itoa(common.TgBotFishDailyMaxIncome)
 	common.OptionMap["TgBotFishRiskEnabled"] = strconv.FormatBool(common.TgBotFishRiskEnabled)
 	common.OptionMap["TgBotFishNothingWeight"] = strconv.Itoa(common.TgBotFishNothingWeight)
+	// 收益CAP模型
+	common.OptionMap["TgBotFishIncomeCapEnabled"] = strconv.FormatBool(common.TgBotFishIncomeCapEnabled)
+	common.OptionMap["TgBotFishDailyIncomeCap"] = strconv.Itoa(common.TgBotFishDailyIncomeCap)
+	common.OptionMap["TgBotFishOverCapEnabled"] = strconv.FormatBool(common.TgBotFishOverCapEnabled)
+	common.OptionMap["TgBotFishOverCapRatio"] = strconv.Itoa(common.TgBotFishOverCapRatio)
 	// 鱼权重用逗号分隔存储
 	fishWeightStrs := make([]string, len(common.TgBotFishWeightsParsed))
 	for i, w := range common.TgBotFishWeightsParsed {
@@ -777,6 +782,23 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFishNothingWeight, _ = strconv.Atoi(value)
 		if common.TgBotFishNothingWeight < 0 {
 			common.TgBotFishNothingWeight = 0
+		}
+	case "TgBotFishIncomeCapEnabled":
+		common.TgBotFishIncomeCapEnabled = value == "true"
+	case "TgBotFishDailyIncomeCap":
+		common.TgBotFishDailyIncomeCap, _ = strconv.Atoi(value)
+		if common.TgBotFishDailyIncomeCap < 0 {
+			common.TgBotFishDailyIncomeCap = 0
+		}
+	case "TgBotFishOverCapEnabled":
+		common.TgBotFishOverCapEnabled = value == "true"
+	case "TgBotFishOverCapRatio":
+		common.TgBotFishOverCapRatio, _ = strconv.Atoi(value)
+		if common.TgBotFishOverCapRatio < 0 {
+			common.TgBotFishOverCapRatio = 0
+		}
+		if common.TgBotFishOverCapRatio > 100 {
+			common.TgBotFishOverCapRatio = 100
 		}
 	case "TgBotFishWeights":
 		parts := strings.Split(value, ",")

@@ -115,34 +115,91 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const staminaCost = fishData.stamina_cost || 1;
   const staminaPct = Math.min(100, Math.round(stamina / staminaMax * 100));
   const dailyCount = fishData.daily_count || 0;
-  const dailyMax = fishData.daily_max || 60;
+  const dailyMax = fishData.daily_max || 200;
   const dailyIncome = fishData.daily_income || 0;
   const dailyMaxIncome = fishData.daily_max_income || 200;
   const fatigueActive = fishData.fatigue_active || false;
   const fatigueThreshold = fishData.fatigue_threshold || 30;
   const fatigueDecay = fishData.fatigue_decay || 50;
-  const dailyLimitReached = dailyCount >= dailyMax;
   const noStamina = stamina < staminaCost;
 
-  // Button text priority: daily limit > no stamina > CD > no bait > ready
+  // 收益CAP模型
+  const capEnabled = fishData.cap_enabled || false;
+  const dailyIncomeCap = fishData.daily_income_cap || 100;
+  const overCap = fishData.over_cap || false;
+  const overCapEnabled = fishData.over_cap_enabled || false;
+  const overCapRatio = fishData.over_cap_ratio || 10;
+  const incomeCapPct = capEnabled && dailyIncomeCap > 0
+    ? Math.min(100, Math.round(dailyIncome / dailyIncomeCap * 100))
+    : 0;
+
+  // 按钮状态
   let btnText = t('开始钓鱼');
   let btnDisabled = false;
-  if (dailyLimitReached) {
-    btnText = t('今日已达上限');
-    btnDisabled = true;
-  } else if (noStamina) {
-    btnText = `⚡ ${t('体力不足')}`;
-    btnDisabled = true;
-  } else if (cooldown > 0) {
-    btnText = `⏱️ ${cooldown}s`;
-    btnDisabled = true;
-  } else if (fishData.bait_count === 0) {
-    btnText = t('没有鱼饵');
-    btnDisabled = true;
+  if (capEnabled) {
+    if (dailyCount >= dailyMax) {
+      btnText = t('今日已达安全上限');
+      btnDisabled = true;
+    } else if (overCap && !overCapEnabled) {
+      btnText = t('今日收益已达上限');
+      btnDisabled = true;
+    } else if (noStamina) {
+      btnText = `⚡ ${t('体力不足')}`;
+      btnDisabled = true;
+    } else if (cooldown > 0) {
+      btnText = `⏱️ ${cooldown}s`;
+      btnDisabled = true;
+    } else if (fishData.bait_count === 0) {
+      btnText = t('没有鱼饵');
+      btnDisabled = true;
+    } else if (overCap) {
+      btnText = `🎣 ${t('休闲钓鱼')}`;
+    }
+  } else {
+    if (dailyCount >= dailyMax) {
+      btnText = t('今日已达上限');
+      btnDisabled = true;
+    } else if (noStamina) {
+      btnText = `⚡ ${t('体力不足')}`;
+      btnDisabled = true;
+    } else if (cooldown > 0) {
+      btnText = `⏱️ ${cooldown}s`;
+      btnDisabled = true;
+    } else if (fishData.bait_count === 0) {
+      btnText = t('没有鱼饵');
+      btnDisabled = true;
+    }
   }
 
   return (
     <div>
+      {/* 收益进度条（收益CAP模型） */}
+      {capEnabled && (
+        <div className='farm-card' style={{ marginBottom: 14, padding: '12px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text strong>💰 {t('今日钓鱼收益')}: ${dailyIncome.toFixed(2)} / ${dailyIncomeCap.toFixed(2)}</Text>
+            {overCap && overCapEnabled && (
+              <Tag size='small' color='orange'>🎣 {t('休闲模式')} {overCapRatio}%</Tag>
+            )}
+            {overCap && !overCapEnabled && (
+              <Tag size='small' color='red'>🚫 {t('已达上限')}</Tag>
+            )}
+          </div>
+          <Progress percent={incomeCapPct} showInfo={false} size='large'
+            stroke={overCap ? '#f59e0b' : incomeCapPct > 80 ? '#eab308' : '#22c55e'} />
+          {!overCap && dailyIncomeCap > dailyIncome && (
+            <Text size='small' type='tertiary' style={{ marginTop: 4, display: 'block' }}>
+              📊 {t('距离上限还差')}: ${(dailyIncomeCap - dailyIncome).toFixed(2)}
+            </Text>
+          )}
+          {overCap && overCapEnabled && (
+            <Text size='small' type='tertiary' style={{ marginTop: 4, display: 'block' }}>
+              {t('已达收益上限，仍可继续休闲钓鱼，收益降为')} {overCapRatio}%
+            </Text>
+          )}
+        </div>
+      )}
+
       {/* Stamina bar */}
       <div className='farm-card' style={{ marginBottom: 14, padding: '12px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -158,15 +215,23 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
       {/* Status pills */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         <div className='farm-pill farm-pill-amber'>🪱 {t('鱼饵')}: {fishData.bait_count}</div>
-        <div className='farm-pill farm-pill-cyan'>
-          📊 {t('今日')}: {dailyCount}/{dailyMax}
-        </div>
-        <div className='farm-pill farm-pill-amber'>
-          💰 ${dailyIncome.toFixed(2)} / ${dailyMaxIncome.toFixed(2)}
-        </div>
+        {capEnabled ? (
+          <div className='farm-pill farm-pill-cyan'>
+            📊 {t('今日次数')}: {dailyCount}
+          </div>
+        ) : (
+          <>
+            <div className='farm-pill farm-pill-cyan'>
+              📊 {t('今日')}: {dailyCount}/{dailyMax}
+            </div>
+            <div className='farm-pill farm-pill-amber'>
+              💰 ${dailyIncome.toFixed(2)} / ${dailyMaxIncome.toFixed(2)}
+            </div>
+          </>
+        )}
         {fatigueActive ? (
           <div className='farm-pill farm-pill-red'>😰 {t('疲劳中')} -{fatigueDecay}%</div>
-        ) : fatigueThreshold > 0 && (
+        ) : !capEnabled && fatigueThreshold > 0 && (
           <div className='farm-pill farm-pill-green'>😊 {dailyCount}/{fatigueThreshold}</div>
         )}
         {fishData.total_value > 0 && (
@@ -176,7 +241,7 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <Button theme='solid' type='primary' loading={fishLoading}
+        <Button theme='solid' type={overCap && capEnabled ? 'warning' : 'primary'} loading={fishLoading}
           disabled={btnDisabled}
           onClick={doFish} icon={<Fish size={14} />} className='farm-btn'>
           {btnText}
@@ -190,10 +255,17 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
 
       {/* Last catch */}
       {lastCatch && (
-        <Banner type={lastCatch.caught ? 'success' : 'warning'} closeIcon={null}
+        <Banner type={lastCatch.caught ? (lastCatch.over_cap_catch ? 'info' : 'success') : 'warning'} closeIcon={null}
           style={{ marginBottom: 14, borderRadius: 12 }}
           description={lastCatch.caught
-            ? <span style={{ fontSize: 15 }}>{lastCatch.fish_emoji} {t('钓到了')} <strong>{lastCatch.fish_name}</strong> <Tag size='small' color={rarityColors[lastCatch.rarity]}>[{lastCatch.rarity}]</Tag> {t('价值')} ${lastCatch.sell_price.toFixed(2)}</span>
+            ? <span style={{ fontSize: 15 }}>
+                {lastCatch.fish_emoji} {t('钓到了')} <strong>{lastCatch.fish_name}</strong>{' '}
+                <Tag size='small' color={rarityColors[lastCatch.rarity]}>[{lastCatch.rarity}]</Tag>{' '}
+                {lastCatch.over_cap_catch
+                  ? <>{t('价值')} ${lastCatch.sell_price.toFixed(2)} → <Text type='warning'>${lastCatch.effective_price.toFixed(2)}</Text> <Tag size='small' color='orange'>{t('休闲模式')}</Tag></>
+                  : <>{t('价值')} ${lastCatch.sell_price.toFixed(2)}</>
+                }
+              </span>
             : <span style={{ fontSize: 15 }}>🗑️ {t('空军！什么都没钓到...')}</span>
           }
         />

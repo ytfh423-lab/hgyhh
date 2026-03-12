@@ -985,6 +985,11 @@ func GetTgBotSettings(c *gin.Context) {
 			"fish_daily_max_actions":       common.TgBotFishDailyMaxActions,
 			"fish_daily_max_income":        common.TgBotFishDailyMaxIncome,
 			"fish_risk_enabled":            common.TgBotFishRiskEnabled,
+			// 收益CAP模型
+			"fish_income_cap_enabled":      common.TgBotFishIncomeCapEnabled,
+			"fish_daily_income_cap":        common.TgBotFishDailyIncomeCap,
+			"fish_over_cap_enabled":        common.TgBotFishOverCapEnabled,
+			"fish_over_cap_ratio":          common.TgBotFishOverCapRatio,
 			"fish_nothing_weight":          common.TgBotFishNothingWeight,
 			"fish_weight_config":           buildFishWeightConfig(),
 			// 农场公告
