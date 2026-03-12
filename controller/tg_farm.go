@@ -537,16 +537,35 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 	}
 	changed := false
 
+	// 计算实际生长时间（含泥土加速）
+	growSecs := crop.GrowSecs
+	soilLevel := plot.SoilLevel
+	if soilLevel < 1 {
+		soilLevel = 1
+	}
+	if soilLevel > 1 {
+		bonus := int64(common.TgBotFarmSoilSpeedBonus * (soilLevel - 1))
+		growSecs = growSecs * (100 - bonus) / 100
+		if growSecs < 60 {
+			growSecs = 60
+		}
+	}
+	matureAt := plot.PlantedAt + growSecs
+
 	// 浇水检查：生长中的作物需要定期浇水
 	if plot.Status == 1 && plot.LastWateredAt > 0 {
-		waterInterval := int64(common.TgBotFarmWaterInterval)
-		if now >= plot.LastWateredAt+waterInterval {
-			// 枯萎
-			plot.Status = 4
-			changed = true
-			if changed {
+		waterDeadline := plot.LastWateredAt + int64(common.TgBotFarmWaterInterval)
+		if now >= waterDeadline {
+			// 如果作物在水耗尽前（或同时）已成熟，优先判定为成熟
+			if matureAt <= waterDeadline {
+				plot.Status = 2
+				plot.MaturedAt = matureAt
 				_ = model.UpdateFarmPlot(plot)
+				return
 			}
+			// 否则枯萎
+			plot.Status = 4
+			_ = model.UpdateFarmPlot(plot)
 			return
 		}
 	}
@@ -568,19 +587,6 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 	}
 	// 成熟检查（无事件时）
 	if plot.Status == 1 {
-		growSecs := crop.GrowSecs
-		soilLevel := plot.SoilLevel
-		if soilLevel < 1 {
-			soilLevel = 1
-		}
-		if soilLevel > 1 {
-			bonus := int64(common.TgBotFarmSoilSpeedBonus * (soilLevel - 1))
-			growSecs = growSecs * (100 - bonus) / 100
-			if growSecs < 60 {
-				growSecs = 60
-			}
-		}
-		matureAt := plot.PlantedAt + growSecs
 		if now >= matureAt {
 			plot.Status = 2
 			plot.MaturedAt = now
