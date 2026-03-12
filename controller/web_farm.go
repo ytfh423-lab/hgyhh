@@ -214,6 +214,7 @@ func WebFarmView(c *gin.Context) {
 				if now-plot.LastWateredAt >= waterInterval/2 {
 					_ = model.WaterFarmPlot(plot.Id)
 					plot.LastWateredAt = now
+					model.AddFarmLog(tgId, "water", 0, "💧自动灌溉")
 				}
 			}
 		}
@@ -1836,30 +1837,45 @@ func WebFarmTasks(c *gin.Context) {
 	}
 
 	type taskInfo struct {
-		Index    int     `json:"index"`
-		Action   string  `json:"action"`
-		Name     string  `json:"name"`
-		Emoji    string  `json:"emoji"`
-		Target   int     `json:"target"`
-		Progress int64   `json:"progress"`
-		Done     bool    `json:"done"`
-		Claimed  bool    `json:"claimed"`
-		Reward   float64 `json:"reward"`
+		Index        int     `json:"index"`
+		Action       string  `json:"action"`
+		Name         string  `json:"name"`
+		Emoji        string  `json:"emoji"`
+		Target       int     `json:"target"`
+		Progress     int64   `json:"progress"`
+		Done         bool    `json:"done"`
+		Claimed      bool    `json:"claimed"`
+		Reward       float64 `json:"reward"`
+		Description  string  `json:"description"`
+		Hint         string  `json:"hint"`
+		AutoType     string  `json:"auto_type"`
+		AutoInstalled bool   `json:"auto_installed"`
+		AutoText     string  `json:"auto_text"`
 	}
 	var taskList []taskInfo
 	for i, task := range tasks {
 		progress := model.CountTodayActions(tgId, task.Action)
-		taskList = append(taskList, taskInfo{
-			Index:    i,
-			Action:   task.Action,
-			Name:     task.Name,
-			Emoji:    task.Emoji,
-			Target:   task.Target,
-			Progress: progress,
-			Done:     progress >= int64(task.Target),
-			Claimed:  claimedSet[i],
-			Reward:   webFarmQuotaFloat(task.Reward),
-		})
+		info := taskInfo{
+			Index:       i,
+			Action:      task.Action,
+			Name:        task.Name,
+			Emoji:       task.Emoji,
+			Target:      task.Target,
+			Progress:    progress,
+			Done:        progress >= int64(task.Target),
+			Claimed:     claimedSet[i],
+			Reward:      webFarmQuotaFloat(task.Reward),
+			Description: getTaskDesc(task.Action, task.Target),
+		}
+		if meta, ok := actionMetaMap[task.Action]; ok {
+			info.Hint = meta.Hint
+			info.AutoType = meta.AutoType
+			info.AutoText = meta.AutoText
+			if meta.AutoType != "" {
+				info.AutoInstalled = model.HasAutomation(tgId, meta.AutoType)
+			}
+		}
+		taskList = append(taskList, info)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

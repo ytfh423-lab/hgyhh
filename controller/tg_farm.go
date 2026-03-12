@@ -375,6 +375,51 @@ var taskPool = []dailyTaskDef{
 	{"game", "玩小游戏", "🎰", 2, 600000},
 }
 
+// ========== 任务元数据（按 action 类型提供描述/提示/自动化信息）==========
+
+type actionMeta struct {
+	Verb     string // 动作动词，如 "种植作物"
+	Unit     string // 计数单位，如 "次"
+	Desc     string // 完成条件模板，{target} 会被替换
+	Hint     string // 操作提示
+	AutoType string // 关联自动化类型（"irrigation"/"auto_feeder"/""）
+	AutoText string // 自动化兼容说明
+}
+
+var actionMetaMap = map[string]actionMeta{
+	"plant":          {"种植作物", "次", "在空地块上种植 {target} 次作物", "前往农场 → 种植", "", ""},
+	"harvest":        {"收获作物", "次", "收获 {target} 次成熟作物", "等作物成熟后点击收获", "", ""},
+	"fish":           {"钓鱼", "次", "完成 {target} 次钓鱼", "前往钓鱼页面 → 抛竿", "", ""},
+	"steal":          {"偷菜", "次", "偷取他人 {target} 次作物", "前往偷菜 → 选择好友", "", ""},
+	"craft":          {"加工产品", "次", "在加工坊启动 {target} 次加工", "前往加工坊 → 选择配方", "", ""},
+	"shop":           {"购买道具", "次", "在商店购买 {target} 次道具/种子", "前往商店 → 购买", "", ""},
+	"ranch_feed":     {"喂食动物", "次", "给动物喂食 {target} 次", "前往牧场 → 喂食", "auto_feeder", "⚡ 自动喂食器可自动完成"},
+	"ranch_water":    {"喂水动物", "次", "给动物喂水 {target} 次", "前往牧场 → 喂水", "auto_feeder", "⚡ 自动喂食器可自动完成"},
+	"fish_sell":      {"出售鱼获", "次", "出售 {target} 次鱼获", "钓到鱼后选择出售", "", ""},
+	"fish_store":     {"鱼获入仓", "次", "将 {target} 次鱼获存入仓库", "钓到鱼后选择存入仓库（非出售）", "", ""},
+	"craft_sell":     {"收取加工品", "次", "收取 {target} 次完成的加工品", "加工完成后点击收取", "", ""},
+	"craft_store":    {"加工品入库", "次", "将 {target} 次加工品存入仓库", "加工品完成后选择存入仓库", "", ""},
+	"ranch_sell":     {"出售肉类", "次", "屠宰出售 {target} 次动物", "动物成熟后选择屠宰出售", "", ""},
+	"ranch_buy":      {"购买动物", "次", "购买 {target} 次牧场动物", "前往牧场 → 购买动物", "", ""},
+	"ranch_clean":    {"清理粪便", "次", "清理 {target} 次牧场粪便", "牧场有粪便时点击清理", "", ""},
+	"ranch_store":    {"肉品入库", "次", "将 {target} 次肉品存入仓库", "屠宰后选择存入仓库", "", ""},
+	"warehouse_sell": {"仓库出售", "次", "从仓库出售 {target} 次物品", "前往仓库 → 选择出售", "", ""},
+	"trade":          {"交易", "次", "在交易所完成 {target} 次交易", "前往交易所 → 挂单/购买", "", ""},
+	"game":           {"玩小游戏", "次", "完成 {target} 次小游戏", "前往小游戏 → 选择游戏", "", ""},
+	"water":          {"浇水", "次", "给作物浇水 {target} 次", "作物需要水时点击浇水", "irrigation", "⚡ 灌溉系统可自动完成"},
+	"repay":          {"还款", "次", "偿还 {target} 次贷款", "前往银行 → 还款", "", ""},
+	"loan":           {"贷款", "次", "申请 {target} 次贷款", "前往银行 → 贷款", "", ""},
+}
+
+// getTaskDesc 根据 action + target 生成完成条件说明
+func getTaskDesc(action string, target int) string {
+	m, ok := actionMetaMap[action]
+	if !ok {
+		return fmt.Sprintf("完成 %d 次", target)
+	}
+	return strings.ReplaceAll(m.Desc, "{target}", strconv.Itoa(target))
+}
+
 var dailyTaskCount = 10
 
 type achievementDef struct {
@@ -967,6 +1012,7 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 				if now-plot.LastWateredAt >= waterInterval/2 {
 					_ = model.WaterFarmPlot(plot.Id)
 					plot.LastWateredAt = now
+					model.AddFarmLog(tgId, "water", 0, "💧自动灌溉")
 				}
 			}
 		}
@@ -3623,6 +3669,25 @@ func showFarmTasks(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 		text += fmt.Sprintf("%s %s %s %d/%d  奖励%s\n",
 			statusIcon, task.Emoji, task.Name, progress, task.Target, farmQuotaStr(task.Reward))
+
+		// 显示完成条件说明
+		desc := getTaskDesc(task.Action, task.Target)
+		text += fmt.Sprintf("   📋 %s\n", desc)
+
+		// 显示操作提示（未完成时）
+		if !done {
+			if meta, ok := actionMetaMap[task.Action]; ok {
+				text += fmt.Sprintf("   💡 %s\n", meta.Hint)
+				// 显示自动化兼容状态
+				if meta.AutoType != "" {
+					if model.HasAutomation(tgId, meta.AutoType) {
+						text += fmt.Sprintf("   %s（✅ 已安装）\n", meta.AutoText)
+					} else {
+						text += fmt.Sprintf("   %s（❌ 未安装）\n", meta.AutoText)
+					}
+				}
+			}
+		}
 
 		if done && !isClaimed {
 			rows = append(rows, []TgInlineKeyboardButton{

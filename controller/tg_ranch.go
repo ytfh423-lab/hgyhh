@@ -194,11 +194,13 @@ func showRanchView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 				_ = model.FeedRanchAnimal(a.Id)
 				a.LastFedAt = now
 				changed = true
+				model.AddFarmLog(tgId, "ranch_feed", 0, "🤖自动喂食")
 			}
 			if needsWater {
 				_ = model.WaterRanchAnimal(a.Id)
 				a.LastWateredAt = now
 				changed = true
+				model.AddFarmLog(tgId, "ranch_water", 0, "🤖自动喂水")
 			}
 			if changed && (a.Status == 3 || a.Status == 4) {
 				def := ranchAnimalMap[a.AnimalType]

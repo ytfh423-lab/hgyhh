@@ -56,30 +56,54 @@ const TasksPage = ({ actionLoading, loadFarm, t }) => {
             <div key={task.index} className='farm-row' style={{
               background: task.claimed ? 'rgba(74,124,63,0.08)' : undefined,
               marginBottom: 0,
+              flexDirection: 'column',
+              alignItems: 'stretch',
             }}>
-              <span style={{ fontSize: 22 }}>{task.emoji}</span>
-              <div style={{ flex: 1 }}>
-                <Text strong>{task.name}</Text>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <div className='farm-progress' style={{ width: 80 }}>
-                    <div className='farm-progress-fill' style={{
-                      width: `${Math.min(100, (task.progress / task.target) * 100)}%`,
-                      background: task.claimed ? 'var(--farm-leaf)' : task.done ? 'var(--farm-harvest)' : 'var(--farm-sky)',
-                    }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 22 }}>{task.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <Text strong>{task.name}</Text>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <div className='farm-progress' style={{ width: 80 }}>
+                      <div className='farm-progress-fill' style={{
+                        width: `${Math.min(100, (task.progress / task.target) * 100)}%`,
+                        background: task.claimed ? 'var(--farm-leaf)' : task.done ? 'var(--farm-harvest)' : 'var(--farm-sky)',
+                      }} />
+                    </div>
+                    <Text size='small' type='tertiary'>{task.progress}/{task.target}</Text>
                   </div>
-                  <Text size='small' type='tertiary'>{task.progress}/{task.target}</Text>
+                  <Text size='small' type='tertiary'>{t('奖励')}: ${task.reward.toFixed(2)}</Text>
                 </div>
-                <Text size='small' type='tertiary'>{t('奖励')}: ${task.reward.toFixed(2)}</Text>
+                {task.claimed ? (
+                  <Tag size='small' color='green'>✅</Tag>
+                ) : task.done ? (
+                  <Button size='small' theme='solid' type='warning' onClick={() => claimTask(task.index)} className='farm-btn'>
+                    {t('领取')}
+                  </Button>
+                ) : (
+                  <Tag size='small' color='grey'>{t('未完成')}</Tag>
+                )}
               </div>
-              {task.claimed ? (
-                <Tag size='small' color='green'>✅</Tag>
-              ) : task.done ? (
-                <Button size='small' theme='solid' type='warning' onClick={() => claimTask(task.index)} className='farm-btn'>
-                  {t('领取')}
-                </Button>
-              ) : (
-                <Tag size='small' color='grey'>{t('未完成')}</Tag>
-              )}
+              {/* 任务描述 + 提示 + 自动化状态 */}
+              <div style={{ marginTop: 4, paddingLeft: 30 }}>
+                {task.description && (
+                  <div style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
+                    📋 {task.description}
+                  </div>
+                )}
+                {!task.done && task.hint && (
+                  <div style={{ fontSize: 12, color: 'var(--semi-color-text-3)', marginTop: 2 }}>
+                    💡 {task.hint}
+                  </div>
+                )}
+                {task.auto_type && (
+                  <div style={{ marginTop: 2 }}>
+                    <Tag size='small' color={task.auto_installed ? 'green' : 'grey'} style={{ fontSize: 11 }}>
+                      {task.auto_text}{task.auto_installed ? '（✅ 已安装）' : '（❌ 未安装）'}
+                    </Tag>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
