@@ -316,7 +316,7 @@ func WebFarmClaimCollection(c *gin.Context) {
 		return
 	}
 
-	rewards := map[string]int{"crop": 10000000, "fish": 15000000, "meat": 7500000, "recipe": 25000000, "grand": 50000000}
+	rewards := map[string]int{"crop": 10000000, "fish": 15000000, "animal": 7500000, "recipe": 25000000, "grand": 50000000}
 	reward, exists := rewards[req.Category]
 	if !exists {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "无效分类"})
