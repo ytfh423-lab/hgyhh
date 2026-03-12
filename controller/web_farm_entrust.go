@@ -916,11 +916,20 @@ func entrustDoTreeHarvest(ownerTgId string, slotId int) (string, error) {
 	if slot.Status != 2 {
 		return "", fmt.Errorf("该树尚未成熟")
 	}
+	tree := treeFarmTreeMap[slot.TreeType]
+	if tree == nil || !tree.Repeatable || len(tree.HarvestYield) == 0 {
+		return "", fmt.Errorf("该树种不支持采收")
+	}
 	now := time.Now().Unix()
 	_ = model.HarvestTree(slot.Id, now)
-	// 产物归雇主
-	_ = model.AddToWarehouseWithCategory(ownerTgId, "fruit_"+slot.TreeType, 1, "fruit")
-	return "🍎 树场采收成功，产物已入雇主仓库", nil
+	// 按树木定义产物存入雇主仓库
+	items := calcTreeYieldItems(tree.HarvestYield)
+	msg := fmt.Sprintf("🍎 树场采收%s%s：", tree.Emoji, tree.Name)
+	for _, item := range items {
+		_ = model.AddToWarehouseWithCategory(ownerTgId, "wood_"+item.ItemKey, item.Amount, "wood")
+		msg += fmt.Sprintf("%s%s×%d ", item.Emoji, item.Name, item.Amount)
+	}
+	return msg, nil
 }
 
 func entrustDoTreeChop(ownerTgId string, slotId int) (string, error) {
@@ -931,11 +940,20 @@ func entrustDoTreeChop(ownerTgId string, slotId int) (string, error) {
 	if slot.Status != 2 {
 		return "", fmt.Errorf("该树尚未成熟，无法伐木")
 	}
+	tree := treeFarmTreeMap[slot.TreeType]
+	if tree == nil || !tree.CanChop || len(tree.ChopYield) == 0 {
+		return "", fmt.Errorf("该树种不支持伐木")
+	}
 	now := time.Now().Unix()
 	_ = model.ChopTree(slot.Id, now)
-	// 木材归雇主
-	_ = model.AddToWarehouseWithCategory(ownerTgId, "wood_"+slot.TreeType, 1, "wood")
-	return "🪓 伐木成功，木材已入雇主仓库", nil
+	// 按树木定义产物存入雇主仓库
+	items := calcTreeYieldItems(tree.ChopYield)
+	msg := fmt.Sprintf("🪓 伐木%s%s：", tree.Emoji, tree.Name)
+	for _, item := range items {
+		_ = model.AddToWarehouseWithCategory(ownerTgId, "wood_"+item.ItemKey, item.Amount, "wood")
+		msg += fmt.Sprintf("%s%s×%d ", item.Emoji, item.Name, item.Amount)
+	}
+	return msg, nil
 }
 
 // ========== 内部：获取工作视图实体 ==========

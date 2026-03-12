@@ -4120,6 +4120,20 @@ func warehouseItemName(item *model.TgFarmWarehouse) (string, string) {
 			return rd.Emoji, rd.Name
 		}
 		return "🍽️", item.CropType
+	case "fruit":
+		// 向后兼容：旧数据存储为 fruit_<treeType>，通过树种定义找到第一个采收产物
+		treeKey := item.CropType
+		if len(treeKey) > 6 && treeKey[:6] == "fruit_" {
+			treeKey = treeKey[6:]
+		}
+		if tree := treeFarmTreeMap[treeKey]; tree != nil && len(tree.HarvestYield) > 0 {
+			y := tree.HarvestYield[0]
+			if tp := treeProductMap[y.ItemKey]; tp != nil {
+				return tp.Emoji, tp.Name
+			}
+			return y.Emoji, y.Name
+		}
+		return "🍎", item.CropType
 	case "wood":
 		woodKey := item.CropType
 		if len(woodKey) > 5 && woodKey[:5] == "wood_" {
@@ -4127,6 +4141,14 @@ func warehouseItemName(item *model.TgFarmWarehouse) (string, string) {
 		}
 		if tp := treeProductMap[woodKey]; tp != nil {
 			return tp.Emoji, tp.Name
+		}
+		// 向后兼容：旧数据存储为 wood_<treeType>，通过树种找伐木第一产物
+		if tree := treeFarmTreeMap[woodKey]; tree != nil && len(tree.ChopYield) > 0 {
+			y := tree.ChopYield[0]
+			if tp := treeProductMap[y.ItemKey]; tp != nil {
+				return tp.Emoji, tp.Name
+			}
+			return y.Emoji, y.Name
 		}
 		return "🪵", item.CropType
 	default:
@@ -4166,6 +4188,19 @@ func warehouseItemSellPrice(item *model.TgFarmWarehouse) int {
 			return applyMarket(rd.SellPrice, "recipe_"+recipeKey)
 		}
 		return 0
+	case "fruit":
+		// 向后兼容：旧数据存储为 fruit_<treeType>
+		treeKey := item.CropType
+		if len(treeKey) > 6 && treeKey[:6] == "fruit_" {
+			treeKey = treeKey[6:]
+		}
+		if tree := treeFarmTreeMap[treeKey]; tree != nil && len(tree.HarvestYield) > 0 {
+			y := tree.HarvestYield[0]
+			if tp := treeProductMap[y.ItemKey]; tp != nil {
+				return applyMarket(tp.BasePrice, "wood_"+y.ItemKey)
+			}
+		}
+		return 0
 	case "wood":
 		woodKey := item.CropType
 		if len(woodKey) > 5 && woodKey[:5] == "wood_" {
@@ -4173,6 +4208,13 @@ func warehouseItemSellPrice(item *model.TgFarmWarehouse) int {
 		}
 		if tp := treeProductMap[woodKey]; tp != nil {
 			return applyMarket(tp.BasePrice, "wood_"+woodKey)
+		}
+		// 向后兼容：旧数据存储为 wood_<treeType>，通过树种找伐木第一产物
+		if tree := treeFarmTreeMap[woodKey]; tree != nil && len(tree.ChopYield) > 0 {
+			y := tree.ChopYield[0]
+			if tp := treeProductMap[y.ItemKey]; tp != nil {
+				return applyMarket(tp.BasePrice, "wood_"+y.ItemKey)
+			}
 		}
 		return 0
 	default:
