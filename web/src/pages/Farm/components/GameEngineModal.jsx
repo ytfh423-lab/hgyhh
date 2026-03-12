@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Spin } from '@douyinfe/semi-ui';
-import { HorseRaceGame, TugOfWarGame, ClickBlitzGame, RhythmKeysGame, CircleDrawGame } from './GamesMashing';
+import { TugOfWarGame, ClickBlitzGame, RhythmKeysGame, CircleDrawGame } from './GamesMashing';
 import { FishingBarGame, PowerChopGame, LassoGame, AnglePowerGame, WaterCatchGame } from './GamesTiming';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -25,7 +25,6 @@ const PlaceholderGame = ({ game, t }) => {
    ═══════════════════════════════════════════════════════════════ */
 const GAME_REGISTRY = {
   // ═══ 第一类: ⚡ 极限手速与耐力 ═══
-  horserace:  { get: () => HorseRaceGame,  cat: 'cat1', catLabel: '⚡手速' },
   woodchop:   { get: () => TugOfWarGame,    cat: 'cat1', catLabel: '⚡手速' },
   weed:       { get: () => ClickBlitzGame,  cat: 'cat1', catLabel: '⚡手速' },
   milking:    { get: () => RhythmKeysGame,  cat: 'cat1', catLabel: '⚡手速' },
