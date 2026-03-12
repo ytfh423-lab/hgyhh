@@ -2307,8 +2307,8 @@ func WebFarmFishView(c *gin.Context) {
 		SellPrice float64 `json:"sell_price"`
 	}
 	var types []fishTypeInfo
-	for _, ft := range fishTypes {
-		w := ft.Weight
+	for i, ft := range fishTypes {
+		w := getFishWeight(i)
 		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
 			w = w * (100 - common.TgBotFishFatigueDecay) / 100
 		}
@@ -2327,7 +2327,7 @@ func WebFarmFishView(c *gin.Context) {
 	}
 	nothingPct := 0
 	if adjTotal > 0 {
-		nothingPct = fishNothingWeight * 100 / adjTotal
+		nothingPct = common.TgBotFishNothingWeight * 100 / adjTotal
 	}
 
 	c.JSON(http.StatusOK, gin.H{

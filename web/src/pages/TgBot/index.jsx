@@ -145,6 +145,9 @@ const TgBotPage = () => {
   const [fishDailyMaxActions, setFishDailyMaxActions] = useState(60);
   const [fishDailyMaxIncome, setFishDailyMaxIncome] = useState(100000000);
   const [fishRiskEnabled, setFishRiskEnabled] = useState(true);
+  // 钓鱼权重
+  const [fishNothingWeight, setFishNothingWeight] = useState(20);
+  const [fishWeightConfig, setFishWeightConfig] = useState([]);
   // 农场公告
   const [farmAnnEnabled, setFarmAnnEnabled] = useState(false);
   const [farmAnnText, setFarmAnnText] = useState('');
@@ -262,6 +265,9 @@ const TgBotPage = () => {
         setFishDailyMaxActions(data.fish_daily_max_actions ?? 60);
         setFishDailyMaxIncome(data.fish_daily_max_income ?? 100000000);
         setFishRiskEnabled(data.fish_risk_enabled ?? true);
+        // 钓鱼权重
+        setFishNothingWeight(data.fish_nothing_weight ?? 20);
+        if (Array.isArray(data.fish_weight_config)) setFishWeightConfig(data.fish_weight_config);
         // 农场公告
         setFarmAnnEnabled(data.farm_announcement_enabled === true || data.farm_announcement_enabled === 'true');
         setFarmAnnText(data.farm_announcement_text || '');
@@ -1188,6 +1194,48 @@ const TgBotPage = () => {
             <Switch checked={fishRiskEnabled} onChange={setFishRiskEnabled} />
             <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('检测操作间隔异常稳定的行为')}</Typography.Text>
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 12 }}>🎲 {t('鱼种概率权重')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🗑️ {t('空军权重')}</Typography.Text>
+            <InputNumber value={fishNothingWeight} onChange={setFishNothingWeight} min={0} max={1000} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('权重越大空军概率越高')}</Typography.Text>
+          </div>
+          {fishWeightConfig.length > 0 && (() => {
+            const totalW = fishNothingWeight + fishWeightConfig.reduce((s, f) => s + f.weight, 0);
+            const rarityOrder = ['普通', '优良', '稀有', '史诗', '传说'];
+            const rarityColors = { '普通': '#87d068', '优良': '#2db7f5', '稀有': '#faad14', '史诗': '#722ed1', '传说': '#f5222d' };
+            const grouped = {};
+            fishWeightConfig.forEach(f => {
+              if (!grouped[f.rarity]) grouped[f.rarity] = [];
+              grouped[f.rarity].push(f);
+            });
+            return rarityOrder.filter(r => grouped[r]).map(rarity => (
+              <div key={rarity} style={{ marginBottom: 12 }}>
+                <Tag color={rarityColors[rarity]} style={{ marginBottom: 6 }}>{rarity}</Tag>
+                {grouped[rarity].map(fish => {
+                  const pct = totalW > 0 ? (fish.weight / totalW * 100).toFixed(2) : '0.00';
+                  return (
+                    <div key={fish.key} style={{ display: 'flex', alignItems: 'center', marginBottom: 4, marginLeft: 16 }}>
+                      <Typography.Text style={{ width: 140 }}>{fish.emoji} {fish.name}</Typography.Text>
+                      <InputNumber
+                        value={fish.weight}
+                        min={0}
+                        max={10000}
+                        style={{ width: 100 }}
+                        onChange={(v) => setFishWeightConfig(prev => prev.map(f => f.key === fish.key ? { ...f, weight: v ?? 0 } : f))}
+                      />
+                      <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8, width: 60 }}>{pct}%</Typography.Text>
+                    </div>
+                  );
+                })}
+              </div>
+            ));
+          })()}
+          {fishWeightConfig.length > 0 && (
+            <Typography.Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 8 }}>
+              🗑️ {t('空军')}: {fishNothingWeight > 0 && (fishNothingWeight + fishWeightConfig.reduce((s, f) => s + f.weight, 0)) > 0 ? (fishNothingWeight / (fishNothingWeight + fishWeightConfig.reduce((s, f) => s + f.weight, 0)) * 100).toFixed(2) : '0.00'}%
+            </Typography.Text>
+          )}
           <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 12 }}>⭐ {t('等级系统')}</Typography.Title>
           <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('功能解锁等级')}</Typography.Title>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -1405,6 +1453,8 @@ const TgBotPage = () => {
                   { key: 'TgBotFishDailyMaxActions', value: String(fishDailyMaxActions) },
                   { key: 'TgBotFishDailyMaxIncome', value: String(fishDailyMaxIncome) },
                   { key: 'TgBotFishRiskEnabled', value: String(fishRiskEnabled) },
+                  { key: 'TgBotFishNothingWeight', value: String(fishNothingWeight) },
+                  { key: 'TgBotFishWeights', value: fishWeightConfig.map(f => f.weight).join(',') },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

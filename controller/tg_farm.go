@@ -292,10 +292,19 @@ var fishTypes = []fishDef{
 	{"goldendragon", "金龙鱼", "🐉", "传说", 1, 50000000},
 }
 
-const fishNothingWeight = 20 // 空军概率权重 (~3.8%)
-
 var fishTypeMap map[string]*fishDef
 var fishTotalWeight int
+
+// getFishWeight 返回第idx条鱼的可配置权重，落回 fishTypes[idx].Weight
+func getFishWeight(idx int) int {
+	if idx >= 0 && idx < len(common.TgBotFishWeightsParsed) {
+		return common.TgBotFishWeightsParsed[idx]
+	}
+	if idx >= 0 && idx < len(fishTypes) {
+		return fishTypes[idx].Weight
+	}
+	return 0
+}
 
 // ========== 加工坊配方 ==========
 
@@ -551,10 +560,10 @@ func init() {
 		farmItemMap[farmItems[i].Key] = &farmItems[i]
 	}
 	fishTypeMap = make(map[string]*fishDef)
-	fishTotalWeight = fishNothingWeight
+	fishTotalWeight = common.TgBotFishNothingWeight
 	for i := range fishTypes {
 		fishTypeMap[fishTypes[i].Key] = &fishTypes[i]
-		fishTotalWeight += fishTypes[i].Weight
+		fishTotalWeight += getFishWeight(i)
 	}
 	recipeMap = make(map[string]*recipeDef)
 	for i := range recipes {
@@ -3050,14 +3059,14 @@ func randomFishWithFatigue(tgId string) *fishDef {
 	dailyCount := model.GetFishDailyCount(tgId)
 	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
 
-	adjustedTotal := fishNothingWeight
+	adjustedTotal := common.TgBotFishNothingWeight
 	type aw struct {
 		fish   *fishDef
 		weight int
 	}
 	var adjusted []aw
 	for i := range fishTypes {
-		w := fishTypes[i].Weight
+		w := getFishWeight(i)
 		if fatigueActive && (fishTypes[i].Rarity == "稀有" || fishTypes[i].Rarity == "史诗" || fishTypes[i].Rarity == "传说") {
 			w = w * (100 - common.TgBotFishFatigueDecay) / 100
 			if w < 0 {
@@ -3071,7 +3080,7 @@ func randomFishWithFatigue(tgId string) *fishDef {
 		return nil
 	}
 	r := rand.Intn(adjustedTotal)
-	cumulative := fishNothingWeight
+	cumulative := common.TgBotFishNothingWeight
 	if r < cumulative {
 		return nil
 	}
@@ -3086,9 +3095,9 @@ func randomFishWithFatigue(tgId string) *fishDef {
 
 // fishAdjustedTotal 计算疲劳调整后的总权重
 func fishAdjustedTotal(fatigueActive bool) int {
-	total := fishNothingWeight
-	for _, ft := range fishTypes {
-		w := ft.Weight
+	total := common.TgBotFishNothingWeight
+	for i, ft := range fishTypes {
+		w := getFishWeight(i)
 		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
 			w = w * (100 - common.TgBotFishFatigueDecay) / 100
 			if w < 0 {
@@ -3200,8 +3209,8 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	// 鱼种概率（疲劳调整后）
 	text += "\n📊 鱼种概率:\n"
 	adjTotal := fishAdjustedTotal(fatigueActive)
-	for _, ft := range fishTypes {
-		w := ft.Weight
+	for i, ft := range fishTypes {
+		w := getFishWeight(i)
 		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
 			w = w * (100 - common.TgBotFishFatigueDecay) / 100
 		}
@@ -3219,7 +3228,7 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 	nothingPct := 0
 	if adjTotal > 0 {
-		nothingPct = fishNothingWeight * 100 / adjTotal
+		nothingPct = common.TgBotFishNothingWeight * 100 / adjTotal
 	}
 	text += fmt.Sprintf("  🗑️ 空军 %d%%\n", nothingPct)
 

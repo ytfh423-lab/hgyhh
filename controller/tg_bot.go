@@ -985,6 +985,8 @@ func GetTgBotSettings(c *gin.Context) {
 			"fish_daily_max_actions":       common.TgBotFishDailyMaxActions,
 			"fish_daily_max_income":        common.TgBotFishDailyMaxIncome,
 			"fish_risk_enabled":            common.TgBotFishRiskEnabled,
+			"fish_nothing_weight":          common.TgBotFishNothingWeight,
+			"fish_weight_config":           buildFishWeightConfig(),
 			// 农场公告
 			"farm_announcement_enabled": common.OptionMap["FarmAnnouncementEnabled"],
 			"farm_announcement_text":    common.OptionMap["FarmAnnouncementText"],
@@ -994,6 +996,21 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_group_link":    common.OptionMap["FarmGroupLink"],
 		},
 	})
+}
+
+// buildFishWeightConfig 构建鱼种权重配置数组（供前端编辑）
+func buildFishWeightConfig() []gin.H {
+	var config []gin.H
+	for i, ft := range fishTypes {
+		config = append(config, gin.H{
+			"key":    ft.Key,
+			"name":   ft.Name,
+			"emoji":  ft.Emoji,
+			"rarity": ft.Rarity,
+			"weight": getFishWeight(i),
+		})
+	}
+	return config
 }
 
 // ========== Admin API: Bot Commands Registration ==========

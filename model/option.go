@@ -163,6 +163,13 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFishDailyMaxActions"] = strconv.Itoa(common.TgBotFishDailyMaxActions)
 	common.OptionMap["TgBotFishDailyMaxIncome"] = strconv.Itoa(common.TgBotFishDailyMaxIncome)
 	common.OptionMap["TgBotFishRiskEnabled"] = strconv.FormatBool(common.TgBotFishRiskEnabled)
+	common.OptionMap["TgBotFishNothingWeight"] = strconv.Itoa(common.TgBotFishNothingWeight)
+	// 鱼权重用逗号分隔存储
+	fishWeightStrs := make([]string, len(common.TgBotFishWeightsParsed))
+	for i, w := range common.TgBotFishWeightsParsed {
+		fishWeightStrs[i] = strconv.Itoa(w)
+	}
+	common.OptionMap["TgBotFishWeights"] = strings.Join(fishWeightStrs, ",")
 	// 市场
 	common.OptionMap["TgBotMarketRefreshHours"] = strconv.Itoa(common.TgBotMarketRefreshHours)
 	common.OptionMap["TgBotMarketMinMultiplier"] = strconv.Itoa(common.TgBotMarketMinMultiplier)
@@ -766,6 +773,24 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 	case "TgBotFishRiskEnabled":
 		common.TgBotFishRiskEnabled = value == "true"
+	case "TgBotFishNothingWeight":
+		common.TgBotFishNothingWeight, _ = strconv.Atoi(value)
+		if common.TgBotFishNothingWeight < 0 {
+			common.TgBotFishNothingWeight = 0
+		}
+	case "TgBotFishWeights":
+		parts := strings.Split(value, ",")
+		var weights []int
+		for _, p := range parts {
+			v, _ := strconv.Atoi(strings.TrimSpace(p))
+			if v < 0 {
+				v = 0
+			}
+			weights = append(weights, v)
+		}
+		if len(weights) > 0 {
+			common.TgBotFishWeightsParsed = weights
+		}
 	case "TgBotMarketRefreshHours":
 		common.TgBotMarketRefreshHours, _ = strconv.Atoi(value)
 		if common.TgBotMarketRefreshHours < 1 {
