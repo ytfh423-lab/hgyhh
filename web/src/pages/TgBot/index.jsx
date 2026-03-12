@@ -125,6 +125,8 @@ const TgBotPage = () => {
   const [farmSeasonDays, setFarmSeasonDays] = useState(7);
   const [farmSeasonInBonus, setFarmSeasonInBonus] = useState(70);
   const [farmSeasonOffBonus, setFarmSeasonOffBonus] = useState(140);
+  const [farmSeasonInGrowth, setFarmSeasonInGrowth] = useState(80);
+  const [farmSeasonOffGrowth, setFarmSeasonOffGrowth] = useState(130);
   const [farmWarehouseMaxSlots, setFarmWarehouseMaxSlots] = useState(100);
   // 农场公告
   const [farmAnnEnabled, setFarmAnnEnabled] = useState(false);
@@ -219,6 +221,8 @@ const TgBotPage = () => {
         setFarmSeasonDays(data.farm_season_days ?? 7);
         setFarmSeasonInBonus(data.farm_season_in_bonus ?? 70);
         setFarmSeasonOffBonus(data.farm_season_off_bonus ?? 140);
+        setFarmSeasonInGrowth(data.farm_season_in_growth ?? 80);
+        setFarmSeasonOffGrowth(data.farm_season_off_growth ?? 130);
         setFarmWarehouseMaxSlots(data.farm_warehouse_max_slots ?? 100);
         // 农场公告
         setFarmAnnEnabled(data.farm_announcement_enabled === true || data.farm_announcement_enabled === 'true');
@@ -1177,6 +1181,16 @@ const TgBotPage = () => {
             <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越高越贵')}</Typography.Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⏱️ {t('应季生长倍率(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonInGrowth} onChange={setFarmSeasonInGrowth} min={10} max={100} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越低长得越快')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⏳ {t('反季生长倍率(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonOffGrowth} onChange={setFarmSeasonOffGrowth} min={100} max={300} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越高长得越慢')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <Typography.Text style={{ width: 200 }}>📦 {t('仓库最大容量')}</Typography.Text>
             <InputNumber value={farmWarehouseMaxSlots} onChange={setFarmWarehouseMaxSlots} min={10} max={1000} style={{ width: 120 }} />
           </div>
@@ -1251,6 +1265,8 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmSeasonDays', value: String(farmSeasonDays) },
                   { key: 'TgBotFarmSeasonInBonus', value: String(farmSeasonInBonus) },
                   { key: 'TgBotFarmSeasonOffBonus', value: String(farmSeasonOffBonus) },
+                  { key: 'TgBotFarmSeasonInGrowth', value: String(farmSeasonInGrowth) },
+                  { key: 'TgBotFarmSeasonOffGrowth', value: String(farmSeasonOffGrowth) },
                   { key: 'TgBotFarmWarehouseMaxSlots', value: String(farmWarehouseMaxSlots) },
                 ];
                 for (const opt of farmOptions) {

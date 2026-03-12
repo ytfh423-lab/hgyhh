@@ -194,6 +194,8 @@ var TgBotFarmMortgageInterestRate = 15    // 抵押贷款利率百分比
 var TgBotFarmSeasonDays = 7               // 每个季节持续天数（默认7天）
 var TgBotFarmSeasonInBonus = 70           // 应季价格倍率%（默认70%=打7折）
 var TgBotFarmSeasonOffBonus = 140         // 反季价格倍率%（默认140%=涨40%）
+var TgBotFarmSeasonInGrowth = 80          // 应季生长时间倍率%（默认80%=加速20%）
+var TgBotFarmSeasonOffGrowth = 130        // 反季生长时间倍率%（默认130%=减速30%）
 var TgBotFarmWarehouseMaxSlots = 100          // 仓库基础存储格数（1级）
 var TgBotFarmWarehouseMeatExpiry = 259200     // 肉类基础保质期秒数（默认3天）
 var TgBotFarmWarehouseRecipeExpiry = 432000   // 加工食品基础保质期秒数（默认5天）

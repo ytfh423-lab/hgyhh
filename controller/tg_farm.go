@@ -82,6 +82,25 @@ func isCropInSeason(crop *farmCropDef) bool {
 	return crop.Season == getCurrentSeason()
 }
 
+// getSeasonAt 获取指定时间点的季节
+func getSeasonAt(timestamp int64) int {
+	days := common.TgBotFarmSeasonDays
+	if days <= 0 {
+		days = 7
+	}
+	elapsed := timestamp - seasonEpoch
+	seasonIndex := (elapsed / int64(days*86400)) % 4
+	return int(seasonIndex)
+}
+
+// getSeasonGrowthMultiplier 获取作物的季节生长时间倍率%（基于种植时的季节）
+func getSeasonGrowthMultiplier(crop *farmCropDef, plantedAt int64) int {
+	if crop.Season == getSeasonAt(plantedAt) {
+		return common.TgBotFarmSeasonInGrowth
+	}
+	return common.TgBotFarmSeasonOffGrowth
+}
+
 // getSeasonPriceMultiplier 获取季节价格倍率（百分比）
 func getSeasonPriceMultiplier(crop *farmCropDef) int {
 	if isCropInSeason(crop) {
@@ -550,6 +569,13 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 			growSecs = 60
 		}
 	}
+	// 季节生长倍率（基于种植时的季节）
+	seasonGrowthPct := getSeasonGrowthMultiplier(crop, plot.PlantedAt)
+	growSecs = growSecs * int64(seasonGrowthPct) / 100
+	if growSecs < 60 {
+		growSecs = 60
+	}
+
 	matureAt := plot.PlantedAt + growSecs
 
 	// 浇水检查：生长中的作物需要定期浇水
@@ -1321,6 +1347,13 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 		if actualGrowSecs < 60 {
 			actualGrowSecs = 60
 		}
+	}
+
+	// 季节生长倍率
+	seasonGrowthPct := getSeasonGrowthMultiplier(crop, now)
+	actualGrowSecs = actualGrowSecs * int64(seasonGrowthPct) / 100
+	if actualGrowSecs < 60 {
+		actualGrowSecs = 60
 	}
 
 	// 虫害事件

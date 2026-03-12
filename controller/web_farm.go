@@ -497,6 +497,13 @@ func WebFarmPlant(c *gin.Context) {
 		}
 	}
 
+	// 季节生长倍率
+	webSeasonGrowthPct := getSeasonGrowthMultiplier(crop, now)
+	webActualGrowSecs = webActualGrowSecs * int64(webSeasonGrowthPct) / 100
+	if webActualGrowSecs < 60 {
+		webActualGrowSecs = 60
+	}
+
 	// 教程期间不触发随机事件
 	inTutorial := model.IsFarmTutorialActive(tgId)
 	if !inTutorial && rand.Intn(100) < common.TgBotFarmEventChance {

@@ -191,6 +191,8 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmSeasonDays"] = strconv.Itoa(common.TgBotFarmSeasonDays)
 	common.OptionMap["TgBotFarmSeasonInBonus"] = strconv.Itoa(common.TgBotFarmSeasonInBonus)
 	common.OptionMap["TgBotFarmSeasonOffBonus"] = strconv.Itoa(common.TgBotFarmSeasonOffBonus)
+	common.OptionMap["TgBotFarmSeasonInGrowth"] = strconv.Itoa(common.TgBotFarmSeasonInGrowth)
+	common.OptionMap["TgBotFarmSeasonOffGrowth"] = strconv.Itoa(common.TgBotFarmSeasonOffGrowth)
 	common.OptionMap["TgBotFarmWarehouseMaxSlots"] = strconv.Itoa(common.TgBotFarmWarehouseMaxSlots)
 	common.OptionMap["TgBotFarmWarehouseMeatExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseMeatExpiry)
 	common.OptionMap["TgBotFarmWarehouseRecipeExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseRecipeExpiry)
@@ -783,6 +785,22 @@ func updateOptionMap(key string, value string) (err error) {
 		common.TgBotFarmSeasonInBonus, _ = strconv.Atoi(value)
 	case "TgBotFarmSeasonOffBonus":
 		common.TgBotFarmSeasonOffBonus, _ = strconv.Atoi(value)
+	case "TgBotFarmSeasonInGrowth":
+		common.TgBotFarmSeasonInGrowth, _ = strconv.Atoi(value)
+		if common.TgBotFarmSeasonInGrowth < 10 {
+			common.TgBotFarmSeasonInGrowth = 10
+		}
+		if common.TgBotFarmSeasonInGrowth > 100 {
+			common.TgBotFarmSeasonInGrowth = 100
+		}
+	case "TgBotFarmSeasonOffGrowth":
+		common.TgBotFarmSeasonOffGrowth, _ = strconv.Atoi(value)
+		if common.TgBotFarmSeasonOffGrowth < 100 {
+			common.TgBotFarmSeasonOffGrowth = 100
+		}
+		if common.TgBotFarmSeasonOffGrowth > 300 {
+			common.TgBotFarmSeasonOffGrowth = 300
+		}
 	case "TgBotFarmWarehouseMaxSlots":
 		common.TgBotFarmWarehouseMaxSlots, _ = strconv.Atoi(value)
 	case "TgBotFarmWarehouseMeatExpiry":
