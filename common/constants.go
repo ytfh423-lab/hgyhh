@@ -233,8 +233,8 @@ var TgBotFarmWarehouseCapacityPerLevel = 50   // 每级增加的容量
 var TgBotFarmWarehouseExpiryBonusPerLevel = 20 // 每级增加的保质期百分比
 
 // 天气系统
-var TgBotFarmWeatherDurationMin = 14400
-var TgBotFarmWeatherDurationMax = 28800
+var TgBotFarmWeatherDurationMin = 28800
+var TgBotFarmWeatherDurationMax = 57600
 var TgBotFarmWeatherSunnyGrowthBonus = 20
 var TgBotFarmWeatherStormyEventBonus = 50
 var TgBotFarmWeatherFoggyStealBonus = 30
