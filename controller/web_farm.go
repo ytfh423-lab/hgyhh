@@ -2247,11 +2247,20 @@ func WebFarmFishView(c *gin.Context) {
 		}
 	}
 
-	// 冷却
+	// 体力
+	stamina, recoverIn := model.GetFishStamina(tgId)
+
+	// 每日统计
+	dailyCount := model.GetFishDailyCount(tgId)
+	dailyIncome := model.GetFishDailyIncome(tgId)
+
+	// 疲劳
+	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
+
+	// 短CD
 	lastFish := model.GetLastFishTime(tgId)
 	now := time.Now().Unix()
-	cd := int64(common.TgBotFishCooldown)
-	cdRemain := lastFish + cd - now
+	cdRemain := lastFish + int64(common.TgBotFishActionCD) - now
 	if cdRemain < 0 {
 		cdRemain = 0
 	}
@@ -2287,7 +2296,8 @@ func WebFarmFishView(c *gin.Context) {
 		}
 	}
 
-	// 鱼种列表
+	// 鱼种列表（含疲劳调整后概率）
+	adjTotal := fishAdjustedTotal(fatigueActive)
 	type fishTypeInfo struct {
 		Key       string  `json:"key"`
 		Name      string  `json:"name"`
@@ -2298,26 +2308,50 @@ func WebFarmFishView(c *gin.Context) {
 	}
 	var types []fishTypeInfo
 	for _, ft := range fishTypes {
+		w := ft.Weight
+		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
+			w = w * (100 - common.TgBotFishFatigueDecay) / 100
+		}
+		pct := 0
+		if adjTotal > 0 {
+			pct = w * 100 / adjTotal
+		}
 		types = append(types, fishTypeInfo{
 			Key:       ft.Key,
 			Name:      ft.Name,
 			Emoji:     ft.Emoji,
 			Rarity:    ft.Rarity,
-			Chance:    ft.Weight * 100 / fishTotalWeight,
+			Chance:    pct,
 			SellPrice: webFarmQuotaFloat(ft.SellPrice),
 		})
+	}
+	nothingPct := 0
+	if adjTotal > 0 {
+		nothingPct = fishNothingWeight * 100 / adjTotal
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"bait_count":    baitCount,
-			"cooldown":      cdRemain,
-			"inventory":     inventory,
-			"total_value":   webFarmQuotaFloat(totalValue),
-			"fish_types":    types,
-			"nothing_chance": fishNothingWeight * 100 / fishTotalWeight,
-			"bait_price":    webFarmQuotaFloat(common.TgBotFishBaitPrice),
+			"bait_count":      baitCount,
+			"cooldown":        cdRemain,
+			"stamina":         stamina,
+			"stamina_max":     common.TgBotFishStaminaMax,
+			"stamina_cost":    common.TgBotFishStaminaCost,
+			"recover_in":      recoverIn,
+			"recover_amount":  common.TgBotFishStaminaRecoverAmount,
+			"daily_count":     dailyCount,
+			"daily_max":       common.TgBotFishDailyMaxActions,
+			"daily_income":    webFarmQuotaFloat(dailyIncome),
+			"daily_max_income": webFarmQuotaFloat(common.TgBotFishDailyMaxIncome),
+			"fatigue_active":  fatigueActive,
+			"fatigue_threshold": common.TgBotFishFatigueThreshold,
+			"fatigue_decay":   common.TgBotFishFatigueDecay,
+			"inventory":       inventory,
+			"total_value":     webFarmQuotaFloat(totalValue),
+			"fish_types":      types,
+			"nothing_chance":  nothingPct,
+			"bait_price":      webFarmQuotaFloat(common.TgBotFishBaitPrice),
 		},
 	})
 }
@@ -2332,35 +2366,71 @@ func WebFarmFishDo(c *gin.Context) {
 		return
 	}
 
-	// 冷却检查
-	lastFish := model.GetLastFishTime(tgId)
 	now := time.Now().Unix()
-	cd := int64(common.TgBotFishCooldown)
-	if now < lastFish+cd {
-		remain := lastFish + cd - now
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("冷却中，还需等待 %d 秒", remain)})
+
+	// 1. 每日上限检查
+	dailyCount := model.GetFishDailyCount(tgId)
+	if dailyCount >= common.TgBotFishDailyMaxActions {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼次数已达上限"})
+		return
+	}
+	dailyIncome := model.GetFishDailyIncome(tgId)
+	if dailyIncome >= common.TgBotFishDailyMaxIncome {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼收入已达上限"})
 		return
 	}
 
-	// 扣鱼饵
+	// 2. 体力检查
+	stamina, _ := model.GetFishStamina(tgId)
+	if stamina < common.TgBotFishStaminaCost {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "体力不足，请等待恢复"})
+		return
+	}
+
+	// 3. 短CD检查
+	lastFish := model.GetLastFishTime(tgId)
+	cd := int64(common.TgBotFishActionCD)
+	if now < lastFish+cd {
+		remain := lastFish + cd - now
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("操作太快，请等待 %d 秒", remain)})
+		return
+	}
+
+	// 4. 扣鱼饵
 	err := model.DecrementFarmItem(tgId, "fishbait")
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有鱼饵！请先到商店购买"})
 		return
 	}
 
-	// 记录冷却
+	// 5. 扣体力 & 记录CD
+	model.SetFishStamina(tgId, stamina-common.TgBotFishStaminaCost)
 	model.SetLastFishTime(tgId, now)
 
-	// 随机钓鱼
-	fish := randomFish()
+	// 6. 风控检测
+	recordFishTimestamp(tgId)
+	if checkFishRisk(tgId) {
+		model.AddFarmLog(tgId, "fish_risk", 0, "钓鱼行为异常：操作间隔高度一致")
+	}
+
+	// 7. 随机钓鱼（含疲劳衰减）
+	fish := randomFishWithFatigue(tgId)
+
+	// 8. 增加每日计数
+	model.IncrFishDailyCount(tgId)
+
+	// 获取最新体力用于返回
+	newStamina, newRecoverIn := model.GetFishStamina(tgId)
+
 	if fish == nil {
 		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "空军！什么都没钓到...",
 			"data": gin.H{
-				"caught": false,
+				"caught":     false,
+				"stamina":    newStamina,
+				"recover_in": newRecoverIn,
 			},
 		})
 		return
@@ -2368,6 +2438,8 @@ func WebFarmFishDo(c *gin.Context) {
 
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
+	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
+	model.IncrFishDailyIncome(tgId, fishValue)
 	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -2380,6 +2452,8 @@ func WebFarmFishDo(c *gin.Context) {
 			"fish_emoji": fish.Emoji,
 			"rarity":     fish.Rarity,
 			"sell_price": webFarmQuotaFloat(fish.SellPrice),
+			"stamina":    newStamina,
+			"recover_in": newRecoverIn,
 		},
 	})
 }

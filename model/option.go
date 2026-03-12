@@ -152,7 +152,17 @@ func InitOptionMap() {
 	common.OptionMap["TgBotRanchManureGrowPenalty"] = strconv.Itoa(common.TgBotRanchManureGrowPenalty)
 	// 钓鱼
 	common.OptionMap["TgBotFishBaitPrice"] = strconv.Itoa(common.TgBotFishBaitPrice)
-	common.OptionMap["TgBotFishCooldown"] = strconv.Itoa(common.TgBotFishCooldown)
+	common.OptionMap["TgBotFishActionCD"] = strconv.Itoa(common.TgBotFishActionCD)
+	common.OptionMap["TgBotFishStaminaMax"] = strconv.Itoa(common.TgBotFishStaminaMax)
+	common.OptionMap["TgBotFishStaminaCost"] = strconv.Itoa(common.TgBotFishStaminaCost)
+	common.OptionMap["TgBotFishStaminaRecoverInterval"] = strconv.Itoa(common.TgBotFishStaminaRecoverInterval)
+	common.OptionMap["TgBotFishStaminaRecoverAmount"] = strconv.Itoa(common.TgBotFishStaminaRecoverAmount)
+	common.OptionMap["TgBotFishFatigueEnabled"] = strconv.FormatBool(common.TgBotFishFatigueEnabled)
+	common.OptionMap["TgBotFishFatigueThreshold"] = strconv.Itoa(common.TgBotFishFatigueThreshold)
+	common.OptionMap["TgBotFishFatigueDecay"] = strconv.Itoa(common.TgBotFishFatigueDecay)
+	common.OptionMap["TgBotFishDailyMaxActions"] = strconv.Itoa(common.TgBotFishDailyMaxActions)
+	common.OptionMap["TgBotFishDailyMaxIncome"] = strconv.Itoa(common.TgBotFishDailyMaxIncome)
+	common.OptionMap["TgBotFishRiskEnabled"] = strconv.FormatBool(common.TgBotFishRiskEnabled)
 	// 市场
 	common.OptionMap["TgBotMarketRefreshHours"] = strconv.Itoa(common.TgBotMarketRefreshHours)
 	common.OptionMap["TgBotMarketMinMultiplier"] = strconv.Itoa(common.TgBotMarketMinMultiplier)
@@ -704,11 +714,58 @@ func updateOptionMap(key string, value string) (err error) {
 		if common.TgBotFishBaitPrice <= 0 {
 			common.TgBotFishBaitPrice = 250000
 		}
-	case "TgBotFishCooldown":
-		common.TgBotFishCooldown, _ = strconv.Atoi(value)
-		if common.TgBotFishCooldown < 0 {
-			common.TgBotFishCooldown = 0
+	case "TgBotFishActionCD":
+		common.TgBotFishActionCD, _ = strconv.Atoi(value)
+		if common.TgBotFishActionCD < 1 {
+			common.TgBotFishActionCD = 1
 		}
+	case "TgBotFishStaminaMax":
+		common.TgBotFishStaminaMax, _ = strconv.Atoi(value)
+		if common.TgBotFishStaminaMax < 1 {
+			common.TgBotFishStaminaMax = 1
+		}
+	case "TgBotFishStaminaCost":
+		common.TgBotFishStaminaCost, _ = strconv.Atoi(value)
+		if common.TgBotFishStaminaCost < 1 {
+			common.TgBotFishStaminaCost = 1
+		}
+	case "TgBotFishStaminaRecoverInterval":
+		common.TgBotFishStaminaRecoverInterval, _ = strconv.Atoi(value)
+		if common.TgBotFishStaminaRecoverInterval < 10 {
+			common.TgBotFishStaminaRecoverInterval = 10
+		}
+	case "TgBotFishStaminaRecoverAmount":
+		common.TgBotFishStaminaRecoverAmount, _ = strconv.Atoi(value)
+		if common.TgBotFishStaminaRecoverAmount < 1 {
+			common.TgBotFishStaminaRecoverAmount = 1
+		}
+	case "TgBotFishFatigueEnabled":
+		common.TgBotFishFatigueEnabled = value == "true"
+	case "TgBotFishFatigueThreshold":
+		common.TgBotFishFatigueThreshold, _ = strconv.Atoi(value)
+		if common.TgBotFishFatigueThreshold < 1 {
+			common.TgBotFishFatigueThreshold = 1
+		}
+	case "TgBotFishFatigueDecay":
+		common.TgBotFishFatigueDecay, _ = strconv.Atoi(value)
+		if common.TgBotFishFatigueDecay < 0 {
+			common.TgBotFishFatigueDecay = 0
+		}
+		if common.TgBotFishFatigueDecay > 100 {
+			common.TgBotFishFatigueDecay = 100
+		}
+	case "TgBotFishDailyMaxActions":
+		common.TgBotFishDailyMaxActions, _ = strconv.Atoi(value)
+		if common.TgBotFishDailyMaxActions < 1 {
+			common.TgBotFishDailyMaxActions = 1
+		}
+	case "TgBotFishDailyMaxIncome":
+		common.TgBotFishDailyMaxIncome, _ = strconv.Atoi(value)
+		if common.TgBotFishDailyMaxIncome < 0 {
+			common.TgBotFishDailyMaxIncome = 0
+		}
+	case "TgBotFishRiskEnabled":
+		common.TgBotFishRiskEnabled = value == "true"
 	case "TgBotMarketRefreshHours":
 		common.TgBotMarketRefreshHours, _ = strconv.Atoi(value)
 		if common.TgBotMarketRefreshHours < 1 {

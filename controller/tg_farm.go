@@ -2,9 +2,11 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -2970,19 +2972,111 @@ func showFarmLogs(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 // ========== 钓鱼 ==========
 
-func randomFish() *fishDef {
-	r := rand.Intn(fishTotalWeight)
-	cumulative := fishNothingWeight
-	if r < cumulative {
-		return nil // 空军
+// --- 风控：内存滑动窗口 ---
+var fishRiskTimestamps sync.Map // map[string][]int64
+
+func recordFishTimestamp(tgId string) {
+	now := time.Now().Unix()
+	cutoff := now - 300 // 5分钟窗口
+	val, _ := fishRiskTimestamps.Load(tgId)
+	var timestamps []int64
+	if val != nil {
+		timestamps = val.([]int64)
 	}
-	for i := range fishTypes {
-		cumulative += fishTypes[i].Weight
-		if r < cumulative {
-			return &fishTypes[i]
+	var filtered []int64
+	for _, ts := range timestamps {
+		if ts > cutoff {
+			filtered = append(filtered, ts)
 		}
 	}
-	return &fishTypes[len(fishTypes)-1]
+	filtered = append(filtered, now)
+	fishRiskTimestamps.Store(tgId, filtered)
+}
+
+func checkFishRisk(tgId string) bool {
+	if !common.TgBotFishRiskEnabled {
+		return false
+	}
+	val, ok := fishRiskTimestamps.Load(tgId)
+	if !ok {
+		return false
+	}
+	timestamps := val.([]int64)
+	if len(timestamps) < 10 {
+		return false
+	}
+	recent := timestamps[len(timestamps)-10:]
+	var intervals []float64
+	for i := 1; i < len(recent); i++ {
+		intervals = append(intervals, float64(recent[i]-recent[i-1]))
+	}
+	var sum float64
+	for _, v := range intervals {
+		sum += v
+	}
+	mean := sum / float64(len(intervals))
+	var sqDiffSum float64
+	for _, v := range intervals {
+		diff := v - mean
+		sqDiffSum += diff * diff
+	}
+	std := math.Sqrt(sqDiffSum / float64(len(intervals)))
+	return std < 0.5 && mean <= float64(common.TgBotFishActionCD)+1
+}
+
+// --- 带疲劳衰减的随机钓鱼 ---
+func randomFishWithFatigue(tgId string) *fishDef {
+	dailyCount := model.GetFishDailyCount(tgId)
+	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
+
+	adjustedTotal := fishNothingWeight
+	type aw struct {
+		fish   *fishDef
+		weight int
+	}
+	var adjusted []aw
+	for i := range fishTypes {
+		w := fishTypes[i].Weight
+		if fatigueActive && (fishTypes[i].Rarity == "稀有" || fishTypes[i].Rarity == "史诗" || fishTypes[i].Rarity == "传说") {
+			w = w * (100 - common.TgBotFishFatigueDecay) / 100
+			if w < 0 {
+				w = 0
+			}
+		}
+		adjusted = append(adjusted, aw{&fishTypes[i], w})
+		adjustedTotal += w
+	}
+	if adjustedTotal <= 0 {
+		return nil
+	}
+	r := rand.Intn(adjustedTotal)
+	cumulative := fishNothingWeight
+	if r < cumulative {
+		return nil
+	}
+	for _, a := range adjusted {
+		cumulative += a.weight
+		if r < cumulative {
+			return a.fish
+		}
+	}
+	return adjusted[len(adjusted)-1].fish
+}
+
+// fishAdjustedTotal 计算疲劳调整后的总权重
+func fishAdjustedTotal(fatigueActive bool) int {
+	total := fishNothingWeight
+	for _, ft := range fishTypes {
+		w := ft.Weight
+		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
+			w = w * (100 - common.TgBotFishFatigueDecay) / 100
+			if w < 0 {
+				w = 0
+			}
+		}
+		total += w
+	}
+	return total
 }
 
 func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
@@ -2996,22 +3090,65 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		}
 	}
 
+	// 体力
+	stamina, recoverIn := model.GetFishStamina(tgId)
+	staminaMax := common.TgBotFishStaminaMax
+
+	// 每日统计
+	dailyCount := model.GetFishDailyCount(tgId)
+	dailyIncome := model.GetFishDailyIncome(tgId)
+	dailyMaxActions := common.TgBotFishDailyMaxActions
+	dailyMaxIncome := common.TgBotFishDailyMaxIncome
+
+	// 疲劳状态
+	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
+
 	// 鱼仓库
 	fishItems, _ := model.GetFishItems(tgId)
 	totalValue := 0
 
 	text := "🎣 钓鱼\n\n"
+
+	// 体力条
+	barLen := 10
+	filled := 0
+	if staminaMax > 0 {
+		filled = stamina * barLen / staminaMax
+	}
+	if filled > barLen {
+		filled = barLen
+	}
+	bar := ""
+	for i := 0; i < barLen; i++ {
+		if i < filled {
+			bar += "█"
+		} else {
+			bar += "░"
+		}
+	}
+	text += fmt.Sprintf("⚡ 体力: %d/%d [%s]\n", stamina, staminaMax, bar)
+	if stamina < staminaMax && recoverIn > 0 {
+		text += fmt.Sprintf("🔄 下次恢复: %d秒后 (+%d)\n", recoverIn, common.TgBotFishStaminaRecoverAmount)
+	}
+
+	// 疲劳
+	if fatigueActive {
+		text += fmt.Sprintf("😰 疲劳中！稀有鱼概率 -%d%%\n", common.TgBotFishFatigueDecay)
+	} else if common.TgBotFishFatigueEnabled {
+		text += fmt.Sprintf("😊 精力充沛（%d/%d次后疲劳）\n", dailyCount, common.TgBotFishFatigueThreshold)
+	}
+
+	// 每日进度
+	text += fmt.Sprintf("📊 今日: %d/%d次 💰 %s/%s\n", dailyCount, dailyMaxActions, farmQuotaStr(dailyIncome), farmQuotaStr(dailyMaxIncome))
 	text += fmt.Sprintf("🪱 鱼饵: %d个\n", baitCount)
 
-	// 冷却时间
+	// 短CD
 	lastFish := model.GetLastFishTime(tgId)
 	now := time.Now().Unix()
-	cd := int64(common.TgBotFishCooldown)
+	cd := int64(common.TgBotFishActionCD)
 	cdRemain := lastFish + cd - now
 	if cdRemain > 0 {
-		text += fmt.Sprintf("⏱️ 冷却中: %d秒\n", cdRemain)
-	} else {
-		text += "✅ 可以钓鱼\n"
+		text += fmt.Sprintf("⏱️ 操作冷却: %d秒\n", cdRemain)
 	}
 
 	text += "\n📦 鱼仓库:\n"
@@ -3019,7 +3156,7 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		text += "  (空)\n"
 	} else {
 		for _, fi := range fishItems {
-			fishKey := fi.ItemType[5:] // remove "fish_" prefix
+			fishKey := fi.ItemType[5:]
 			fd := fishTypeMap[fishKey]
 			if fd != nil {
 				mPrice := applyMarket(fd.SellPrice, "fish_"+fishKey)
@@ -3039,17 +3176,46 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		text += fmt.Sprintf("\n📈 市场%dh后刷新\n", nextRefresh/3600+1)
 	}
 
+	// 鱼种概率（疲劳调整后）
 	text += "\n📊 鱼种概率:\n"
+	adjTotal := fishAdjustedTotal(fatigueActive)
 	for _, ft := range fishTypes {
+		w := ft.Weight
+		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
+			w = w * (100 - common.TgBotFishFatigueDecay) / 100
+		}
 		mPrice := applyMarket(ft.SellPrice, "fish_"+ft.Key)
 		mPct := getMarketMultiplier("fish_" + ft.Key)
-		text += fmt.Sprintf("  %s %s [%s] %d%% %s(%d%%)\n", ft.Emoji, ft.Name, ft.Rarity, ft.Weight*100/fishTotalWeight, farmQuotaStr(mPrice), mPct)
+		pct := 0
+		if adjTotal > 0 {
+			pct = w * 100 / adjTotal
+		}
+		tag := ""
+		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
+			tag = " ⬇"
+		}
+		text += fmt.Sprintf("  %s %s [%s] %d%%%s %s(%d%%)\n", ft.Emoji, ft.Name, ft.Rarity, pct, tag, farmQuotaStr(mPrice), mPct)
 	}
-	text += fmt.Sprintf("  🗑️ 空军 %d%%\n", fishNothingWeight*100/fishTotalWeight)
+	nothingPct := 0
+	if adjTotal > 0 {
+		nothingPct = fishNothingWeight * 100 / adjTotal
+	}
+	text += fmt.Sprintf("  🗑️ 空军 %d%%\n", nothingPct)
 
 	var rows [][]TgInlineKeyboardButton
+	// 按钮文案优先级: 每日上限 > 体力不足 > 冷却中 > 无鱼饵 > 可钓鱼
+	btnText := "🎣 开始钓鱼"
+	if dailyCount >= dailyMaxActions {
+		btnText = "🚫 今日已达上限"
+	} else if stamina < common.TgBotFishStaminaCost {
+		btnText = "⚡ 体力不足"
+	} else if cdRemain > 0 {
+		btnText = fmt.Sprintf("⏱️ 冷却中(%ds)", cdRemain)
+	} else if baitCount <= 0 {
+		btnText = "🪱 缺少鱼饵"
+	}
 	rows = append(rows, []TgInlineKeyboardButton{
-		{Text: "🎣 开始钓鱼", CallbackData: "farm_dofish"},
+		{Text: btnText, CallbackData: "farm_dofish"},
 	})
 	if totalValue > 0 {
 		rows = append(rows, []TgInlineKeyboardButton{
@@ -3067,13 +3233,21 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 }
 
 func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
-	// 冷却检查
-	lastFish := model.GetLastFishTime(tgId)
 	now := time.Now().Unix()
-	cd := int64(common.TgBotFishCooldown)
-	if now < lastFish+cd {
-		remain := lastFish + cd - now
-		farmSend(chatId, editMsgId, fmt.Sprintf("⏱️ 钓鱼冷却中，还需等待 %d 秒", remain), &TgInlineKeyboardMarkup{
+
+	// 1. 每日上限检查
+	dailyCount := model.GetFishDailyCount(tgId)
+	if dailyCount >= common.TgBotFishDailyMaxActions {
+		farmSend(chatId, editMsgId, "🚫 今日钓鱼次数已达上限，明天再来吧！", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+	dailyIncome := model.GetFishDailyIncome(tgId)
+	if dailyIncome >= common.TgBotFishDailyMaxIncome {
+		farmSend(chatId, editMsgId, "🚫 今日钓鱼收入已达上限，明天再来吧！", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
 			},
@@ -3081,7 +3255,31 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 扣鱼饵
+	// 2. 体力检查
+	stamina, _ := model.GetFishStamina(tgId)
+	if stamina < common.TgBotFishStaminaCost {
+		farmSend(chatId, editMsgId, "⚡ 体力不足！请等待体力恢复", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+
+	// 3. 短CD检查
+	lastFish := model.GetLastFishTime(tgId)
+	cd := int64(common.TgBotFishActionCD)
+	if now < lastFish+cd {
+		remain := lastFish + cd - now
+		farmSend(chatId, editMsgId, fmt.Sprintf("⏱️ 操作太快，请等待 %d 秒", remain), &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
+			},
+		}, from)
+		return
+	}
+
+	// 4. 鱼饵检查
 	err := model.DecrementFarmItem(tgId, "fishbait")
 	if err != nil {
 		farmSend(chatId, editMsgId, "❌ 没有鱼饵！请先到商店购买🪱鱼饵", &TgInlineKeyboardMarkup{
@@ -3093,15 +3291,32 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 记录冷却
+	// 5. 扣体力 & 记录CD
+	model.SetFishStamina(tgId, stamina-common.TgBotFishStaminaCost)
 	model.SetLastFishTime(tgId, now)
 
-	// 随机钓鱼
-	fish := randomFish()
+	// 6. 风控检测
+	recordFishTimestamp(tgId)
+	if checkFishRisk(tgId) {
+		model.AddFarmLog(tgId, "fish_risk", 0, "钓鱼行为异常：操作间隔高度一致")
+	}
+
+	// 7. 随机钓鱼（含疲劳衰减）
+	fish := randomFishWithFatigue(tgId)
+
+	// 8. 增加每日计数
+	model.IncrFishDailyCount(tgId)
+
+	newStamina, recoverIn := model.GetFishStamina(tgId)
+	staminaInfo := fmt.Sprintf("\n⚡ 体力: %d/%d", newStamina, common.TgBotFishStaminaMax)
+	if newStamina < common.TgBotFishStaminaMax && recoverIn > 0 {
+		staminaInfo += fmt.Sprintf(" (恢复: %ds)", recoverIn)
+	}
+
 	if fish == nil {
 		// 空军
 		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
-		farmSend(chatId, editMsgId, "🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n\n消耗了1个鱼饵", &TgInlineKeyboardMarkup{
+		farmSend(chatId, editMsgId, fmt.Sprintf("🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n消耗了1个鱼饵%s", staminaInfo), &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🎣 再钓一次", CallbackData: "farm_dofish"}},
 				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
@@ -3113,6 +3328,8 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	// 钓到鱼了
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
+	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
+	model.IncrFishDailyIncome(tgId, fishValue)
 	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
 
 	rarityMsg := ""
@@ -3124,8 +3341,8 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		rarityMsg = "🏆🎊 传说级！！！"
 	}
 
-	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s",
-		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(fish.SellPrice), rarityMsg)
+	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s%s",
+		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(fish.SellPrice), rarityMsg, staminaInfo)
 
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{

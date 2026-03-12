@@ -132,6 +132,19 @@ const TgBotPage = () => {
   const [farmSeasonOffEventBonus, setFarmSeasonOffEventBonus] = useState(50);
   const [farmSeasonOffWaterPenalty, setFarmSeasonOffWaterPenalty] = useState(25);
   const [farmWarehouseMaxSlots, setFarmWarehouseMaxSlots] = useState(100);
+  // 钓鱼体力系统
+  const [fishBaitPrice, setFishBaitPrice] = useState(250000);
+  const [fishActionCD, setFishActionCD] = useState(5);
+  const [fishStaminaMax, setFishStaminaMax] = useState(20);
+  const [fishStaminaCost, setFishStaminaCost] = useState(1);
+  const [fishStaminaRecoverInterval, setFishStaminaRecoverInterval] = useState(300);
+  const [fishStaminaRecoverAmount, setFishStaminaRecoverAmount] = useState(1);
+  const [fishFatigueEnabled, setFishFatigueEnabled] = useState(true);
+  const [fishFatigueThreshold, setFishFatigueThreshold] = useState(30);
+  const [fishFatigueDecay, setFishFatigueDecay] = useState(50);
+  const [fishDailyMaxActions, setFishDailyMaxActions] = useState(60);
+  const [fishDailyMaxIncome, setFishDailyMaxIncome] = useState(100000000);
+  const [fishRiskEnabled, setFishRiskEnabled] = useState(true);
   // 农场公告
   const [farmAnnEnabled, setFarmAnnEnabled] = useState(false);
   const [farmAnnText, setFarmAnnText] = useState('');
@@ -232,6 +245,19 @@ const TgBotPage = () => {
         setFarmSeasonOffEventBonus(data.farm_season_off_event_bonus ?? 50);
         setFarmSeasonOffWaterPenalty(data.farm_season_off_water_penalty ?? 25);
         setFarmWarehouseMaxSlots(data.farm_warehouse_max_slots ?? 100);
+        // 钓鱼体力系统
+        setFishBaitPrice(data.fish_bait_price ?? 250000);
+        setFishActionCD(data.fish_action_cd ?? 5);
+        setFishStaminaMax(data.fish_stamina_max ?? 20);
+        setFishStaminaCost(data.fish_stamina_cost ?? 1);
+        setFishStaminaRecoverInterval(data.fish_stamina_recover_interval ?? 300);
+        setFishStaminaRecoverAmount(data.fish_stamina_recover_amount ?? 1);
+        setFishFatigueEnabled(data.fish_fatigue_enabled ?? true);
+        setFishFatigueThreshold(data.fish_fatigue_threshold ?? 30);
+        setFishFatigueDecay(data.fish_fatigue_decay ?? 50);
+        setFishDailyMaxActions(data.fish_daily_max_actions ?? 60);
+        setFishDailyMaxIncome(data.fish_daily_max_income ?? 100000000);
+        setFishRiskEnabled(data.fish_risk_enabled ?? true);
         // 农场公告
         setFarmAnnEnabled(data.farm_announcement_enabled === true || data.farm_announcement_enabled === 'true');
         setFarmAnnText(data.farm_announcement_text || '');
@@ -1096,6 +1122,65 @@ const TgBotPage = () => {
             <Typography.Text style={{ width: 200 }}>{t('脏污生长减速(%)')}</Typography.Text>
             <InputNumber value={ranchManureGrowPenalty} onChange={setRanchManureGrowPenalty} min={0} max={90} style={{ width: 120 }} />
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 12 }}>🎣 {t('钓鱼体力系统')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🪱 {t('鱼饵价格(额度)')}</Typography.Text>
+            <InputNumber value={fishBaitPrice} onChange={setFishBaitPrice} min={0} step={50000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (fishBaitPrice / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⏱️ {t('操作CD(秒)')}</Typography.Text>
+            <InputNumber value={fishActionCD} onChange={setFishActionCD} min={1} max={30} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('防连点，建议2-5秒')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⚡ {t('体力上限')}</Typography.Text>
+            <InputNumber value={fishStaminaMax} onChange={setFishStaminaMax} min={1} max={200} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⚡ {t('每次消耗体力')}</Typography.Text>
+            <InputNumber value={fishStaminaCost} onChange={setFishStaminaCost} min={1} max={10} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🔄 {t('体力恢复间隔(秒)')}</Typography.Text>
+            <InputNumber value={fishStaminaRecoverInterval} onChange={setFishStaminaRecoverInterval} min={10} step={60} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{(fishStaminaRecoverInterval / 60).toFixed(1) + 'min'}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🔄 {t('每次恢复量')}</Typography.Text>
+            <InputNumber value={fishStaminaRecoverAmount} onChange={setFishStaminaRecoverAmount} min={1} max={10} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('完全恢复约') + ' ' + Math.ceil(fishStaminaMax / fishStaminaRecoverAmount * fishStaminaRecoverInterval / 60) + 'min'}</Typography.Text>
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>😴 {t('疲劳衰减')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('启用疲劳衰减')}</Typography.Text>
+            <Switch checked={fishFatigueEnabled} onChange={setFishFatigueEnabled} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('疲劳阈值(次/天)')}</Typography.Text>
+            <InputNumber value={fishFatigueThreshold} onChange={setFishFatigueThreshold} min={1} max={200} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('超过后稀有鱼概率下降')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('稀有鱼衰减(%)')}</Typography.Text>
+            <InputNumber value={fishFatigueDecay} onChange={setFishFatigueDecay} min={0} max={100} style={{ width: 120 }} />
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>🚫 {t('每日上限')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('每日最大次数')}</Typography.Text>
+            <InputNumber value={fishDailyMaxActions} onChange={setFishDailyMaxActions} min={1} max={500} style={{ width: 120 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('每日最大收入(额度)')}</Typography.Text>
+            <InputNumber value={fishDailyMaxIncome} onChange={setFishDailyMaxIncome} min={0} step={1000000} style={{ width: 180 }} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 8 }}>{'$' + (fishDailyMaxIncome / 500000).toFixed(2)}</Typography.Text>
+          </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>🛡️ {t('风控检测')}</Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>{t('启用反挂机风控')}</Typography.Text>
+            <Switch checked={fishRiskEnabled} onChange={setFishRiskEnabled} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('检测操作间隔异常稳定的行为')}</Typography.Text>
+          </div>
           <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 12 }}>⭐ {t('等级系统')}</Typography.Title>
           <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('功能解锁等级')}</Typography.Title>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -1300,6 +1385,19 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmSeasonOffEventBonus', value: String(farmSeasonOffEventBonus) },
                   { key: 'TgBotFarmSeasonOffWaterPenalty', value: String(farmSeasonOffWaterPenalty) },
                   { key: 'TgBotFarmWarehouseMaxSlots', value: String(farmWarehouseMaxSlots) },
+                  // 钓鱼体力系统
+                  { key: 'TgBotFishBaitPrice', value: String(fishBaitPrice) },
+                  { key: 'TgBotFishActionCD', value: String(fishActionCD) },
+                  { key: 'TgBotFishStaminaMax', value: String(fishStaminaMax) },
+                  { key: 'TgBotFishStaminaCost', value: String(fishStaminaCost) },
+                  { key: 'TgBotFishStaminaRecoverInterval', value: String(fishStaminaRecoverInterval) },
+                  { key: 'TgBotFishStaminaRecoverAmount', value: String(fishStaminaRecoverAmount) },
+                  { key: 'TgBotFishFatigueEnabled', value: String(fishFatigueEnabled) },
+                  { key: 'TgBotFishFatigueThreshold', value: String(fishFatigueThreshold) },
+                  { key: 'TgBotFishFatigueDecay', value: String(fishFatigueDecay) },
+                  { key: 'TgBotFishDailyMaxActions', value: String(fishDailyMaxActions) },
+                  { key: 'TgBotFishDailyMaxIncome', value: String(fishDailyMaxIncome) },
+                  { key: 'TgBotFishRiskEnabled', value: String(fishRiskEnabled) },
                 ];
                 for (const opt of farmOptions) {
                   const res = await API.put('/api/option/', opt);

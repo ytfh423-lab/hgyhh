@@ -562,6 +562,104 @@ func SetLastFishTime(telegramId string, ts int64) {
 	_ = DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", int(ts)).Error
 }
 
+// 钓鱼体力系统：惰性恢复模型
+
+func getFarmItemInt(telegramId, key string) int {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, key).First(&item).Error
+	if err != nil {
+		return 0
+	}
+	return item.Quantity
+}
+
+func setFarmItemInt(telegramId, key string, val int) {
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, key).First(&item).Error
+	if err != nil {
+		item = TgFarmItem{TelegramId: telegramId, ItemType: key, Quantity: val}
+		_ = DB.Create(&item).Error
+		return
+	}
+	_ = DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", val).Error
+}
+
+// GetFishStamina 获取当前体力（惰性恢复），返回当前体力和下次恢复剩余秒数
+func GetFishStamina(telegramId string) (current int, recoverIn int64) {
+	saved := getFarmItemInt(telegramId, "_fish_stamina")
+	lastTs := int64(getFarmItemInt(telegramId, "_fish_stamina_ts"))
+	now := time.Now().Unix()
+	max := common.TgBotFishStaminaMax
+	interval := int64(common.TgBotFishStaminaRecoverInterval)
+	amount := common.TgBotFishStaminaRecoverAmount
+
+	// 新用户（无记录）给满体力
+	if lastTs == 0 {
+		return max, 0
+	}
+
+	elapsed := now - lastTs
+	if interval > 0 && amount > 0 {
+		recovered := int(elapsed/interval) * amount
+		current = saved + recovered
+	} else {
+		current = saved
+	}
+	if current >= max {
+		current = max
+		recoverIn = 0
+	} else if interval > 0 {
+		// 下次恢复剩余秒数
+		recoverIn = interval - (elapsed % interval)
+	}
+	return current, recoverIn
+}
+
+// SetFishStamina 设置体力和时间戳
+func SetFishStamina(telegramId string, stamina int) {
+	setFarmItemInt(telegramId, "_fish_stamina", stamina)
+	setFarmItemInt(telegramId, "_fish_stamina_ts", int(time.Now().Unix()))
+}
+
+// 钓鱼每日统计（自动跨天重置）
+
+func fishTodayStr() string {
+	return time.Now().Format("20060102")
+}
+
+// ResetFishDailyIfNeeded 检查是否跨天，跨天则重置每日计数
+func ResetFishDailyIfNeeded(telegramId string) {
+	savedDate := getFarmItemInt(telegramId, "_fish_daily_date")
+	today, _ := strconv.Atoi(fishTodayStr())
+	if savedDate != today {
+		setFarmItemInt(telegramId, "_fish_daily_date", today)
+		setFarmItemInt(telegramId, "_fish_daily_count", 0)
+		setFarmItemInt(telegramId, "_fish_daily_income", 0)
+	}
+}
+
+func GetFishDailyCount(telegramId string) int {
+	ResetFishDailyIfNeeded(telegramId)
+	return getFarmItemInt(telegramId, "_fish_daily_count")
+}
+
+func IncrFishDailyCount(telegramId string) {
+	ResetFishDailyIfNeeded(telegramId)
+	cur := getFarmItemInt(telegramId, "_fish_daily_count")
+	setFarmItemInt(telegramId, "_fish_daily_count", cur+1)
+}
+
+func GetFishDailyIncome(telegramId string) int {
+	ResetFishDailyIfNeeded(telegramId)
+	return getFarmItemInt(telegramId, "_fish_daily_income")
+}
+
+func IncrFishDailyIncome(telegramId string, amount int) {
+	ResetFishDailyIfNeeded(telegramId)
+	cur := getFarmItemInt(telegramId, "_fish_daily_income")
+	setFarmItemInt(telegramId, "_fish_daily_income", cur+amount)
+}
+
 func GetFishItems(telegramId string) ([]*TgFarmItem, error) {
 	var items []*TgFarmItem
 	err := DB.Where("telegram_id = ? AND item_type LIKE ? AND item_type != ? AND quantity > 0", telegramId, "fish_%", "fishbait").Find(&items).Error
