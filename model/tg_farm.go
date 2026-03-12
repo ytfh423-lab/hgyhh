@@ -1052,6 +1052,70 @@ func ResetAllFarmLevels(level int) (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
+func migrateFarmIDColumnTx(tx *gorm.DB, table any, column, fromFarmID, toFarmID string) error {
+	return tx.Model(table).Where(column+" = ?", fromFarmID).Update(column, toFarmID).Error
+}
+
+// BindTelegramAndMigrateFarmData binds telegram_id to user and migrates legacy web farm id data.
+// Legacy web farm id is usually in the form u_{userId}.
+func BindTelegramAndMigrateFarmData(userId int, oldFarmID, newTelegramID string) error {
+	if newTelegramID == "" {
+		return fmt.Errorf("telegram id is empty")
+	}
+	if oldFarmID == "" || oldFarmID == newTelegramID {
+		return DB.Model(&User{}).Where("id = ?", userId).Update("telegram_id", newTelegramID).Error
+	}
+
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&User{}).Where("id = ?", userId).Update("telegram_id", newTelegramID).Error; err != nil {
+			return err
+		}
+
+		// Core farm data (telegram_id).
+		coreTables := []any{
+			&TgFarmPlot{}, &TgFarmItem{}, &TgFarmDog{}, &TgFarmWarehouse{},
+			&TgRanchAnimal{}, &TgFarmTaskClaim{}, &TgFarmAchievement{}, &TgFarmProcess{},
+			&TgFarmLog{}, &TgFarmLoan{}, &TgFarmCollection{}, &TgFarmPrestige{},
+			&TgFarmGameLog{}, &TgFarmAutomation{}, &TgTreeSlot{},
+		}
+		for _, table := range coreTables {
+			if err := migrateFarmIDColumnTx(tx, table, "telegram_id", oldFarmID, newTelegramID); err != nil {
+				return err
+			}
+		}
+
+		// Farm related references not named telegram_id.
+		if err := migrateFarmIDColumnTx(tx, &TgFarmStealLog{}, "thief_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmStealLog{}, "victim_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmTrade{}, "seller_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmTrade{}, "buyer_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmEntrust{}, "owner_telegram_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmEntrustWorker{}, "worker_telegram_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmEntrustLog{}, "worker_telegram_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmEntrustEscrow{}, "owner_telegram_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		if err := migrateFarmIDColumnTx(tx, &TgFarmEntrustEscrow{}, "worker_telegram_id", oldFarmID, newTelegramID); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 // ========== 图鉴收藏 ==========
 
 type TgFarmCollection struct {

@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
 	"sort"
@@ -57,8 +58,8 @@ func TelegramBind(c *gin.Context) {
 		})
 		return
 	}
-	user.TelegramId = telegramId
-	if err := user.Update(false); err != nil {
+	oldFarmId := fmt.Sprintf("u_%d", user.Id)
+	if err := model.BindTelegramAndMigrateFarmData(user.Id, oldFarmId, telegramId); err != nil {
 		c.JSON(200, gin.H{
 			"message": err.Error(),
 			"success": false,
