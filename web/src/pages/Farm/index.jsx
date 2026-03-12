@@ -4,7 +4,7 @@ import { Spin, Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
 import { StatusContext } from '../../context/Status';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './farm.css';
 
 import Sidebar, { navGroups } from './components/Sidebar';
@@ -155,7 +155,7 @@ const MobileBottomNav = ({ activeKey, onNavigate, showSheet, t }) => {
   );
 };
 
-const MobileSheet = ({ activeKey, onNavigate, onClose, t, userLevel = 1 }) => {
+const MobileSheet = ({ activeKey, onNavigate, onClose, navigate, t, userLevel = 1 }) => {
   return (
     <div className='farm-mobile-sheet-overlay' onClick={onClose}>
       <div className='farm-mobile-sheet' onClick={(e) => e.stopPropagation()}>
@@ -171,7 +171,7 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, t, userLevel = 1 }) => {
                   <div
                     key={item.key}
                     className={`farm-mobile-sheet-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
-                    onClick={locked ? undefined : () => { onNavigate(item.key); onClose(); }}
+                    onClick={locked ? undefined : () => { item.href ? navigate(item.href) : onNavigate(item.key); onClose(); }}
                   >
                     <span className='sheet-emoji'>{locked ? '🔒' : item.emoji}</span>
                     <span>{locked ? `${t(item.label)} (Lv.${req.level})` : t(item.label)}</span>
@@ -188,6 +188,7 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, t, userLevel = 1 }) => {
 
 const Farm = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [statusState] = useContext(StatusContext);
   const [loading, setLoading] = useState(true);
   const [farmData, setFarmData] = useState(null);
@@ -546,6 +547,7 @@ const Farm = () => {
             activeKey={activePage}
             onNavigate={navigateTo}
             onClose={() => setMobileSheetOpen(false)}
+            navigate={navigate}
             t={t}
             userLevel={userLevel}
           />

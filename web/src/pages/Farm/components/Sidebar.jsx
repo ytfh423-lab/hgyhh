@@ -61,6 +61,7 @@ const navGroups = [
       { key: 'automation', label: '自动化', emoji: '⚡' },
       { key: 'prestige', label: '转生', emoji: '🔄' },
       { key: 'logs', label: '日志', emoji: '📜' },
+      { key: 'feedback', label: '留言板', emoji: '💬', href: '/feedback' },
     ],
   },
 ];
@@ -105,7 +106,7 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
                   key={item.key}
                   data-tutorial={`nav-${item.key}`}
                   className={`farm-nav-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
-                  onClick={locked ? undefined : () => onNavigate(item.key)}
+                  onClick={locked ? undefined : () => item.href ? navigate(item.href) : onNavigate(item.key)}
                   title={locked ? `${t('需要')} Lv.${req.level} ${t('解锁')}` : ''}
                 >
                   <span style={{ fontSize: 15 }}>{locked ? '🔒' : item.emoji}</span>
