@@ -1,21 +1,23 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { Button, Spin, Tag, Banner, Typography, Progress } from '@douyinfe/semi-ui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Banner, Button, Progress, Spin, Tag, Typography } from '@douyinfe/semi-ui';
 import { Fish } from 'lucide-react';
 import { API, showError, showSuccess } from './utils';
 
 const { Text } = Typography;
 
 const rarityColors = {
-  '普通': 'grey', '优良': 'green', '稀有': 'blue', '史诗': 'purple', '传说': 'orange',
+  普通: 'grey',
+  优良: 'green',
+  稀有: 'blue',
+  史诗: 'purple',
+  传说: 'orange',
 };
 
-const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
+const FishPage = ({ loadFarm, t }) => {
   const [fishData, setFishData] = useState(null);
   const [fishLoading, setFishLoading] = useState(false);
   const [lastCatch, setLastCatch] = useState(null);
   const [cooldown, setCooldown] = useState(0);
-  const [recoverIn, setRecoverIn] = useState(0);
-  const [stamina, setStamina] = useState(0);
   const tickRef = useRef(null);
 
   const loadFish = useCallback(async () => {
@@ -25,8 +27,8 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
       if (res.success) {
         setFishData(res.data);
         setCooldown(res.data.cooldown || 0);
-        setRecoverIn(res.data.recover_in || 0);
-        setStamina(res.data.stamina ?? 0);
+      } else {
+        showError(res.message || t('加载失败'));
       }
     } catch (err) {
       showError(t('加载失败'));
@@ -35,37 +37,26 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
     }
   }, [t]);
 
-  useEffect(() => { loadFish(); }, [loadFish]);
-
-  // Tick timer: countdown cooldown and recovery
   useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    if (cooldown <= 0 && recoverIn <= 0) return;
-    tickRef.current = setInterval(() => {
-      setCooldown(prev => Math.max(0, prev - 1));
-      setRecoverIn(prev => {
-        if (prev <= 1 && prev > 0) {
-          // Recovery tick
-          setStamina(s => {
-            const max = fishData?.stamina_max || 20;
-            const amount = fishData?.recover_amount || 1;
-            return Math.min(s + amount, max);
-          });
-          const interval = fishData?.recover_in || 300;
-          return interval;
-        }
-        return Math.max(0, prev - 1);
-      });
-    }, 1000);
-    return () => clearInterval(tickRef.current);
-  }, [cooldown > 0, recoverIn > 0, fishData?.stamina_max, fishData?.recover_amount]);
+    loadFish();
+  }, [loadFish]);
 
-  // Stop recovery when full
   useEffect(() => {
-    if (fishData && stamina >= (fishData.stamina_max || 20)) {
-      setRecoverIn(0);
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
     }
-  }, [stamina, fishData]);
+    if (cooldown <= 0) {
+      return;
+    }
+    tickRef.current = setInterval(() => {
+      setCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => {
+      if (tickRef.current) {
+        clearInterval(tickRef.current);
+      }
+    };
+  }, [cooldown > 0]);
 
   const doFish = async () => {
     setFishLoading(true);
@@ -73,12 +64,10 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
       const { data: res } = await API.post('/api/farm/fish');
       if (res.success) {
         setLastCatch(res.data);
-        if (res.data.caught) showSuccess(res.message);
-        if (res.data.stamina !== undefined) setStamina(res.data.stamina);
-        if (res.data.recover_in !== undefined) setRecoverIn(res.data.recover_in);
+        showSuccess(res.message);
         loadFish();
       } else {
-        showError(res.message);
+        showError(res.message || t('操作失败'));
       }
     } catch (err) {
       showError(t('操作失败'));
@@ -97,7 +86,7 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
         loadFish();
         loadFarm();
       } else {
-        showError(res.message);
+        showError(res.message || t('操作失败'));
       }
     } catch (err) {
       showError(t('操作失败'));
@@ -107,61 +96,35 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
   };
 
   if (fishLoading && !fishData) {
-    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>;
+    return (
+      <div style={{ textAlign: 'center', padding: 40 }}>
+        <Spin size='large' />
+      </div>
+    );
   }
   if (!fishData) return null;
 
-  const staminaMax = fishData.stamina_max || 20;
-  const staminaCost = fishData.stamina_cost || 1;
-  const staminaPct = Math.min(100, Math.round(stamina / staminaMax * 100));
   const dailyCount = fishData.daily_count || 0;
-  const dailyMax = fishData.daily_max || 200;
   const dailyIncome = fishData.daily_income || 0;
   const dailyMaxIncome = fishData.daily_max_income || 200;
   const fatigueActive = fishData.fatigue_active || false;
   const fatigueThreshold = fishData.fatigue_threshold || 30;
   const fatigueDecay = fishData.fatigue_decay || 50;
-  const noStamina = stamina < staminaCost;
 
-  // 收益CAP模型
   const capEnabled = fishData.cap_enabled || false;
   const dailyIncomeCap = fishData.daily_income_cap || 100;
   const overCap = fishData.over_cap || false;
-  const overCapEnabled = fishData.over_cap_enabled || false;
-  const overCapRatio = fishData.over_cap_ratio || 10;
-  const incomeCapPct = capEnabled && dailyIncomeCap > 0
-    ? Math.min(100, Math.round(dailyIncome / dailyIncomeCap * 100))
-    : 0;
+  const incomeCapPct =
+    capEnabled && dailyIncomeCap > 0
+      ? Math.min(100, Math.round((dailyIncome / dailyIncomeCap) * 100))
+      : 0;
 
-  // 按钮状态
   let btnText = t('开始钓鱼');
   let btnDisabled = false;
   if (capEnabled) {
-    if (dailyCount >= dailyMax) {
-      btnText = t('今日已达安全上限');
-      btnDisabled = true;
-    } else if (overCap && !overCapEnabled) {
+    if (overCap) {
       btnText = t('今日收益已达上限');
       btnDisabled = true;
-    } else if (noStamina) {
-      btnText = `⚡ ${t('体力不足')}`;
-      btnDisabled = true;
-    } else if (cooldown > 0) {
-      btnText = `⏱️ ${cooldown}s`;
-      btnDisabled = true;
-    } else if (fishData.bait_count === 0) {
-      btnText = t('没有鱼饵');
-      btnDisabled = true;
-    } else if (overCap) {
-      btnText = `🎣 ${t('休闲钓鱼')}`;
-    }
-  } else {
-    if (dailyCount >= dailyMax) {
-      btnText = t('今日已达上限');
-      btnDisabled = true;
-    } else if (noStamina) {
-      btnText = `⚡ ${t('体力不足')}`;
-      btnDisabled = true;
     } else if (cooldown > 0) {
       btnText = `⏱️ ${cooldown}s`;
       btnDisabled = true;
@@ -169,120 +132,149 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
       btnText = t('没有鱼饵');
       btnDisabled = true;
     }
+  } else if (dailyIncome >= dailyMaxIncome) {
+    btnText = t('今日收益已达上限');
+    btnDisabled = true;
+  } else if (cooldown > 0) {
+    btnText = `⏱️ ${cooldown}s`;
+    btnDisabled = true;
+  } else if (fishData.bait_count === 0) {
+    btnText = t('没有鱼饵');
+    btnDisabled = true;
   }
 
   return (
     <div>
-      {/* 收益进度条（收益CAP模型） */}
       {capEnabled && (
         <div className='farm-card' style={{ marginBottom: 14, padding: '12px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <Text strong>💰 {t('今日钓鱼收益')}: ${dailyIncome.toFixed(2)} / ${dailyIncomeCap.toFixed(2)}</Text>
-            {overCap && overCapEnabled && (
-              <Tag size='small' color='orange'>🎣 {t('休闲模式')} {overCapRatio}%</Tag>
-            )}
-            {overCap && !overCapEnabled && (
-              <Tag size='small' color='red'>🚫 {t('已达上限')}</Tag>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 6,
+            }}
+          >
+            <Text strong>
+              💵 {t('今日钓鱼收益')}: ${dailyIncome.toFixed(2)} / ${dailyIncomeCap.toFixed(2)}
+            </Text>
+            {overCap && (
+              <Tag size='small' color='red'>
+                🚫 {t('已达上限')}
+              </Tag>
             )}
           </div>
-          <Progress percent={incomeCapPct} showInfo={false} size='large'
-            stroke={overCap ? '#f59e0b' : incomeCapPct > 80 ? '#eab308' : '#22c55e'} />
+          <Progress
+            percent={incomeCapPct}
+            showInfo={false}
+            size='large'
+            stroke={overCap ? '#f59e0b' : incomeCapPct > 80 ? '#eab308' : '#22c55e'}
+          />
           {!overCap && dailyIncomeCap > dailyIncome && (
             <Text size='small' type='tertiary' style={{ marginTop: 4, display: 'block' }}>
-              📊 {t('距离上限还差')}: ${(dailyIncomeCap - dailyIncome).toFixed(2)}
-            </Text>
-          )}
-          {overCap && overCapEnabled && (
-            <Text size='small' type='tertiary' style={{ marginTop: 4, display: 'block' }}>
-              {t('已达收益上限，仍可继续休闲钓鱼，收益降为')} {overCapRatio}%
+              📳 {t('距离上限还差')}: ${(dailyIncomeCap - dailyIncome).toFixed(2)}
             </Text>
           )}
         </div>
       )}
 
-      {/* Stamina bar */}
-      <div className='farm-card' style={{ marginBottom: 14, padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Text strong>⚡ {t('体力')}: {stamina}/{staminaMax}</Text>
-          {stamina < staminaMax && recoverIn > 0 && (
-            <Text size='small' type='tertiary'>🔄 {recoverIn}s (+{fishData.recover_amount || 1})</Text>
-          )}
-        </div>
-        <Progress percent={staminaPct} showInfo={false} size='large'
-          stroke={staminaPct > 50 ? '#22c55e' : staminaPct > 20 ? '#eab308' : '#ef4444'} />
-      </div>
-
-      {/* Status pills */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         <div className='farm-pill farm-pill-amber'>🪱 {t('鱼饵')}: {fishData.bait_count}</div>
-        {capEnabled ? (
-          <div className='farm-pill farm-pill-cyan'>
-            📊 {t('今日次数')}: {dailyCount}
+        <div className='farm-pill farm-pill-cyan'>📳 {t('今日次数')}: {dailyCount}</div>
+        {!capEnabled && (
+          <div className='farm-pill farm-pill-amber'>
+            💵 ${dailyIncome.toFixed(2)} / ${dailyMaxIncome.toFixed(2)}
           </div>
-        ) : (
-          <>
-            <div className='farm-pill farm-pill-cyan'>
-              📊 {t('今日')}: {dailyCount}/{dailyMax}
-            </div>
-            <div className='farm-pill farm-pill-amber'>
-              💰 ${dailyIncome.toFixed(2)} / ${dailyMaxIncome.toFixed(2)}
-            </div>
-          </>
         )}
         {fatigueActive ? (
-          <div className='farm-pill farm-pill-red'>😰 {t('疲劳中')} -{fatigueDecay}%</div>
-        ) : !capEnabled && fatigueThreshold > 0 && (
+          <div className='farm-pill farm-pill-red'>😵 {t('疲劳中')} -{fatigueDecay}%</div>
+        ) : (
           <div className='farm-pill farm-pill-green'>😊 {dailyCount}/{fatigueThreshold}</div>
         )}
         {fishData.total_value > 0 && (
-          <div className='farm-pill farm-pill-cyan'>💰 {t('鱼仓价值')}: ${fishData.total_value.toFixed(2)}</div>
+          <div className='farm-pill farm-pill-cyan'>
+            💵 {t('鱼仓价值')}: ${fishData.total_value.toFixed(2)}
+          </div>
         )}
       </div>
 
-      {/* Actions */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <Button theme='solid' type={overCap && capEnabled ? 'warning' : 'primary'} loading={fishLoading}
+        <Button
+          theme='solid'
+          type={overCap && capEnabled ? 'warning' : 'primary'}
+          loading={fishLoading}
           disabled={btnDisabled}
-          onClick={doFish} icon={<Fish size={14} />} className='farm-btn'>
+          onClick={doFish}
+          icon={<Fish size={14} />}
+          className='farm-btn'
+        >
           {btnText}
         </Button>
         {fishData.total_value > 0 && (
-          <Button theme='light' type='warning' loading={fishLoading} onClick={doSellAll} className='farm-btn'>
-            💰 {t('出售全部')} (${fishData.total_value.toFixed(2)})
+          <Button
+            theme='light'
+            type='warning'
+            loading={fishLoading}
+            onClick={doSellAll}
+            className='farm-btn'
+          >
+            💵 {t('出售全部')} (${fishData.total_value.toFixed(2)})
           </Button>
         )}
       </div>
 
-      {/* Last catch */}
       {lastCatch && (
-        <Banner type={lastCatch.caught ? (lastCatch.over_cap_catch ? 'info' : 'success') : 'warning'} closeIcon={null}
+        <Banner
+          type={lastCatch.caught ? (lastCatch.over_cap_catch ? 'info' : 'success') : 'warning'}
+          closeIcon={null}
           style={{ marginBottom: 14, borderRadius: 12 }}
-          description={lastCatch.caught
-            ? <span style={{ fontSize: 15 }}>
+          description={
+            lastCatch.caught ? (
+              <span style={{ fontSize: 15 }}>
                 {lastCatch.fish_emoji} {t('钓到了')} <strong>{lastCatch.fish_name}</strong>{' '}
                 <Tag size='small' color={rarityColors[lastCatch.rarity]}>[{lastCatch.rarity}]</Tag>{' '}
-                {lastCatch.over_cap_catch
-                  ? <>{t('价值')} ${lastCatch.sell_price.toFixed(2)} → <Text type='warning'>${lastCatch.effective_price.toFixed(2)}</Text> <Tag size='small' color='orange'>{t('休闲模式')}</Tag></>
-                  : <>{t('价值')} ${lastCatch.sell_price.toFixed(2)}</>
-                }
+                {lastCatch.over_cap_catch ? (
+                  <>
+                    {t('价值')} ${lastCatch.sell_price.toFixed(2)} ->
+                    <Text type='warning'>${lastCatch.effective_price.toFixed(2)}</Text>{' '}
+                    <Tag size='small' color='orange'>
+                      {t('封顶结算')}
+                    </Tag>
+                  </>
+                ) : (
+                  <>
+                    {t('价值')} ${lastCatch.sell_price.toFixed(2)}
+                  </>
+                )}
               </span>
-            : <span style={{ fontSize: 15 }}>🗑️ {t('空军！什么都没钓到...')}</span>
+            ) : (
+              <span style={{ fontSize: 15 }}>🗑️ {t('空军！什么都没钓到...')}</span>
+            )
           }
         />
       )}
 
-      {/* Fish inventory */}
       {fishData.inventory && fishData.inventory.length > 0 && (
         <div className='farm-card'>
           <div className='farm-section-title'>📦 {t('鱼仓库')}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {fishData.inventory.map((fish) => (
-              <div key={fish.key} className='farm-card-flat' style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                key={fish.key}
+                className='farm-card-flat'
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
                 <span style={{ fontSize: 20 }}>{fish.emoji}</span>
                 <div>
-                  <Text size='small' strong>{fish.name} ×{fish.quantity}</Text>
-                  <Tag size='small' color={rarityColors[fish.rarity]} style={{ marginLeft: 4 }}>{fish.rarity}</Tag>
-                  <Text size='small' type='tertiary' style={{ display: 'block' }}>${fish.total_value.toFixed(2)}</Text>
+                  <Text size='small' strong>
+                    {fish.name} x{fish.quantity}
+                  </Text>
+                  <Tag size='small' color={rarityColors[fish.rarity]} style={{ marginLeft: 4 }}>
+                    {fish.rarity}
+                  </Tag>
+                  <Text size='small' type='tertiary' style={{ display: 'block' }}>
+                    ${fish.total_value.toFixed(2)}
+                  </Text>
                 </div>
               </div>
             ))}
@@ -290,25 +282,38 @@ const FishPage = ({ actionLoading, doAction, loadFarm, t }) => {
         </div>
       )}
 
-      {/* Fish types */}
       <div className='farm-card'>
-        <div className='farm-section-title'>📊 {t('鱼种图鉴')}</div>
+        <div className='farm-section-title'>📳 {t('鱼种图鉴')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {fishData.fish_types && fishData.fish_types.map((ft) => (
-            <div key={ft.key} className='farm-card-flat' style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 120 }}>
-              <span style={{ fontSize: 18 }}>{ft.emoji}</span>
-              <div>
-                <Text size='small'>{ft.name}</Text>
-                <Tag size='small' color={rarityColors[ft.rarity]} style={{ marginLeft: 4 }}>{ft.rarity}</Tag>
-                <Text size='small' type='tertiary' style={{ display: 'block' }}>{ft.chance}% · ${ft.sell_price.toFixed(2)}</Text>
+          {fishData.fish_types &&
+            fishData.fish_types.map((ft) => (
+              <div
+                key={ft.key}
+                className='farm-card-flat'
+                style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 120 }}
+              >
+                <span style={{ fontSize: 18 }}>{ft.emoji}</span>
+                <div>
+                  <Text size='small'>{ft.name}</Text>
+                  <Tag size='small' color={rarityColors[ft.rarity]} style={{ marginLeft: 4 }}>
+                    {ft.rarity}
+                  </Tag>
+                  <Text size='small' type='tertiary' style={{ display: 'block' }}>
+                    {ft.chance}% / ${ft.sell_price.toFixed(2)}
+                  </Text>
+                </div>
               </div>
-            </div>
-          ))}
-          <div className='farm-card-flat' style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 120 }}>
+            ))}
+          <div
+            className='farm-card-flat'
+            style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 120 }}
+          >
             <span style={{ fontSize: 18 }}>🗑️</span>
             <div>
               <Text size='small'>{t('空军')}</Text>
-              <Text size='small' type='tertiary' style={{ display: 'block' }}>{fishData.nothing_chance}%</Text>
+              <Text size='small' type='tertiary' style={{ display: 'block' }}>
+                {fishData.nothing_chance}%
+              </Text>
             </div>
           </div>
         </div>

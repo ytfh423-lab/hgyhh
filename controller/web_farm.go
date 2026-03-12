@@ -2277,7 +2277,11 @@ func WebFarmFishView(c *gin.Context) {
 	// 短CD
 	lastFish := model.GetLastFishTime(tgId)
 	now := time.Now().Unix()
-	cdRemain := lastFish + int64(common.TgBotFishActionCD) - now
+	cd := int64(common.TgBotFishActionCD)
+	if cd < 5 {
+		cd = 5
+	}
+	cdRemain := lastFish + cd - now
 	if cdRemain < 0 {
 		cdRemain = 0
 	}
@@ -2399,75 +2403,55 @@ func WebFarmFishDo(c *gin.Context) {
 	now := time.Now().Unix()
 
 	// 1. 每日限制检查
-	dailyCount := model.GetFishDailyCount(tgId)
 	dailyIncome := model.GetFishDailyIncome(tgId)
 
-	// 收益CAP模型：主限制是收益CAP，次数上限仅作宽松风控
+	// 收益CAP模型：主限制是收益CAP
 	if common.TgBotFishIncomeCapEnabled {
-		// 风控次数上限（极宽松，正常玩家不应触及）
-		if dailyCount >= common.TgBotFishDailyMaxActions {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼次数已达安全上限，明天再来吧"})
-			return
-		}
-		// 收益CAP检查：超过CAP后根据配置决定是否允许继续
-		overCap := dailyIncome >= common.TgBotFishDailyIncomeCap
-		if overCap && !common.TgBotFishOverCapEnabled {
+		if dailyIncome >= common.TgBotFishDailyIncomeCap {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼收益已达上限，明天再来吧"})
 			return
 		}
 	} else {
-		// 旧模型：双重硬限制（兼容）
-		if dailyCount >= common.TgBotFishDailyMaxActions {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼次数已达上限"})
-			return
-		}
+		// 旧模型：仅保留收益上限
 		if dailyIncome >= common.TgBotFishDailyMaxIncome {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "今日钓鱼收入已达上限"})
 			return
 		}
 	}
 
-	// 2. 体力检查
-	stamina, _ := model.GetFishStamina(tgId)
-	if stamina < common.TgBotFishStaminaCost {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "体力不足，请等待恢复"})
-		return
-	}
-
-	// 3. 短CD检查
+	// 2. 短CD检查（最少5秒）
 	lastFish := model.GetLastFishTime(tgId)
 	cd := int64(common.TgBotFishActionCD)
+	if cd < 5 {
+		cd = 5
+	}
 	if now < lastFish+cd {
 		remain := lastFish + cd - now
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("操作太快，请等待 %d 秒", remain)})
 		return
 	}
 
-	// 4. 扣鱼饵
+	// 3. 扣鱼饵
 	err := model.DecrementFarmItem(tgId, "fishbait")
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有鱼饵！请先到商店购买"})
 		return
 	}
 
-	// 5. 扣体力 & 记录CD
-	model.SetFishStamina(tgId, stamina-common.TgBotFishStaminaCost)
+	// 4. 记录CD
 	model.SetLastFishTime(tgId, now)
 
-	// 6. 风控检测
+	// 5. 风控检测
 	recordFishTimestamp(tgId)
 	if checkFishRisk(tgId) {
 		model.AddFarmLog(tgId, "fish_risk", 0, "钓鱼行为异常：操作间隔高度一致")
 	}
 
-	// 7. 随机钓鱼（含疲劳衰减，兼容旧模型）
+	// 6. 随机钓鱼（含疲劳衰减，兼容旧模型）
 	fish := randomFishWithFatigue(tgId)
 
-	// 8. 增加每日计数
+	// 7. 增加每日计数（仅用于统计/任务/疲劳）
 	model.IncrFishDailyCount(tgId)
-
-	// 获取最新体力用于返回
-	newStamina, newRecoverIn := model.GetFishStamina(tgId)
 
 	// 重新读取每日收入（用于判断是否超CAP）
 	currentDailyIncome := model.GetFishDailyIncome(tgId)
@@ -2479,33 +2463,36 @@ func WebFarmFishDo(c *gin.Context) {
 			"success": true,
 			"message": "空军！什么都没钓到...",
 			"data": gin.H{
-				"caught":     false,
-				"stamina":    newStamina,
-				"recover_in": newRecoverIn,
-				"over_cap":   overCap,
+				"caught":   false,
+				"over_cap": overCap,
 			},
 		})
 		return
 	}
 
-	// 9. 计算实际收益（超CAP时按比例衰减）
+	// 8. 计算实际收益（确保不突破当日收益上限）
 	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
 	effectiveValue := fishValue
-	isOverCapCatch := false
-	if common.TgBotFishIncomeCapEnabled && dailyIncome >= common.TgBotFishDailyIncomeCap {
-		// 超CAP：收益按比例衰减
-		effectiveValue = fishValue * common.TgBotFishOverCapRatio / 100
-		isOverCapCatch = true
+	if common.TgBotFishIncomeCapEnabled {
+		remaining := common.TgBotFishDailyIncomeCap - dailyIncome
+		if remaining < effectiveValue {
+			effectiveValue = remaining
+		}
+	} else {
+		remaining := common.TgBotFishDailyMaxIncome - dailyIncome
+		if remaining < effectiveValue {
+			effectiveValue = remaining
+		}
 	}
+	if effectiveValue < 0 {
+		effectiveValue = 0
+	}
+	isOverCapCatch := effectiveValue < fishValue
 
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
 	model.IncrFishDailyIncome(tgId, effectiveValue)
-	if isOverCapCatch {
-		model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s](休闲模式%d%%)", fish.Emoji, fish.Name, fish.Rarity, common.TgBotFishOverCapRatio))
-	} else {
-		model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
-	}
+	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
 
 	// 钓完后重新检查是否超CAP
 	newDailyIncome := model.GetFishDailyIncome(tgId)
@@ -2513,7 +2500,7 @@ func WebFarmFishDo(c *gin.Context) {
 
 	msg := fmt.Sprintf("钓到了 %s %s！", fish.Emoji, fish.Name)
 	if isOverCapCatch {
-		msg = fmt.Sprintf("🎣 休闲模式：钓到了 %s %s（收益%d%%）", fish.Emoji, fish.Name, common.TgBotFishOverCapRatio)
+		msg = fmt.Sprintf("钓到了 %s %s！本次收益按当日上限封顶结算", fish.Emoji, fish.Name)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -2529,8 +2516,6 @@ func WebFarmFishDo(c *gin.Context) {
 			"effective_price": webFarmQuotaFloat(effectiveValue),
 			"over_cap":        newOverCap,
 			"over_cap_catch":  isOverCapCatch,
-			"stamina":         newStamina,
-			"recover_in":      newRecoverIn,
 		},
 	})
 }

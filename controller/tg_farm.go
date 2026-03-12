@@ -3173,7 +3173,6 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	// 每日统计
 	dailyCount := model.GetFishDailyCount(tgId)
 	dailyIncome := model.GetFishDailyIncome(tgId)
-	dailyMaxActions := common.TgBotFishDailyMaxActions
 	dailyMaxIncome := common.TgBotFishDailyMaxIncome
 
 	// 疲劳状态
@@ -3220,18 +3219,14 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		overCap := dailyIncome >= incomeCap
 		text += fmt.Sprintf("💰 今日收益: %s / %s\n", farmQuotaStr(dailyIncome), farmQuotaStr(incomeCap))
 		if overCap {
-			if common.TgBotFishOverCapEnabled {
-				text += fmt.Sprintf("🎣 已进入休闲模式（收益%d%%）\n", common.TgBotFishOverCapRatio)
-			} else {
-				text += "🚫 今日收益已达上限\n"
-			}
+			text += "🚫 今日收益已达上限\n"
 		} else {
 			remaining := incomeCap - dailyIncome
 			text += fmt.Sprintf("📊 距离上限还差: %s\n", farmQuotaStr(remaining))
 		}
-		text += fmt.Sprintf("📊 今日次数: %d（安全上限%d）\n", dailyCount, dailyMaxActions)
+		text += fmt.Sprintf("📊 今日次数: %d\n", dailyCount)
 	} else {
-		text += fmt.Sprintf("📊 今日: %d/%d次 💰 %s/%s\n", dailyCount, dailyMaxActions, farmQuotaStr(dailyIncome), farmQuotaStr(dailyMaxIncome))
+		text += fmt.Sprintf("📊 今日次数: %d 💰 %s/%s\n", dailyCount, farmQuotaStr(dailyIncome), farmQuotaStr(dailyMaxIncome))
 	}
 	text += fmt.Sprintf("🪱 鱼饵: %d个\n", baitCount)
 
@@ -3239,6 +3234,9 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	lastFish := model.GetLastFishTime(tgId)
 	now := time.Now().Unix()
 	cd := int64(common.TgBotFishActionCD)
+	if cd < 5 {
+		cd = 5
+	}
 	cdRemain := lastFish + cd - now
 	if cdRemain > 0 {
 		text += fmt.Sprintf("⏱️ 操作冷却: %d秒\n", cdRemain)
@@ -3300,24 +3298,16 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	btnText := "🎣 开始钓鱼"
 	if common.TgBotFishIncomeCapEnabled {
 		overCap := dailyIncome >= common.TgBotFishDailyIncomeCap
-		if dailyCount >= dailyMaxActions {
-			btnText = "🚫 今日已达安全上限"
-		} else if overCap && !common.TgBotFishOverCapEnabled {
+		if overCap {
 			btnText = "🚫 今日收益已达上限"
-		} else if stamina < common.TgBotFishStaminaCost {
-			btnText = "⚡ 体力不足"
 		} else if cdRemain > 0 {
 			btnText = fmt.Sprintf("⏱️ 冷却中(%ds)", cdRemain)
 		} else if baitCount <= 0 {
 			btnText = "🪱 缺少鱼饵"
-		} else if overCap {
-			btnText = "🎣 休闲钓鱼"
 		}
 	} else {
-		if dailyCount >= dailyMaxActions {
-			btnText = "🚫 今日已达上限"
-		} else if stamina < common.TgBotFishStaminaCost {
-			btnText = "⚡ 体力不足"
+		if dailyIncome >= common.TgBotFishDailyMaxIncome {
+			btnText = "🚫 今日收益已达上限"
 		} else if cdRemain > 0 {
 			btnText = fmt.Sprintf("⏱️ 冷却中(%ds)", cdRemain)
 		} else if baitCount <= 0 {
@@ -3346,21 +3336,11 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	now := time.Now().Unix()
 
 	// 1. 每日限制检查
-	dailyCount := model.GetFishDailyCount(tgId)
 	dailyIncome := model.GetFishDailyIncome(tgId)
 
 	if common.TgBotFishIncomeCapEnabled {
-		// 收益CAP模型：次数上限仅作宽松风控
-		if dailyCount >= common.TgBotFishDailyMaxActions {
-			farmSend(chatId, editMsgId, "🚫 今日钓鱼次数已达安全上限，明天再来吧！", &TgInlineKeyboardMarkup{
-				InlineKeyboard: [][]TgInlineKeyboardButton{
-					{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
-				},
-			}, from)
-			return
-		}
-		overCap := dailyIncome >= common.TgBotFishDailyIncomeCap
-		if overCap && !common.TgBotFishOverCapEnabled {
+		// 收益CAP模型：保留每日收益硬限制
+		if dailyIncome >= common.TgBotFishDailyIncomeCap {
 			farmSend(chatId, editMsgId, "🚫 今日钓鱼收益已达上限，明天再来吧！", &TgInlineKeyboardMarkup{
 				InlineKeyboard: [][]TgInlineKeyboardButton{
 					{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
@@ -3369,15 +3349,7 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			return
 		}
 	} else {
-		// 旧模型兼容
-		if dailyCount >= common.TgBotFishDailyMaxActions {
-			farmSend(chatId, editMsgId, "🚫 今日钓鱼次数已达上限，明天再来吧！", &TgInlineKeyboardMarkup{
-				InlineKeyboard: [][]TgInlineKeyboardButton{
-					{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
-				},
-			}, from)
-			return
-		}
+		// 旧模型兼容：仅保留每日收益限制
 		if dailyIncome >= common.TgBotFishDailyMaxIncome {
 			farmSend(chatId, editMsgId, "🚫 今日钓鱼收入已达上限，明天再来吧！", &TgInlineKeyboardMarkup{
 				InlineKeyboard: [][]TgInlineKeyboardButton{
@@ -3388,20 +3360,12 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		}
 	}
 
-	// 2. 体力检查
-	stamina, _ := model.GetFishStamina(tgId)
-	if stamina < common.TgBotFishStaminaCost {
-		farmSend(chatId, editMsgId, "⚡ 体力不足！请等待体力恢复", &TgInlineKeyboardMarkup{
-			InlineKeyboard: [][]TgInlineKeyboardButton{
-				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
-			},
-		}, from)
-		return
-	}
-
-	// 3. 短CD检查
+	// 2. 短CD检查
 	lastFish := model.GetLastFishTime(tgId)
 	cd := int64(common.TgBotFishActionCD)
+	if cd < 5 {
+		cd = 5
+	}
 	if now < lastFish+cd {
 		remain := lastFish + cd - now
 		farmSend(chatId, editMsgId, fmt.Sprintf("⏱️ 操作太快，请等待 %d 秒", remain), &TgInlineKeyboardMarkup{
@@ -3412,7 +3376,7 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 4. 鱼饵检查
+	// 3. 鱼饵检查
 	err := model.DecrementFarmItem(tgId, "fishbait")
 	if err != nil {
 		farmSend(chatId, editMsgId, "❌ 没有鱼饵！请先到商店购买🪱鱼饵", &TgInlineKeyboardMarkup{
@@ -3424,32 +3388,25 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 5. 扣体力 & 记录CD
-	model.SetFishStamina(tgId, stamina-common.TgBotFishStaminaCost)
+	// 4. 记录CD
 	model.SetLastFishTime(tgId, now)
 
-	// 6. 风控检测
+	// 5. 风控检测
 	recordFishTimestamp(tgId)
 	if checkFishRisk(tgId) {
 		model.AddFarmLog(tgId, "fish_risk", 0, "钓鱼行为异常：操作间隔高度一致")
 	}
 
-	// 7. 随机钓鱼（含疲劳衰减，兼容旧模型）
+	// 6. 随机钓鱼（含疲劳衰减，兼容旧模型）
 	fish := randomFishWithFatigue(tgId)
 
-	// 8. 增加每日计数
+	// 7. 增加每日计数（仅用于统计/任务/疲劳）
 	model.IncrFishDailyCount(tgId)
-
-	newStamina, recoverIn := model.GetFishStamina(tgId)
-	staminaInfo := fmt.Sprintf("\n⚡ 体力: %d/%d", newStamina, common.TgBotFishStaminaMax)
-	if newStamina < common.TgBotFishStaminaMax && recoverIn > 0 {
-		staminaInfo += fmt.Sprintf(" (恢复: %ds)", recoverIn)
-	}
 
 	if fish == nil {
 		// 空军
 		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
-		farmSend(chatId, editMsgId, fmt.Sprintf("🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n消耗了1个鱼饵%s", staminaInfo), &TgInlineKeyboardMarkup{
+		farmSend(chatId, editMsgId, "🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n消耗了1个鱼饵", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🎣 再钓一次", CallbackData: "farm_dofish"}},
 				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
@@ -3458,23 +3415,28 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 9. 计算实际收益（超CAP时按比例衰减）
+	// 8. 计算实际收益（确保不突破当日收益上限）
 	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
 	effectiveValue := fishValue
-	isOverCapCatch := false
-	if common.TgBotFishIncomeCapEnabled && dailyIncome >= common.TgBotFishDailyIncomeCap {
-		effectiveValue = fishValue * common.TgBotFishOverCapRatio / 100
-		isOverCapCatch = true
+	if common.TgBotFishIncomeCapEnabled {
+		remaining := common.TgBotFishDailyIncomeCap - dailyIncome
+		if remaining < effectiveValue {
+			effectiveValue = remaining
+		}
+	} else {
+		remaining := common.TgBotFishDailyMaxIncome - dailyIncome
+		if remaining < effectiveValue {
+			effectiveValue = remaining
+		}
+	}
+	if effectiveValue < 0 {
+		effectiveValue = 0
 	}
 
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
 	model.IncrFishDailyIncome(tgId, effectiveValue)
-	if isOverCapCatch {
-		model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s](休闲模式%d%%)", fish.Emoji, fish.Name, fish.Rarity, common.TgBotFishOverCapRatio))
-	} else {
-		model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
-	}
+	model.AddFarmLog(tgId, "fish", 0, fmt.Sprintf("钓到%s%s[%s]", fish.Emoji, fish.Name, fish.Rarity))
 
 	rarityMsg := ""
 	if fish.Rarity == "稀有" {
@@ -3485,13 +3447,8 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		rarityMsg = "🏆🎊 传说级！！！"
 	}
 
-	overCapTag := ""
-	if isOverCapCatch {
-		overCapTag = fmt.Sprintf("\n🎣 休闲模式（收益%d%%）", common.TgBotFishOverCapRatio)
-	}
-
-	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s%s\n%s%s",
-		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(fish.SellPrice), overCapTag, rarityMsg, staminaInfo)
+	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s",
+		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(effectiveValue), rarityMsg)
 
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
