@@ -46,9 +46,14 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
     const prizeIdx = data.sector_index ?? Math.floor(Math.random() * sectorCount);
     // Pointer is at top (0°). Sector 0 starts at 0°.
     // To land on prizeIdx, rotate so that sector's center aligns with top.
+    // Keep rotation continuous by solving against current angle modulo 360.
     const targetSectorCenter = prizeIdx * sectorAngle + sectorAngle / 2;
+    const desiredAngle = (360 - targetSectorCenter + 360) % 360;
+    const currentAngle = ((rotation % 360) + 360) % 360;
+    let delta = desiredAngle - currentAngle;
+    if (delta <= 0) delta += 360; // always spin forward
     const extraSpins = 5 * 360; // 5 full rotations
-    const newRotation = rotation + extraSpins + (360 - targetSectorCenter);
+    const newRotation = rotation + extraSpins + delta;
     setRotation(newRotation);
     // Show result after spin animation
     setTimeout(() => setShowResult(true), 4200);
