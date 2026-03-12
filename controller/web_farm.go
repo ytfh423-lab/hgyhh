@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -2319,7 +2320,7 @@ func WebFarmFishView(c *gin.Context) {
 		Name      string  `json:"name"`
 		Emoji     string  `json:"emoji"`
 		Rarity    string  `json:"rarity"`
-		Chance    int     `json:"chance"`
+		Chance    float64 `json:"chance"`
 		SellPrice float64 `json:"sell_price"`
 	}
 	var types []fishTypeInfo
@@ -2328,9 +2329,9 @@ func WebFarmFishView(c *gin.Context) {
 		if fatigueActive && (ft.Rarity == "稀有" || ft.Rarity == "史诗" || ft.Rarity == "传说") {
 			w = w * (100 - common.TgBotFishFatigueDecay) / 100
 		}
-		pct := 0
+		pct := 0.0
 		if adjTotal > 0 {
-			pct = w * 100 / adjTotal
+			pct = math.Round(float64(w)*1000.0/float64(adjTotal)) / 10.0
 		}
 		types = append(types, fishTypeInfo{
 			Key:       ft.Key,
@@ -2341,9 +2342,9 @@ func WebFarmFishView(c *gin.Context) {
 			SellPrice: webFarmQuotaFloat(ft.SellPrice),
 		})
 	}
-	nothingPct := 0
+	nothingPct := 0.0
 	if adjTotal > 0 {
-		nothingPct = common.TgBotFishNothingWeight * 100 / adjTotal
+		nothingPct = math.Round(float64(common.TgBotFishNothingWeight)*1000.0/float64(adjTotal)) / 10.0
 	}
 
 	c.JSON(http.StatusOK, gin.H{
