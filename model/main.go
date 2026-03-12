@@ -314,6 +314,8 @@ func migrateDB() error {
 		&TgFarmEntrustWorker{},
 		&TgFarmEntrustLog{},
 		&TgFarmEntrustEscrow{},
+		&FarmStealConfig{},
+		&FarmStealConfigLog{},
 	)
 	if err != nil {
 		return err

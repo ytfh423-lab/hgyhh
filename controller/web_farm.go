@@ -67,9 +67,11 @@ type webPlotInfo struct {
 	Fertilized    int     `json:"fertilized"`
 	LastWateredAt int64   `json:"last_watered_at"`
 	WaterRemain   int64   `json:"water_remain"`
-	DeathRemain   int64   `json:"death_remain"`
-	StatusLabel   string  `json:"status_label"`
-	SoilLevel     int     `json:"soil_level"`
+	DeathRemain      int64   `json:"death_remain"`
+	StatusLabel      string  `json:"status_label"`
+	SoilLevel        int     `json:"soil_level"`
+	ProtectionRemain int64   `json:"protection_remain"` // 保护期剩余秒数
+	OwnerKeepPct     int     `json:"owner_keep_pct"`    // 主人保底比例%
 }
 
 func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
@@ -132,6 +134,16 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 		}
 	case 2:
 		info.StatusLabel = "已成熟"
+		if crop != nil {
+			stealCfg := model.GetStealConfig()
+			info.OwnerKeepPct = int(getStealKeepRatio(crop, stealCfg) * 100)
+			if plot.MaturedAt > 0 {
+				protEnd := plot.MaturedAt + getStealProtectionSeconds(crop, stealCfg)
+				if now < protEnd {
+					info.ProtectionRemain = protEnd - now
+				}
+			}
+		}
 	case 3:
 		wiltDuration3 := int64(common.TgBotFarmWiltDuration)
 		deathAt3 := plot.EventAt + wiltDuration3
@@ -520,6 +532,7 @@ func WebFarmHarvest(c *gin.Context) {
 		updateFarmPlotStatus(plot)
 	}
 
+	stealCfg := model.GetStealConfig()
 	totalQuota := 0
 	harvestedCount := 0
 	var details []map[string]interface{}
@@ -530,20 +543,15 @@ func WebFarmHarvest(c *gin.Context) {
 			if crop == nil {
 				continue
 			}
-			yield := 1 + rand.Intn(crop.MaxYield)
+			baseYield := 1 + rand.Intn(crop.MaxYield)
 			fertBonus := 0
 			if plot.Fertilized == 1 {
-				fertBonus = yield / 2
+				fertBonus = baseYield / 2
 				if fertBonus < 1 {
 					fertBonus = 1
 				}
-				yield += fertBonus
 			}
-			loss := plot.StolenCount
-			realYield := yield - loss
-			if realYield < 0 {
-				realYield = 0
-			}
+			realYield, guaranteed, stolenLoss := calcHarvestYield(baseYield, fertBonus, plot.StolenCount, crop, stealCfg)
 			marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
 			seasonPrice := applySeasonPrice(marketPrice, crop)
 			value := realYield * seasonPrice
@@ -553,9 +561,10 @@ func WebFarmHarvest(c *gin.Context) {
 			details = append(details, map[string]interface{}{
 				"crop_name":    crop.Name,
 				"crop_emoji":   crop.Emoji,
-				"yield":        yield - fertBonus,
+				"yield":        baseYield,
 				"fert_bonus":   fertBonus,
-				"stolen":       loss,
+				"stolen":       stolenLoss,
+				"guaranteed":   guaranteed,
 				"real_yield":   realYield,
 				"value":        webFarmQuotaFloat(value),
 				"in_season":    isCropInSeason(crop),
@@ -724,11 +733,17 @@ func WebFarmStealTargets(c *gin.Context) {
 	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
 		return
 	}
-	targets, err := model.GetMatureFarmTargets(tgId)
+	cfg := model.GetStealConfig()
+	if !cfg.StealEnabled {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}, "steal_disabled": true})
+		return
+	}
+	targets, err := model.GetMatureFarmTargetsV2(tgId, cfg.MaxStealPerPlot)
 	if err != nil || len(targets) == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
 		return
 	}
+	thiefToday := model.CountThiefStealsToday(tgId)
 	var result []map[string]interface{}
 	for _, t := range targets {
 		result = append(result, map[string]interface{}{
@@ -737,7 +752,16 @@ func WebFarmStealTargets(c *gin.Context) {
 			"count": t.Count,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+		"steal_info": gin.H{
+			"today_count":   thiefToday,
+			"daily_limit":   cfg.MaxStealPerUserPerDay,
+			"cooldown_secs": cfg.StealCooldownSeconds,
+			"keep_ratio":    int(cfg.OwnerBaseKeepRatio * 100),
+		},
+	})
 }
 
 // WebFarmSteal steals from another player
@@ -749,6 +773,13 @@ func WebFarmSteal(c *gin.Context) {
 	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockSteal, "偷菜") {
 		return
 	}
+
+	cfg := model.GetStealConfig()
+	if !cfg.StealEnabled {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "偷菜功能当前已关闭"})
+		return
+	}
+
 	var req struct {
 		VictimId string `json:"victim_id"`
 	}
@@ -761,40 +792,85 @@ func WebFarmSteal(c *gin.Context) {
 		return
 	}
 
-	now := time.Now().Unix()
-	recentSteals, _ := model.CountRecentSteals(tgId, req.VictimId, now-int64(common.TgBotFarmStealCooldown))
-	if recentSteals > 0 {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("冷却中！%d分钟内只能偷同一人一次", common.TgBotFarmStealCooldown/60)})
+	// 每日偷菜次数限制
+	thiefToday := model.CountThiefStealsToday(tgId)
+	if thiefToday >= int64(cfg.MaxStealPerUserPerDay) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("今日偷菜次数已达上限（%d次）", cfg.MaxStealPerUserPerDay)})
 		return
 	}
 
-	// Check victim's scarecrow
+	// 目标农场每日被偷限制
+	farmStolenToday := model.CountFarmStolenToday(req.VictimId)
+	if farmStolenToday >= int64(cfg.MaxStealPerFarmPerDay) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该农场今日已受保护"})
+		return
+	}
+
+	// 冷却
+	now := time.Now().Unix()
+	recentSteals, _ := model.CountRecentSteals(tgId, req.VictimId, now-int64(cfg.StealCooldownSeconds))
+	if recentSteals > 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("冷却中！%d分钟内只能偷同一人一次", cfg.StealCooldownSeconds/60)})
+		return
+	}
+
+	// 稻草人
 	if model.HasAutomation(req.VictimId, "scarecrow") {
-		if rand.Intn(100) < common.TgBotFarmScarecrowDefenseRate {
+		if rand.Intn(100) < cfg.ScarecrowBlockRate {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "对方的稻草人吓跑了你，偷菜失败！🧑‍🌾"})
 			return
 		}
 	}
 
-	// Check victim's dog
+	// 看门狗
 	victimDog, dogErr := model.GetFarmDog(req.VictimId)
 	if dogErr == nil {
 		model.UpdateDogHunger(victimDog)
 		if victimDog.Level == 2 && victimDog.Hunger > 0 {
-			if rand.Intn(100) < common.TgBotFarmDogGuardRate {
+			if rand.Intn(100) < cfg.DogGuardRate {
 				c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("对方的看门狗「%s」发现了你，偷菜失败！", victimDog.Name)})
 				return
 			}
 		}
 	}
 
-	plots, err := model.GetStealablePlots(req.VictimId)
+	// 偷取成功率
+	if cfg.StealSuccessRate < 100 && rand.Intn(100) >= cfg.StealSuccessRate {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "手一滑，偷菜失败了！"})
+		return
+	}
+
+	// 获取可偷地块
+	plots, err := model.GetStealablePlotsV2(req.VictimId, cfg.MaxStealPerPlot)
 	if err != nil || len(plots) == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该玩家没有可偷的成熟作物"})
 		return
 	}
 
-	target := plots[rand.Intn(len(plots))]
+	// 过滤保护期和超长周期
+	var stealable []*model.TgFarmPlot
+	for _, p := range plots {
+		crop := farmCropMap[p.CropType]
+		if crop == nil {
+			continue
+		}
+		if isPlotInProtection(p, crop, cfg) {
+			continue
+		}
+		if cfg.LongCropProtectionEnabled && cfg.SuperLongCropBonusOnly {
+			hours := float64(crop.GrowSecs) / 3600.0
+			if hours >= float64(cfg.SuperLongCropHoursThreshold) {
+				continue
+			}
+		}
+		stealable = append(stealable, p)
+	}
+	if len(stealable) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该玩家的作物仍在保护期内"})
+		return
+	}
+
+	target := stealable[rand.Intn(len(stealable))]
 	crop := farmCropMap[target.CropType]
 	cropName := "作物"
 	cropEmoji := "🌿"
@@ -805,30 +881,53 @@ func WebFarmSteal(c *gin.Context) {
 		unitPrice = crop.UnitPrice
 	}
 
-	stealUnits := 1 + rand.Intn(3)
-	stealValue := stealUnits * unitPrice
+	// 计算可偷单位
+	keepRatio := getStealKeepRatio(crop, cfg)
+	maxYield := 1
+	if crop != nil {
+		maxYield = crop.MaxYield
+	}
+	maxStealableUnits := int(float64(maxYield) * (1.0 - keepRatio))
+	if maxStealableUnits < 1 {
+		maxStealableUnits = 1
+	}
+	remainStealable := maxStealableUnits - target.StolenCount
+	if remainStealable <= 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "这块地的可偷收益已被摘完"})
+		return
+	}
 
-	_ = model.IncrementPlotStolenCount(target.Id)
-	_ = model.CreateFarmStealLog(&model.TgFarmStealLog{
-		ThiefId:  tgId,
-		VictimId: req.VictimId,
-		PlotId:   target.Id,
-		Amount:   stealValue,
-	})
+	stealUnits := 1
+	if remainStealable < stealUnits {
+		stealUnits = remainStealable
+	}
+	marketPrice := applyMarket(unitPrice, "crop_"+crop.Key)
+	stealValue := stealUnits * marketPrice
+
+	_ = model.IncrementPlotStolenBy(target.Id, stealUnits)
+	if cfg.EnableStealLog {
+		_ = model.CreateFarmStealLog(&model.TgFarmStealLog{
+			ThiefId:  tgId,
+			VictimId: req.VictimId,
+			PlotId:   target.Id,
+			Amount:   stealValue,
+		})
+	}
 	_ = model.IncreaseUserQuota(user.Id, stealValue, true)
-	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("偷取%s%s×%d", cropEmoji, cropName, stealUnits))
+	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("摘取%s%s额外收益×%d", cropEmoji, cropName, stealUnits))
 
-	common.SysLog(fmt.Sprintf("Web Farm: user %s stole %s from %s, +%d quota", tgId, cropName, req.VictimId, stealValue))
+	common.SysLog(fmt.Sprintf("Web Farm: user %s stole %s bonus from %s, +%d quota", tgId, cropName, req.VictimId, stealValue))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("偷了 %d个%s%s，获得 $%.2f", stealUnits, cropEmoji, cropName, webFarmQuotaFloat(stealValue)),
+		"message": fmt.Sprintf("摘取了 %d个%s%s 的额外收益，获得 $%.2f（对方基础收益不受影响）", stealUnits, cropEmoji, cropName, webFarmQuotaFloat(stealValue)),
 		"data": gin.H{
 			"victim":     maskTgId(req.VictimId),
 			"crop_name":  cropName,
 			"crop_emoji": cropEmoji,
 			"units":      stealUnits,
 			"value":      webFarmQuotaFloat(stealValue),
+			"bonus_only": true,
 		},
 	})
 }

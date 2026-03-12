@@ -51,6 +51,7 @@ import PublicInviteCode from './pages/PublicInviteCode';
 import Farm from './pages/Farm';
 import BetaApplicationsAdmin from './pages/Farm/BetaApplicationsAdmin';
 import BetaAIConfigAdmin from './pages/Farm/BetaAIConfigAdmin';
+import StealConfigAdmin from './pages/Farm/StealConfigAdmin';
 import DeletionRequestPage from './pages/DeletionRequest';
 import CheckinLeaderboard from './pages/CheckinLeaderboard';
 import TgBotPage from './pages/TgBot';
@@ -234,6 +235,14 @@ function App() {
           element={
             <AdminRoute>
               <BetaAIConfigAdmin />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/farm-steal-config'
+          element={
+            <AdminRoute>
+              <StealConfigAdmin />
             </AdminRoute>
           }
         />

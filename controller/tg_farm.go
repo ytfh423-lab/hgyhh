@@ -397,7 +397,62 @@ var farmCropMap map[string]*farmCropDef
 var farmCropByShort map[string]*farmCropDef
 var farmItemMap map[string]*farmItemDef
 
-const farmMaxSteals = 2
+// ========== 偷菜辅助函数 ==========
+
+// getStealKeepRatio 根据作物生长时间和配置返回主人保底比例
+func getStealKeepRatio(crop *farmCropDef, cfg *model.FarmStealConfig) float64 {
+	hours := float64(crop.GrowSecs) / 3600.0
+	if cfg.LongCropProtectionEnabled {
+		if hours >= float64(cfg.SuperLongCropHoursThreshold) {
+			return 1.0 // 超长周期：如果 bonus_only 则全部保底
+		}
+		if hours >= float64(cfg.LongCropHoursThreshold) {
+			return cfg.LongCropOwnerKeepRatio
+		}
+	}
+	return cfg.OwnerBaseKeepRatio
+}
+
+// getStealProtectionSeconds 根据作物和配置返回保护期秒数
+func getStealProtectionSeconds(crop *farmCropDef, cfg *model.FarmStealConfig) int64 {
+	base := int64(cfg.OwnerProtectionMinutes) * 60
+	if cfg.LongCropProtectionEnabled {
+		hours := float64(crop.GrowSecs) / 3600.0
+		if hours >= float64(cfg.LongCropHoursThreshold) {
+			base += int64(cfg.LongCropProtectionExtraMin) * 60
+		}
+	}
+	return base
+}
+
+// isPlotInProtection 检查地块是否在保护期内
+func isPlotInProtection(plot *model.TgFarmPlot, crop *farmCropDef, cfg *model.FarmStealConfig) bool {
+	if plot.MaturedAt == 0 {
+		return false
+	}
+	protSecs := getStealProtectionSeconds(crop, cfg)
+	return time.Now().Unix() < plot.MaturedAt+protSecs
+}
+
+// calcHarvestYield 计算收获产量（保底机制）
+func calcHarvestYield(baseYield int, fertBonus int, stolenCount int, crop *farmCropDef, cfg *model.FarmStealConfig) (realYield int, guaranteedYield int, stolenLoss int) {
+	totalYield := baseYield + fertBonus
+	keepRatio := getStealKeepRatio(crop, cfg)
+	guaranteedYield = int(float64(totalYield)*keepRatio + 0.999) // ceil
+	if guaranteedYield < 1 {
+		guaranteedYield = 1
+	}
+	maxLoss := totalYield - guaranteedYield
+	if maxLoss < 0 {
+		maxLoss = 0
+	}
+	stolenLoss = stolenCount
+	if stolenLoss > maxLoss {
+		stolenLoss = maxLoss
+	}
+	realYield = totalYield - stolenLoss
+	return
+}
 
 // ========== 市场价格波动（桥接新引擎） ==========
 
@@ -528,6 +583,7 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 		matureAt := plot.PlantedAt + growSecs
 		if now >= matureAt {
 			plot.Status = 2
+			plot.MaturedAt = now
 			changed = true
 		}
 	}
@@ -1045,9 +1101,17 @@ func farmPlotLine(plot *model.TgFarmPlot) string {
 		}
 		stolen := ""
 		if plot.StolenCount > 0 {
-			stolen = fmt.Sprintf(" ⚠️被偷%d次", plot.StolenCount)
+			stolen = fmt.Sprintf(" 🍃被摘%d", plot.StolenCount)
 		}
-		return fmt.Sprintf("✅ %d号地 - %s%s 已成熟！%s%s", crop.Emoji, crop.Name, stolen, soilTag, "")
+		protTag := ""
+		cfg := model.GetStealConfig()
+		if isPlotInProtection(plot, crop, cfg) {
+			remain := plot.MaturedAt + getStealProtectionSeconds(crop, cfg) - time.Now().Unix()
+			if remain > 0 {
+				protTag = fmt.Sprintf(" 🛡️保护%s", formatDuration(remain))
+			}
+		}
+		return fmt.Sprintf("✅ %d号地 - %s%s 已成熟！%s%s%s", crop.Emoji, crop.Name, stolen, protTag, soilTag, "")
 	case 3:
 		crop := farmCropMap[plot.CropType]
 		emoji := "❓"
@@ -1336,6 +1400,7 @@ func doFarmHarvestSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		updateFarmPlotStatus(plot)
 	}
 
+	stealCfg := model.GetStealConfig()
 	totalQuota := 0
 	harvestedCount := 0
 	details := ""
@@ -1345,20 +1410,15 @@ func doFarmHarvestSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if crop == nil {
 				continue
 			}
-			yield := 1 + rand.Intn(crop.MaxYield)
+			baseYield := 1 + rand.Intn(crop.MaxYield)
 			fertBonus := 0
 			if plot.Fertilized == 1 {
-				fertBonus = yield / 2
+				fertBonus = baseYield / 2
 				if fertBonus < 1 {
 					fertBonus = 1
 				}
-				yield += fertBonus
 			}
-			loss := plot.StolenCount
-			realYield := yield - loss
-			if realYield < 0 {
-				realYield = 0
-			}
+			realYield, _, stolenLoss := calcHarvestYield(baseYield, fertBonus, plot.StolenCount, crop, stealCfg)
 			// 市场价 × 季节倍率
 			marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
 			seasonPrice := applySeasonPrice(marketPrice, crop)
@@ -1372,12 +1432,12 @@ func doFarmHarvestSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if !isCropInSeason(crop) {
 				seasonTag = "反季"
 			}
-			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield-fertBonus)
+			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, baseYield)
 			if fertBonus > 0 {
 				details += fmt.Sprintf(" +化肥%d", fertBonus)
 			}
-			if loss > 0 {
-				details += fmt.Sprintf(" -被偷%d", loss)
+			if stolenLoss > 0 {
+				details += fmt.Sprintf(" -被摘%d", stolenLoss)
 			}
 			details += fmt.Sprintf(" = 实收%d × %s(市场%d%%×%s%d%%) = %s",
 				realYield, farmQuotaStr(seasonPrice), mPct, seasonTag, sPct, farmQuotaStr(value))
@@ -1426,6 +1486,7 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 		updateFarmPlotStatus(plot)
 	}
 
+	stealCfg := model.GetStealConfig()
 	currentTotal := model.GetWarehouseTotalCount(tgId)
 	harvestedCount := 0
 	storedTotal := 0
@@ -1436,20 +1497,15 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			if crop == nil {
 				continue
 			}
-			yield := 1 + rand.Intn(crop.MaxYield)
+			baseYield := 1 + rand.Intn(crop.MaxYield)
 			fertBonus := 0
 			if plot.Fertilized == 1 {
-				fertBonus = yield / 2
+				fertBonus = baseYield / 2
 				if fertBonus < 1 {
 					fertBonus = 1
 				}
-				yield += fertBonus
 			}
-			loss := plot.StolenCount
-			realYield := yield - loss
-			if realYield < 0 {
-				realYield = 0
-			}
+			realYield, _, stolenLoss := calcHarvestYield(baseYield, fertBonus, plot.StolenCount, crop, stealCfg)
 
 			whLevel := model.GetWarehouseLevel(tgId)
 			whMax := model.GetWarehouseMaxSlots(whLevel)
@@ -1463,12 +1519,12 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			harvestedCount++
 			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 
-			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, yield-fertBonus)
+			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, baseYield)
 			if fertBonus > 0 {
 				details += fmt.Sprintf(" +化肥%d", fertBonus)
 			}
-			if loss > 0 {
-				details += fmt.Sprintf(" -被偷%d", loss)
+			if stolenLoss > 0 {
+				details += fmt.Sprintf(" -被摘%d", stolenLoss)
 			}
 			details += fmt.Sprintf(" = 入仓%d", realYield)
 
@@ -1609,22 +1665,40 @@ func doFarmBuy(chatId int64, editMsgId int, tgId string, itemKey string, qty int
 // ========== 偷菜 ==========
 
 func showFarmStealTargets(chatId int64, editMsgId int, tgId string, from *TgUser) {
-	targets, err := model.GetMatureFarmTargets(tgId)
-	if err != nil || len(targets) == 0 {
-		farmSend(chatId, editMsgId, "🕵️ 暂时没有可偷的菜地。\n\n等其他玩家的作物成熟后再来！", &TgInlineKeyboardMarkup{
-			InlineKeyboard: [][]TgInlineKeyboardButton{
-				{{Text: "🔙 返回农场", CallbackData: "farm"}},
-			},
-		}, from)
+	cfg := model.GetStealConfig()
+	backBtn := &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🔙 返回农场", CallbackData: "farm"}},
+		},
+	}
+
+	if !cfg.StealEnabled {
+		farmSend(chatId, editMsgId, "🚫 偷菜功能当前已关闭。", backBtn, from)
 		return
 	}
-	text := "🕵️ 可偷菜的农场：\n\n"
+
+	// 检查今日次数
+	thiefToday := model.CountThiefStealsToday(tgId)
+	if thiefToday >= int64(cfg.MaxStealPerUserPerDay) {
+		farmSend(chatId, editMsgId, fmt.Sprintf("⏳ 今日偷菜次数已达上限（%d/%d次）。明天再来！",
+			thiefToday, cfg.MaxStealPerUserPerDay), backBtn, from)
+		return
+	}
+
+	targets, err := model.GetMatureFarmTargetsV2(tgId, cfg.MaxStealPerPlot)
+	if err != nil || len(targets) == 0 {
+		farmSend(chatId, editMsgId, "🕵️ 暂时没有可偷的菜地。\n\n等其他玩家的作物成熟后再来！", backBtn, from)
+		return
+	}
+	text := fmt.Sprintf("🕵️ 可摘取额外收益的农场：\n\n📋 规则: 主人保底%d%% | 每地最多偷%d次 | 保护期%d分钟\n📊 今日: %d/%d次\n\n",
+		int(cfg.OwnerBaseKeepRatio*100), cfg.MaxStealPerPlot, cfg.OwnerProtectionMinutes,
+		thiefToday, cfg.MaxStealPerUserPerDay)
 	var rows [][]TgInlineKeyboardButton
 	for _, t := range targets {
 		masked := maskTgId(t.TelegramId)
-		text += fmt.Sprintf("👤 %s - %d块成熟的地\n", masked, t.Count)
+		text += fmt.Sprintf("👤 %s - %d块可摘\n", masked, t.Count)
 		rows = append(rows, []TgInlineKeyboardButton{
-			{Text: fmt.Sprintf("🕵️ 偷 %s 的菜", masked),
+			{Text: fmt.Sprintf("🕵️ 摘 %s 的额外收益", masked),
 				CallbackData: "farm_st_" + t.TelegramId},
 		})
 	}
@@ -1636,100 +1710,160 @@ func showFarmStealTargets(chatId int64, editMsgId int, tgId string, from *TgUser
 }
 
 func doFarmSteal(chatId int64, editMsgId int, tgId string, victimId string, from *TgUser) {
+	backBtn := &TgInlineKeyboardMarkup{
+		InlineKeyboard: [][]TgInlineKeyboardButton{
+			{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"}, {Text: "🔙 返回", CallbackData: "farm"}},
+		},
+	}
+
 	if tgId == victimId {
 		farmSend(chatId, editMsgId, "❌ 不能偷自己的菜！", nil, from)
 		return
 	}
+
+	cfg := model.GetStealConfig()
+	if !cfg.StealEnabled {
+		farmSend(chatId, editMsgId, "🚫 偷菜功能当前已关闭。", backBtn, from)
+		return
+	}
+
 	user, err := getFarmUser(tgId)
 	if err != nil {
 		farmBindingError(chatId, editMsgId, from)
 		return
 	}
 
-	now := time.Now().Unix()
-	recentSteals, _ := model.CountRecentSteals(tgId, victimId, now-int64(common.TgBotFarmStealCooldown))
-	if recentSteals > 0 {
-		cooldownMin := common.TgBotFarmStealCooldown / 60
-		farmSend(chatId, editMsgId, fmt.Sprintf("⏳ 冷却中！%d分钟内只能偷同一人一次。", cooldownMin), &TgInlineKeyboardMarkup{
-			InlineKeyboard: [][]TgInlineKeyboardButton{
-				{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
-					{Text: "🔙 返回", CallbackData: "farm"}},
-			},
-		}, from)
+	// 每日偷菜次数限制（偷方）
+	thiefToday := model.CountThiefStealsToday(tgId)
+	if thiefToday >= int64(cfg.MaxStealPerUserPerDay) {
+		farmSend(chatId, editMsgId, fmt.Sprintf("⏳ 今日偷菜次数已达上限（%d次）。明天再来！", cfg.MaxStealPerUserPerDay), backBtn, from)
 		return
 	}
 
-	// 检查对方是否有稻草人
+	// 目标农场每日被偷次数限制
+	farmStolenToday := model.CountFarmStolenToday(victimId)
+	if farmStolenToday >= int64(cfg.MaxStealPerFarmPerDay) {
+		farmSend(chatId, editMsgId, "🛡️ 该农场今日已被偷过多次，受到保护了。", backBtn, from)
+		return
+	}
+
+	// 冷却
+	now := time.Now().Unix()
+	recentSteals, _ := model.CountRecentSteals(tgId, victimId, now-int64(cfg.StealCooldownSeconds))
+	if recentSteals > 0 {
+		cooldownMin := cfg.StealCooldownSeconds / 60
+		farmSend(chatId, editMsgId, fmt.Sprintf("⏳ 冷却中！%d分钟内只能偷同一人一次。", cooldownMin), backBtn, from)
+		return
+	}
+
+	// 稻草人拦截
 	if model.HasAutomation(victimId, "scarecrow") {
-		if rand.Intn(100) < common.TgBotFarmScarecrowDefenseRate {
-			farmSend(chatId, editMsgId, "🧑‍🌾 对方的稻草人吓跑了你，偷菜失败！", &TgInlineKeyboardMarkup{
-				InlineKeyboard: [][]TgInlineKeyboardButton{
-					{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
-						{Text: "🔙 返回", CallbackData: "farm"}},
-				},
-			}, from)
+		if rand.Intn(100) < cfg.ScarecrowBlockRate {
+			farmSend(chatId, editMsgId, "🧑‍🌾 对方的稻草人吓跑了你，偷菜失败！", backBtn, from)
 			return
 		}
 	}
 
-	// 检查对方是否有看门狗
+	// 看门狗拦截
 	victimDog, dogErr := model.GetFarmDog(victimId)
 	if dogErr == nil {
 		model.UpdateDogHunger(victimDog)
 		if victimDog.Level == 2 && victimDog.Hunger > 0 {
-			// 成犬且未饿坏：有概率拦截
-			if rand.Intn(100) < common.TgBotFarmDogGuardRate {
+			if rand.Intn(100) < cfg.DogGuardRate {
 				farmSend(chatId, editMsgId, fmt.Sprintf("🐕 %s 的看门狗「%s」发现了你，偷菜失败！",
-					maskTgId(victimId), victimDog.Name), &TgInlineKeyboardMarkup{
-					InlineKeyboard: [][]TgInlineKeyboardButton{
-						{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
-							{Text: "🔙 返回", CallbackData: "farm"}},
-					},
-				}, from)
+					maskTgId(victimId), victimDog.Name), backBtn, from)
 				return
 			}
 		}
 	}
 
-	plots, err := model.GetStealablePlots(victimId)
-	if err != nil || len(plots) == 0 {
-		farmSend(chatId, editMsgId, "❌ 该玩家没有可偷的成熟作物了。", &TgInlineKeyboardMarkup{
-			InlineKeyboard: [][]TgInlineKeyboardButton{
-				{{Text: "🕵️ 看看别人", CallbackData: "farm_steal"},
-					{Text: "🔙 返回", CallbackData: "farm"}},
-			},
-		}, from)
+	// 偷取成功率
+	if cfg.StealSuccessRate < 100 && rand.Intn(100) >= cfg.StealSuccessRate {
+		farmSend(chatId, editMsgId, "😅 手一滑，偷菜失败了！", backBtn, from)
 		return
 	}
 
-	target := plots[rand.Intn(len(plots))]
+	// 获取可偷地块（考虑单块偷取上限）
+	plots, err := model.GetStealablePlotsV2(victimId, cfg.MaxStealPerPlot)
+	if err != nil || len(plots) == 0 {
+		farmSend(chatId, editMsgId, "❌ 该玩家没有可偷的成熟作物了。", backBtn, from)
+		return
+	}
+
+	// 过滤保护期内的地块
+	var stealable []*model.TgFarmPlot
+	for _, p := range plots {
+		crop := farmCropMap[p.CropType]
+		if crop == nil {
+			continue
+		}
+		if isPlotInProtection(p, crop, cfg) {
+			continue
+		}
+		// 超长周期仅可偷 bonus 模式下，跳过没有 bonus 的作物
+		if cfg.LongCropProtectionEnabled && cfg.SuperLongCropBonusOnly {
+			hours := float64(crop.GrowSecs) / 3600.0
+			if hours >= float64(cfg.SuperLongCropHoursThreshold) {
+				continue // 超长周期作物不可偷
+			}
+		}
+		stealable = append(stealable, p)
+	}
+	if len(stealable) == 0 {
+		farmSend(chatId, editMsgId, "🛡️ 该玩家的作物仍在保护期内，暂时不能偷。", backBtn, from)
+		return
+	}
+
+	target := stealable[rand.Intn(len(stealable))]
 	crop := farmCropMap[target.CropType]
 	cropName := "作物"
 	cropEmoji := "🌿"
-	unitPrice := 10000 // fallback
+	unitPrice := 10000
 	if crop != nil {
 		cropName = crop.Name
 		cropEmoji = crop.Emoji
 		unitPrice = crop.UnitPrice
 	}
 
-	// 偷取随机 1~3 个单位
-	stealUnits := 1 + rand.Intn(3)
-	stealValue := stealUnits * unitPrice
+	// 计算可偷单位数：基于可偷比例
+	keepRatio := getStealKeepRatio(crop, cfg)
+	maxYield := 1
+	if crop != nil {
+		maxYield = crop.MaxYield
+	}
+	maxStealableUnits := int(float64(maxYield) * (1.0 - keepRatio))
+	if maxStealableUnits < 1 {
+		maxStealableUnits = 1
+	}
+	remainStealable := maxStealableUnits - target.StolenCount
+	if remainStealable <= 0 {
+		farmSend(chatId, editMsgId, "❌ 这块地的可偷收益已经被摘完了。", backBtn, from)
+		return
+	}
 
-	_ = model.IncrementPlotStolenCount(target.Id)
-	_ = model.CreateFarmStealLog(&model.TgFarmStealLog{
-		ThiefId:  tgId,
-		VictimId: victimId,
-		PlotId:   target.Id,
-		Amount:   stealValue,
-	})
+	// 偷取 1 个单位（温和偷菜）
+	stealUnits := 1
+	if remainStealable < stealUnits {
+		stealUnits = remainStealable
+	}
+	marketPrice := applyMarket(unitPrice, "crop_"+crop.Key)
+	stealValue := stealUnits * marketPrice
+
+	_ = model.IncrementPlotStolenBy(target.Id, stealUnits)
+	if cfg.EnableStealLog {
+		_ = model.CreateFarmStealLog(&model.TgFarmStealLog{
+			ThiefId:  tgId,
+			VictimId: victimId,
+			PlotId:   target.Id,
+			Amount:   stealValue,
+		})
+	}
 	_ = model.IncreaseUserQuota(user.Id, stealValue, true)
-	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("偷取%s%s×%d", cropEmoji, cropName, stealUnits))
+	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("摘取%s%s额外收益×%d", cropEmoji, cropName, stealUnits))
 
-	common.SysLog(fmt.Sprintf("TG Farm: user %s stole %s from %s, +%d quota", tgId, cropName, victimId, stealValue))
+	common.SysLog(fmt.Sprintf("TG Farm: user %s stole %s bonus from %s, +%d quota", tgId, cropName, victimId, stealValue))
 
-	text := fmt.Sprintf("🕵️ 偷菜成功！\n\n你从 %s 的农场偷了 %d个%s%s\n💰 获得 %s 额度",
+	text := fmt.Sprintf("🕵️ 偷菜成功！\n\n你从 %s 的农场摘取了 %d个%s%s 的额外收益\n💰 获得 %s\n\n💡 对方的基础收益不受影响。",
 		maskTgId(victimId), stealUnits, cropEmoji, cropName, farmQuotaStr(stealValue))
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{

@@ -23,6 +23,7 @@ type TgFarmPlot struct {
 	EventType   string `json:"event_type" gorm:"type:varchar(32)"`
 	EventAt     int64  `json:"event_at"`
 	StolenCount   int    `json:"stolen_count" gorm:"default:0"`
+	MaturedAt     int64  `json:"matured_at" gorm:"default:0"`     // 成熟时间戳（用于保护期计算）
 	Fertilized    int    `json:"fertilized" gorm:"default:0"`    // 0=未施肥 1=已施肥
 	LastWateredAt int64  `json:"last_watered_at" gorm:"default:0"` // 上次浇水时间
 	SoilLevel     int    `json:"soil_level" gorm:"default:1"`     // 泥土等级 1-5
