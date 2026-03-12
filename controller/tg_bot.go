@@ -989,6 +989,9 @@ func GetTgBotSettings(c *gin.Context) {
 			"farm_announcement_enabled": common.OptionMap["FarmAnnouncementEnabled"],
 			"farm_announcement_text":    common.OptionMap["FarmAnnouncementText"],
 			"farm_announcement_type":    common.OptionMap["FarmAnnouncementType"],
+			// 官方群组按钮
+			"farm_group_enabled": common.OptionMap["FarmGroupEnabled"],
+			"farm_group_link":    common.OptionMap["FarmGroupLink"],
 		},
 	})
 }

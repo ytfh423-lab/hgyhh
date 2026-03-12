@@ -150,6 +150,10 @@ const TgBotPage = () => {
   const [farmAnnText, setFarmAnnText] = useState('');
   const [farmAnnType, setFarmAnnType] = useState('info');
   const [savingFarmAnn, setSavingFarmAnn] = useState(false);
+  // 官方群组按钮
+  const [farmGroupEnabled, setFarmGroupEnabled] = useState(false);
+  const [farmGroupLink, setFarmGroupLink] = useState('');
+  const [savingFarmGroup, setSavingFarmGroup] = useState(false);
   const [savingFarm, setSavingFarm] = useState(false);
   const [resetLevel, setResetLevel] = useState(1);
   // ===== 农场用户列表 =====
@@ -262,6 +266,9 @@ const TgBotPage = () => {
         setFarmAnnEnabled(data.farm_announcement_enabled === true || data.farm_announcement_enabled === 'true');
         setFarmAnnText(data.farm_announcement_text || '');
         setFarmAnnType(data.farm_announcement_type || 'info');
+        // 官方群组按钮
+        setFarmGroupEnabled(data.farm_group_enabled === true || data.farm_group_enabled === 'true');
+        setFarmGroupLink(data.farm_group_link || '');
         setBotToken('');
       }
     } catch (err) {
@@ -1503,6 +1510,73 @@ const TgBotPage = () => {
             }}
           >
             {t('保存公告设置')}
+          </Button>
+        </div>
+      </Card>
+
+      {/* ===== 官方群组按钮设置 ===== */}
+      <Card
+        title={<span>✈️ {t('官方群组按钮')}</span>}
+        className='mt-4'
+      >
+        <div className='mb-4'>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <Typography.Text style={{ width: 200 }}>{t('启用群组按钮')}</Typography.Text>
+            <Switch checked={farmGroupEnabled} onChange={setFarmGroupEnabled} />
+            <Typography.Text type='tertiary' style={{ marginLeft: 12 }}>
+              {farmGroupEnabled ? t('已开启') : t('已关闭')}
+            </Typography.Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Typography.Text style={{ display: 'block', marginBottom: 8 }}>{t('群组链接')}</Typography.Text>
+            <Input
+              value={farmGroupLink}
+              onChange={setFarmGroupLink}
+              placeholder={t('输入 Telegram 群组链接，如 https://t.me/your_group')}
+              style={{ width: '100%' }}
+            />
+            <Typography.Text type='tertiary' size='small' style={{ display: 'block', marginTop: 4 }}>
+              {t('开启后农场页面右下角会显示一个 TG 风格的“加入群组”浮动按钮')}
+            </Typography.Text>
+          </div>
+          {farmGroupEnabled && farmGroupLink && (
+            <div style={{
+              marginBottom: 16, padding: '12px 18px', borderRadius: 12,
+              background: 'rgba(0,136,204,0.08)', border: '1.5px solid rgba(0,136,204,0.3)',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <span style={{ fontSize: 22 }}>✈️</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0088cc' }}>{t('加入官方群组')}</div>
+                <div style={{ fontSize: 11, color: '#666', wordBreak: 'break-all' }}>{farmGroupLink}</div>
+              </div>
+            </div>
+          )}
+          <Button
+            theme='solid'
+            type='primary'
+            loading={savingFarmGroup}
+            onClick={async () => {
+              setSavingFarmGroup(true);
+              try {
+                const opts = [
+                  { key: 'FarmGroupEnabled', value: farmGroupEnabled ? 'true' : 'false' },
+                  { key: 'FarmGroupLink', value: farmGroupLink },
+                ];
+                for (const opt of opts) {
+                  const res = await API.put('/api/option/', opt);
+                  if (!res.data.success) { showError(res.data.message); return; }
+                }
+                showSuccess(t('群组按钮设置已保存'));
+                await loadSettings();
+              } catch (err) {
+                showError(t('保存失败'));
+              } finally {
+                setSavingFarmGroup(false);
+              }
+            }}
+          >
+            {t('保存群组设置')}
           </Button>
         </div>
       </Card>

@@ -419,6 +419,7 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.GET("/game/list", controller.WebFarmGameList)
 			farmRoute.POST("/game/play", controller.WebFarmGamePlay)
 			farmRoute.GET("/announcement", controller.WebFarmAnnouncement)
+			farmRoute.GET("/group-config", controller.WebFarmGroupConfig)
 			farmRoute.GET("/trade", controller.WebFarmTradeList)
 			farmRoute.POST("/trade/create", controller.WebFarmTradeCreate)
 			farmRoute.POST("/trade/buy", controller.WebFarmTradeBuy)

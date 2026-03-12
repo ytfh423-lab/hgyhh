@@ -41,6 +41,38 @@ import { FEATURE_LEVEL_MAP } from './constants';
 
 const { Text, Title } = Typography;
 
+/* ── Floating "Join Group" TG-style button ── */
+const JoinGroupButton = ({ t }) => {
+  const [config, setConfig] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: res } = await API.get('/api/farm/group-config');
+        if (res.success && res.data && res.data.enabled) {
+          setConfig(res.data);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  }, []);
+  if (!config) return null;
+  return (
+    <a
+      href={config.link}
+      target='_blank'
+      rel='noopener noreferrer'
+      className='farm-join-group-btn'
+      title={t('加入官方群组')}
+    >
+      <span className='tg-icon'>
+        <svg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+          <path d='M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z'/>
+        </svg>
+      </span>
+      <span className='tg-label'>{t('加入群组')}</span>
+    </a>
+  );
+};
+
 const LockedPage = ({ feature, userLevel, onGoToLevel, t }) => (
   <div className='farm-locked-wrap'>
     <div className='farm-locked-card'>
@@ -502,6 +534,7 @@ const Farm = () => {
             </div>
           </div>
         </div>
+        <JoinGroupButton t={t} />
         <MobileBottomNav
           activeKey={activePage}
           onNavigate={navigateTo}
