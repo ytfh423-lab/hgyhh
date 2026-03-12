@@ -1772,10 +1772,10 @@ func WebFarmLevelUp(c *gin.Context) {
 		return
 	}
 
-	// 有未还贷款时禁止升级
+	// 有未还抵押贷款时禁止升级（信用贷款允许升级）
 	activeLoan, loanErr := model.GetActiveLoan(tgId)
-	if loanErr == nil && activeLoan != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你有未还清的贷款，还清后才能升级！贷款资金不能用于升级。"})
+	if loanErr == nil && activeLoan != nil && activeLoan.LoanType == 1 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你有未还清的抵押贷款，还清后才能升级！抵押贷款资金不能用于升级。"})
 		return
 	}
 

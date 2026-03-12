@@ -404,24 +404,17 @@ func calcSupplyDemandDelta(key string, sdMap map[string]*sdData, cfg *marketItem
 	if !ok {
 		return 0
 	}
-	// 供过于求: sell >> buy => 价格下降
-	// 供不应求: buy >> sell => 价格上升
-	netDemand := sd.TotalBuy - sd.TotalSell
-	totalVolume := sd.TotalSell + sd.TotalBuy
-	if totalVolume == 0 {
+	// 只根据购买/消耗量推动价格：买得多 → 需求旺 → 涨价
+	// 出售量不再压低价格（避免玩家卖货越多亏越多的"火耗"体验）
+	if sd.TotalBuy == 0 {
 		return 0
 	}
-
-	// 归一化: netDemand / totalVolume * sensitivity
-	ratio := float64(netDemand) / float64(totalVolume)
-	// clamp ratio to [-1, 1]
-	if ratio > 1 {
-		ratio = 1
+	// 购买量越大，推力越强，但有上限
+	buyPressure := float64(sd.TotalBuy) / 100.0
+	if buyPressure > 1 {
+		buyPressure = 1
 	}
-	if ratio < -1 {
-		ratio = -1
-	}
-	delta := int(ratio * float64(cfg.SupplySensitivity) / 10.0)
+	delta := int(buyPressure * float64(cfg.SupplySensitivity) / 10.0)
 	return delta
 }
 
