@@ -56,6 +56,11 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
                 {crop.tier_name && (
                   <span style={{ padding: '1px 6px', fontSize: 10, borderRadius: 3, background: TIER_COLORS[crop.tier] || '#999', color: '#fff' }}>{crop.tier_name}</span>
                 )}
+                {crop.in_season !== undefined && (
+                  crop.in_season
+                    ? <span style={{ padding: '1px 6px', fontSize: 10, borderRadius: 3, background: '#52c41a', color: '#fff' }}>🏷️{t('应季')}</span>
+                    : <span style={{ padding: '1px 6px', fontSize: 10, borderRadius: 3, background: '#fa8c16', color: '#fff' }}>📈{t('反季')}</span>
+                )}
                 <span className='farm-pill farm-pill-green' style={{ padding: '1px 8px', fontSize: 11 }}>${crop.seed_cost?.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', gap: 8, fontSize: 11, flexWrap: 'wrap', paddingLeft: 30 }}>
@@ -105,6 +110,14 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
                   {activeCrop.tags.map((tag) => (
                     <span key={tag} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: (TAG_COLORS[tag] || '#999') + '22', color: TAG_COLORS[tag] || '#999', border: `1px solid ${TAG_COLORS[tag] || '#999'}44` }}>{tag}</span>
                   ))}
+                </div>
+              )}
+              {activeCrop.in_season !== undefined && (
+                <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 6, background: activeCrop.in_season ? '#f6ffed' : '#fff7e6', border: `1px solid ${activeCrop.in_season ? '#b7eb8f' : '#ffd591'}` }}>
+                  <Text style={{ fontSize: 12, color: activeCrop.in_season ? '#389e0d' : '#d46b08' }}>
+                    {activeCrop.in_season ? '🏷️ 应季优势：' : '📈 反季效果：'}
+                    {t('生长')}{activeCrop.season_grow_pct}% · {t('产量')}{activeCrop.season_yield_pct}% · {t('事件')}{activeCrop.season_event_info}
+                  </Text>
                 </div>
               )}
             </div>

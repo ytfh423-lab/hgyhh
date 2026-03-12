@@ -193,6 +193,10 @@ func InitOptionMap() {
 	common.OptionMap["TgBotFarmSeasonOffBonus"] = strconv.Itoa(common.TgBotFarmSeasonOffBonus)
 	common.OptionMap["TgBotFarmSeasonInGrowth"] = strconv.Itoa(common.TgBotFarmSeasonInGrowth)
 	common.OptionMap["TgBotFarmSeasonOffGrowth"] = strconv.Itoa(common.TgBotFarmSeasonOffGrowth)
+	common.OptionMap["TgBotFarmSeasonInYield"] = strconv.Itoa(common.TgBotFarmSeasonInYield)
+	common.OptionMap["TgBotFarmSeasonOffYield"] = strconv.Itoa(common.TgBotFarmSeasonOffYield)
+	common.OptionMap["TgBotFarmSeasonOffEventBonus"] = strconv.Itoa(common.TgBotFarmSeasonOffEventBonus)
+	common.OptionMap["TgBotFarmSeasonOffWaterPenalty"] = strconv.Itoa(common.TgBotFarmSeasonOffWaterPenalty)
 	common.OptionMap["TgBotFarmWarehouseMaxSlots"] = strconv.Itoa(common.TgBotFarmWarehouseMaxSlots)
 	common.OptionMap["TgBotFarmWarehouseMeatExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseMeatExpiry)
 	common.OptionMap["TgBotFarmWarehouseRecipeExpiry"] = strconv.Itoa(common.TgBotFarmWarehouseRecipeExpiry)
@@ -800,6 +804,38 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 		if common.TgBotFarmSeasonOffGrowth > 300 {
 			common.TgBotFarmSeasonOffGrowth = 300
+		}
+	case "TgBotFarmSeasonInYield":
+		common.TgBotFarmSeasonInYield, _ = strconv.Atoi(value)
+		if common.TgBotFarmSeasonInYield < 100 {
+			common.TgBotFarmSeasonInYield = 100
+		}
+		if common.TgBotFarmSeasonInYield > 200 {
+			common.TgBotFarmSeasonInYield = 200
+		}
+	case "TgBotFarmSeasonOffYield":
+		common.TgBotFarmSeasonOffYield, _ = strconv.Atoi(value)
+		if common.TgBotFarmSeasonOffYield < 10 {
+			common.TgBotFarmSeasonOffYield = 10
+		}
+		if common.TgBotFarmSeasonOffYield > 100 {
+			common.TgBotFarmSeasonOffYield = 100
+		}
+	case "TgBotFarmSeasonOffEventBonus":
+		common.TgBotFarmSeasonOffEventBonus, _ = strconv.Atoi(value)
+		if common.TgBotFarmSeasonOffEventBonus < 0 {
+			common.TgBotFarmSeasonOffEventBonus = 0
+		}
+		if common.TgBotFarmSeasonOffEventBonus > 200 {
+			common.TgBotFarmSeasonOffEventBonus = 200
+		}
+	case "TgBotFarmSeasonOffWaterPenalty":
+		common.TgBotFarmSeasonOffWaterPenalty, _ = strconv.Atoi(value)
+		if common.TgBotFarmSeasonOffWaterPenalty < 0 {
+			common.TgBotFarmSeasonOffWaterPenalty = 0
+		}
+		if common.TgBotFarmSeasonOffWaterPenalty > 50 {
+			common.TgBotFarmSeasonOffWaterPenalty = 50
 		}
 	case "TgBotFarmWarehouseMaxSlots":
 		common.TgBotFarmWarehouseMaxSlots, _ = strconv.Atoi(value)

@@ -98,7 +98,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
           <div className='farm-pill farm-pill-blue'>{t('容量')}: {whData.total}/{whData.max_slots}</div>
         </div>
         <Banner type='info' style={{ borderRadius: 10 }}
-          description={t('应季作物价格低，反季价格高。建议应季存入仓库，等反季再出售！')} />
+          description={t('应季：价低但产量高、长得快、风险低；反季：价高但产量低、长得慢、风险高。综合考虑再决定何时出售！')} />
       </div>
 
       {items.length === 0 ? (

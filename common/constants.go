@@ -196,6 +196,10 @@ var TgBotFarmSeasonInBonus = 70           // 应季价格倍率%（默认70%=打
 var TgBotFarmSeasonOffBonus = 140         // 反季价格倍率%（默认140%=涨40%）
 var TgBotFarmSeasonInGrowth = 80          // 应季生长时间倍率%（默认80%=加速20%）
 var TgBotFarmSeasonOffGrowth = 130        // 反季生长时间倍率%（默认130%=减速30%）
+var TgBotFarmSeasonInYield = 115          // 应季产量倍率%（默认115%=增产15%）
+var TgBotFarmSeasonOffYield = 80          // 反季产量倍率%（默认80%=减产20%）
+var TgBotFarmSeasonOffEventBonus = 50     // 反季事件概率增幅%（默认+50%）
+var TgBotFarmSeasonOffWaterPenalty = 25   // 反季浇水间隔缩短%（默认缩25%）
 var TgBotFarmWarehouseMaxSlots = 100          // 仓库基础存储格数（1级）
 var TgBotFarmWarehouseMeatExpiry = 259200     // 肉类基础保质期秒数（默认3天）
 var TgBotFarmWarehouseRecipeExpiry = 432000   // 加工食品基础保质期秒数（默认5天）

@@ -115,6 +115,12 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 					growSecs = 60
 				}
 			}
+			// 季节生长时间修正
+			seasonGrowPct := getSeasonGrowthMultiplier(crop, plot.PlantedAt)
+			growSecs = growSecs * int64(seasonGrowPct) / 100
+			if growSecs < 60 {
+				growSecs = 60
+			}
 			info.GrowSecs = growSecs
 			elapsed := now - plot.PlantedAt
 			pct := int(elapsed * 100 / growSecs)
@@ -128,7 +134,7 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 			}
 		}
 		if plot.LastWateredAt > 0 {
-			waterInterval := int64(common.TgBotFarmWaterInterval)
+			waterInterval := getSeasonWaterInterval(int64(common.TgBotFarmWaterInterval), crop, plot.PlantedAt)
 			nextWater := plot.LastWateredAt + waterInterval - now
 			info.WaterRemain = nextWater
 		}
@@ -348,6 +354,16 @@ func WebFarmCrops(c *gin.Context) {
 		avgYield := float64(1+crop.MaxYield) / 2.0
 		avgProfit := avgYield*float64(crop.UnitPrice) - float64(crop.SeedCost)
 		avgProfitPerHour := avgProfit / hours
+		nowTs := time.Now().Unix()
+		inSeason := isCropInSeason(&crop)
+		seasonGrowPct := getSeasonGrowthMultiplier(&crop, nowTs)
+		seasonYieldPct := getSeasonYieldMultiplier(&crop, nowTs)
+		var seasonEventInfo string
+		if inSeason {
+			seasonEventInfo = "正常"
+		} else {
+			seasonEventInfo = fmt.Sprintf("+%d%%", common.TgBotFarmSeasonOffEventBonus)
+		}
 		crops = append(crops, map[string]interface{}{
 			"key":                  crop.Key,
 			"short":                crop.Short,
@@ -363,6 +379,11 @@ func WebFarmCrops(c *gin.Context) {
 			"tier":                 tierKey,
 			"tier_name":            tierName,
 			"tags":                 tags,
+			"season":               crop.Season,
+			"in_season":            inSeason,
+			"season_grow_pct":      seasonGrowPct,
+			"season_yield_pct":     seasonYieldPct,
+			"season_event_info":    seasonEventInfo,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": crops})
@@ -506,13 +527,15 @@ func WebFarmPlant(c *gin.Context) {
 
 	// 教程期间不触发随机事件
 	inTutorial := model.IsFarmTutorialActive(tgId)
-	if !inTutorial && rand.Intn(100) < common.TgBotFarmEventChance {
+	bugChance := getSeasonEventChance(common.TgBotFarmEventChance, crop, now)
+	if !inTutorial && rand.Intn(100) < bugChance {
 		targetPlot.EventType = "bugs"
 		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
-	// 拥有灌溉自动化则跳过干旱
-	if !inTutorial && targetPlot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < common.TgBotFarmDisasterChance {
+	// 拥有灌溉自动化则跳过干旱；反季概率更高
+	droughtChance := getSeasonEventChance(common.TgBotFarmDisasterChance, crop, now)
+	if !inTutorial && targetPlot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < droughtChance {
 		targetPlot.EventType = "drought"
 		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
@@ -551,7 +574,13 @@ func WebFarmHarvest(c *gin.Context) {
 			if crop == nil {
 				continue
 			}
-			baseYield := 1 + rand.Intn(crop.MaxYield)
+			rawYield := 1 + rand.Intn(crop.MaxYield)
+			// 季节产量修正
+			yieldMult := getSeasonYieldMultiplier(crop, plot.PlantedAt)
+			baseYield := rawYield * yieldMult / 100
+			if baseYield < 1 {
+				baseYield = 1
+			}
 			fertBonus := 0
 			if plot.Fertilized == 1 {
 				fertBonus = baseYield / 2
@@ -569,7 +598,9 @@ func WebFarmHarvest(c *gin.Context) {
 			details = append(details, map[string]interface{}{
 				"crop_name":    crop.Name,
 				"crop_emoji":   crop.Emoji,
+				"raw_yield":    rawYield,
 				"yield":        baseYield,
+				"yield_mult":   yieldMult,
 				"fert_bonus":   fertBonus,
 				"stolen":       stolenLoss,
 				"guaranteed":   guaranteed,
@@ -2676,38 +2707,47 @@ func WebFarmSeasonInfo(c *gin.Context) {
 	season := getCurrentSeason()
 	daysLeft := getSeasonDaysLeft()
 	// 各作物季节和当前售价
+	nowTs := time.Now().Unix()
 	var crops []gin.H
 	for _, crop := range farmCrops {
 		marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
 		seasonPrice := applySeasonPrice(marketPrice, &crop)
 		tierKey, tierName := getCropTier(&crop)
 		crops = append(crops, gin.H{
-			"key":          crop.Key,
-			"name":         crop.Name,
-			"emoji":        crop.Emoji,
-			"season":       crop.Season,
-			"season_name":  seasonNames[crop.Season],
-			"in_season":    isCropInSeason(&crop),
-			"unit_price":   webFarmQuotaFloat(crop.UnitPrice),
-			"market_price": webFarmQuotaFloat(marketPrice),
-			"season_price": webFarmQuotaFloat(seasonPrice),
-			"season_pct":   getSeasonPriceMultiplier(&crop),
-			"tier":         tierKey,
-			"tier_name":    tierName,
-			"tags":         getCropTags(&crop),
+			"key":              crop.Key,
+			"name":             crop.Name,
+			"emoji":            crop.Emoji,
+			"season":           crop.Season,
+			"season_name":      seasonNames[crop.Season],
+			"in_season":        isCropInSeason(&crop),
+			"unit_price":       webFarmQuotaFloat(crop.UnitPrice),
+			"market_price":     webFarmQuotaFloat(marketPrice),
+			"season_price":     webFarmQuotaFloat(seasonPrice),
+			"season_pct":       getSeasonPriceMultiplier(&crop),
+			"season_grow_pct":  getSeasonGrowthMultiplier(&crop, nowTs),
+			"season_yield_pct": getSeasonYieldMultiplier(&crop, nowTs),
+			"tier":             tierKey,
+			"tier_name":        tierName,
+			"tags":             getCropTags(&crop),
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"season":       season,
-			"season_name":  seasonNames[season],
-			"season_emoji": seasonEmojis[season],
-			"days_left":    daysLeft,
-			"season_days":  common.TgBotFarmSeasonDays,
-			"in_bonus":     common.TgBotFarmSeasonInBonus,
-			"off_bonus":    common.TgBotFarmSeasonOffBonus,
-			"crops":        crops,
+			"season":            season,
+			"season_name":       seasonNames[season],
+			"season_emoji":      seasonEmojis[season],
+			"days_left":         daysLeft,
+			"season_days":       common.TgBotFarmSeasonDays,
+			"in_bonus":          common.TgBotFarmSeasonInBonus,
+			"off_bonus":         common.TgBotFarmSeasonOffBonus,
+			"in_growth":         common.TgBotFarmSeasonInGrowth,
+			"off_growth":        common.TgBotFarmSeasonOffGrowth,
+			"in_yield":          common.TgBotFarmSeasonInYield,
+			"off_yield":         common.TgBotFarmSeasonOffYield,
+			"off_event_bonus":   common.TgBotFarmSeasonOffEventBonus,
+			"off_water_penalty": common.TgBotFarmSeasonOffWaterPenalty,
+			"crops":             crops,
 		},
 	})
 }

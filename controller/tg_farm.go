@@ -101,6 +101,41 @@ func getSeasonGrowthMultiplier(crop *farmCropDef, plantedAt int64) int {
 	return common.TgBotFarmSeasonOffGrowth
 }
 
+// getSeasonYieldMultiplier 获取作物的季节产量倍率%（基于种植时的季节）
+func getSeasonYieldMultiplier(crop *farmCropDef, plantedAt int64) int {
+	if crop.Season == getSeasonAt(plantedAt) {
+		return common.TgBotFarmSeasonInYield
+	}
+	return common.TgBotFarmSeasonOffYield
+}
+
+// isCropInSeasonAt 判断作物在指定时间是否应季
+func isCropInSeasonAt(crop *farmCropDef, plantedAt int64) bool {
+	return crop.Season == getSeasonAt(plantedAt)
+}
+
+// getSeasonEventChance 计算考虑季节后的事件概率
+func getSeasonEventChance(baseChance int, crop *farmCropDef, plantedAt int64) int {
+	if isCropInSeasonAt(crop, plantedAt) {
+		return baseChance
+	}
+	// 反季：概率增加
+	return baseChance * (100 + common.TgBotFarmSeasonOffEventBonus) / 100
+}
+
+// getSeasonWaterInterval 计算考虑季节后的浇水间隔
+func getSeasonWaterInterval(baseInterval int64, crop *farmCropDef, plantedAt int64) int64 {
+	if isCropInSeasonAt(crop, plantedAt) {
+		return baseInterval
+	}
+	// 反季：浇水间隔缩短
+	result := baseInterval * int64(100-common.TgBotFarmSeasonOffWaterPenalty) / 100
+	if result < 600 {
+		result = 600 // 最尐10分钟
+	}
+	return result
+}
+
 // getSeasonPriceMultiplier 获取季节价格倍率（百分比）
 func getSeasonPriceMultiplier(crop *farmCropDef) int {
 	if isCropInSeason(crop) {
@@ -578,9 +613,10 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 
 	matureAt := plot.PlantedAt + growSecs
 
-	// 浇水检查：生长中的作物需要定期浇水
+	// 浇水检查：生长中的作物需要定期浇水（反季间隔更短）
 	if plot.Status == 1 && plot.LastWateredAt > 0 {
-		waterDeadline := plot.LastWateredAt + int64(common.TgBotFarmWaterInterval)
+		waterInterval := getSeasonWaterInterval(int64(common.TgBotFarmWaterInterval), crop, plot.PlantedAt)
+		waterDeadline := plot.LastWateredAt + waterInterval
 		if now >= waterDeadline {
 			// 如果作物在水耗尽前（或同时）已成熟，优先判定为成熟
 			if matureAt <= waterDeadline {
@@ -1356,14 +1392,16 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 		actualGrowSecs = 60
 	}
 
-	// 虫害事件
-	if rand.Intn(100) < common.TgBotFarmEventChance {
+	// 虫害事件（反季概率更高）
+	bugChance := getSeasonEventChance(common.TgBotFarmEventChance, crop, now)
+	if rand.Intn(100) < bugChance {
 		targetPlot.EventType = "bugs"
 		offset := actualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
-	// 天灾(干旱)：独立概率，不与虫害叠加；拥有灌溉自动化则跳过
-	if targetPlot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < common.TgBotFarmDisasterChance {
+	// 天灾(干旱)：独立概率，不与虫害叠加；拥有灌溉自动化则跳过；反季概率更高
+	droughtChance := getSeasonEventChance(common.TgBotFarmDisasterChance, crop, now)
+	if targetPlot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < droughtChance {
 		targetPlot.EventType = "drought"
 		offset := actualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
@@ -1456,7 +1494,13 @@ func doFarmHarvestSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if crop == nil {
 				continue
 			}
-			baseYield := 1 + rand.Intn(crop.MaxYield)
+			rawYield := 1 + rand.Intn(crop.MaxYield)
+			// 季节产量修正
+			yieldMult := getSeasonYieldMultiplier(crop, plot.PlantedAt)
+			baseYield := rawYield * yieldMult / 100
+			if baseYield < 1 {
+				baseYield = 1
+			}
 			fertBonus := 0
 			if plot.Fertilized == 1 {
 				fertBonus = baseYield / 2
@@ -1478,7 +1522,10 @@ func doFarmHarvestSell(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			if !isCropInSeason(crop) {
 				seasonTag = "反季"
 			}
-			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, baseYield)
+			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, rawYield)
+			if yieldMult != 100 {
+				details += fmt.Sprintf("×季%d%%→%d", yieldMult, baseYield)
+			}
 			if fertBonus > 0 {
 				details += fmt.Sprintf(" +化肥%d", fertBonus)
 			}
@@ -1543,7 +1590,13 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			if crop == nil {
 				continue
 			}
-			baseYield := 1 + rand.Intn(crop.MaxYield)
+			rawYield := 1 + rand.Intn(crop.MaxYield)
+			// 季节产量修正
+			yieldMult := getSeasonYieldMultiplier(crop, plot.PlantedAt)
+			baseYield := rawYield * yieldMult / 100
+			if baseYield < 1 {
+				baseYield = 1
+			}
 			fertBonus := 0
 			if plot.Fertilized == 1 {
 				fertBonus = baseYield / 2
@@ -1565,7 +1618,10 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 			harvestedCount++
 			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 
-			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, baseYield)
+			details += fmt.Sprintf("\n%s %s: 产量%d", crop.Emoji, crop.Name, rawYield)
+			if yieldMult != 100 {
+				details += fmt.Sprintf("×季%d%%→%d", yieldMult, baseYield)
+			}
 			if fertBonus > 0 {
 				details += fmt.Sprintf(" +化肥%d", fertBonus)
 			}
@@ -1590,7 +1646,7 @@ func doFarmHarvestStore(chatId int64, editMsgId int, tgId string, from *TgUser) 
 
 	model.AddFarmLog(tgId, "harvest", 0, fmt.Sprintf("收获入仓%d种作物共%d个", harvestedCount, storedTotal))
 
-	text := fmt.Sprintf("📦 收获入仓完成！\n%s\n\n共存入 %d 个作物到仓库\n💡 等反季高价时再出售！", details, storedTotal)
+	text := fmt.Sprintf("📦 收获入仓完成！\n%s\n\n共存入 %d 个作物到仓库\n💡 可在市场价高时出售，注意应季产量高但价低，反季价高但产量低", details, storedTotal)
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
 			{{Text: "📦 查看仓库", CallbackData: "farm_warehouse"}},

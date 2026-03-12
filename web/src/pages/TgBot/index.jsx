@@ -127,6 +127,10 @@ const TgBotPage = () => {
   const [farmSeasonOffBonus, setFarmSeasonOffBonus] = useState(140);
   const [farmSeasonInGrowth, setFarmSeasonInGrowth] = useState(80);
   const [farmSeasonOffGrowth, setFarmSeasonOffGrowth] = useState(130);
+  const [farmSeasonInYield, setFarmSeasonInYield] = useState(115);
+  const [farmSeasonOffYield, setFarmSeasonOffYield] = useState(80);
+  const [farmSeasonOffEventBonus, setFarmSeasonOffEventBonus] = useState(50);
+  const [farmSeasonOffWaterPenalty, setFarmSeasonOffWaterPenalty] = useState(25);
   const [farmWarehouseMaxSlots, setFarmWarehouseMaxSlots] = useState(100);
   // 农场公告
   const [farmAnnEnabled, setFarmAnnEnabled] = useState(false);
@@ -223,6 +227,10 @@ const TgBotPage = () => {
         setFarmSeasonOffBonus(data.farm_season_off_bonus ?? 140);
         setFarmSeasonInGrowth(data.farm_season_in_growth ?? 80);
         setFarmSeasonOffGrowth(data.farm_season_off_growth ?? 130);
+        setFarmSeasonInYield(data.farm_season_in_yield ?? 115);
+        setFarmSeasonOffYield(data.farm_season_off_yield ?? 80);
+        setFarmSeasonOffEventBonus(data.farm_season_off_event_bonus ?? 50);
+        setFarmSeasonOffWaterPenalty(data.farm_season_off_water_penalty ?? 25);
         setFarmWarehouseMaxSlots(data.farm_warehouse_max_slots ?? 100);
         // 农场公告
         setFarmAnnEnabled(data.farm_announcement_enabled === true || data.farm_announcement_enabled === 'true');
@@ -1191,6 +1199,26 @@ const TgBotPage = () => {
             <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越高长得越慢')}</Typography.Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🌾 {t('应季产量倍率(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonInYield} onChange={setFarmSeasonInYield} min={100} max={200} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越高产量越多')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>🌾 {t('反季产量倍率(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonOffYield} onChange={setFarmSeasonOffYield} min={10} max={100} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越低产量越少')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>⚠️ {t('反季事件概率加成(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonOffEventBonus} onChange={setFarmSeasonOffEventBonus} min={0} max={200} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('0=无额外风险')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 200 }}>💧 {t('反季浇水频率加成(%)')}</Typography.Text>
+            <InputNumber value={farmSeasonOffWaterPenalty} onChange={setFarmSeasonOffWaterPenalty} min={0} max={50} style={{ width: 120 }} />
+            <Typography.Text type='tertiary' size='small' style={{ marginLeft: 8 }}>{t('越高浇水越频繁')}</Typography.Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <Typography.Text style={{ width: 200 }}>📦 {t('仓库最大容量')}</Typography.Text>
             <InputNumber value={farmWarehouseMaxSlots} onChange={setFarmWarehouseMaxSlots} min={10} max={1000} style={{ width: 120 }} />
           </div>
@@ -1267,6 +1295,10 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmSeasonOffBonus', value: String(farmSeasonOffBonus) },
                   { key: 'TgBotFarmSeasonInGrowth', value: String(farmSeasonInGrowth) },
                   { key: 'TgBotFarmSeasonOffGrowth', value: String(farmSeasonOffGrowth) },
+                  { key: 'TgBotFarmSeasonInYield', value: String(farmSeasonInYield) },
+                  { key: 'TgBotFarmSeasonOffYield', value: String(farmSeasonOffYield) },
+                  { key: 'TgBotFarmSeasonOffEventBonus', value: String(farmSeasonOffEventBonus) },
+                  { key: 'TgBotFarmSeasonOffWaterPenalty', value: String(farmSeasonOffWaterPenalty) },
                   { key: 'TgBotFarmWarehouseMaxSlots', value: String(farmWarehouseMaxSlots) },
                 ];
                 for (const opt of farmOptions) {
