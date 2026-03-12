@@ -27,6 +27,9 @@ jobs:
             platform: linux/arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    permissions:
+      packages: write
+      contents: read
 
     steps:
       - name: Check out
@@ -86,6 +89,9 @@ jobs:
     name: Create multi-arch manifests (Docker Hub)
     needs: [build_single_arch]
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
       - name: Resolve tag
         run: |
