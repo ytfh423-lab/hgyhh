@@ -57,6 +57,8 @@ const routerMap = {
   farm_beta_apps: '/console/farm-beta-apps',
   farm_beta_ai_config: '/console/farm-beta-ai-config',
   farm_steal_config: '/console/farm-steal-config',
+  feedback: '/feedback',
+  feedback_admin: '/console/feedback-admin',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -152,6 +154,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         itemKey: 'checkin_leaderboard',
         to: '/console/checkin-leaderboard',
       },
+      {
+        text: t('留言板'),
+        itemKey: 'feedback',
+        to: '/feedback',
+      },
     ];
 
     // 根据配置过滤项目
@@ -235,6 +242,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('偷菜配置'),
         itemKey: 'farm_steal_config',
         to: '/console/farm-steal-config',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('留言板管理'),
+        itemKey: 'feedback_admin',
+        to: '/console/feedback-admin',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

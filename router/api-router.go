@@ -475,6 +475,26 @@ func SetApiRouter(router *gin.Engine) {
 			treeFarmRoute.POST("/buyslot", controller.WebTreeFarmBuySlot)
 		}
 
+		// 留言板/反馈系统
+		feedbackRoute := apiRouter.Group("/feedback")
+		feedbackRoute.Use(middleware.UserAuth())
+		{
+			feedbackRoute.POST("/", controller.SubmitFeedback)
+			feedbackRoute.GET("/my", controller.GetMyFeedbacks)
+			feedbackRoute.GET("/my/:id", controller.GetMyFeedbackDetail)
+			feedbackRoute.GET("/public", controller.GetPublicFeedbacks)
+		}
+		feedbackAdminRoute := apiRouter.Group("/feedback/admin")
+		feedbackAdminRoute.Use(middleware.AdminAuth())
+		{
+			feedbackAdminRoute.GET("/", controller.AdminGetAllFeedbacks)
+			feedbackAdminRoute.GET("/:id", controller.AdminGetFeedbackDetail)
+			feedbackAdminRoute.PUT("/:id/status", controller.AdminUpdateFeedbackStatus)
+			feedbackAdminRoute.PUT("/:id/reply", controller.AdminReplyFeedback)
+			feedbackAdminRoute.PUT("/:id/note", controller.AdminNoteFeedback)
+			feedbackAdminRoute.PUT("/:id/public", controller.AdminSetFeedbackPublic)
+		}
+
 		pubInvRoute := apiRouter.Group("/public_invcode")
 		{
 			pubInvRoute.GET("/", controller.GetPublicInviteCodes)

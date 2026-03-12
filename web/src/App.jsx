@@ -52,6 +52,8 @@ import Farm from './pages/Farm';
 import BetaApplicationsAdmin from './pages/Farm/BetaApplicationsAdmin';
 import BetaAIConfigAdmin from './pages/Farm/BetaAIConfigAdmin';
 import StealConfigAdmin from './pages/Farm/StealConfigAdmin';
+import FeedbackPage from './pages/Feedback';
+import FeedbackAdminPage from './pages/FeedbackAdmin';
 import DeletionRequestPage from './pages/DeletionRequest';
 import CheckinLeaderboard from './pages/CheckinLeaderboard';
 import TgBotPage from './pages/TgBot';
@@ -396,6 +398,24 @@ function App() {
                 <Task />
               </Suspense>
             </PrivateRoute>
+          }
+        />
+        <Route
+          path='/feedback'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <FeedbackPage />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/feedback-admin'
+          element={
+            <AdminRoute>
+              <FeedbackAdminPage />
+            </AdminRoute>
           }
         />
         <Route
