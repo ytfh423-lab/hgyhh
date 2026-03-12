@@ -504,7 +504,8 @@ func WebFarmPlant(c *gin.Context) {
 		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
-	if !inTutorial && targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
+	// 拥有灌溉自动化则跳过干旱
+	if !inTutorial && targetPlot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < common.TgBotFarmDisasterChance {
 		targetPlot.EventType = "drought"
 		offset := webActualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset

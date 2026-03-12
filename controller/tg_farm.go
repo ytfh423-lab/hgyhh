@@ -572,8 +572,15 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 
 	// 事件触发优先
 	if plot.Status == 1 && plot.EventAt > 0 && plot.EventType != "" && now >= plot.EventAt {
-		plot.Status = 3
-		changed = true
+		// 拥有灌溉自动化时，干旱事件自动消除
+		if plot.EventType == "drought" && model.HasAutomation(plot.TelegramId, "irrigation") {
+			plot.EventType = ""
+			plot.EventAt = 0
+			changed = true
+		} else {
+			plot.Status = 3
+			changed = true
+		}
 	}
 	// 事件死亡检查：status=3 + (drought/bugs) + 超时未处理
 	if plot.Status == 3 && (plot.EventType == "drought" || plot.EventType == "bugs") {
@@ -1322,8 +1329,8 @@ func doFarmPlant(chatId int64, editMsgId int, tgId string, plotIdx int, cropShor
 		offset := actualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
 	}
-	// 天灾(干旱)：独立概率，不与虫害叠加
-	if targetPlot.EventType == "" && rand.Intn(100) < common.TgBotFarmDisasterChance {
+	// 天灾(干旱)：独立概率，不与虫害叠加；拥有灌溉自动化则跳过
+	if targetPlot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < common.TgBotFarmDisasterChance {
 		targetPlot.EventType = "drought"
 		offset := actualGrowSecs * int64(30+rand.Intn(50)) / 100
 		targetPlot.EventAt = now + offset
