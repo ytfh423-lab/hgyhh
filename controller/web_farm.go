@@ -2470,24 +2470,10 @@ func WebFarmFishDo(c *gin.Context) {
 		return
 	}
 
-	// 8. 计算实际收益（确保不突破当日收益上限）
+	// 8. 计算本次收益。
+	// If the user is still allowed to cast, the current catch always counts in full.
 	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
 	effectiveValue := fishValue
-	if common.TgBotFishIncomeCapEnabled {
-		remaining := common.TgBotFishDailyIncomeCap - dailyIncome
-		if remaining < effectiveValue {
-			effectiveValue = remaining
-		}
-	} else {
-		remaining := common.TgBotFishDailyMaxIncome - dailyIncome
-		if remaining < effectiveValue {
-			effectiveValue = remaining
-		}
-	}
-	if effectiveValue < 0 {
-		effectiveValue = 0
-	}
-	isOverCapCatch := effectiveValue < fishValue
 
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
@@ -2498,9 +2484,11 @@ func WebFarmFishDo(c *gin.Context) {
 	newDailyIncome := model.GetFishDailyIncome(tgId)
 	newOverCap := common.TgBotFishIncomeCapEnabled && newDailyIncome >= common.TgBotFishDailyIncomeCap
 
+	capReachedAfterCatch := common.TgBotFishIncomeCapEnabled && dailyIncome < common.TgBotFishDailyIncomeCap && newDailyIncome >= common.TgBotFishDailyIncomeCap
+
 	msg := fmt.Sprintf("钓到了 %s %s！", fish.Emoji, fish.Name)
-	if isOverCapCatch {
-		msg = fmt.Sprintf("钓到了 %s %s！本次收益按当日上限封顶结算", fish.Emoji, fish.Name)
+	if capReachedAfterCatch {
+		msg = fmt.Sprintf("钓到了 %s %s！本次完整计入收益，今日钓鱼收益已满", fish.Emoji, fish.Name)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -2515,7 +2503,8 @@ func WebFarmFishDo(c *gin.Context) {
 			"sell_price":      webFarmQuotaFloat(fish.SellPrice),
 			"effective_price": webFarmQuotaFloat(effectiveValue),
 			"over_cap":        newOverCap,
-			"over_cap_catch":  isOverCapCatch,
+			"over_cap_catch":  capReachedAfterCatch,
+			"cap_reached_after_catch": capReachedAfterCatch,
 		},
 	})
 }

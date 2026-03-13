@@ -225,7 +225,7 @@ const FishPage = ({ loadFarm, t }) => {
 
       {lastCatch && (
         <Banner
-          type={lastCatch.caught ? (lastCatch.over_cap_catch ? 'info' : 'success') : 'warning'}
+          type={lastCatch.caught ? (lastCatch.cap_reached_after_catch ? 'warning' : 'success') : 'warning'}
           closeIcon={null}
           style={{ marginBottom: 14, borderRadius: 12 }}
           description={
@@ -233,12 +233,11 @@ const FishPage = ({ loadFarm, t }) => {
               <span style={{ fontSize: 15 }}>
                 {lastCatch.fish_emoji} {t('钓到了')} <strong>{lastCatch.fish_name}</strong>{' '}
                 <Tag size='small' color={rarityColors[lastCatch.rarity]}>[{lastCatch.rarity}]</Tag>{' '}
-                {lastCatch.over_cap_catch ? (
+                {lastCatch.cap_reached_after_catch ? (
                   <>
-                    {t('价值')} ${lastCatch.sell_price.toFixed(2)} ->
-                    <Text type='warning'>${lastCatch.effective_price.toFixed(2)}</Text>{' '}
+                    {t('价值')} <Text type='warning'>${lastCatch.effective_price.toFixed(2)}</Text>{' '}
                     <Tag size='small' color='orange'>
-                      {t('封顶结算')}
+                      {t('今日已满')}
                     </Tag>
                   </>
                 ) : (

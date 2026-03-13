@@ -3415,23 +3415,10 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 8. 计算实际收益（确保不突破当日收益上限）
+	// 8. 计算本次收益。
+	// If the user is still allowed to cast, the current catch always counts in full.
 	fishValue := applyMarket(fish.SellPrice, "fish_"+fish.Key)
 	effectiveValue := fishValue
-	if common.TgBotFishIncomeCapEnabled {
-		remaining := common.TgBotFishDailyIncomeCap - dailyIncome
-		if remaining < effectiveValue {
-			effectiveValue = remaining
-		}
-	} else {
-		remaining := common.TgBotFishDailyMaxIncome - dailyIncome
-		if remaining < effectiveValue {
-			effectiveValue = remaining
-		}
-	}
-	if effectiveValue < 0 {
-		effectiveValue = 0
-	}
 
 	_ = model.IncrementFarmItem(tgId, "fish_"+fish.Key, 1)
 	model.RecordCollection(tgId, "fish", fish.Key, 1)
@@ -3447,8 +3434,14 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		rarityMsg = "🏆🎊 传说级！！！"
 	}
 
+	capReachedAfterCatch := common.TgBotFishIncomeCapEnabled && dailyIncome < common.TgBotFishDailyIncomeCap &&
+		model.GetFishDailyIncome(tgId) >= common.TgBotFishDailyIncomeCap
+
 	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s",
 		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(effectiveValue), rarityMsg)
+	if capReachedAfterCatch {
+		text += "\n\n⛔ 今日钓鱼收益已满，明天再来吧"
+	}
 
 	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{
 		InlineKeyboard: [][]TgInlineKeyboardButton{
