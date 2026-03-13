@@ -485,7 +485,7 @@ export const CircleDrawGame = ({ game, onComplete, t }) => {
   const start = () => {
     stateRef.current = initState();
     setProgress(0);
-    setTimeLeft(8);
+    setTimeLeft(5);
     setPhase('playing');
 
     timerRef.current = setInterval(() => {
@@ -591,7 +591,7 @@ export const CircleDrawGame = ({ game, onComplete, t }) => {
       if (diff > Math.PI) diff -= Math.PI * 2;
       if (diff < -Math.PI) diff += Math.PI * 2;
       s.totalAngle += Math.abs(diff);
-      s.progress = Math.min(100, (s.totalAngle / (Math.PI * 36)) * 100);
+      s.progress = Math.min(100, (s.totalAngle / (Math.PI * 60)) * 100);
       setProgress(s.progress);
 
       if (s.progress >= 100) {
@@ -616,7 +616,7 @@ export const CircleDrawGame = ({ game, onComplete, t }) => {
       <div className='farm-gc-ready'>
         <div className='farm-gc-ready-emoji'>{game.emoji}</div>
         <div className='farm-gc-ready-desc'>🔄 {t('在圆圈轨道上画圈')} — {t('转得越快进度越高')}!</div>
-        <div className='farm-gc-ready-hint'>8s · {t('鼠标/触摸拖动')} · {t('目标')} 100%</div>
+        <div className='farm-gc-ready-hint'>5s · {t('鼠标/触摸拖动')} · {t('目标')} 100%</div>
         <Button theme='solid' size='large' onClick={start} className='farm-btn'
           style={{ fontWeight: 700, minWidth: 140 }}>▶ {t('开始')}</Button>
       </div>
