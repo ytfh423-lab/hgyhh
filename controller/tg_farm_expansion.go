@@ -872,8 +872,7 @@ func showFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text += fmt.Sprintf("🎯 需要等级: Lv.%d\n", common.TgBotFarmPrestigeMinLevel)
 	text += fmt.Sprintf("🔢 最多转生: %d次\n", common.TgBotFarmPrestigeMaxTimes)
 	text += fmt.Sprintf("💸 本次价格: %s\n", farmQuotaStr(nextPrice))
-	text += fmt.Sprintf("💵 转生后余额: %s\n", farmQuotaStr(common.TgBotFarmPrestigeResetBalance))
-	text += "\n⚠️ 转生将清空：余额、等级、地块、仓库、狗、牧场、加工、现有物品\n保留：成就、图鉴\n获得：永久收入加成"
+	text += "\n⚠️ 转生将清空：等级、地块、仓库、狗、牧场、加工、现有物品\n保留：成就、图鉴\n获得：永久收入加成"
 
 	canPrestige := level >= common.TgBotFarmPrestigeMinLevel && prestige < common.TgBotFarmPrestigeMaxTimes
 
@@ -922,12 +921,12 @@ func doFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	model.ResetFarmForPrestige(user.Id, tgId)
 	model.SetPrestigeLevel(tgId, newPrestige)
 	model.CreatePrestigeRecord(tgId, newPrestige)
-	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s，余额重置为%s", newPrestige, farmQuotaStr(price), farmQuotaStr(common.TgBotFarmPrestigeResetBalance)))
+	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s", newPrestige, farmQuotaStr(price)))
 
 	newBonus := newPrestige * common.TgBotFarmPrestigeBonusPerLevel
 
-	farmSend(chatId, editMsgId, fmt.Sprintf("🎉 转生成功！\n\n🔄 转生次数: %d\n💰 收入加成: +%d%%\n💸 已支付: %s\n💵 余额已重置为%s\n📦 已清空现有物品，仅保留成就和图鉴",
-		newPrestige, newBonus, farmQuotaStr(price), farmQuotaStr(common.TgBotFarmPrestigeResetBalance)),
+	farmSend(chatId, editMsgId, fmt.Sprintf("🎉 转生成功！\n\n🔄 转生次数: %d\n💰 收入加成: +%d%%\n💸 已支付: %s\n📦 已清空现有物品，仅保留成就和图鉴",
+		newPrestige, newBonus, farmQuotaStr(price)),
 		&TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🌾 开始新旅程", CallbackData: "farm"}},
