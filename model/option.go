@@ -201,6 +201,11 @@ func InitOptionMap() {
 		levelPriceStrs[i] = strconv.Itoa(p)
 	}
 	common.OptionMap["TgBotFarmLevelPrices"] = strings.Join(levelPriceStrs, ",")
+	prestigePriceStrs := make([]string, len(common.TgBotFarmPrestigePrices))
+	for i, p := range common.TgBotFarmPrestigePrices {
+		prestigePriceStrs[i] = strconv.Itoa(p)
+	}
+	common.OptionMap["TgBotFarmPrestigePrices"] = strings.Join(prestigePriceStrs, ",")
 	// 银行贷款
 	common.OptionMap["TgBotFarmBankAdminId"] = strconv.Itoa(common.TgBotFarmBankAdminId)
 	common.OptionMap["TgBotFarmBankInterestRate"] = strconv.Itoa(common.TgBotFarmBankInterestRate)
@@ -870,6 +875,22 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 		if len(prices) > 0 {
 			common.TgBotFarmLevelPrices = prices
+		}
+	case "TgBotFarmPrestigePrices":
+		parts := strings.Split(value, ",")
+		var prices []int
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			p, err := strconv.Atoi(part)
+			if err == nil && p >= 0 {
+				prices = append(prices, p)
+			}
+		}
+		if len(prices) > 0 {
+			common.TgBotFarmPrestigePrices = prices
 		}
 	case "TgBotFarmBankAdminId":
 		common.TgBotFarmBankAdminId, _ = strconv.Atoi(value)

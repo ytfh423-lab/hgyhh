@@ -112,6 +112,7 @@ const TgBotPage = () => {
   const [farmUnlockTasks, setFarmUnlockTasks] = useState(1);
   const [farmUnlockAchieve, setFarmUnlockAchieve] = useState(1);
   const [farmLevelPrices, setFarmLevelPrices] = useState('500000,1000000,2000000,3000000,5000000,8000000,12000000,18000000,25000000,35000000,50000000,70000000,100000000,150000000');
+  const [farmPrestigePrices, setFarmPrestigePrices] = useState(Array.from({ length: 200 }, (_, i) => String(10000000 + i * 5000000)).join(','));
   // 银行贷款
   const [farmBankAdminId, setFarmBankAdminId] = useState(1);
   const [farmBankInterestRate, setFarmBankInterestRate] = useState(10);
@@ -237,6 +238,7 @@ const TgBotPage = () => {
         setFarmUnlockTasks(data.farm_unlock_tasks ?? 1);
         setFarmUnlockAchieve(data.farm_unlock_achieve ?? 1);
         if (data.farm_level_prices) setFarmLevelPrices(data.farm_level_prices);
+        if (data.farm_prestige_prices) setFarmPrestigePrices(data.farm_prestige_prices);
         // 银行贷款
         setFarmBankAdminId(data.farm_bank_admin_id ?? 1);
         setFarmBankInterestRate(data.farm_bank_interest_rate ?? 10);
@@ -1317,6 +1319,13 @@ const TgBotPage = () => {
               {farmLevelPrices.split(',').map((p, i) => `Lv${i+2}=$${(parseInt(p.trim()) / 500000 || 0).toFixed(2)}`).join(' | ')}
             </Typography.Text>
           </div>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('转生价格(额度,逗号分隔,第1次~第200次)')}</Typography.Title>
+          <div style={{ marginBottom: 12 }}>
+            <Input value={farmPrestigePrices} onChange={setFarmPrestigePrices} placeholder='10000000,15000000,20000000,...' style={{ width: '100%' }} />
+            <Typography.Text type='tertiary' size='small'>
+              {farmPrestigePrices.split(',').slice(0, 10).map((p, i) => `P${i+1}=$${(parseInt(p.trim()) / 500000 || 0).toFixed(2)}`).join(' | ')}
+            </Typography.Text>
+          </div>
           <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 8 }}>🏦 {t('银行贷款设置')}</Typography.Title>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <Typography.Text style={{ width: 200 }}>👤 {t('银行管理员ID')}</Typography.Text>
@@ -1460,6 +1469,7 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmUnlockTasks', value: String(farmUnlockTasks) },
                   { key: 'TgBotFarmUnlockAchieve', value: String(farmUnlockAchieve) },
                   { key: 'TgBotFarmLevelPrices', value: farmLevelPrices },
+                  { key: 'TgBotFarmPrestigePrices', value: farmPrestigePrices },
                   // 银行贷款
                   { key: 'TgBotFarmBankAdminId', value: String(farmBankAdminId) },
                   { key: 'TgBotFarmBankInterestRate', value: String(farmBankInterestRate) },

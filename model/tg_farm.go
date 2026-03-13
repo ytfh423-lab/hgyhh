@@ -1223,9 +1223,6 @@ func GetPrestigeLevel(telegramId string) int {
 	if err != nil || item.Quantity < 1 {
 		return 0
 	}
-	if item.Quantity > common.TgBotFarmPrestigeMaxTimes {
-		return common.TgBotFarmPrestigeMaxTimes
-	}
 	return item.Quantity
 }
 
@@ -1243,23 +1240,6 @@ func CreatePrestigeRecord(telegramId string, level int) {
 	DB.Create(&TgFarmPrestige{TelegramId: telegramId, PrestigeLevel: level, PrestigedAt: time.Now().Unix()})
 }
 
-func NormalizePrestigeData(maxLevel int) error {
-	if maxLevel < 0 {
-		maxLevel = 0
-	}
-	if err := DB.Model(&TgFarmItem{}).
-		Where("item_type = ? AND quantity > ?", "_prestige", maxLevel).
-		Update("quantity", maxLevel).Error; err != nil {
-		return err
-	}
-	if err := DB.Model(&TgFarmPrestige{}).
-		Where("prestige_level > ?", maxLevel).
-		Update("prestige_level", maxLevel).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
 func ResetFarmForPrestige(userId int, telegramId string) {
 	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmPlot{})
 	DB.Where("telegram_id = ? AND item_type NOT IN ('_level','_prestige','_mortgage_blocked','_last_fish')", telegramId).Delete(&TgFarmItem{})
@@ -1273,6 +1253,20 @@ func ResetFarmForPrestige(userId int, telegramId string) {
 		DB.Model(&User{}).Where("id = ?", userId).Update("quota", 5000000)
 	}
 	SetFarmLevel(telegramId, 1)
+}
+
+func GetPrestigePrice(nextPrestigeLevel int) int {
+	if nextPrestigeLevel < 1 {
+		nextPrestigeLevel = 1
+	}
+	idx := nextPrestigeLevel - 1
+	if idx >= 0 && idx < len(common.TgBotFarmPrestigePrices) {
+		return common.TgBotFarmPrestigePrices[idx]
+	}
+	if len(common.TgBotFarmPrestigePrices) == 0 {
+		return 0
+	}
+	return common.TgBotFarmPrestigePrices[len(common.TgBotFarmPrestigePrices)-1]
 }
 
 // ========== 小游戏记录 ==========

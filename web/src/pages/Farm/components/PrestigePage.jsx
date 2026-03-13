@@ -62,6 +62,10 @@ const PrestigePage = ({ loadFarm, t }) => {
           <div className='farm-kv-value' style={{ color: '#8a6cb0' }}>+{data.next_bonus}%</div>
         </div>
         <div className='farm-kv'>
+          <div className='farm-kv-label'>{t('本次价格')}</div>
+          <div className='farm-kv-value'>${data.next_price?.toFixed(2)}</div>
+        </div>
+        <div className='farm-kv'>
           <div className='farm-kv-label'>{t('每次加成')}</div>
           <div className='farm-kv-value'>+{data.bonus_per_level}%</div>
         </div>
@@ -71,7 +75,7 @@ const PrestigePage = ({ loadFarm, t }) => {
         </div>
       </div>
       <Banner type='warning' style={{ marginBottom: 12, borderRadius: 10 }}
-        description={t('转生将重置：余额到10、等级、地块、仓库、狗、牧场、加工及现有物品。保留：成就、图鉴。获得永久收入加成。')} />
+        description={t('转生将收费，首次转生也需要支付。转生后重置：余额到10、等级、地块、仓库、狗、牧场、加工及现有物品。保留：成就、图鉴。获得永久收入加成。')} />
       <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={() => setShowConfirm(true)} className='farm-btn'>
         {data.can_prestige
           ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)`

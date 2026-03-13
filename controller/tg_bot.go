@@ -949,6 +949,7 @@ func GetTgBotSettings(c *gin.Context) {
 			"tree_farm_fert_bonus":      common.TgBotTreeFarmFertilizerBonus,
 			"tree_farm_stump_clear_secs": common.TgBotTreeFarmStumpClearSecs,
 			"farm_level_prices":         common.OptionMap["TgBotFarmLevelPrices"],
+			"farm_prestige_prices":      common.OptionMap["TgBotFarmPrestigePrices"],
 			// 银行贷款
 			"farm_bank_admin_id":        common.TgBotFarmBankAdminId,
 			"farm_bank_interest_rate":   common.TgBotFarmBankInterestRate,

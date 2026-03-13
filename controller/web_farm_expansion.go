@@ -353,6 +353,7 @@ func WebFarmPrestigeInfo(c *gin.Context) {
 	if nextBonus > maxBonus {
 		nextBonus = maxBonus
 	}
+	nextPrice := model.GetPrestigePrice(prestige + 1)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -365,6 +366,7 @@ func WebFarmPrestigeInfo(c *gin.Context) {
 			"bonus_per_level": common.TgBotFarmPrestigeBonusPerLevel,
 			"current_bonus":   bonus,
 			"next_bonus":      nextBonus,
+			"next_price":      webFarmQuotaFloat(nextPrice),
 			"reset_balance":   10.0,
 		},
 	})
@@ -390,17 +392,23 @@ func WebFarmPrestige(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先还清贷款"})
 		return
 	}
+	price := model.GetPrestigePrice(currentPrestige + 1)
+	if user.Quota < price {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足，本次转生需要%.2f", webFarmQuotaFloat(price))})
+		return
+	}
 
 	oldPrestige := currentPrestige
 	newPrestige := oldPrestige + 1
+	model.DecreaseUserQuota(user.Id, price)
 	model.ResetFarmForPrestige(user.Id, tgId)
 	model.SetPrestigeLevel(tgId, newPrestige)
 	model.CreatePrestigeRecord(tgId, newPrestige)
-	model.AddFarmLog(tgId, "prestige", 0, fmt.Sprintf("🔄 转生到第%d世，余额重置为10", newPrestige))
+	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s，余额重置为10", newPrestige, farmQuotaStr(price)))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("转生成功：余额已重置为10，仅保留成就和图鉴，永久收入加成+%d%%", newPrestige*common.TgBotFarmPrestigeBonusPerLevel),
+		"message": fmt.Sprintf("转生成功：已支付%.2f，余额已重置为10，仅保留成就和图鉴，永久收入加成+%d%%", webFarmQuotaFloat(price), newPrestige*common.TgBotFarmPrestigeBonusPerLevel),
 	})
 }
 
