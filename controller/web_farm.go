@@ -411,6 +411,8 @@ func WebFarmShop(c *gin.Context) {
 			desc = "施肥增产50%"
 		} else if item.Key == "dogfood" {
 			desc = "喂狗"
+		} else if item.Key == "premiumfishbait" {
+			desc = "优先消耗，史诗/传说额外概率+5%"
 		}
 		items = append(items, map[string]interface{}{
 			"key":   item.Key,
@@ -2257,10 +2259,12 @@ func WebFarmFishView(c *gin.Context) {
 	// 鱼饵数量
 	allItems, _ := model.GetFarmItems(tgId)
 	baitCount := 0
+	premiumBaitCount := 0
 	for _, item := range allItems {
 		if item.ItemType == "fishbait" {
 			baitCount = item.Quantity
-			break
+		} else if item.ItemType == "premiumfishbait" {
+			premiumBaitCount = item.Quantity
 		}
 	}
 
@@ -2362,6 +2366,7 @@ func WebFarmFishView(c *gin.Context) {
 		"success": true,
 		"data": gin.H{
 			"bait_count":        baitCount,
+			"premium_bait_count": premiumBaitCount,
 			"cooldown":          cdRemain,
 			"stamina":           stamina,
 			"stamina_max":       common.TgBotFishStaminaMax,
@@ -2380,6 +2385,7 @@ func WebFarmFishView(c *gin.Context) {
 			"fish_types":        types,
 			"nothing_chance":    nothingPct,
 			"bait_price":        webFarmQuotaFloat(common.TgBotFishBaitPrice),
+			"premium_bait_price": webFarmQuotaFloat(common.TgBotFishPremiumBaitPrice),
 			// 收益CAP模型
 			"cap_enabled":       capEnabled,
 			"daily_income_cap":  webFarmQuotaFloat(dailyIncomeCap),
@@ -2431,8 +2437,16 @@ func WebFarmFishDo(c *gin.Context) {
 		return
 	}
 
-	// 3. 扣鱼饵
-	err := model.DecrementFarmItem(tgId, "fishbait")
+	// 3. 扣鱼饵，优先消耗高级鱼饵
+	baitKey := "fishbait"
+	baitCost := common.TgBotFishBaitPrice
+	baitLabel := "鱼饵"
+	if qty, premiumErr := model.GetFarmItemQuantity(tgId, "premiumfishbait"); premiumErr == nil && qty > 0 {
+		baitKey = "premiumfishbait"
+		baitCost = common.TgBotFishPremiumBaitPrice
+		baitLabel = "高级鱼饵"
+	}
+	err := model.DecrementFarmItem(tgId, baitKey)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有鱼饵！请先到商店购买"})
 		return
@@ -2448,7 +2462,7 @@ func WebFarmFishDo(c *gin.Context) {
 	}
 
 	// 6. 随机钓鱼（含疲劳衰减，兼容旧模型）
-	fish := randomFishWithFatigue(tgId)
+	fish := randomFishWithFatigue(tgId, baitKey == "premiumfishbait")
 
 	// 7. 增加每日计数（仅用于统计/任务/疲劳）
 	model.IncrFishDailyCount(tgId)
@@ -2458,10 +2472,10 @@ func WebFarmFishDo(c *gin.Context) {
 	overCap := common.TgBotFishIncomeCapEnabled && currentDailyIncome >= common.TgBotFishDailyIncomeCap
 
 	if fish == nil {
-		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
+		model.AddFarmLog(tgId, "fish", -baitCost, fmt.Sprintf("钓鱼空军[%s]", baitLabel))
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "空军！什么都没钓到...",
+			"message": fmt.Sprintf("空军！什么都没钓到，消耗了1个%s", baitLabel),
 			"data": gin.H{
 				"caught":   false,
 				"over_cap": overCap,
@@ -2489,6 +2503,9 @@ func WebFarmFishDo(c *gin.Context) {
 	msg := fmt.Sprintf("钓到了 %s %s！", fish.Emoji, fish.Name)
 	if capReachedAfterCatch {
 		msg = fmt.Sprintf("钓到了 %s %s！本次完整计入收益，今日钓鱼收益已满", fish.Emoji, fish.Name)
+	}
+	if baitKey == "premiumfishbait" {
+		msg += " 使用了高级鱼饵，史诗/传说额外概率+5%"
 	}
 
 	c.JSON(http.StatusOK, gin.H{

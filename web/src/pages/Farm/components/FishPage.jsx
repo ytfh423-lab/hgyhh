@@ -133,6 +133,7 @@ const FishPage = ({ loadFarm, t }) => {
   const capEnabled = fishData.cap_enabled || false;
   const dailyIncomeCap = fishData.daily_income_cap || 100;
   const overCap = fishData.over_cap || false;
+  const totalBaitCount = (fishData.bait_count || 0) + (fishData.premium_bait_count || 0);
   const incomeCapPct =
     capEnabled && dailyIncomeCap > 0
       ? Math.min(100, Math.round((dailyIncome / dailyIncomeCap) * 100))
@@ -147,7 +148,7 @@ const FishPage = ({ loadFarm, t }) => {
     } else if (cooldown > 0) {
       btnText = `⏱️ ${cooldown}s`;
       btnDisabled = true;
-    } else if (fishData.bait_count === 0) {
+    } else if (totalBaitCount === 0) {
       btnText = t('没有鱼饵');
       btnDisabled = true;
     }
@@ -157,7 +158,7 @@ const FishPage = ({ loadFarm, t }) => {
   } else if (cooldown > 0) {
     btnText = `⏱️ ${cooldown}s`;
     btnDisabled = true;
-  } else if (fishData.bait_count === 0) {
+  } else if (totalBaitCount === 0) {
     btnText = t('没有鱼饵');
     btnDisabled = true;
   }
@@ -199,6 +200,7 @@ const FishPage = ({ loadFarm, t }) => {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         <div className='farm-pill farm-pill-amber'>🪱 {t('鱼饵')}: {fishData.bait_count}</div>
+        <div className='farm-pill farm-pill-purple'>✨ {t('高级鱼饵')}: {fishData.premium_bait_count || 0}</div>
         <div className='farm-pill farm-pill-cyan'>📳 {t('今日次数')}: {dailyCount}</div>
         {!capEnabled && (
           <div className='farm-pill farm-pill-amber'>
@@ -209,6 +211,9 @@ const FishPage = ({ loadFarm, t }) => {
           <div className='farm-pill farm-pill-red'>😵 {t('疲劳中')} -{fatigueDecay}%</div>
         ) : (
           <div className='farm-pill farm-pill-green'>😊 {dailyCount}/{fatigueThreshold}</div>
+        )}
+        {(fishData.premium_bait_count || 0) > 0 && (
+          <div className='farm-pill farm-pill-purple'>✨ {t('优先消耗，史诗/传说额外概率+5%')}</div>
         )}
         {fishData.total_value > 0 && (
           <div className='farm-pill farm-pill-cyan'>

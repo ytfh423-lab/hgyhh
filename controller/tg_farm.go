@@ -246,7 +246,8 @@ var farmItems = []farmItemDef{
 	{"pesticide", "杀虫剂", "🧪", 150000, "bugs"},
 	{"fertilizer", "化肥", "🧴", 200000, ""},
 	{"dogfood", "狗粮", "🦴", 500000, ""},
-	{"fishbait", "鱼饵", "🪱", 250000, ""},
+	{"fishbait", "鱼饵", "🪱", common.TgBotFishBaitPrice, ""},
+	{"premiumfishbait", "高级鱼饵", "✨", common.TgBotFishPremiumBaitPrice, ""},
 }
 
 // ========== 钓鱼定义 ==========
@@ -3101,7 +3102,45 @@ func checkFishRisk(tgId string) bool {
 }
 
 // --- 带疲劳衰减的随机钓鱼 ---
-func randomFishWithFatigue(tgId string) *fishDef {
+func randomFishFromRarityPool(tgId string, rarities map[string]bool) *fishDef {
+	dailyCount := model.GetFishDailyCount(tgId)
+	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
+
+	adjustedTotal := 0
+	type aw struct {
+		fish   *fishDef
+		weight int
+	}
+	var adjusted []aw
+	for i := range fishTypes {
+		if !rarities[fishTypes[i].Rarity] {
+			continue
+		}
+		w := getFishWeight(i)
+		if fatigueActive && (fishTypes[i].Rarity == "稀有" || fishTypes[i].Rarity == "史诗" || fishTypes[i].Rarity == "传说") {
+			w = w * (100 - common.TgBotFishFatigueDecay) / 100
+			if w < 0 {
+				w = 0
+			}
+		}
+		adjusted = append(adjusted, aw{&fishTypes[i], w})
+		adjustedTotal += w
+	}
+	if adjustedTotal <= 0 {
+		return nil
+	}
+	r := rand.Intn(adjustedTotal)
+	cumulative := 0
+	for _, a := range adjusted {
+		cumulative += a.weight
+		if r < cumulative {
+			return a.fish
+		}
+	}
+	return adjusted[len(adjusted)-1].fish
+}
+
+func randomFishWithFatigue(tgId string, premiumBait bool) *fishDef {
 	dailyCount := model.GetFishDailyCount(tgId)
 	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
 
@@ -3109,6 +3148,11 @@ func randomFishWithFatigue(tgId string) *fishDef {
 	type aw struct {
 		fish   *fishDef
 		weight int
+	}
+	if premiumBait && rand.Intn(100) < 5 {
+		if rareFish := randomFishFromRarityPool(tgId, map[string]bool{"史诗": true, "传说": true}); rareFish != nil {
+			return rareFish
+		}
 	}
 	var adjusted []aw
 	for i := range fishTypes {
@@ -3159,10 +3203,12 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	// 鱼饵数量
 	items, _ := model.GetFarmItems(tgId)
 	baitCount := 0
+	premiumBaitCount := 0
 	for _, item := range items {
 		if item.ItemType == "fishbait" {
 			baitCount = item.Quantity
-			break
+		} else if item.ItemType == "premiumfishbait" {
+			premiumBaitCount = item.Quantity
 		}
 	}
 
@@ -3228,7 +3274,12 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	} else {
 		text += fmt.Sprintf("📊 今日次数: %d 💰 %s/%s\n", dailyCount, farmQuotaStr(dailyIncome), farmQuotaStr(dailyMaxIncome))
 	}
-	text += fmt.Sprintf("🪱 鱼饵: %d个\n", baitCount)
+	text += fmt.Sprintf("🪱 普通鱼饵: %d个\n", baitCount)
+	text += fmt.Sprintf("✨ 高级鱼饵: %d个\n", premiumBaitCount)
+	if premiumBaitCount > 0 {
+		text += "✨ 钓鱼时会优先消耗高级鱼饵，史诗/传说额外概率+5%\n"
+	}
+	totalBaitCount := baitCount + premiumBaitCount
 
 	// 短CD
 	lastFish := model.GetLastFishTime(tgId)
@@ -3302,7 +3353,7 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			btnText = "🚫 今日收益已达上限"
 		} else if cdRemain > 0 {
 			btnText = fmt.Sprintf("⏱️ 冷却中(%ds)", cdRemain)
-		} else if baitCount <= 0 {
+		} else if totalBaitCount <= 0 {
 			btnText = "🪱 缺少鱼饵"
 		}
 	} else {
@@ -3310,7 +3361,7 @@ func showFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 			btnText = "🚫 今日收益已达上限"
 		} else if cdRemain > 0 {
 			btnText = fmt.Sprintf("⏱️ 冷却中(%ds)", cdRemain)
-		} else if baitCount <= 0 {
+		} else if totalBaitCount <= 0 {
 			btnText = "🪱 缺少鱼饵"
 		}
 	}
@@ -3376,8 +3427,16 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	// 3. 鱼饵检查
-	err := model.DecrementFarmItem(tgId, "fishbait")
+	// 3. 鱼饵检查，优先消耗高级鱼饵
+	baitKey := "fishbait"
+	baitCost := common.TgBotFishBaitPrice
+	baitLabel := "鱼饵"
+	if qty, premiumErr := model.GetFarmItemQuantity(tgId, "premiumfishbait"); premiumErr == nil && qty > 0 {
+		baitKey = "premiumfishbait"
+		baitCost = common.TgBotFishPremiumBaitPrice
+		baitLabel = "高级鱼饵"
+	}
+	err := model.DecrementFarmItem(tgId, baitKey)
 	if err != nil {
 		farmSend(chatId, editMsgId, "❌ 没有鱼饵！请先到商店购买🪱鱼饵", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
@@ -3398,15 +3457,15 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 
 	// 6. 随机钓鱼（含疲劳衰减，兼容旧模型）
-	fish := randomFishWithFatigue(tgId)
+	fish := randomFishWithFatigue(tgId, baitKey == "premiumfishbait")
 
 	// 7. 增加每日计数（仅用于统计/任务/疲劳）
 	model.IncrFishDailyCount(tgId)
 
 	if fish == nil {
 		// 空军
-		model.AddFarmLog(tgId, "fish", -common.TgBotFishBaitPrice, "钓鱼空军")
-		farmSend(chatId, editMsgId, "🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n消耗了1个鱼饵", &TgInlineKeyboardMarkup{
+		model.AddFarmLog(tgId, "fish", -baitCost, fmt.Sprintf("钓鱼空军[%s]", baitLabel))
+		farmSend(chatId, editMsgId, fmt.Sprintf("🎣 甩竿...\n\n🗑️ 空军！什么都没钓到...\n消耗了1个%s", baitLabel), &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🎣 再钓一次", CallbackData: "farm_dofish"}},
 				{{Text: "🔙 返回钓鱼", CallbackData: "farm_fish"}},
@@ -3437,8 +3496,12 @@ func doFarmFish(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	capReachedAfterCatch := common.TgBotFishIncomeCapEnabled && dailyIncome < common.TgBotFishDailyIncomeCap &&
 		model.GetFishDailyIncome(tgId) >= common.TgBotFishDailyIncomeCap
 
-	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s",
-		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(effectiveValue), rarityMsg)
+	baitNotice := ""
+	if baitKey == "premiumfishbait" {
+		baitNotice = "\n✨ 使用了高级鱼饵：史诗/传说额外概率+5%"
+	}
+	text := fmt.Sprintf("🎣 甩竿...\n\n%s 钓到了 %s %s！\n品质: [%s]\n价值: %s\n%s%s",
+		rarityMsg, fish.Emoji, fish.Name, fish.Rarity, farmQuotaStr(effectiveValue), rarityMsg, baitNotice)
 	if capReachedAfterCatch {
 		text += "\n\n⛔ 今日钓鱼收益已满，明天再来吧"
 	}
