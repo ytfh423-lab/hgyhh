@@ -71,7 +71,7 @@ const PrestigePage = ({ loadFarm, t }) => {
         </div>
       </div>
       <Banner type='warning' style={{ marginBottom: 12, borderRadius: 10 }}
-        description={t('转生将重置：等级、地块、仓库、狗、牧场、加工。保留：成就、图鉴。获得永久收入加成。')} />
+        description={t('转生将重置：余额到10、等级、地块、仓库、狗、牧场、加工及现有物品。保留：成就、图鉴。获得永久收入加成。')} />
       <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={() => setShowConfirm(true)} className='farm-btn'>
         {data.can_prestige ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)` : `${t('需要')} Lv.${data.min_level}`}
       </Button>
@@ -79,7 +79,7 @@ const PrestigePage = ({ loadFarm, t }) => {
       <FarmConfirmModal
         visible={showConfirm}
         title={t('确认转生')}
-        message={t('转生将重置所有进度（保留成就和图鉴），确定吗？')}
+        message={t('转生将把余额重置到10，并清空现有物品与大部分进度，仅保留成就和图鉴，确定吗？')}
         icon={<span style={{ fontSize: 28 }}>🔄</span>}
         confirmText={t('确认转生')}
         cancelText={t('取消')}

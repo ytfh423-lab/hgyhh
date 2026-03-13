@@ -854,13 +854,67 @@ func doFarmBuyAutomation(chatId int64, editMsgId int, tgId string, autoType stri
 // ========== 转生 ==========
 
 func showFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
-	farmSend(chatId, editMsgId, "🚫 转生系统已下线，历史转生收益加成已清零。", &TgInlineKeyboardMarkup{
-		InlineKeyboard: [][]TgInlineKeyboardButton{
-			{{Text: "🔙 返回农场", CallbackData: "farm"}},
-		},
-	}, from)
+	level := model.GetFarmLevel(tgId)
+	prestige := model.GetPrestigeLevel(tgId)
+	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
+	nextBonus := (prestige + 1) * common.TgBotFarmPrestigeBonusPerLevel
+
+	text := "🔄 转生系统\n\n"
+	text += "满级后重置进度，获得永久收入加成。\n\n"
+	text += fmt.Sprintf("📊 当前等级: Lv.%d\n", level)
+	text += fmt.Sprintf("🔄 转生次数: %d\n", prestige)
+	text += fmt.Sprintf("💰 当前加成: +%d%%\n", bonus)
+	text += fmt.Sprintf("📈 转生后加成: +%d%%\n", nextBonus)
+	text += fmt.Sprintf("🎯 需要等级: Lv.%d\n", common.TgBotFarmPrestigeMinLevel)
+	text += "💵 转生后余额: 10\n"
+	text += "\n⚠️ 转生将清空：余额、等级、地块、仓库、狗、牧场、加工、现有物品\n保留：成就、图鉴\n获得：永久收入加成"
+
+	canPrestige := level >= common.TgBotFarmPrestigeMinLevel
+
+	var rows [][]TgInlineKeyboardButton
+	if canPrestige {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("🔄 确认转生 (+%d%%)", common.TgBotFarmPrestigeBonusPerLevel), CallbackData: "farm_doprestige"},
+		})
+	} else {
+		rows = append(rows, []TgInlineKeyboardButton{
+			{Text: fmt.Sprintf("🔒 需要 Lv.%d (当前 Lv.%d)", common.TgBotFarmPrestigeMinLevel, level), CallbackData: "farm_prestige"},
+		})
+	}
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: "🔙 返回农场", CallbackData: "farm"},
+	})
+	farmSend(chatId, editMsgId, text, &TgInlineKeyboardMarkup{InlineKeyboard: rows}, from)
 }
 
 func doFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
-	showFarmPrestige(chatId, editMsgId, tgId, from)
+	level := model.GetFarmLevel(tgId)
+	if level < common.TgBotFarmPrestigeMinLevel {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 需要 Lv.%d 才能转生（当前 Lv.%d）", common.TgBotFarmPrestigeMinLevel, level), nil, from)
+		return
+	}
+
+	user, err := getFarmUser(tgId)
+	if err != nil {
+		farmBindingError(chatId, editMsgId, from)
+		return
+	}
+
+	currentPrestige := model.GetPrestigeLevel(tgId)
+	newPrestige := currentPrestige + 1
+
+	model.ResetFarmForPrestige(user.Id, tgId)
+	model.SetPrestigeLevel(tgId, newPrestige)
+	model.CreatePrestigeRecord(tgId, newPrestige)
+	model.AddFarmLog(tgId, "prestige", 0, fmt.Sprintf("🔄 转生到第%d世，余额重置为10", newPrestige))
+
+	newBonus := newPrestige * common.TgBotFarmPrestigeBonusPerLevel
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("🎉 转生成功！\n\n🔄 转生次数: %d\n💰 收入加成: +%d%%\n💵 余额已重置为10\n📦 已清空现有物品，仅保留成就和图鉴",
+		newPrestige, newBonus),
+		&TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🌾 开始新旅程", CallbackData: "farm"}},
+			},
+		}, from)
 }

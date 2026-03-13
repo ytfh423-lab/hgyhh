@@ -1218,18 +1218,29 @@ type TgFarmPrestige struct {
 }
 
 func GetPrestigeLevel(telegramId string) int {
-	return 0
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
+	if err != nil || item.Quantity < 1 {
+		return 0
+	}
+	return item.Quantity
 }
 
 func SetPrestigeLevel(telegramId string, level int) {
-	DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").Delete(&TgFarmItem{})
+	var item TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
+	if err != nil {
+		DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_prestige", Quantity: level})
+		return
+	}
+	DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", level)
 }
 
 func CreatePrestigeRecord(telegramId string, level int) {
-	return
+	DB.Create(&TgFarmPrestige{TelegramId: telegramId, PrestigeLevel: level, PrestigedAt: time.Now().Unix()})
 }
 
-func ResetFarmForPrestige(telegramId string) {
+func ResetFarmForPrestige(userId int, telegramId string) {
 	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmPlot{})
 	DB.Where("telegram_id = ? AND item_type NOT IN ('_level','_prestige','_mortgage_blocked','_last_fish')", telegramId).Delete(&TgFarmItem{})
 	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmWarehouse{})
@@ -1237,6 +1248,10 @@ func ResetFarmForPrestige(telegramId string) {
 	DB.Where("telegram_id = ? AND status IN (1,2)", telegramId).Delete(&TgFarmProcess{})
 	DB.Where("telegram_id = ?", telegramId).Delete(&TgRanchAnimal{})
 	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmAutomation{})
+	DB.Where("seller_id = ? OR buyer_id = ?", telegramId, telegramId).Delete(&TgFarmTrade{})
+	if userId > 0 {
+		DB.Model(&User{}).Where("id = ?", userId).Update("quota", 5000000)
+	}
 	SetFarmLevel(telegramId, 1)
 }
 
