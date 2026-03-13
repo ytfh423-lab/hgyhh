@@ -1223,6 +1223,9 @@ func GetPrestigeLevel(telegramId string) int {
 	if err != nil || item.Quantity < 1 {
 		return 0
 	}
+	if item.Quantity > common.TgBotFarmPrestigeMaxTimes {
+		return common.TgBotFarmPrestigeMaxTimes
+	}
 	return item.Quantity
 }
 
@@ -1238,6 +1241,23 @@ func SetPrestigeLevel(telegramId string, level int) {
 
 func CreatePrestigeRecord(telegramId string, level int) {
 	DB.Create(&TgFarmPrestige{TelegramId: telegramId, PrestigeLevel: level, PrestigedAt: time.Now().Unix()})
+}
+
+func NormalizePrestigeData(maxLevel int) error {
+	if maxLevel < 0 {
+		maxLevel = 0
+	}
+	if err := DB.Model(&TgFarmItem{}).
+		Where("item_type = ? AND quantity > ?", "_prestige", maxLevel).
+		Update("quantity", maxLevel).Error; err != nil {
+		return err
+	}
+	if err := DB.Model(&TgFarmPrestige{}).
+		Where("prestige_level > ?", maxLevel).
+		Update("prestige_level", maxLevel).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func ResetFarmForPrestige(userId int, telegramId string) {

@@ -421,6 +421,9 @@ func migrateDBFast() error {
 		}
 	}
 	common.SysLog("database migrated")
+	if err := NormalizePrestigeData(common.TgBotFarmPrestigeMaxTimes); err != nil {
+		common.SysError("failed to normalize prestige data: " + err.Error())
+	}
 	return nil
 }
 
