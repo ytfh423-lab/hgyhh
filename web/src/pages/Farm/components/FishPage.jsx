@@ -95,6 +95,25 @@ const FishPage = ({ loadFarm, t }) => {
     }
   };
 
+  const doStoreAll = async () => {
+    setFishLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/fish/store');
+      if (res.success) {
+        showSuccess(res.message);
+        setLastCatch(null);
+        loadFish();
+        loadFarm();
+      } else {
+        showError(res.message || t('操作失败'));
+      }
+    } catch (err) {
+      showError(t('操作失败'));
+    } finally {
+      setFishLoading(false);
+    }
+  };
+
   if (fishLoading && !fishData) {
     return (
       <div style={{ textAlign: 'center', padding: 40 }}>
@@ -210,6 +229,17 @@ const FishPage = ({ loadFarm, t }) => {
         >
           {btnText}
         </Button>
+        {fishData.total_value > 0 && (
+          <Button
+            theme='light'
+            type='secondary'
+            loading={fishLoading}
+            onClick={doStoreAll}
+            className='farm-btn'
+          >
+            {t('存入仓库')}
+          </Button>
+        )}
         {fishData.total_value > 0 && (
           <Button
             theme='light'
