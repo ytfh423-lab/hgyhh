@@ -42,6 +42,31 @@ const parsePrestigePriceConfig = (value) => {
 const stringifyPrestigePriceConfig = (config) =>
   config.map((item) => String(Math.max(0, Math.round((item.price || 0) * QUOTA_PER_DOLLAR)))).join(',');
 
+const extendPrestigePriceConfig = (config) => {
+  const next = config.map((item) => ({ ...item }));
+  const firstHundred = next.slice(0, 100);
+  const populated = firstHundred.filter((item) => item.price > 0);
+  const lastFilled = populated.length > 0 ? populated[populated.length - 1] : null;
+  const prevFilled = populated.length > 1 ? populated[populated.length - 2] : null;
+  const stepBefore100 = lastFilled && prevFilled
+    ? Math.max(1, Number((lastFilled.price - prevFilled.price).toFixed(2)))
+    : 10000;
+
+  let current = lastFilled ? lastFilled.price : next[0].price;
+  const startLevel = lastFilled ? lastFilled.level + 1 : 2;
+  for (let level = startLevel; level <= Math.min(100, next.length); level++) {
+    current = Number((current + stepBefore100).toFixed(2));
+    next[level - 1].price = current;
+  }
+
+  current = next[Math.min(99, next.length - 1)].price;
+  for (let level = 101; level <= next.length; level++) {
+    current = Number((current + 50000).toFixed(2));
+    next[level - 1].price = current;
+  }
+  return next;
+};
+
 const PURPOSE_OPTIONS = [
   { value: 1, label: '余额兑换码' },
   { value: 2, label: '注册邀请码' },
@@ -1343,6 +1368,14 @@ const TgBotPage = () => {
             </Typography.Text>
           </div>
           <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('转生价格(直接输入额度,第1次~第200次)')}</Typography.Title>
+          <div style={{ marginBottom: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button size='small' onClick={() => setFarmPrestigePriceConfig(prev => extendPrestigePriceConfig(prev))}>
+              {t('按当前配置自动续推到200次')}
+            </Button>
+            <Typography.Text type='tertiary' size='small'>
+              {t('规则：保留当前已填价格，到第100次前按当前最后步长续推，第101次开始每次加50000')}
+            </Typography.Text>
+          </div>
           <div style={{ marginBottom: 12, padding: 12, border: '1px solid var(--semi-color-border)', borderRadius: 8, maxHeight: 320, overflowY: 'auto' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
               {farmPrestigePriceConfig.map((item) => (

@@ -244,6 +244,7 @@ var TgBotFarmWeatherFoggyStealBonus = 30
 var TgBotFarmPrestigeMinLevel = 15
 var TgBotFarmPrestigeBonusPerLevel = 3
 var TgBotFarmPrestigeMaxTimes = 200
+var TgBotFarmPrestigeResetBalance = 100000000
 var TgBotFarmPrestigePrices = []int{
 	10000000, 15000000, 20000000, 25000000, 30000000, 35000000, 40000000, 45000000, 50000000, 55000000,
 	60000000, 65000000, 70000000, 75000000, 80000000, 85000000, 90000000, 95000000, 100000000, 105000000,

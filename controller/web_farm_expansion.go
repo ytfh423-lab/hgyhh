@@ -367,7 +367,7 @@ func WebFarmPrestigeInfo(c *gin.Context) {
 			"current_bonus":   bonus,
 			"next_bonus":      nextBonus,
 			"next_price":      webFarmQuotaFloat(nextPrice),
-			"reset_balance":   10.0,
+			"reset_balance":   webFarmQuotaFloat(common.TgBotFarmPrestigeResetBalance),
 		},
 	})
 }
@@ -404,11 +404,11 @@ func WebFarmPrestige(c *gin.Context) {
 	model.ResetFarmForPrestige(user.Id, tgId)
 	model.SetPrestigeLevel(tgId, newPrestige)
 	model.CreatePrestigeRecord(tgId, newPrestige)
-	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s，余额重置为10", newPrestige, farmQuotaStr(price)))
+	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s，余额重置为%s", newPrestige, farmQuotaStr(price), farmQuotaStr(common.TgBotFarmPrestigeResetBalance)))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("转生成功：已支付%.2f，余额已重置为10，仅保留成就和图鉴，永久收入加成+%d%%", webFarmQuotaFloat(price), newPrestige*common.TgBotFarmPrestigeBonusPerLevel),
+		"message": fmt.Sprintf("转生成功：已支付%.2f，余额已重置为%.2f，仅保留成就和图鉴，永久收入加成+%d%%", webFarmQuotaFloat(price), webFarmQuotaFloat(common.TgBotFarmPrestigeResetBalance), newPrestige*common.TgBotFarmPrestigeBonusPerLevel),
 	})
 }
 

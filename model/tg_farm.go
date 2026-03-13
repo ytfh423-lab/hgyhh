@@ -1250,7 +1250,7 @@ func ResetFarmForPrestige(userId int, telegramId string) {
 	DB.Where("telegram_id = ?", telegramId).Delete(&TgFarmAutomation{})
 	DB.Where("seller_id = ? OR buyer_id = ?", telegramId, telegramId).Delete(&TgFarmTrade{})
 	if userId > 0 {
-		DB.Model(&User{}).Where("id = ?", userId).Update("quota", 5000000)
+		DB.Model(&User{}).Where("id = ?", userId).Update("quota", common.TgBotFarmPrestigeResetBalance)
 	}
 	SetFarmLevel(telegramId, 1)
 }
