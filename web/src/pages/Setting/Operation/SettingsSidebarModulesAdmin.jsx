@@ -295,6 +295,11 @@ export default function SettingsSidebarModulesAdmin(props) {
           description: t('用户注销申请审核'),
         },
         {
+          key: 'feedback_admin',
+          title: t('留言板管理'),
+          description: t('用户留言与管理员回复管理'),
+        },
+        {
           key: 'setting',
           title: t('系统设置'),
           description: t('系统参数配置'),
