@@ -4,7 +4,7 @@ import { formatBalance } from './utils';
 const StatusBar = ({ farmData, t }) => {
   if (!farmData) return null;
 
-  const hasExtra = farmData.prestige_level > 0 || farmData.dog || (farmData.items && farmData.items.length > 0);
+  const hasExtra = farmData.dog || (farmData.items && farmData.items.length > 0);
 
   return (
     <div className='farm-statusbar'>
@@ -27,12 +27,6 @@ const StatusBar = ({ farmData, t }) => {
         </div>
       )}
       {hasExtra && <div className='farm-stat-sep' />}
-      {farmData.prestige_level > 0 && (
-        <div className='farm-pill farm-pill-purple'>
-          <span>🔄</span>
-          <span>P{farmData.prestige_level} (+{farmData.prestige_bonus}%)</span>
-        </div>
-      )}
       {farmData.dog && (
         <div className={`farm-pill ${farmData.dog.hunger > 0 ? 'farm-pill-green' : 'farm-pill-red'}`}>
           <span>{farmData.dog.level === 2 ? '🐕' : '🐶'}</span>

@@ -24,7 +24,6 @@ const LeaderboardPage = ({ t }) => {
     { key: 'balance', label: '💰 ' + t('资产') },
     { key: 'level', label: '⭐ ' + t('等级') },
     { key: 'harvest', label: '🌾 ' + t('收获') },
-    { key: 'prestige', label: '🔄 ' + t('转生') },
   ];
 
   const medals = ['🥇', '🥈', '🥉'];

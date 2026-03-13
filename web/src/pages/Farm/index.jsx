@@ -29,7 +29,6 @@ import GamesPage from './components/GamesPage';
 import DogPage from './components/DogPage';
 import AutomationPage from './components/AutomationPage';
 import TreeFarmPage from './components/TreeFarmPage';
-import PrestigePage from './components/PrestigePage';
 import LogsPage from './components/LogsPage';
 import EntrustPage from './components/EntrustPage';
 import EntrustWorkPage from './components/EntrustWorkPage';
@@ -511,8 +510,6 @@ const Farm = () => {
         return <AutomationPage loadFarm={loadFarm} t={t} />;
       case 'treefarm':
         return <TreeFarmPage {...commonProps} />;
-      case 'prestige':
-        return <PrestigePage loadFarm={loadFarm} t={t} />;
       case 'logs':
         return <LogsPage t={t} />;
       default:

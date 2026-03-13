@@ -341,58 +341,11 @@ func WebFarmClaimCollection(c *gin.Context) {
 // ========== Prestige ==========
 
 func WebFarmPrestigeInfo(c *gin.Context) {
-	_, tgId, ok := getWebFarmUser(c)
-	if !ok {
-		return
-	}
-	level := model.GetFarmLevel(tgId)
-	prestige := model.GetPrestigeLevel(tgId)
-	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"current_level":   level,
-			"prestige_level":  prestige,
-			"min_level":       common.TgBotFarmPrestigeMinLevel,
-			"can_prestige":    level >= common.TgBotFarmPrestigeMinLevel,
-			"bonus_per_level": common.TgBotFarmPrestigeBonusPerLevel,
-			"current_bonus":   bonus,
-			"next_bonus":      bonus + common.TgBotFarmPrestigeBonusPerLevel,
-		},
-	})
+	c.JSON(http.StatusOK, gin.H{"success": false, "message": "转生系统已下线"})
 }
 
 func WebFarmPrestige(c *gin.Context) {
-	user, tgId, ok := getWebFarmUser(c)
-	if !ok {
-		return
-	}
-	level := model.GetFarmLevel(tgId)
-	if level < common.TgBotFarmPrestigeMinLevel {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "等级不足，需要满级才能转生"})
-		return
-	}
-	loan, _ := model.GetActiveLoan(tgId)
-	if loan != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先还清贷款"})
-		return
-	}
-
-	oldPrestige := model.GetPrestigeLevel(tgId)
-	newPrestige := oldPrestige + 1
-	model.ResetFarmForPrestige(tgId)
-	model.SetPrestigeLevel(tgId, newPrestige)
-	model.CreatePrestigeRecord(tgId, newPrestige)
-
-	prestigeReward := 25000000
-	model.IncreaseUserQuota(user.Id, prestigeReward, true)
-	model.AddFarmLog(tgId, "prestige", prestigeReward, fmt.Sprintf("🔄 转生到第%d世", newPrestige))
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("转生成功！永久收入加成+%d%%", newPrestige*common.TgBotFarmPrestigeBonusPerLevel),
-	})
+	c.JSON(http.StatusOK, gin.H{"success": false, "message": "转生系统已下线"})
 }
 
 // ========== Automation ==========

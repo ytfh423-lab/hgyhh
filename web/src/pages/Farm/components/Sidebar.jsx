@@ -59,7 +59,6 @@ const navGroups = [
     emoji: '⚙️',
     items: [
       { key: 'automation', label: '自动化', emoji: '⚡' },
-      { key: 'prestige', label: '转生', emoji: '🔄' },
       { key: 'logs', label: '日志', emoji: '📜' },
       { key: 'feedback', label: '留言板', emoji: '💬', href: '/feedback' },
     ],
@@ -85,7 +84,6 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
             <div className='farm-sidebar-title'>NPC {t('农场')}</div>
             <div className='farm-sidebar-subtitle'>
               {farmData ? `Lv.${farmData.user_level || 1}` : ''}
-              {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
             </div>
           </div>
         </div>

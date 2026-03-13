@@ -1075,12 +1075,6 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	}
 	text += "\n"
 
-	// 转生
-	prestigeLv := model.GetPrestigeLevel(tgId)
-	if prestigeLv > 0 {
-		text += fmt.Sprintf("🔄 转生: P%d (+%d%%收入加成)\n", prestigeLv, prestigeLv*common.TgBotFarmPrestigeBonusPerLevel)
-	}
-
 	// 显示地块数量
 	text += fmt.Sprintf("\n📊 土地 %d/%d 块", len(plots), model.FarmMaxPlots)
 	if len(plots) < model.FarmMaxPlots {
@@ -1177,7 +1171,6 @@ func showFarmView(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: lockTag("⚡ 自动化", common.TgBotFarmUnlockAutomation), CallbackData: "farm_auto"},
-		{Text: "🔄 转生", CallbackData: "farm_prestige"},
 	})
 	if userLevel < common.TgBotFarmMaxLevel {
 		price := getLevelUpPrice(userLevel)

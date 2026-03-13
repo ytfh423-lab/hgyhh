@@ -1218,26 +1218,15 @@ type TgFarmPrestige struct {
 }
 
 func GetPrestigeLevel(telegramId string) int {
-	var item TgFarmItem
-	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
-	if err != nil || item.Quantity < 1 {
-		return 0
-	}
-	return item.Quantity
+	return 0
 }
 
 func SetPrestigeLevel(telegramId string, level int) {
-	var item TgFarmItem
-	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
-	if err != nil {
-		DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_prestige", Quantity: level})
-		return
-	}
-	DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", level)
+	DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").Delete(&TgFarmItem{})
 }
 
 func CreatePrestigeRecord(telegramId string, level int) {
-	DB.Create(&TgFarmPrestige{TelegramId: telegramId, PrestigeLevel: level, PrestigedAt: time.Now().Unix()})
+	return
 }
 
 func ResetFarmForPrestige(telegramId string) {
