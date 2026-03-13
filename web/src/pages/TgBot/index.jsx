@@ -19,6 +19,29 @@ import {
 import { API, showError, showSuccess } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 
+const QUOTA_PER_DOLLAR = 500000;
+const PRESTIGE_MAX_TIMES = 200;
+
+const buildDefaultPrestigePriceConfig = () =>
+  Array.from({ length: PRESTIGE_MAX_TIMES }, (_, i) => ({
+    level: i + 1,
+    price: Number(((10000000 + i * 5000000) / QUOTA_PER_DOLLAR).toFixed(2)),
+  }));
+
+const parsePrestigePriceConfig = (value) => {
+  const defaults = buildDefaultPrestigePriceConfig();
+  if (!value) return defaults;
+  const parts = value.split(',');
+  return defaults.map((item, idx) => {
+    const raw = Number(parts[idx] || 0);
+    if (!Number.isFinite(raw) || raw < 0) return item;
+    return { ...item, price: Number((raw / QUOTA_PER_DOLLAR).toFixed(2)) };
+  });
+};
+
+const stringifyPrestigePriceConfig = (config) =>
+  config.map((item) => String(Math.max(0, Math.round((item.price || 0) * QUOTA_PER_DOLLAR)))).join(',');
+
 const PURPOSE_OPTIONS = [
   { value: 1, label: '余额兑换码' },
   { value: 2, label: '注册邀请码' },
@@ -112,7 +135,7 @@ const TgBotPage = () => {
   const [farmUnlockTasks, setFarmUnlockTasks] = useState(1);
   const [farmUnlockAchieve, setFarmUnlockAchieve] = useState(1);
   const [farmLevelPrices, setFarmLevelPrices] = useState('500000,1000000,2000000,3000000,5000000,8000000,12000000,18000000,25000000,35000000,50000000,70000000,100000000,150000000');
-  const [farmPrestigePrices, setFarmPrestigePrices] = useState(Array.from({ length: 200 }, (_, i) => String(10000000 + i * 5000000)).join(','));
+  const [farmPrestigePriceConfig, setFarmPrestigePriceConfig] = useState(buildDefaultPrestigePriceConfig());
   // 银行贷款
   const [farmBankAdminId, setFarmBankAdminId] = useState(1);
   const [farmBankInterestRate, setFarmBankInterestRate] = useState(10);
@@ -238,7 +261,7 @@ const TgBotPage = () => {
         setFarmUnlockTasks(data.farm_unlock_tasks ?? 1);
         setFarmUnlockAchieve(data.farm_unlock_achieve ?? 1);
         if (data.farm_level_prices) setFarmLevelPrices(data.farm_level_prices);
-        if (data.farm_prestige_prices) setFarmPrestigePrices(data.farm_prestige_prices);
+        setFarmPrestigePriceConfig(parsePrestigePriceConfig(data.farm_prestige_prices));
         // 银行贷款
         setFarmBankAdminId(data.farm_bank_admin_id ?? 1);
         setFarmBankInterestRate(data.farm_bank_interest_rate ?? 10);
@@ -1319,12 +1342,28 @@ const TgBotPage = () => {
               {farmLevelPrices.split(',').map((p, i) => `Lv${i+2}=$${(parseInt(p.trim()) / 500000 || 0).toFixed(2)}`).join(' | ')}
             </Typography.Text>
           </div>
-          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('转生价格(额度,逗号分隔,第1次~第200次)')}</Typography.Title>
-          <div style={{ marginBottom: 12 }}>
-            <Input value={farmPrestigePrices} onChange={setFarmPrestigePrices} placeholder='10000000,15000000,20000000,...' style={{ width: '100%' }} />
-            <Typography.Text type='tertiary' size='small'>
-              {farmPrestigePrices.split(',').slice(0, 10).map((p, i) => `P${i+1}=$${(parseInt(p.trim()) / 500000 || 0).toFixed(2)}`).join(' | ')}
-            </Typography.Text>
+          <Typography.Title heading={6} style={{ marginTop: 8, marginBottom: 8 }}>{t('转生价格(直接输入额度,第1次~第200次)')}</Typography.Title>
+          <div style={{ marginBottom: 12, padding: 12, border: '1px solid var(--semi-color-border)', borderRadius: 8, maxHeight: 320, overflowY: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+              {farmPrestigePriceConfig.map((item) => (
+                <div key={item.level} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Typography.Text style={{ width: 56 }}>{`P${item.level}`}</Typography.Text>
+                  <InputNumber
+                    value={item.price}
+                    min={0}
+                    step={1}
+                    precision={2}
+                    style={{ width: 120 }}
+                    onChange={(v) =>
+                      setFarmPrestigePriceConfig((prev) =>
+                        prev.map((p) => (p.level === item.level ? { ...p, price: Number(v ?? 0) } : p)),
+                      )
+                    }
+                  />
+                  <Typography.Text type='tertiary' size='small'>$</Typography.Text>
+                </div>
+              ))}
+            </div>
           </div>
           <Typography.Title heading={6} style={{ marginTop: 16, marginBottom: 8 }}>🏦 {t('银行贷款设置')}</Typography.Title>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -1469,7 +1508,7 @@ const TgBotPage = () => {
                   { key: 'TgBotFarmUnlockTasks', value: String(farmUnlockTasks) },
                   { key: 'TgBotFarmUnlockAchieve', value: String(farmUnlockAchieve) },
                   { key: 'TgBotFarmLevelPrices', value: farmLevelPrices },
-                  { key: 'TgBotFarmPrestigePrices', value: farmPrestigePrices },
+                  { key: 'TgBotFarmPrestigePrices', value: stringifyPrestigePriceConfig(farmPrestigePriceConfig) },
                   // 银行贷款
                   { key: 'TgBotFarmBankAdminId', value: String(farmBankAdminId) },
                   { key: 'TgBotFarmBankInterestRate', value: String(farmBankInterestRate) },
