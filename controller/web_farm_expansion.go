@@ -739,7 +739,7 @@ func WebFarmGamePlay(c *gin.Context) {
 	}
 
 	if engineGames[req.GameKey] {
-		resultText, multi = scoreToGameResult(req.Score, g.Name, g.Emoji)
+		resultText, multi = scoreToGameResult(req.GameKey, req.Score, g.Name, g.Emoji)
 	} else {
 		switch req.GameKey {
 		case "bugcatch":

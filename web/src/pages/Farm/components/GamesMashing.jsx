@@ -591,7 +591,7 @@ export const CircleDrawGame = ({ game, onComplete, t }) => {
       if (diff > Math.PI) diff -= Math.PI * 2;
       if (diff < -Math.PI) diff += Math.PI * 2;
       s.totalAngle += Math.abs(diff);
-      s.progress = Math.min(100, (s.totalAngle / (Math.PI * 12)) * 100);
+      s.progress = Math.min(100, (s.totalAngle / (Math.PI * 18)) * 100);
       setProgress(s.progress);
 
       if (s.progress >= 100) {

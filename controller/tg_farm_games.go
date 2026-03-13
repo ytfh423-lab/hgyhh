@@ -11,7 +11,7 @@ import (
 )
 
 // scoreToGameResult 根据前端引擎传来的 score(0~1) 决定倍率和结果文案
-func scoreToGameResult(score float64, gameName, emoji string) (string, float64) {
+func scoreToGameResult(gameKey string, score float64, gameName, emoji string) (string, float64) {
 	// 加入少量随机浮动，避免完全可预测
 	jitter := (rand.Float64() - 0.5) * 0.1 // ±5%
 	adj := score + jitter
@@ -22,22 +22,35 @@ func scoreToGameResult(score float64, gameName, emoji string) (string, float64) 
 		adj = 1
 	}
 
+	fourXThreshold := 0.95
+	threeXThreshold := 0.8
+	twoXThreshold := 0.6
+	oneHalfThreshold := 0.4
+	halfThreshold := 0.2
+	if gameKey == "thresh" {
+		fourXThreshold = 0.995
+		threeXThreshold = 0.9
+		twoXThreshold = 0.72
+		oneHalfThreshold = 0.52
+		halfThreshold = 0.3
+	}
+
 	var label string
 	var multi float64
 	switch {
-	case adj >= 0.95:
+	case adj >= fourXThreshold:
 		label = "🏆 完美表现！4倍奖励！"
 		multi = 4
-	case adj >= 0.8:
+	case adj >= threeXThreshold:
 		label = "🥇 非常出色！3倍奖励！"
 		multi = 3
-	case adj >= 0.6:
+	case adj >= twoXThreshold:
 		label = "🥈 表现不错！2倍奖励！"
 		multi = 2
-	case adj >= 0.4:
+	case adj >= oneHalfThreshold:
 		label = "👍 还不错！1.5倍！"
 		multi = 1.5
-	case adj >= 0.2:
+	case adj >= halfThreshold:
 		label = "😅 差一点点…0.5倍"
 		multi = 0.5
 	default:
