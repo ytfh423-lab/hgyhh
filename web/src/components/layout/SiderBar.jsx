@@ -135,6 +135,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
   const financeItems = useMemo(() => {
     const items = [
       {
+        text: t('公开留言板'),
+        itemKey: 'feedback',
+        to: '/feedback',
+      },
+      {
         text: t('钱包管理'),
         itemKey: 'topup',
         to: '/topup',
@@ -153,11 +158,6 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('屯屯鼠排行榜'),
         itemKey: 'checkin_leaderboard',
         to: '/console/checkin-leaderboard',
-      },
-      {
-        text: t('留言板'),
-        itemKey: 'feedback',
-        to: '/feedback',
       },
     ];
 

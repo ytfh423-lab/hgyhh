@@ -41,6 +41,7 @@ export const DEFAULT_ADMIN_CONFIG = {
   },
   personal: {
     enabled: true,
+    feedback: true,
     topup: true,
     personal: true,
     invitation_code: true,

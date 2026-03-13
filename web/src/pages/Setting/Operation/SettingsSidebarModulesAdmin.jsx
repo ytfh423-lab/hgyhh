@@ -248,6 +248,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       title: t('个人中心区域'),
       description: t('用户个人功能'),
       modules: [
+        { key: 'feedback', title: t('公开留言板'), description: t('用户可见的公开留言板入口') },
         { key: 'topup', title: t('钱包管理'), description: t('余额充值管理') },
         {
           key: 'personal',
