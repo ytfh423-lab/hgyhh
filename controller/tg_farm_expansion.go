@@ -858,6 +858,9 @@ func showFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	prestige := model.GetPrestigeLevel(tgId)
 	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
 	nextBonus := (prestige + 1) * common.TgBotFarmPrestigeBonusPerLevel
+	if nextBonus > common.TgBotFarmPrestigeMaxTimes*common.TgBotFarmPrestigeBonusPerLevel {
+		nextBonus = common.TgBotFarmPrestigeMaxTimes * common.TgBotFarmPrestigeBonusPerLevel
+	}
 
 	text := "🔄 转生系统\n\n"
 	text += "满级后重置进度，获得永久收入加成。\n\n"
@@ -866,10 +869,11 @@ func showFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	text += fmt.Sprintf("💰 当前加成: +%d%%\n", bonus)
 	text += fmt.Sprintf("📈 转生后加成: +%d%%\n", nextBonus)
 	text += fmt.Sprintf("🎯 需要等级: Lv.%d\n", common.TgBotFarmPrestigeMinLevel)
+	text += fmt.Sprintf("🔢 最多转生: %d次\n", common.TgBotFarmPrestigeMaxTimes)
 	text += "💵 转生后余额: 10\n"
 	text += "\n⚠️ 转生将清空：余额、等级、地块、仓库、狗、牧场、加工、现有物品\n保留：成就、图鉴\n获得：永久收入加成"
 
-	canPrestige := level >= common.TgBotFarmPrestigeMinLevel
+	canPrestige := level >= common.TgBotFarmPrestigeMinLevel && prestige < common.TgBotFarmPrestigeMaxTimes
 
 	var rows [][]TgInlineKeyboardButton
 	if canPrestige {
@@ -889,8 +893,13 @@ func showFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 func doFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	level := model.GetFarmLevel(tgId)
+	currentPrestige := model.GetPrestigeLevel(tgId)
 	if level < common.TgBotFarmPrestigeMinLevel {
 		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 需要 Lv.%d 才能转生（当前 Lv.%d）", common.TgBotFarmPrestigeMinLevel, level), nil, from)
+		return
+	}
+	if currentPrestige >= common.TgBotFarmPrestigeMaxTimes {
+		farmSend(chatId, editMsgId, fmt.Sprintf("❌ 最多只能转生%d次", common.TgBotFarmPrestigeMaxTimes), nil, from)
 		return
 	}
 
@@ -900,7 +909,6 @@ func doFarmPrestige(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	currentPrestige := model.GetPrestigeLevel(tgId)
 	newPrestige := currentPrestige + 1
 
 	model.ResetFarmForPrestige(user.Id, tgId)

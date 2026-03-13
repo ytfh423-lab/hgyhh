@@ -51,7 +51,7 @@ const PrestigePage = ({ loadFarm, t }) => {
         </div>
         <div className='farm-kv'>
           <div className='farm-kv-label'>{t('转生次数')}</div>
-          <div className='farm-kv-value'>{data.prestige_level}</div>
+          <div className='farm-kv-value'>{data.prestige_level}/{data.max_times}</div>
         </div>
         <div className='farm-kv'>
           <div className='farm-kv-label'>{t('当前加成')}</div>
@@ -73,7 +73,11 @@ const PrestigePage = ({ loadFarm, t }) => {
       <Banner type='warning' style={{ marginBottom: 12, borderRadius: 10 }}
         description={t('转生将重置：余额到10、等级、地块、仓库、狗、牧场、加工及现有物品。保留：成就、图鉴。获得永久收入加成。')} />
       <Button theme='solid' type='warning' disabled={!data.can_prestige} onClick={() => setShowConfirm(true)} className='farm-btn'>
-        {data.can_prestige ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)` : `${t('需要')} Lv.${data.min_level}`}
+        {data.can_prestige
+          ? `🔄 ${t('转生')} (+${data.bonus_per_level}%)`
+          : data.prestige_level >= data.max_times
+            ? t('已达上限')
+            : `${t('需要')} Lv.${data.min_level}`}
       </Button>
 
       <FarmConfirmModal

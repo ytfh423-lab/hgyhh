@@ -242,7 +242,8 @@ var TgBotFarmWeatherFoggyStealBonus = 30
 
 // 转生系统
 var TgBotFarmPrestigeMinLevel = 15
-var TgBotFarmPrestigeBonusPerLevel = 5
+var TgBotFarmPrestigeBonusPerLevel = 6
+var TgBotFarmPrestigeMaxTimes = 5
 
 // 自动化设施
 var TgBotFarmIrrigationPrice = 5000000

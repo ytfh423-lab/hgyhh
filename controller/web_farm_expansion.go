@@ -348,6 +348,11 @@ func WebFarmPrestigeInfo(c *gin.Context) {
 	level := model.GetFarmLevel(tgId)
 	prestige := model.GetPrestigeLevel(tgId)
 	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
+	nextBonus := bonus + common.TgBotFarmPrestigeBonusPerLevel
+	maxBonus := common.TgBotFarmPrestigeMaxTimes * common.TgBotFarmPrestigeBonusPerLevel
+	if nextBonus > maxBonus {
+		nextBonus = maxBonus
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -355,10 +360,11 @@ func WebFarmPrestigeInfo(c *gin.Context) {
 			"current_level":   level,
 			"prestige_level":  prestige,
 			"min_level":       common.TgBotFarmPrestigeMinLevel,
-			"can_prestige":    level >= common.TgBotFarmPrestigeMinLevel,
+			"max_times":       common.TgBotFarmPrestigeMaxTimes,
+			"can_prestige":    level >= common.TgBotFarmPrestigeMinLevel && prestige < common.TgBotFarmPrestigeMaxTimes,
 			"bonus_per_level": common.TgBotFarmPrestigeBonusPerLevel,
 			"current_bonus":   bonus,
-			"next_bonus":      bonus + common.TgBotFarmPrestigeBonusPerLevel,
+			"next_bonus":      nextBonus,
 			"reset_balance":   10.0,
 		},
 	})
@@ -370,8 +376,13 @@ func WebFarmPrestige(c *gin.Context) {
 		return
 	}
 	level := model.GetFarmLevel(tgId)
+	currentPrestige := model.GetPrestigeLevel(tgId)
 	if level < common.TgBotFarmPrestigeMinLevel {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "等级不足，需要满级才能转生"})
+		return
+	}
+	if currentPrestige >= common.TgBotFarmPrestigeMaxTimes {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("最多只能转生%d次", common.TgBotFarmPrestigeMaxTimes)})
 		return
 	}
 	loan, _ := model.GetActiveLoan(tgId)
@@ -380,7 +391,7 @@ func WebFarmPrestige(c *gin.Context) {
 		return
 	}
 
-	oldPrestige := model.GetPrestigeLevel(tgId)
+	oldPrestige := currentPrestige
 	newPrestige := oldPrestige + 1
 	model.ResetFarmForPrestige(user.Id, tgId)
 	model.SetPrestigeLevel(tgId, newPrestige)
