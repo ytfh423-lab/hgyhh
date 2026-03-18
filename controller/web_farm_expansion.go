@@ -565,18 +565,11 @@ func WebFarmGameWheel(c *gin.Context) {
 	}
 	win := sectors[winIdx]
 	actualWin := win.Prize
-	prestige := model.GetPrestigeLevel(tgId)
-	if prestige > 0 && actualWin > 0 {
-		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
-	}
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
 	net := actualWin - price
 	prizeLabel := win.Label
-	if prestige > 0 && actualWin > 0 {
-		prizeLabel = fmt.Sprintf("$%.2f", webFarmQuotaFloat(actualWin))
-	}
 	model.CreateGameLog(tgId, "wheel", price, actualWin)
 	model.AddFarmLog(tgId, "game", net, "🎡 转盘: "+prizeLabel)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
@@ -640,10 +633,6 @@ func WebFarmGameScratch(c *gin.Context) {
 		actualWin = win.Amount
 	} else {
 		win = prizes[0] // for label display
-	}
-	prestige := model.GetPrestigeLevel(tgId)
-	if prestige > 0 && actualWin > 0 {
-		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
 	}
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
@@ -808,10 +797,6 @@ func WebFarmGamePlay(c *gin.Context) {
 	}
 
 	actualWin := int(float64(price) * multi)
-	prestige := model.GetPrestigeLevel(tgId)
-	if prestige > 0 && actualWin > 0 {
-		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
-	}
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}

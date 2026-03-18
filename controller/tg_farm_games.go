@@ -287,10 +287,6 @@ func doMiniGame(chatId int64, editMsgId int, tgId string, gameKey string, from *
 	}
 
 	actualWin := int(float64(price) * multi)
-	prestige := model.GetPrestigeLevel(tgId)
-	if prestige > 0 && actualWin > 0 {
-		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
-	}
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
