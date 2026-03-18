@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button, Spin, Empty, Tag, Banner, InputNumber, Typography } from '@douyinfe/semi-ui';
 import { API, showError, formatBalance } from './utils';
+import FarmConfirmModal from './FarmConfirmModal';
 
 const { Text } = Typography;
 
@@ -8,6 +9,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
   const [bankData, setBankData] = useState(null);
   const [bankLoading, setBankLoading] = useState(true);
   const [mortgageAmount, setMortgageAmount] = useState(100);
+  const [confirmState, setConfirmState] = useState({ visible: false, title: '', message: '', action: null, type: 'warning' });
 
   const loadBank = useCallback(async () => {
     setBankLoading(true);
@@ -21,25 +23,103 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
 
   useEffect(() => { loadBank(); }, [loadBank]);
 
-  const handleLoan = async () => {
-    const res = await doAction('/api/farm/bank/loan', {});
-    if (res) { loadBank(); loadFarm(); }
+  const showConfirm = (title, message, action, type = 'warning') => {
+    setConfirmState({ visible: true, title, message, action, type });
+  };
+  const closeConfirm = () => setConfirmState(s => ({ ...s, visible: false }));
+  const executeConfirm = async () => {
+    if (confirmState.action) await confirmState.action();
+    closeConfirm();
+  };
+
+  const handleLoan = () => {
+    if (!bankData) return;
+    showConfirm(
+      '💵 ' + t('确认申请信用贷款？'),
+      <div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('贷款金额')}: </span>{formatBalance(bankData.max_loan)}
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('利息')}: </span>{formatBalance(bankData.interest)} ({bankData.interest_rate}%)
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('还款期限')}: </span>{bankData.loan_days} {t('天')}
+        </div>
+        <div style={{ color: 'var(--farm-warning)', fontSize: 12 }}>
+          ⚠️ {t('逾期未还将影响信用评分')}
+        </div>
+      </div>,
+      async () => {
+        const res = await doAction('/api/farm/bank/loan', {});
+        if (res) { loadBank(); loadFarm(); }
+      },
+      'primary'
+    );
   };
 
   const mortgageMaxDollar = bankData ? Math.floor(bankData.mortgage_max) : 1000;
 
-  const handleMortgage = async () => {
+  const handleMortgage = () => {
     if (!mortgageAmount || mortgageAmount < 1 || mortgageAmount > mortgageMaxDollar) {
       showError(t('金额必须在 $1 ~ $') + mortgageMaxDollar + t(' 之间'));
       return;
     }
-    const res = await doAction('/api/farm/bank/mortgage', { amount: mortgageAmount });
-    if (res) { loadBank(); loadFarm(); }
+    const interestAmt = (mortgageAmount * (bankData?.mortgage_interest_rate || 15) / 100).toFixed(2);
+    const totalDue = (mortgageAmount * (1 + (bankData?.mortgage_interest_rate || 15) / 100)).toFixed(2);
+    showConfirm(
+      '🏠 ' + t('确认申请抵押贷款？'),
+      <div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('贷款金额')}: </span>${mortgageAmount}
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('利息')}: </span>${interestAmt} ({bankData?.mortgage_interest_rate}%)
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('应还总额')}: </span>${totalDue}
+        </div>
+        <div style={{ color: 'var(--farm-danger)', fontSize: 12, lineHeight: 1.5 }}>
+          ⚠️ {t('抵押贷款不能用于升级！逾期未还：10级以下永久禁升10级，10级以上封禁账号')}
+        </div>
+      </div>,
+      async () => {
+        const res = await doAction('/api/farm/bank/mortgage', { amount: mortgageAmount });
+        if (res) { loadBank(); loadFarm(); }
+      },
+      'danger'
+    );
   };
 
-  const handleRepay = async (percent) => {
-    const res = await doAction('/api/farm/bank/repay', { percent });
-    if (res) { loadBank(); loadFarm(); }
+  const handleRepay = (percent) => {
+    if (!bankData?.active_loan) return;
+    const loan = bankData.active_loan;
+    const repayAmt = percent === 100 ? loan.remaining : loan.remaining / 2;
+    const extendInfo = percent === 50 ? `\n📅 ${t('还一半可延长期限2天')}` : '';
+    showConfirm(
+      '💰 ' + t('确认还款？'),
+      <div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('还款比例')}: </span>{percent}%
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('还款金额')}: </span>{formatBalance(repayAmt)}
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>{t('还后剩余')}: </span>{formatBalance(loan.remaining - repayAmt)}
+        </div>
+        {percent === 50 && loan.remaining - repayAmt > 0.01 && (
+          <div style={{ color: 'var(--farm-primary)', fontSize: 12 }}>
+            📅 {t('还一半可延长期限2天')}
+          </div>
+        )}
+      </div>,
+      async () => {
+        const res = await doAction('/api/farm/bank/repay', { percent });
+        if (res) { loadBank(); loadFarm(); }
+      },
+      'primary'
+    );
   };
 
   if (bankLoading) {
@@ -201,6 +281,17 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
           ))}
         </div>
       )}
+      <FarmConfirmModal
+        visible={confirmState.visible}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmType={confirmState.type}
+        confirmText={t('确认')}
+        cancelText={t('取消')}
+        loading={actionLoading}
+        onConfirm={executeConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 };
