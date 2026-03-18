@@ -2949,24 +2949,38 @@ func WebFarmBankRepay(c *gin.Context) {
 		return
 	}
 
-	loan, err := model.RepayLoan(activeLoan.Id, repayAmount)
+	extendDays := 0
+	if req.Percent == 50 {
+		extendDays = 2
+	}
+	loan, err := model.RepayLoanWithExtend(activeLoan.Id, repayAmount, extendDays)
 	if err != nil {
 		_ = model.IncreaseUserQuota(user.Id, repayAmount, true)
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "还款失败，已退款"})
 		return
 	}
 
-	model.AddFarmLog(tgId, "repay", -repayAmount, fmt.Sprintf("还款%d%%", req.Percent))
+	logMsg := fmt.Sprintf("还款%d%%", req.Percent)
+	if extendDays > 0 && loan.Status != 1 {
+		logMsg += fmt.Sprintf("，期限+%d天", extendDays)
+	}
+	model.AddFarmLog(tgId, "repay", -repayAmount, logMsg)
 	common.SysLog(fmt.Sprintf("TG Farm Bank: user %s repaid %d quota", tgId, repayAmount))
 
 	newRemaining := loan.TotalDue - loan.Repaid
+	msg := fmt.Sprintf("还款成功！还款 $%.2f", webFarmQuotaFloat(repayAmount))
+	if extendDays > 0 && loan.Status != 1 {
+		msg += fmt.Sprintf("，期限延长%d天", extendDays)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("还款成功！还款 $%.2f", webFarmQuotaFloat(repayAmount)),
+		"message": msg,
 		"data": gin.H{
-			"repaid":    webFarmQuotaFloat(repayAmount),
-			"remaining": webFarmQuotaFloat(newRemaining),
-			"cleared":   loan.Status == 1,
+			"repaid":       webFarmQuotaFloat(repayAmount),
+			"remaining":    webFarmQuotaFloat(newRemaining),
+			"cleared":      loan.Status == 1,
+			"extended_days": extendDays,
+			"new_due_at":   loan.DueAt,
 		},
 	})
 }

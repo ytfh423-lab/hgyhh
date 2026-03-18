@@ -818,6 +818,11 @@ func CreateLoanWithType(telegramId string, principal, interest, totalDue int, cr
 
 // RepayLoan 还款（部分或全部）
 func RepayLoan(loanId int, amount int) (*TgFarmLoan, error) {
+	return RepayLoanWithExtend(loanId, amount, 0)
+}
+
+// RepayLoanWithExtend 还款并可选延长期限
+func RepayLoanWithExtend(loanId int, amount int, extendDays int) (*TgFarmLoan, error) {
 	var loan TgFarmLoan
 	err := DB.Where("id = ? AND status = 0", loanId).First(&loan).Error
 	if err != nil {
@@ -831,10 +836,15 @@ func RepayLoan(loanId int, amount int) (*TgFarmLoan, error) {
 	if loan.Repaid >= loan.TotalDue {
 		loan.Status = 1
 	}
-	err = DB.Model(&TgFarmLoan{}).Where("id = ?", loanId).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"repaid": loan.Repaid,
 		"status": loan.Status,
-	}).Error
+	}
+	if extendDays > 0 && loan.Status != 1 {
+		loan.DueAt += int64(extendDays) * 86400
+		updates["due_at"] = loan.DueAt
+	}
+	err = DB.Model(&TgFarmLoan{}).Where("id = ?", loanId).Updates(updates).Error
 	return &loan, err
 }
 

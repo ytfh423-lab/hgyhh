@@ -4455,15 +4455,22 @@ func doFarmRepayPartial(chatId int64, editMsgId int, tgId string, percent int, f
 		return
 	}
 
-	// 记录还款
-	loan, err := model.RepayLoan(activeLoan.Id, repayAmount)
+	extendDays := 0
+	if percent == 50 {
+		extendDays = 2
+	}
+	loan, err := model.RepayLoanWithExtend(activeLoan.Id, repayAmount, extendDays)
 	if err != nil {
 		_ = model.IncreaseUserQuota(user.Id, repayAmount, true)
 		farmSend(chatId, editMsgId, "❌ 还款失败，已退款。", nil, from)
 		return
 	}
 
-	model.AddFarmLog(tgId, "repay", -repayAmount, fmt.Sprintf("还款%d%%", percent))
+	logMsg := fmt.Sprintf("还款%d%%", percent)
+	if extendDays > 0 && loan.Status != 1 {
+		logMsg += fmt.Sprintf("，期限+%d天", extendDays)
+	}
+	model.AddFarmLog(tgId, "repay", -repayAmount, logMsg)
 	common.SysLog(fmt.Sprintf("TG Farm Bank: user %s repaid %d quota, loan status %d", tgId, repayAmount, loan.Status))
 
 	statusMsg := ""
@@ -4471,7 +4478,12 @@ func doFarmRepayPartial(chatId int64, editMsgId int, tgId string, percent int, f
 		statusMsg = "\n\n🎉 贷款已全部还清！"
 	} else {
 		newRemaining := loan.TotalDue - loan.Repaid
-		statusMsg = fmt.Sprintf("\n\n剩余待还: %s", farmQuotaStr(newRemaining))
+		extendMsg := ""
+		if extendDays > 0 {
+			dueTime := time.Unix(loan.DueAt, 0)
+			extendMsg = fmt.Sprintf("\n📅 期限延长%d天，新截止: %s", extendDays, dueTime.Format("2006-01-02"))
+		}
+		statusMsg = fmt.Sprintf("\n\n剩余待还: %s%s", farmQuotaStr(newRemaining), extendMsg)
 	}
 
 	farmSend(chatId, editMsgId, fmt.Sprintf("✅ 还款成功！\n\n💰 还款金额: %s%s",
