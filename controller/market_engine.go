@@ -776,4 +776,71 @@ func getMarketPriceTrend(key string) (tag string, arrow string, color string) {
 	return "平稳", "→", "grey"
 }
 
+// getMarketSnapshot 批量获取所有市场数据（单次锁操作）
+type marketBulkItem struct {
+	Key        string
+	Name       string
+	Emoji      string
+	Category   string
+	BasePrice  int
+	Multiplier int
+	PrevMult   int
+	TrendTag   string
+	TrendArrow string
+	TrendColor string
+}
+
+func getMarketBulkData() (items []marketBulkItem, tips []marketTip, nextRefresh int64) {
+	ensureMarketEngine()
+	mktMu.RLock()
+	defer mktMu.RUnlock()
+
+	items = make([]marketBulkItem, 0, len(mktConfigs))
+	for _, cfg := range mktConfigs {
+		mult, prevMult, trend := 100, 100, 0
+		if state, ok := mktStates[cfg.Key]; ok {
+			mult = state.Multiplier
+			prevMult = state.PrevMultiplier
+			trend = state.Trend
+		}
+		change := mult - prevMult
+		tag, arrow, clr := calcPriceTrend(change, trend)
+		items = append(items, marketBulkItem{
+			Key: cfg.Key, Name: cfg.Name, Emoji: cfg.Emoji,
+			Category: cfg.Category, BasePrice: cfg.BasePrice,
+			Multiplier: mult, PrevMult: prevMult,
+			TrendTag: tag, TrendArrow: arrow, TrendColor: clr,
+		})
+	}
+	tips = make([]marketTip, len(mktTips))
+	copy(tips, mktTips)
+	remain := mktNextTick - time.Now().Unix()
+	if remain < 0 {
+		remain = 0
+	}
+	return items, tips, remain
+}
+
+func calcPriceTrend(change, trend int) (tag string, arrow string, color string) {
+	if change >= 10 || trend >= 8 {
+		return "暴涨", "⬆️", "red"
+	}
+	if change >= 5 || trend >= 4 {
+		return "上涨", "↗️", "orange"
+	}
+	if change >= 2 || trend >= 2 {
+		return "微涨", "↗", "yellow"
+	}
+	if change <= -10 || trend <= -8 {
+		return "暴跌", "⬇️", "green"
+	}
+	if change <= -5 || trend <= -4 {
+		return "下跌", "↘️", "cyan"
+	}
+	if change <= -2 || trend <= -2 {
+		return "微跌", "↘", "blue"
+	}
+	return "平稳", "→", "grey"
+}
+
 // ========== 辅助函数 ==========

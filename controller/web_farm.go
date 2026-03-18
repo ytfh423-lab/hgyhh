@@ -1666,8 +1666,6 @@ func WebFarmLogs(c *gin.Context) {
 
 // WebFarmMarket returns current market prices with trend info and tips
 func WebFarmMarket(c *gin.Context) {
-	ensureMarketFresh()
-
 	type priceInfo struct {
 		Key        string  `json:"key"`
 		Name       string  `json:"name"`
@@ -1692,35 +1690,28 @@ func WebFarmMarket(c *gin.Context) {
 		ColdItem string      `json:"cold_item"`
 	}
 
-	configs := getAllMarketConfigs()
+	bulkItems, tips, nextRefresh := getMarketBulkData()
+
 	var prices []priceInfo
 	catItems := make(map[string][]priceInfo)
 
-	for _, cfg := range configs {
-		state := getMarketItemState(cfg.Key)
-		mult := 100
-		prevMult := 100
-		if state != nil {
-			mult = state.Multiplier
-			prevMult = state.PrevMultiplier
-		}
-		tag, arrow, clr := getMarketPriceTrend(cfg.Key)
+	for _, bi := range bulkItems {
 		item := priceInfo{
-			Key:        cfg.Key,
-			Name:       cfg.Name,
-			Emoji:      cfg.Emoji,
-			Category:   cfg.Category,
-			BasePrice:  webFarmQuotaFloat(cfg.BasePrice),
-			Multiplier: mult,
-			PrevMult:   prevMult,
-			CurPrice:   webFarmQuotaFloat(cfg.BasePrice * mult / 100),
-			Change:     mult - prevMult,
-			TrendTag:   tag,
-			TrendArrow: arrow,
-			TrendColor: clr,
+			Key:        bi.Key,
+			Name:       bi.Name,
+			Emoji:      bi.Emoji,
+			Category:   bi.Category,
+			BasePrice:  webFarmQuotaFloat(bi.BasePrice),
+			Multiplier: bi.Multiplier,
+			PrevMult:   bi.PrevMult,
+			CurPrice:   webFarmQuotaFloat(bi.BasePrice * bi.Multiplier / 100),
+			Change:     bi.Multiplier - bi.PrevMult,
+			TrendTag:   bi.TrendTag,
+			TrendArrow: bi.TrendArrow,
+			TrendColor: bi.TrendColor,
 		}
 		prices = append(prices, item)
-		catItems[cfg.Category] = append(catItems[cfg.Category], item)
+		catItems[bi.Category] = append(catItems[bi.Category], item)
 	}
 
 	catMeta := []struct {
@@ -1762,8 +1753,6 @@ func WebFarmMarket(c *gin.Context) {
 		})
 	}
 
-	nextRefresh := getMarketNextRefresh()
-	tips := getMarketTips()
 	season := getCurrentSeason()
 	weather := GetCurrentWeather()
 
@@ -1773,7 +1762,7 @@ func WebFarmMarket(c *gin.Context) {
 			"prices":           prices,
 			"categories":       categories,
 			"next_refresh":     nextRefresh,
-			"next_refresh_fmt": formatDuration(int64(nextRefresh)),
+			"next_refresh_fmt": formatDuration(nextRefresh),
 			"refresh_hours":    common.TgBotMarketRefreshHours,
 			"tips":             tips,
 			"season":           season,
