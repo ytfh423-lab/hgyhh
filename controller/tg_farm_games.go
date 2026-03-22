@@ -286,12 +286,12 @@ func doMiniGame(chatId int64, editMsgId int, tgId string, gameKey string, from *
 		multi = 1
 	}
 
-	actualWin := int(float64(price) * multi)
+	actualWin := common.ClampQuotaFloat64(float64(price) * multi)
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
 
-	net := actualWin - price
+	net := common.SafeQuotaAdd(actualWin, -price)
 	model.CreateGameLog(tgId, gameKey, price, actualWin)
 	netSign := "+"
 	if net < 0 {

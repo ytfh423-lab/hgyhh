@@ -86,7 +86,11 @@ func Recharge(referenceId string, customerId string) (err error) {
 		}
 
 		quota = topUp.Money * common.QuotaPerUnit
-		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", quota)}).Error
+		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("stripe_customer", customerId).Error
+		if err != nil {
+			return err
+		}
+		err = IncreaseUserQuotaTx(tx, topUp.UserId, common.ClampQuotaFloat64(quota))
 		if err != nil {
 			return err
 		}
@@ -99,7 +103,7 @@ func Recharge(referenceId string, customerId string) (err error) {
 		return errors.New("充值失败，请稍后重试")
 	}
 
-	RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount))
+	RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(common.ClampQuotaFloat64(quota)), topUp.Amount))
 
 	return nil
 }
@@ -289,7 +293,7 @@ func ManualCompleteTopUp(tradeNo string) error {
 		}
 
 		// 增加用户额度（立即写库，保持一致性）
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
+		if err := IncreaseUserQuotaTx(tx, topUp.UserId, quotaToAdd); err != nil {
 			return err
 		}
 
@@ -340,9 +344,7 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 		quota = topUp.Amount
 
 		// 构建更新字段，优先使用邮箱，如果邮箱为空则使用用户名
-		updateFields := map[string]interface{}{
-			"quota": gorm.Expr("quota + ?", quota),
-		}
+		updateFields := map[string]interface{}{}
 
 		// 如果有客户邮箱，尝试更新用户邮箱（仅当用户邮箱为空时）
 		if customerEmail != "" {
@@ -359,8 +361,13 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			}
 		}
 
-		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(updateFields).Error
-		if err != nil {
+		if len(updateFields) > 0 {
+			err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(updateFields).Error
+			if err != nil {
+				return err
+			}
+		}
+		if err = IncreaseUserQuotaTx(tx, topUp.UserId, common.ClampQuotaInt64(quota)); err != nil {
 			return err
 		}
 
@@ -425,7 +432,7 @@ func RefundTopUp(tradeNo string) error {
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota - ?", quotaToDeduct)).Error; err != nil {
+		if err := DecreaseUserQuotaTx(tx, topUp.UserId, quotaToDeduct); err != nil {
 			return err
 		}
 

@@ -321,6 +321,7 @@ func migrateDB() error {
 	if err != nil {
 		return err
 	}
+	migrateQuotaColumnsToBigInt(DB)
 	if common.UsingSQLite {
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
@@ -411,6 +412,7 @@ func migrateDBFast() error {
 			return err
 		}
 	}
+	migrateQuotaColumnsToBigInt(DB)
 	if common.UsingSQLite {
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
@@ -429,7 +431,45 @@ func migrateLOGDB() error {
 	if err = LOG_DB.AutoMigrate(&Log{}); err != nil {
 		return err
 	}
+	migrateQuotaColumnsToBigInt(LOG_DB)
 	return nil
+}
+
+type quotaBigIntColumn struct {
+	model interface{}
+	field string
+	name  string
+}
+
+func migrateQuotaColumnsToBigInt(db *gorm.DB) {
+	if db == nil || common.UsingSQLite {
+		return
+	}
+	columns := []quotaBigIntColumn{
+		{&User{}, "Quota", "users.quota"},
+		{&User{}, "UsedQuota", "users.used_quota"},
+		{&Token{}, "RemainQuota", "tokens.remain_quota"},
+		{&Token{}, "UsedQuota", "tokens.used_quota"},
+		{&Log{}, "Quota", "logs.quota"},
+		{&QuotaData{}, "Quota", "quota_data.quota"},
+		{&Redemption{}, "Quota", "redemptions.quota"},
+		{&TgFarmLog{}, "Amount", "tg_farm_logs.amount"},
+		{&TgFarmLoan{}, "Principal", "tg_farm_loans.principal"},
+		{&TgFarmLoan{}, "Interest", "tg_farm_loans.interest"},
+		{&TgFarmLoan{}, "TotalDue", "tg_farm_loans.total_due"},
+		{&TgFarmLoan{}, "Repaid", "tg_farm_loans.repaid"},
+		{&TgFarmTrade{}, "PricePerUnit", "tg_farm_trades.price_per_unit"},
+		{&TgFarmGameLog{}, "BetAmount", "tg_farm_game_logs.bet_amount"},
+		{&TgFarmGameLog{}, "WinAmount", "tg_farm_game_logs.win_amount"},
+	}
+	for _, column := range columns {
+		if !db.Migrator().HasColumn(column.model, column.field) {
+			continue
+		}
+		if err := db.Migrator().AlterColumn(column.model, column.field); err != nil {
+			common.SysLog(fmt.Sprintf("Warning: failed to migrate %s to bigint: %v", column.name, err))
+		}
+	}
 }
 
 type sqliteColumnDef struct {

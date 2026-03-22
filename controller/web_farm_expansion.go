@@ -195,7 +195,9 @@ func ApplyLuckyEvent(tgId string, event luckyEventResult) {
 		_ = model.IncrementFarmItem(tgId, "_merchant_discount", 1)
 	case "seed_gift":
 		giftAmount := 500000
-		model.DB.Model(&model.User{}).Where("telegram_id = ?", tgId).Update("quota", model.DB.Raw("quota + ?", giftAmount))
+		if user, err := model.GetUserByFarmId(tgId); err == nil {
+			_ = model.IncreaseUserQuota(user.Id, giftAmount, true)
+		}
 		model.AddFarmLog(tgId, "lucky_event", giftAmount, "🎁 种子礼物奖励")
 	}
 }
@@ -331,7 +333,7 @@ func WebFarmClaimCollection(c *gin.Context) {
 
 	prestige := model.GetPrestigeLevel(tgId)
 	if prestige > 0 {
-		reward = reward + reward*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
+		reward = common.SafeQuotaAdd(reward, common.SafeQuotaMulDiv(reward, prestige*common.TgBotFarmPrestigeBonusPerLevel, 100))
 	}
 
 	_ = model.ClaimCollectionReward(tgId, req.Category)
@@ -568,7 +570,7 @@ func WebFarmGameWheel(c *gin.Context) {
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
-	net := actualWin - price
+	net := common.SafeQuotaAdd(actualWin, -price)
 	prizeLabel := win.Label
 	model.CreateGameLog(tgId, "wheel", price, actualWin)
 	model.AddFarmLog(tgId, "game", net, "🎡 转盘: "+prizeLabel)
@@ -637,7 +639,7 @@ func WebFarmGameScratch(c *gin.Context) {
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
-	net := actualWin - price
+	net := common.SafeQuotaAdd(actualWin, -price)
 	model.CreateGameLog(tgId, "scratch", price, actualWin)
 	if actualWin > 0 {
 		model.AddFarmLog(tgId, "game", net, "🎰 刮刮卡: "+win.Label)
@@ -796,12 +798,12 @@ func WebFarmGamePlay(c *gin.Context) {
 		}
 	}
 
-	actualWin := int(float64(price) * multi)
+	actualWin := common.ClampQuotaFloat64(float64(price) * multi)
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
 
-	net := actualWin - price
+	net := common.SafeQuotaAdd(actualWin, -price)
 	model.CreateGameLog(tgId, req.GameKey, price, actualWin)
 	model.AddFarmLog(tgId, "game", net, fmt.Sprintf("%s %s", g.Emoji, g.Name))
 

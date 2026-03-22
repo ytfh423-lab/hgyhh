@@ -37,8 +37,8 @@ type User struct {
 	VerificationCode string         `json:"verification_code" gorm:"-:all"`                                    // this field is only for Email verification, don't save it to database!
 	RegistrationCode string         `json:"registration_code" gorm:"-:all"`                                    // this field is only for Registration code verification, don't save it to database!
 	AccessToken      *string        `json:"access_token" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
-	Quota            int            `json:"quota" gorm:"type:int;default:0"`
-	UsedQuota        int            `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
+	Quota            int            `json:"quota" gorm:"type:bigint;default:0"`
+	UsedQuota        int            `json:"used_quota" gorm:"type:bigint;default:0;column:used_quota"` // used quota
 	RequestCount     int            `json:"request_count" gorm:"type:int;default:0;"`               // request number
 	Group            string         `json:"group" gorm:"type:varchar(64);default:'default'"`
 	AffCode          string         `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
@@ -894,11 +894,30 @@ func IncreaseUserQuota(id int, quota int, db bool) (err error) {
 }
 
 func increaseUserQuota(id int, quota int) (err error) {
-	err = DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
+	err = IncreaseUserQuotaTx(DB, id, quota)
 	if err != nil {
 		return err
 	}
 	return err
+}
+
+func IncreaseUserQuotaTx(tx *gorm.DB, id int, quota int) error {
+	if quota < 0 {
+		return errors.New("quota 不能为负数！")
+	}
+	if quota == 0 {
+		return nil
+	}
+	delta := int64(quota)
+	if delta >= common.MaxSafeQuota {
+		return tx.Model(&User{}).Where("id = ?", id).Update("quota", common.MaxSafeQuota).Error
+	}
+	threshold := common.MaxSafeQuota - delta
+	return tx.Model(&User{}).Where("id = ?", id).Update(
+		"quota",
+		gorm.Expr("CASE WHEN quota >= ? THEN quota WHEN quota > ? THEN ? ELSE quota + ? END",
+			common.MaxSafeQuota, threshold, common.MaxSafeQuota, quota),
+	).Error
 }
 
 func DecreaseUserQuota(id int, quota int) (err error) {
@@ -919,11 +938,24 @@ func DecreaseUserQuota(id int, quota int) (err error) {
 }
 
 func decreaseUserQuota(id int, quota int) (err error) {
-	err = DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota - ?", quota)).Error
+	err = DecreaseUserQuotaTx(DB, id, quota)
 	if err != nil {
 		return err
 	}
 	return err
+}
+
+func DecreaseUserQuotaTx(tx *gorm.DB, id int, quota int) error {
+	if quota < 0 {
+		return errors.New("quota 不能为负数！")
+	}
+	if quota == 0 {
+		return nil
+	}
+	return tx.Model(&User{}).Where("id = ?", id).Update(
+		"quota",
+		gorm.Expr("CASE WHEN quota <= ? THEN 0 ELSE quota - ? END", quota, quota),
+	).Error
 }
 
 func DeltaUpdateUserQuota(id int, delta int) (err error) {
@@ -957,9 +989,14 @@ func UpdateUserUsedQuotaAndRequestCount(id int, quota int) {
 }
 
 func updateUserUsedQuotaAndRequestCount(id int, quota int, count int) {
+	usedQuotaExpr := gorm.Expr("CASE WHEN used_quota >= ? THEN used_quota WHEN used_quota > ? THEN ? ELSE used_quota + ? END", common.MaxSafeQuota, common.MaxSafeQuota-int64(quota), common.MaxSafeQuota, quota)
+	if quota < 0 {
+		decrease := -quota
+		usedQuotaExpr = gorm.Expr("CASE WHEN used_quota <= ? THEN 0 ELSE used_quota - ? END", decrease, decrease)
+	}
 	err := DB.Model(&User{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
-			"used_quota":    gorm.Expr("used_quota + ?", quota),
+			"used_quota":    usedQuotaExpr,
 			"request_count": gorm.Expr("request_count + ?", count),
 		},
 	).Error
@@ -975,9 +1012,14 @@ func updateUserUsedQuotaAndRequestCount(id int, quota int, count int) {
 }
 
 func updateUserUsedQuota(id int, quota int) {
+	usedQuotaExpr := gorm.Expr("CASE WHEN used_quota >= ? THEN used_quota WHEN used_quota > ? THEN ? ELSE used_quota + ? END", common.MaxSafeQuota, common.MaxSafeQuota-int64(quota), common.MaxSafeQuota, quota)
+	if quota < 0 {
+		decrease := -quota
+		usedQuotaExpr = gorm.Expr("CASE WHEN used_quota <= ? THEN 0 ELSE used_quota - ? END", decrease, decrease)
+	}
 	err := DB.Model(&User{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
-			"used_quota": gorm.Expr("used_quota + ?", quota),
+			"used_quota": usedQuotaExpr,
 		},
 	).Error
 	if err != nil {

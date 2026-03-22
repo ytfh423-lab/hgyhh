@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -761,7 +762,7 @@ type TgFarmLog struct {
 	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index:idx_farm_log_tg_created,priority:1;index:idx_farm_log_tg_action_created,priority:1"`
 	Action     string `json:"action" gorm:"type:varchar(32);index:idx_farm_log_tg_action_created,priority:2"`
-	Amount     int    `json:"amount"`
+	Amount     int    `json:"amount" gorm:"type:bigint;default:0"`
 	Detail     string `json:"detail" gorm:"type:varchar(255)"`
 	CreatedAt  int64  `json:"created_at" gorm:"index:idx_farm_log_tg_created,priority:2;index:idx_farm_log_tg_action_created,priority:3"`
 }
@@ -801,10 +802,10 @@ func AddFarmLogs(telegramId, action string, amount int, detail string, count int
 type TgFarmLoan struct {
 	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	TelegramId   string `json:"telegram_id" gorm:"type:varchar(64);index:idx_farm_loan_tg_status_due,priority:1;index:idx_farm_loan_tg_type_status_due,priority:1"`
-	Principal    int    `json:"principal"`                    // 本金(quota)
-	Interest     int    `json:"interest"`                     // 利息(quota)
-	TotalDue     int    `json:"total_due"`                    // 应还总额
-	Repaid       int    `json:"repaid" gorm:"default:0"`      // 已还金额
+	Principal    int    `json:"principal" gorm:"type:bigint;default:0"`               // 本金(quota)
+	Interest     int    `json:"interest" gorm:"type:bigint;default:0"`                // 利息(quota)
+	TotalDue     int    `json:"total_due" gorm:"type:bigint;default:0"`               // 应还总额
+	Repaid       int    `json:"repaid" gorm:"type:bigint;default:0"`                  // 已还金额
 	Status       int    `json:"status" gorm:"default:0;index:idx_farm_loan_tg_status_due,priority:2;index:idx_farm_loan_tg_type_status_due,priority:3"`      // 0=未还清 1=已还清 2=违约
 	LoanType     int    `json:"loan_type" gorm:"default:0;index:idx_farm_loan_tg_type_status_due,priority:2"`   // 0=普通贷款 1=抵押贷款
 	CreditScore  int    `json:"credit_score"`                 // 贷款时的信用评分
@@ -1306,7 +1307,7 @@ type TgFarmTrade struct {
 	ItemName     string `json:"item_name" gorm:"type:varchar(32)"`
 	ItemEmoji    string `json:"item_emoji" gorm:"type:varchar(16)"`
 	Quantity     int    `json:"quantity"`
-	PricePerUnit int    `json:"price_per_unit"`
+	PricePerUnit int    `json:"price_per_unit" gorm:"type:bigint;default:0"`
 	Status       int    `json:"status" gorm:"default:0"`
 	BuyerId      string `json:"buyer_id" gorm:"type:varchar(64)"`
 	CreatedAt    int64  `json:"created_at"`
@@ -1400,16 +1401,23 @@ func GetPrestigePrice(nextPrestigeLevel int) int {
 	if nextPrestigeLevel < 1 {
 		nextPrestigeLevel = 1
 	}
-	base := float64(common.TgBotFarmPrestigeBasePrice)
-	price := base
+	price := big.NewRat(int64(common.TgBotFarmPrestigeBasePrice), 1)
+	maxQuota := big.NewInt(common.MaxSafeQuota)
+	mul110 := big.NewRat(110, 100)
+	mul150 := big.NewRat(150, 100)
 	for i := 2; i <= nextPrestigeLevel; i++ {
 		if i <= 100 {
-			price *= 1.10
+			price.Mul(price, mul110)
 		} else {
-			price *= 1.50
+			price.Mul(price, mul150)
+		}
+		threshold := new(big.Int).Mul(maxQuota, price.Denom())
+		if price.Num().Cmp(threshold) >= 0 {
+			return int(common.MaxSafeQuota)
 		}
 	}
-	return int(price)
+	result := new(big.Int).Quo(price.Num(), price.Denom())
+	return common.ClampQuotaBigInt(result)
 }
 
 // ========== 小游戏记录 ==========
@@ -1418,8 +1426,8 @@ type TgFarmGameLog struct {
 	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
 	GameType   string `json:"game_type" gorm:"type:varchar(16)"`
-	BetAmount  int    `json:"bet_amount"`
-	WinAmount  int    `json:"win_amount"`
+	BetAmount  int    `json:"bet_amount" gorm:"type:bigint;default:0"`
+	WinAmount  int    `json:"win_amount" gorm:"type:bigint;default:0"`
 	CreatedAt  int64  `json:"created_at"`
 }
 

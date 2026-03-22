@@ -106,9 +106,9 @@ func farmSellToAdmin(user *model.User, tgId string, itemType string, itemKey str
 	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
 	prestigeAdd := 0
 	if bonus > 0 {
-		prestigeAdd = baseValue * bonus / 100
+		prestigeAdd = common.SafeQuotaMulDiv(baseValue, bonus, 100)
 	}
-	finalValue := baseValue + prestigeAdd
+	finalValue := common.SafeQuotaAdd(baseValue, prestigeAdd)
 
 	adminId := common.FarmAdminUserId
 	if adminId > 0 && adminId != user.Id {
@@ -2773,10 +2773,10 @@ func WebFarmBankView(c *gin.Context) {
 		creditScore = model.GetCreditScore(tgId)
 	}
 	baseAmount := common.TgBotFarmBankBaseAmount
-	maxLoan := baseAmount * creditScore
+	maxLoan := common.SafeQuotaMulDiv(baseAmount, creditScore, 1)
 	interestRate := common.TgBotFarmBankInterestRate
-	interest := maxLoan * interestRate / 100
-	totalDue := maxLoan + interest
+	interest := common.SafeQuotaMulDiv(maxLoan, interestRate, 100)
+	totalDue := common.SafeQuotaAdd(maxLoan, interest)
 	loanDays := common.TgBotFarmBankMaxLoanDays
 	mortgageBlocked := itemMap["_mortgage_blocked"] > 0
 
@@ -2865,13 +2865,13 @@ func WebFarmMortgageLoan(c *gin.Context) {
 		return
 	}
 
-	principal := req.Amount * 500000
+	principal := common.SafeQuotaMulDiv(req.Amount, 500000, 1)
 	if principal > common.TgBotFarmMortgageMaxAmount {
 		principal = common.TgBotFarmMortgageMaxAmount
 	}
 	interestRate := common.TgBotFarmMortgageInterestRate
-	interest := principal * interestRate / 100
-	totalDue := principal + interest
+	interest := common.SafeQuotaMulDiv(principal, interestRate, 100)
+	totalDue := common.SafeQuotaAdd(principal, interest)
 	loanDays := common.TgBotFarmBankMaxLoanDays
 	creditScore := model.GetCreditScore(tgId)
 
@@ -2921,10 +2921,10 @@ func WebFarmBankLoan(c *gin.Context) {
 
 	creditScore := model.GetCreditScore(tgId)
 	baseAmount := common.TgBotFarmBankBaseAmount
-	principal := baseAmount * creditScore
+	principal := common.SafeQuotaMulDiv(baseAmount, creditScore, 1)
 	interestRate := common.TgBotFarmBankInterestRate
-	interest := principal * interestRate / 100
-	totalDue := principal + interest
+	interest := common.SafeQuotaMulDiv(principal, interestRate, 100)
+	totalDue := common.SafeQuotaAdd(principal, interest)
 	loanDays := common.TgBotFarmBankMaxLoanDays
 
 	loan, err := model.CreateLoan(tgId, principal, interest, totalDue, creditScore, loanDays)
@@ -3113,7 +3113,7 @@ func WebFarmWarehouseView(c *gin.Context) {
 			"emoji":       emoji,
 			"quantity":    item.Quantity,
 			"unit_price":  webFarmQuotaFloat(unitPrice),
-			"total_value": webFarmQuotaFloat(item.Quantity * unitPrice),
+			"total_value": webFarmQuotaFloat(common.SafeQuotaMulDiv(item.Quantity, unitPrice, 1)),
 			"stored_at":   item.StoredAt,
 		}
 
@@ -3139,7 +3139,7 @@ func WebFarmWarehouseView(c *gin.Context) {
 	// 计算下一级升级信息
 	nextLevel := whLevel + 1
 	canUpgrade := whLevel < common.TgBotFarmWarehouseMaxLevel
-	upgradePrice := common.TgBotFarmWarehouseUpgradePrice * whLevel // 每级递增
+	upgradePrice := common.SafeQuotaMulDiv(common.TgBotFarmWarehouseUpgradePrice, whLevel, 1) // 每级递增
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -3185,7 +3185,7 @@ func WebFarmWarehouseSell(c *gin.Context) {
 	}
 
 	unitPrice := warehouseItemSellPrice(item)
-	totalValue := item.Quantity * unitPrice
+	totalValue := common.SafeQuotaMulDiv(item.Quantity, unitPrice, 1)
 	_, name := warehouseItemName(item)
 
 	_ = model.RemoveFromWarehouse(tgId, req.ItemKey, item.Quantity)
@@ -3220,7 +3220,7 @@ func WebFarmWarehouseSellAll(c *gin.Context) {
 	totalCount := 0
 	for _, item := range items {
 		unitPrice := warehouseItemSellPrice(item)
-		totalValue += item.Quantity * unitPrice
+		totalValue = common.SafeQuotaAdd(totalValue, common.SafeQuotaMulDiv(item.Quantity, unitPrice, 1))
 		totalCount += item.Quantity
 		model.RecordMarketSell(item.CropType, item.Quantity)
 		_ = model.RemoveFromWarehouse(tgId, item.CropType, item.Quantity)
@@ -3424,7 +3424,7 @@ func WebFarmWarehouseUpgrade(c *gin.Context) {
 		return
 	}
 
-	upgradePrice := common.TgBotFarmWarehouseUpgradePrice * whLevel
+	upgradePrice := common.SafeQuotaMulDiv(common.TgBotFarmWarehouseUpgradePrice, whLevel, 1)
 	if user.Quota < upgradePrice {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("余额不足！升级需要 $%.2f，当前余额 $%.2f", webFarmQuotaFloat(upgradePrice), webFarmQuotaFloat(user.Quota))})
 		return

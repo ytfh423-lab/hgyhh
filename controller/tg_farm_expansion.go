@@ -247,7 +247,7 @@ func doFarmClaimCollection(chatId int64, editMsgId int, tgId string, category st
 	reward := 500000
 	prestige := model.GetPrestigeLevel(tgId)
 	if prestige > 0 {
-		reward = reward + reward*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
+		reward = common.SafeQuotaAdd(reward, common.SafeQuotaMulDiv(reward, prestige*common.TgBotFarmPrestigeBonusPerLevel, 100))
 	}
 
 	user, err := getFarmUser(tgId)
@@ -633,15 +633,15 @@ func doFarmWheel(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		}
 	}
 	win := sectors[winIdx]
-	actualWin := int(float64(price) * win.Multi)
+	actualWin := common.ClampQuotaFloat64(float64(price) * win.Multi)
 	prestige := model.GetPrestigeLevel(tgId)
 	if prestige > 0 && actualWin > 0 {
-		actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
+		actualWin = common.SafeQuotaAdd(actualWin, common.SafeQuotaMulDiv(actualWin, prestige*common.TgBotFarmPrestigeBonusPerLevel, 100))
 	}
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
-	net := actualWin - price
+	net := common.SafeQuotaAdd(actualWin, -price)
 	model.CreateGameLog(tgId, "wheel", price, actualWin)
 	netSign := "+"
 	if net < 0 {
@@ -727,16 +727,16 @@ func doFarmScratch(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	actualWin := 0
 	if winPrize != nil {
-		actualWin = int(float64(price) * winPrize.Multi)
+		actualWin = common.ClampQuotaFloat64(float64(price) * winPrize.Multi)
 		prestige := model.GetPrestigeLevel(tgId)
 		if prestige > 0 && actualWin > 0 {
-			actualWin = actualWin + actualWin*prestige*common.TgBotFarmPrestigeBonusPerLevel/100
+			actualWin = common.SafeQuotaAdd(actualWin, common.SafeQuotaMulDiv(actualWin, prestige*common.TgBotFarmPrestigeBonusPerLevel, 100))
 		}
 	}
 	if actualWin > 0 {
 		model.IncreaseUserQuota(user.Id, actualWin, true)
 	}
-	net := actualWin - price
+	net := common.SafeQuotaAdd(actualWin, -price)
 	model.CreateGameLog(tgId, "scratch", price, actualWin)
 
 	netSign := "+"

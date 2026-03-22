@@ -4241,10 +4241,10 @@ func showFarmBank(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	creditScore := model.GetCreditScore(tgId)
 	baseAmount := common.TgBotFarmBankBaseAmount
-	maxLoan := baseAmount * creditScore
+	maxLoan := common.SafeQuotaMulDiv(baseAmount, creditScore, 1)
 	interestRate := common.TgBotFarmBankInterestRate
-	interest := maxLoan * interestRate / 100
-	totalDue := maxLoan + interest
+	interest := common.SafeQuotaMulDiv(maxLoan, interestRate, 100)
+	totalDue := common.SafeQuotaAdd(maxLoan, interest)
 	loanDays := common.TgBotFarmBankMaxLoanDays
 
 	text := fmt.Sprintf("🏦 银行\n\n"+
@@ -4363,10 +4363,10 @@ func doFarmLoan(chatId int64, editMsgId int, tgId string, from *TgUser) {
 
 	creditScore := model.GetCreditScore(tgId)
 	baseAmount := common.TgBotFarmBankBaseAmount
-	principal := baseAmount * creditScore
+	principal := common.SafeQuotaMulDiv(baseAmount, creditScore, 1)
 	interestRate := common.TgBotFarmBankInterestRate
-	interest := principal * interestRate / 100
-	totalDue := principal + interest
+	interest := common.SafeQuotaMulDiv(principal, interestRate, 100)
+	totalDue := common.SafeQuotaAdd(principal, interest)
 	loanDays := common.TgBotFarmBankMaxLoanDays
 
 	user, err := getFarmUser(tgId)
@@ -4656,7 +4656,7 @@ func showFarmWarehouse(chatId int64, editMsgId int, tgId string, from *TgUser) {
 	for _, item := range items {
 		emoji, name := warehouseItemName(item)
 		unitPrice := warehouseItemSellPrice(item)
-		totalValue := item.Quantity * unitPrice
+		totalValue := common.SafeQuotaMulDiv(item.Quantity, unitPrice, 1)
 
 		extra := ""
 		if item.Category == "crop" {
@@ -4720,7 +4720,7 @@ func doFarmWarehouseSell(chatId int64, editMsgId int, tgId string, itemKey strin
 	}
 
 	unitPrice := warehouseItemSellPrice(item)
-	totalValue := item.Quantity * unitPrice
+	totalValue := common.SafeQuotaMulDiv(item.Quantity, unitPrice, 1)
 	emoji, name := warehouseItemName(item)
 
 	_ = model.RemoveFromWarehouse(tgId, itemKey, item.Quantity)
@@ -4757,8 +4757,8 @@ func doFarmWarehouseSellAll(chatId int64, editMsgId int, tgId string, from *TgUs
 	for _, item := range items {
 		emoji, name := warehouseItemName(item)
 		unitPrice := warehouseItemSellPrice(item)
-		value := item.Quantity * unitPrice
-		totalValue += value
+		value := common.SafeQuotaMulDiv(item.Quantity, unitPrice, 1)
+		totalValue = common.SafeQuotaAdd(totalValue, value)
 		_ = model.RemoveFromWarehouse(tgId, item.CropType, item.Quantity)
 		details += fmt.Sprintf("\n%s %s × %d = %s", emoji, name, item.Quantity, farmQuotaStr(value))
 	}
@@ -4823,9 +4823,9 @@ func showFarmMortgage(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		amounts = append(amounts, maxDollar)
 	}
 	for _, amt := range amounts {
-		principal := amt * 500000 // $1 = 500000 quota
-		interest := principal * interestRate / 100
-		total := principal + interest
+		principal := common.SafeQuotaMulDiv(amt, 500000, 1) // $1 = 500000 quota
+		interest := common.SafeQuotaMulDiv(principal, interestRate, 100)
+		total := common.SafeQuotaAdd(principal, interest)
 		rows = append(rows, []TgInlineKeyboardButton{
 			{Text: fmt.Sprintf("$%d（还%s）", amt, farmQuotaStr(total)), CallbackData: fmt.Sprintf("farm_domortgage_%d", amt)},
 		})
@@ -4865,13 +4865,13 @@ func doFarmMortgage(chatId int64, editMsgId int, tgId string, amountDollar int, 
 		return
 	}
 
-	principal := amountDollar * 500000 // $1 = 500000 quota
+	principal := common.SafeQuotaMulDiv(amountDollar, 500000, 1) // $1 = 500000 quota
 	if principal > common.TgBotFarmMortgageMaxAmount {
 		principal = common.TgBotFarmMortgageMaxAmount
 	}
 	interestRate := common.TgBotFarmMortgageInterestRate
-	interest := principal * interestRate / 100
-	totalDue := principal + interest
+	interest := common.SafeQuotaMulDiv(principal, interestRate, 100)
+	totalDue := common.SafeQuotaAdd(principal, interest)
 	loanDays := common.TgBotFarmBankMaxLoanDays
 	creditScore := model.GetCreditScore(tgId)
 
