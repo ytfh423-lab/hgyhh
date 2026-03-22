@@ -258,7 +258,7 @@ var TgBotFarmWeatherFoggyStealBonus = 30
 // 转生系统
 var TgBotFarmPrestigeMinLevel = 15
 var TgBotFarmPrestigeBonusPerLevel = 6
-var TgBotFarmPrestigeMaxTimes = 200
+var TgBotFarmPrestigeMaxTimes = 5000
 var TgBotFarmPrestigeBasePrice = 100000000 // 首次转生价格 $200 (200 * 500000)
 
 // 自动化设施
