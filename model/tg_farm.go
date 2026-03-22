@@ -356,6 +356,16 @@ func WaterFarmPlot(plotId int) error {
 	return DB.Model(&TgFarmPlot{}).Where("id = ?", plotId).Update("last_watered_at", now).Error
 }
 
+func WaterFarmPlots(plotIds []int, wateredAt int64) error {
+	if len(plotIds) == 0 {
+		return nil
+	}
+	if wateredAt <= 0 {
+		wateredAt = time.Now().Unix()
+	}
+	return DB.Model(&TgFarmPlot{}).Where("id IN ?", plotIds).Update("last_watered_at", wateredAt).Error
+}
+
 // ========== TgRanchAnimal 牧场动物 ==========
 
 type TgRanchAnimal struct {
@@ -436,9 +446,9 @@ func SetFarmLevel(telegramId string, level int) {
 
 type TgFarmTaskClaim struct {
 	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
-	TaskDate   string `json:"task_date" gorm:"type:varchar(10)"`
-	TaskIndex  int    `json:"task_index"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index:idx_farm_task_claim,priority:1"`
+	TaskDate   string `json:"task_date" gorm:"type:varchar(10);index:idx_farm_task_claim,priority:2"`
+	TaskIndex  int    `json:"task_index" gorm:"index:idx_farm_task_claim,priority:3"`
 }
 
 type TgFarmAchievement struct {
@@ -450,7 +460,10 @@ type TgFarmAchievement struct {
 
 func GetTaskClaims(telegramId, taskDate string) ([]int, error) {
 	var claims []*TgFarmTaskClaim
-	err := DB.Where("telegram_id = ? AND task_date = ?", telegramId, taskDate).Find(&claims).Error
+	err := DB.Model(&TgFarmTaskClaim{}).
+		Select("task_index").
+		Where("telegram_id = ? AND task_date = ?", telegramId, taskDate).
+		Find(&claims).Error
 	if err != nil {
 		return nil, err
 	}
@@ -481,6 +494,75 @@ func CountTotalActions(telegramId, action string) int64 {
 	var count int64
 	DB.Model(&TgFarmLog{}).Where("telegram_id = ? AND action = ?", telegramId, action).Count(&count)
 	return count
+}
+
+type farmActionCountRow struct {
+	Action string
+	Count  int64
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func GetActionCountsSince(telegramId string, actions []string, since int64) (map[string]int64, error) {
+	result := make(map[string]int64)
+	uniqueActions := uniqueStrings(actions)
+	if len(uniqueActions) == 0 {
+		return result, nil
+	}
+
+	var rows []farmActionCountRow
+	query := DB.Model(&TgFarmLog{}).
+		Select("action, COUNT(*) as count").
+		Where("telegram_id = ? AND action IN ?", telegramId, uniqueActions)
+	if since > 0 {
+		query = query.Where("created_at >= ?", since)
+	}
+	if err := query.Group("action").Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.Action] = row.Count
+	}
+	return result, nil
+}
+
+func GetActionCountsTotal(telegramId string, actions []string) (map[string]int64, error) {
+	return GetActionCountsSince(telegramId, actions, 0)
+}
+
+func GetFarmItemQuantities(telegramId string, itemTypes []string) (map[string]int, error) {
+	result := make(map[string]int)
+	uniqueTypes := uniqueStrings(itemTypes)
+	if len(uniqueTypes) == 0 {
+		return result, nil
+	}
+
+	var items []*TgFarmItem
+	err := DB.Where("telegram_id = ? AND item_type IN ?", telegramId, uniqueTypes).Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		result[item.ItemType] = item.Quantity
+	}
+	return result, nil
 }
 
 func GetAchievements(telegramId string) ([]*TgFarmAchievement, error) {
@@ -677,11 +759,11 @@ func SellAllFish(telegramId string) (int, error) {
 
 type TgFarmLog struct {
 	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index"`
-	Action     string `json:"action" gorm:"type:varchar(32)"`
+	TelegramId string `json:"telegram_id" gorm:"type:varchar(64);index:idx_farm_log_tg_created,priority:1;index:idx_farm_log_tg_action_created,priority:1"`
+	Action     string `json:"action" gorm:"type:varchar(32);index:idx_farm_log_tg_action_created,priority:2"`
 	Amount     int    `json:"amount"`
 	Detail     string `json:"detail" gorm:"type:varchar(255)"`
-	CreatedAt  int64  `json:"created_at"`
+	CreatedAt  int64  `json:"created_at" gorm:"index:idx_farm_log_tg_created,priority:2;index:idx_farm_log_tg_action_created,priority:3"`
 }
 
 func AddFarmLog(telegramId, action string, amount int, detail string) {
@@ -695,19 +777,38 @@ func AddFarmLog(telegramId, action string, amount int, detail string) {
 	_ = DB.Create(log).Error
 }
 
+func AddFarmLogs(telegramId, action string, amount int, detail string, count int) {
+	if count <= 1 {
+		AddFarmLog(telegramId, action, amount, detail)
+		return
+	}
+	now := time.Now().Unix()
+	logs := make([]TgFarmLog, 0, count)
+	for i := 0; i < count; i++ {
+		logs = append(logs, TgFarmLog{
+			TelegramId: telegramId,
+			Action:     action,
+			Amount:     amount,
+			Detail:     detail,
+			CreatedAt:  now,
+		})
+	}
+	_ = DB.Create(&logs).Error
+}
+
 // ========== 银行贷款 ==========
 
 type TgFarmLoan struct {
 	Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	TelegramId   string `json:"telegram_id" gorm:"type:varchar(64);index"`
+	TelegramId   string `json:"telegram_id" gorm:"type:varchar(64);index:idx_farm_loan_tg_status_due,priority:1;index:idx_farm_loan_tg_type_status_due,priority:1"`
 	Principal    int    `json:"principal"`                    // 本金(quota)
 	Interest     int    `json:"interest"`                     // 利息(quota)
 	TotalDue     int    `json:"total_due"`                    // 应还总额
 	Repaid       int    `json:"repaid" gorm:"default:0"`      // 已还金额
-	Status       int    `json:"status" gorm:"default:0"`      // 0=未还清 1=已还清 2=违约
-	LoanType     int    `json:"loan_type" gorm:"default:0"`   // 0=普通贷款 1=抵押贷款
+	Status       int    `json:"status" gorm:"default:0;index:idx_farm_loan_tg_status_due,priority:2;index:idx_farm_loan_tg_type_status_due,priority:3"`      // 0=未还清 1=已还清 2=违约
+	LoanType     int    `json:"loan_type" gorm:"default:0;index:idx_farm_loan_tg_type_status_due,priority:2"`   // 0=普通贷款 1=抵押贷款
 	CreditScore  int    `json:"credit_score"`                 // 贷款时的信用评分
-	DueAt        int64  `json:"due_at"`                       // 到期时间
+	DueAt        int64  `json:"due_at" gorm:"index:idx_farm_loan_tg_status_due,priority:3;index:idx_farm_loan_tg_type_status_due,priority:4"`                       // 到期时间
 	CreatedAt    int64  `json:"created_at"`
 }
 
@@ -721,75 +822,108 @@ func GetActiveLoan(telegramId string) (*TgFarmLoan, error) {
 	return &loan, nil
 }
 
-// GetCreditScore 根据消费记录计算信用评分(1~maxMultiplier)
-func GetCreditScore(telegramId string) int {
-	// 统计最近30天的正向收入记录数量和总额
+// GetCreditScoreStats aggregates the data needed for credit scoring.
+type FarmCreditScoreStats struct {
+	PositiveCount    int64
+	TotalIncome      int64
+	OverdueLoanCount int64
+	RepaidCount      int64
+	Level            int
+}
+
+func GetCreditScoreStats(telegramId string) (FarmCreditScoreStats, error) {
+	stats := FarmCreditScoreStats{Level: 1}
 	thirtyDaysAgo := time.Now().Unix() - 30*86400
-	var count int64
-	var totalIncome int64
 
-	// 正向操作次数
-	DB.Model(&TgFarmLog{}).Where("telegram_id = ? AND created_at > ? AND amount > 0", telegramId, thirtyDaysAgo).Count(&count)
-
-	// 正向收入总额
-	type sumResult struct {
-		Total int64
+	type incomeResult struct {
+		PositiveCount int64
+		TotalIncome   int64
 	}
-	var sr sumResult
-	DB.Model(&TgFarmLog{}).Select("COALESCE(SUM(amount),0) as total").Where("telegram_id = ? AND created_at > ? AND amount > 0", telegramId, thirtyDaysAgo).Scan(&sr)
-	totalIncome = sr.Total
+	var income incomeResult
+	if err := DB.Model(&TgFarmLog{}).
+		Select("COUNT(*) as positive_count, COALESCE(SUM(amount),0) as total_income").
+		Where("telegram_id = ? AND created_at > ? AND amount > 0", telegramId, thirtyDaysAgo).
+		Scan(&income).Error; err != nil {
+		return stats, err
+	}
+	stats.PositiveCount = income.PositiveCount
+	stats.TotalIncome = income.TotalIncome
 
-	// 检查历史贷款记录：是否有逾期未还
-	var overdueLoanCount int64
+	type loanResult struct {
+		OverdueLoanCount int64
+		RepaidCount      int64
+	}
+	var loan loanResult
 	now := time.Now().Unix()
-	DB.Model(&TgFarmLoan{}).Where("telegram_id = ? AND status = 0 AND due_at < ?", telegramId, now).Count(&overdueLoanCount)
+	if err := DB.Model(&TgFarmLoan{}).
+		Select("COALESCE(SUM(CASE WHEN status = 0 AND due_at < ? THEN 1 ELSE 0 END),0) as overdue_loan_count, COALESCE(SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END),0) as repaid_count", now).
+		Where("telegram_id = ?", telegramId).
+		Scan(&loan).Error; err != nil {
+		return stats, err
+	}
+	stats.OverdueLoanCount = loan.OverdueLoanCount
+	stats.RepaidCount = loan.RepaidCount
 
-	// 已还清的贷款数量加分
-	var repaidCount int64
-	DB.Model(&TgFarmLoan{}).Where("telegram_id = ? AND status = 1", telegramId).Count(&repaidCount)
+	itemMap, err := GetFarmItemQuantities(telegramId, []string{"_level"})
+	if err != nil {
+		return stats, err
+	}
+	if level, ok := itemMap["_level"]; ok && level > 0 {
+		stats.Level = level
+	}
 
-	// 评分算法: 基础1分 + 活跃度 + 收入 + 信用历史 - 逾期扣分
+	return stats, nil
+}
+
+func CalculateCreditScore(stats FarmCreditScoreStats) int {
 	score := 1
-	// 活跃度: 每10次操作+1分, 最多+3
-	activityBonus := int(count / 10)
+
+	activityBonus := int(stats.PositiveCount / 10)
 	if activityBonus > 3 {
 		activityBonus = 3
 	}
 	score += activityBonus
 
-	// 收入: 每5000000(=$10)+1分, 最多+3
-	incomeBonus := int(totalIncome / 5000000)
+	incomeBonus := int(stats.TotalIncome / 5000000)
 	if incomeBonus > 3 {
 		incomeBonus = 3
 	}
 	score += incomeBonus
 
-	// 信用历史: 每次还清+1, 最多+2
-	historyBonus := int(repaidCount)
+	historyBonus := int(stats.RepaidCount)
 	if historyBonus > 2 {
 		historyBonus = 2
 	}
 	score += historyBonus
 
-	// 等级加分
-	level := GetFarmLevel(telegramId)
-	levelBonus := (level - 1) / 3 // 每3级+1
+	levelBonus := (stats.Level - 1) / 3
 	if levelBonus > 2 {
 		levelBonus = 2
 	}
 	score += levelBonus
 
-	// 逾期扣分
-	score -= int(overdueLoanCount) * 3
+	score -= int(stats.OverdueLoanCount) * 3
 
 	if score < 1 {
 		score = 1
 	}
-	maxMul := 10
+	maxMul := common.TgBotFarmBankMaxMultiplier
+	if maxMul < 1 {
+		maxMul = 10
+	}
 	if score > maxMul {
 		score = maxMul
 	}
 	return score
+}
+
+// GetCreditScore 鏍规嵁娑堣垂璁板綍璁＄畻淇＄敤璇勫垎(1~maxMultiplier)
+func GetCreditScore(telegramId string) int {
+	stats, err := GetCreditScoreStats(telegramId)
+	if err != nil {
+		stats = FarmCreditScoreStats{Level: 1}
+	}
+	return CalculateCreditScore(stats)
 }
 
 // CreateLoan 创建贷款 (loanType: 0=普通, 1=抵押)
@@ -1316,6 +1450,18 @@ func GetAutomations(telegramId string) ([]*TgFarmAutomation, error) {
 	var items []*TgFarmAutomation
 	err := DB.Where("telegram_id = ?", telegramId).Find(&items).Error
 	return items, err
+}
+
+func GetInstalledAutomations(telegramId string) (map[string]bool, error) {
+	result := make(map[string]bool)
+	items, err := GetAutomations(telegramId)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		result[item.Type] = true
+	}
+	return result, nil
 }
 
 func HasAutomation(telegramId, autoType string) bool {

@@ -316,16 +316,14 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
-	// 检查信用贷款违约
 	creditDefaulted, _ := model.CheckCreditLoanDefault(tgId)
 	if creditDefaulted {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账号已被封禁。"})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账户已被封禁。"})
 		return
 	}
-	// 检查抵押贷款违约
 	mortgageDefaulted, mortgagePenalty := model.CheckMortgageDefault(tgId)
 	if mortgageDefaulted && mortgagePenalty == "ban" {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！你的平台账号已被封禁。"})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！你的平台账户已被封禁。"})
 		return
 	}
 
@@ -335,29 +333,34 @@ func WebFarmView(c *gin.Context) {
 		return
 	}
 
-	// 自动浇水：灌溉系统已安装 或 阵雨天气
-	w := GetCurrentWeather()
-	hasIrrigation := model.HasAutomation(tgId, "irrigation")
-	if hasIrrigation || w.Type == 1 {
-		now := time.Now().Unix()
+	installedAutomations, _ := model.GetInstalledAutomations(tgId)
+	weather := GetCurrentWeather()
+	nowTime := time.Now()
+	now := nowTime.Unix()
+	if installedAutomations["irrigation"] || weather.Type == 1 {
 		waterInterval := int64(common.TgBotFarmWaterInterval)
+		plotIdsToWater := make([]int, 0, len(plots))
 		for _, plot := range plots {
-			if plot.Status == 1 && plot.LastWateredAt > 0 {
-				if now-plot.LastWateredAt >= waterInterval/2 {
-					_ = model.WaterFarmPlot(plot.Id)
-					plot.LastWateredAt = now
-					model.AddFarmLog(tgId, "water", 0, "💧自动灌溉")
-				}
+			if plot.Status != 1 || plot.LastWateredAt <= 0 {
+				continue
 			}
+			if now-plot.LastWateredAt < waterInterval/2 {
+				continue
+			}
+			plotIdsToWater = append(plotIdsToWater, plot.Id)
+			plot.LastWateredAt = now
+		}
+		if len(plotIdsToWater) > 0 {
+			_ = model.WaterFarmPlots(plotIdsToWater, now)
+			model.AddFarmLogs(tgId, "water", 0, "💧自动灌溉", len(plotIdsToWater))
 		}
 	}
 
-	var plotInfos []webPlotInfo
+	plotInfos := make([]webPlotInfo, 0, len(plots))
 	for _, plot := range plots {
 		plotInfos = append(plotInfos, buildPlotInfo(plot))
 	}
 
-	// Dog info
 	var dogInfo map[string]interface{}
 	dog, dogErr := model.GetFarmDog(tgId)
 	if dogErr == nil {
@@ -375,7 +378,6 @@ func WebFarmView(c *gin.Context) {
 			if dog.Hunger == 0 {
 				statusStr = "饿坏了"
 			} else {
-				now := time.Now().Unix()
 				hoursLeft := int64(common.TgBotFarmDogGrowHours) - (now-dog.CreatedAt)/3600
 				if hoursLeft < 0 {
 					hoursLeft = 0
@@ -393,10 +395,22 @@ func WebFarmView(c *gin.Context) {
 		}
 	}
 
-	// Items
 	items, _ := model.GetFarmItems(tgId)
-	var itemInfos []map[string]interface{}
+	userLevel := 1
+	prestigeLevel := 0
+	itemInfos := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
+		switch item.ItemType {
+		case "_level":
+			if item.Quantity > 0 {
+				userLevel = item.Quantity
+			}
+		case "_prestige":
+			if item.Quantity > 0 {
+				prestigeLevel = item.Quantity
+			}
+		}
+
 		def := farmItemMap[item.ItemType]
 		if def != nil {
 			itemInfos = append(itemInfos, map[string]interface{}{
@@ -406,7 +420,9 @@ func WebFarmView(c *gin.Context) {
 				"quantity": item.Quantity,
 				"category": "item",
 			})
-		} else if strings.HasPrefix(item.ItemType, "seed_") {
+			continue
+		}
+		if strings.HasPrefix(item.ItemType, "seed_") {
 			cropKey := strings.TrimPrefix(item.ItemType, "seed_")
 			crop := farmCropMap[cropKey]
 			if crop != nil {
@@ -423,6 +439,36 @@ func WebFarmView(c *gin.Context) {
 		}
 	}
 
+	dateStr := todayDateStr()
+	tasks := getDailyTasks(dateStr)
+	taskActions := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		taskActions = append(taskActions, task.Action)
+	}
+	startOfDay := time.Date(nowTime.Year(), nowTime.Month(), nowTime.Day(), 0, 0, 0, 0, nowTime.Location()).Unix()
+	taskCounts, _ := model.GetActionCountsSince(tgId, taskActions, startOfDay)
+	claimed, _ := model.GetTaskClaims(tgId, dateStr)
+	claimedSet := make(map[int]bool, len(claimed))
+	for _, idx := range claimed {
+		claimedSet[idx] = true
+	}
+	doneTasks := 0
+	for i, task := range tasks {
+		if taskCounts[task.Action] >= int64(task.Target) || claimedSet[i] {
+			doneTasks++
+		}
+	}
+
+	weatherData := gin.H{
+		"type":     weather.Type,
+		"type_key": weather.TypeKey,
+		"name":     weather.Name,
+		"emoji":    weather.Emoji,
+		"effects":  weather.Effects,
+		"ends_in":  weather.EndsAt - now,
+		"season":   getCurrentSeason(),
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -431,49 +477,23 @@ func WebFarmView(c *gin.Context) {
 			"items":      itemInfos,
 			"plot_count": len(plots),
 			"max_plots":  model.FarmMaxPlots,
-			"plot_price":            webFarmQuotaFloat(common.TgBotFarmPlotPrice),
-			"balance":               webFarmQuotaFloat(user.Quota),
-			"soil_max_level":        common.TgBotFarmSoilMaxLevel,
-			"soil_speed_bonus":      common.TgBotFarmSoilSpeedBonus,
+			"plot_price":       webFarmQuotaFloat(common.TgBotFarmPlotPrice),
+			"balance":          webFarmQuotaFloat(user.Quota),
+			"soil_max_level":   common.TgBotFarmSoilMaxLevel,
+			"soil_speed_bonus": common.TgBotFarmSoilSpeedBonus,
 			"soil_upgrade_prices": map[string]interface{}{
 				"2": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice2),
 				"3": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice3),
 				"4": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice4),
 				"5": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice5),
 			},
-			"user_level": model.GetFarmLevel(tgId),
-		"weather": func() gin.H {
-			w := GetCurrentWeather()
-			return gin.H{
-				"type": w.Type, "type_key": w.TypeKey, "name": w.Name, "emoji": w.Emoji,
-				"effects": w.Effects, "ends_in": w.EndsAt - time.Now().Unix(),
-				"season": getCurrentSeason(),
-			}
-		}(),
-			"prestige_level":  model.GetPrestigeLevel(tgId),
-			"prestige_bonus":  model.GetPrestigeLevel(tgId) * common.TgBotFarmPrestigeBonusPerLevel,
-			"beta_enabled":    common.FarmBetaEnabled,
-			"beta_end_time":   common.FarmBetaEndTime,
-			"task_summary": func() gin.H {
-				dateStr := todayDateStr()
-				tasks := getDailyTasks(dateStr)
-				claimed, _ := model.GetTaskClaims(tgId, dateStr)
-				done := 0
-				for i, task := range tasks {
-					progress := model.CountTodayActions(tgId, task.Action)
-					isClaimed := false
-					for _, idx := range claimed {
-						if idx == i {
-							isClaimed = true
-							break
-						}
-					}
-					if progress >= int64(task.Target) || isClaimed {
-						done++
-					}
-				}
-				return gin.H{"done": done, "total": len(tasks), "claimed": len(claimed)}
-			}(),
+			"user_level":     userLevel,
+			"weather":        weatherData,
+			"prestige_level": prestigeLevel,
+			"prestige_bonus": prestigeLevel * common.TgBotFarmPrestigeBonusPerLevel,
+			"beta_enabled":   common.FarmBetaEnabled,
+			"beta_end_time":  common.FarmBetaEndTime,
+			"task_summary":   gin.H{"done": doneTasks, "total": len(tasks), "claimed": len(claimed)},
 		},
 	})
 }
@@ -1945,30 +1965,39 @@ func WebFarmTasks(c *gin.Context) {
 	dateStr := todayDateStr()
 	tasks := getDailyTasks(dateStr)
 	claimed, _ := model.GetTaskClaims(tgId, dateStr)
-	claimedSet := make(map[int]bool)
+	claimedSet := make(map[int]bool, len(claimed))
 	for _, idx := range claimed {
 		claimedSet[idx] = true
 	}
 
-	type taskInfo struct {
-		Index        int     `json:"index"`
-		Action       string  `json:"action"`
-		Name         string  `json:"name"`
-		Emoji        string  `json:"emoji"`
-		Target       int     `json:"target"`
-		Progress     int64   `json:"progress"`
-		Done         bool    `json:"done"`
-		Claimed      bool    `json:"claimed"`
-		Reward       float64 `json:"reward"`
-		Description  string  `json:"description"`
-		Hint         string  `json:"hint"`
-		AutoType     string  `json:"auto_type"`
-		AutoInstalled bool   `json:"auto_installed"`
-		AutoText     string  `json:"auto_text"`
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	actions := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		actions = append(actions, task.Action)
 	}
-	var taskList []taskInfo
+	actionCounts, _ := model.GetActionCountsSince(tgId, actions, startOfDay)
+	installedAutomations, _ := model.GetInstalledAutomations(tgId)
+
+	type taskInfo struct {
+		Index         int     `json:"index"`
+		Action        string  `json:"action"`
+		Name          string  `json:"name"`
+		Emoji         string  `json:"emoji"`
+		Target        int     `json:"target"`
+		Progress      int64   `json:"progress"`
+		Done          bool    `json:"done"`
+		Claimed       bool    `json:"claimed"`
+		Reward        float64 `json:"reward"`
+		Description   string  `json:"description"`
+		Hint          string  `json:"hint"`
+		AutoType      string  `json:"auto_type"`
+		AutoInstalled bool    `json:"auto_installed"`
+		AutoText      string  `json:"auto_text"`
+	}
+	taskList := make([]taskInfo, 0, len(tasks))
 	for i, task := range tasks {
-		progress := model.CountTodayActions(tgId, task.Action)
+		progress := actionCounts[task.Action]
 		info := taskInfo{
 			Index:       i,
 			Action:      task.Action,
@@ -1986,7 +2015,7 @@ func WebFarmTasks(c *gin.Context) {
 			info.AutoType = meta.AutoType
 			info.AutoText = meta.AutoText
 			if meta.AutoType != "" {
-				info.AutoInstalled = model.HasAutomation(tgId, meta.AutoType)
+				info.AutoInstalled = installedAutomations[meta.AutoType]
 			}
 		}
 		taskList = append(taskList, info)
@@ -2056,10 +2085,24 @@ func WebFarmAchievements(c *gin.Context) {
 	}
 
 	unlocked, _ := model.GetAchievements(tgId)
-	unlockedSet := make(map[string]bool)
+	unlockedSet := make(map[string]bool, len(unlocked))
 	for _, a := range unlocked {
 		unlockedSet[a.AchievementKey] = true
 	}
+
+	itemMap, _ := model.GetFarmItemQuantities(tgId, []string{"_level"})
+	farmLevel := 1
+	if level, ok := itemMap["_level"]; ok && level > 0 {
+		farmLevel = level
+	}
+
+	actions := make([]string, 0, len(achievements))
+	for _, ach := range achievements {
+		if ach.Action != "levelup" {
+			actions = append(actions, ach.Action)
+		}
+	}
+	actionCounts, _ := model.GetActionCountsTotal(tgId, actions)
 
 	type achInfo struct {
 		Key         string  `json:"key"`
@@ -2072,15 +2115,11 @@ func WebFarmAchievements(c *gin.Context) {
 		Unlocked    bool    `json:"unlocked"`
 		Reward      float64 `json:"reward"`
 	}
-	var achList []achInfo
-	farmLevel := model.GetFarmLevel(tgId)
+	achList := make([]achInfo, 0, len(achievements))
 	for _, ach := range achievements {
-		var progress int64
-		switch ach.Action {
-		case "levelup":
+		progress := actionCounts[ach.Action]
+		if ach.Action == "levelup" {
 			progress = int64(farmLevel)
-		default:
-			progress = model.CountTotalActions(tgId, ach.Action)
 		}
 		achList = append(achList, achInfo{
 			Key:         ach.Key,
@@ -2705,32 +2744,41 @@ func WebFarmBankView(c *gin.Context) {
 		return
 	}
 
-	userLevel := model.GetFarmLevel(tgId)
+	itemMap, _ := model.GetFarmItemQuantities(tgId, []string{"_level", "_mortgage_blocked"})
+	userLevel := 1
+	if level, ok := itemMap["_level"]; ok && level > 0 {
+		userLevel = level
+	}
 	if userLevel < common.TgBotFarmBankUnlockLevel {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("银行功能需要等级 %d 才能解锁（当前等级 %d）", common.TgBotFarmBankUnlockLevel, userLevel)})
 		return
 	}
 
-	// 检查信用贷款违约
 	creditDefaulted, creditPenalty := model.CheckCreditLoanDefault(tgId)
 	if creditDefaulted && creditPenalty == "ban" {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账号已被封禁。"})
 		return
 	}
-	// 检查抵押贷款违约
 	defaulted, penalty := model.CheckMortgageDefault(tgId)
 	if defaulted && penalty == "ban" {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！由于你等级≥10级，你的平台账号已被封禁。"})
 		return
 	}
 
-	creditScore := model.GetCreditScore(tgId)
+	creditScore := 1
+	if stats, err := model.GetCreditScoreStats(tgId); err == nil {
+		stats.Level = userLevel
+		creditScore = model.CalculateCreditScore(stats)
+	} else {
+		creditScore = model.GetCreditScore(tgId)
+	}
 	baseAmount := common.TgBotFarmBankBaseAmount
 	maxLoan := baseAmount * creditScore
 	interestRate := common.TgBotFarmBankInterestRate
 	interest := maxLoan * interestRate / 100
 	totalDue := maxLoan + interest
 	loanDays := common.TgBotFarmBankMaxLoanDays
+	mortgageBlocked := itemMap["_mortgage_blocked"] > 0
 
 	data := gin.H{
 		"balance":                webFarmQuotaFloat(user.Quota),
@@ -2743,7 +2791,7 @@ func WebFarmBankView(c *gin.Context) {
 		"loan_days":              loanDays,
 		"unlock_level":           common.TgBotFarmBankUnlockLevel,
 		"has_active_loan":        false,
-		"mortgage_blocked":       model.HasMortgageBlocked(tgId),
+		"mortgage_blocked":       mortgageBlocked,
 		"mortgage_max":           webFarmQuotaFloat(common.TgBotFarmMortgageMaxAmount),
 		"mortgage_interest_rate": common.TgBotFarmMortgageInterestRate,
 	}
@@ -2772,7 +2820,7 @@ func WebFarmBankView(c *gin.Context) {
 	}
 
 	history, _ := model.GetLoanHistory(tgId, 10)
-	var historyList []gin.H
+	historyList := make([]gin.H, 0, len(history))
 	for _, loan := range history {
 		historyList = append(historyList, gin.H{
 			"id":           loan.Id,
