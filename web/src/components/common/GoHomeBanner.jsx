@@ -1,20 +1,32 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-const API_JSON = 'https://api.zjb522.cn/api?type=json&order=random';
-const GOTO_URL = 'https://www.baobeihuijia.com/';
-const INTERVAL = 6000; // 每条展示 6 秒
-const PRELOAD = 5;     // 预加载几条
+const API_BASE = 'https://api.xunjinlu.fun/api/babygome/index.php';
+const INTERVAL = 7000;
+const PRELOAD = 5;
 
 const fetchOne = async () => {
   try {
-    const res = await fetch(`${API_JSON}&_t=${Date.now()}`);
-    const d = await res.json();
+    const res = await fetch(`${API_BASE}?type=json&_t=${Date.now()}`);
+    const json = await res.json();
+    if (json.code !== 200 || !json.data) return null;
+    const d = json.data;
+    // 计算走失时年龄
+    let age = '';
+    if (d.birthDay && d.lostDay) {
+      const birth = new Date(d.birthDay);
+      const lost = new Date(d.lostDay);
+      const y = lost.getFullYear() - birth.getFullYear();
+      const m = lost.getMonth() - birth.getMonth();
+      age = String(m < 0 ? y - 1 : y);
+    }
     return {
-      name: d.name || d.xing_ming || '',
-      age: d.age || d.nian_ling || '',
-      date: d.missing_time || d.shi_zong_shi_jian || d.time || '',
-      place: d.missing_place || d.shi_zong_di_dian || d.place || '',
-      url: d.baobei_url || d.url || d.link || GOTO_URL,
+      name: d.name || '',
+      sex: d.sex || '',
+      age,
+      lostDay: d.lostDay || '',
+      lostAddress: d.lostAddress || '',
+      photoUrl: d.photoUrl || '',
+      detailUrl: d.detailUrl || 'https://www.baobeihuijia.com/',
     };
   } catch (_) {
     return null;
@@ -24,36 +36,30 @@ const fetchOne = async () => {
 const GoHomeBanner = () => {
   const [items, setItems] = useState([]);
   const [idx, setIdx] = useState(0);
-  const [fade, setFade] = useState(true);
+  const [visible, setVisible] = useState(true);
   const timerRef = useRef(null);
 
-  // 预加载多条数据
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    (async () => {
       for (let i = 0; i < PRELOAD; i++) {
         if (cancelled) break;
         const item = await fetchOne();
-        if (item && (item.name || item.place)) {
-          setItems(prev => [...prev, item]);
-        }
-        // 错开请求，避免 API 返回同一条
-        await new Promise(r => setTimeout(r, 300));
+        if (item && item.name) setItems(prev => [...prev, item]);
+        await new Promise(r => setTimeout(r, 400));
       }
-    };
-    load();
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  // 轮播定时器
   useEffect(() => {
     if (items.length < 2) return;
     timerRef.current = setInterval(() => {
-      setFade(false);
+      setVisible(false);
       setTimeout(() => {
         setIdx(prev => (prev + 1) % items.length);
-        setFade(true);
-      }, 350);
+        setVisible(true);
+      }, 400);
     }, INTERVAL);
     return () => clearInterval(timerRef.current);
   }, [items.length]);
@@ -62,25 +68,37 @@ const GoHomeBanner = () => {
 
   return (
     <div className='gohome-topbar'>
+      {/* 左侧标签 */}
       <span className='gohome-topbar-badge'>🔍 宝贝回家</span>
-      <span className='gohome-topbar-sep'>|</span>
+      <span className='gohome-topbar-divider' />
 
-      <span className={`gohome-topbar-content ${fade ? 'gohome-fade-in' : 'gohome-fade-out'}`}>
+      {/* 轮播内容 */}
+      <span className={`gohome-topbar-content ${visible ? 'gohome-visible' : 'gohome-hidden'}`}>
         {cur ? (
           <>
-            {cur.name && <span className='gohome-topbar-name'>{cur.name}</span>}
-            {cur.age && <span>· {cur.age}岁</span>}
-            {cur.date && <span>· 失踪于 {cur.date}</span>}
-            {cur.place && <span>· {cur.place}</span>}
+            {cur.photoUrl && (
+              <img
+                className='gohome-topbar-avatar'
+                src={cur.photoUrl}
+                alt={cur.name}
+                referrerPolicy='no-referrer'
+              />
+            )}
+            <span className='gohome-topbar-name'>{cur.name}</span>
+            {cur.sex && <span className='gohome-topbar-meta'>{cur.sex}</span>}
+            {cur.age && <span className='gohome-topbar-meta'>走失时 {cur.age} 岁</span>}
+            {cur.lostDay && <span className='gohome-topbar-meta'>· {cur.lostDay} 走失</span>}
+            {cur.lostAddress && <span className='gohome-topbar-meta'>· {cur.lostAddress}</span>}
           </>
         ) : (
-          <span>加载中...</span>
+          <span className='gohome-topbar-meta'>数据加载中...</span>
         )}
       </span>
 
-      {cur?.url && (
+      {/* 查看详情 */}
+      {cur?.detailUrl && (
         <a
-          href={cur.url}
+          href={cur.detailUrl}
           target='_blank'
           rel='noopener noreferrer'
           className='gohome-topbar-link'
@@ -89,8 +107,9 @@ const GoHomeBanner = () => {
         </a>
       )}
 
-      <span className='gohome-topbar-right'>
-        如有线索请拨打&nbsp;<strong>110</strong>
+      {/* 右侧提示 */}
+      <span className='gohome-topbar-hotline'>
+        线索请拨 <strong>110</strong>
       </span>
     </div>
   );
