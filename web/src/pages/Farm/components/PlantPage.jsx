@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Empty, Tag, Typography } from '@douyinfe/semi-ui';
+import GoHomeBanner from '../../../components/common/GoHomeBanner';
 import { formatDuration } from './utils';
 import { showError } from './utils';
 import tutorialEvents from './tutorialEvents';
@@ -145,6 +146,11 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
             ))}
           </div>
         )}
+      </div>
+
+      {/* 宝贝回家公益寻人 */}
+      <div style={{ borderRadius: 12, overflow: 'hidden', marginTop: 4 }}>
+        <GoHomeBanner />
       </div>
     </div>
   );
