@@ -242,6 +242,11 @@ const Home = () => {
       />
       {homePageContentLoaded && homePageContent === '' ? (
         <>
+          {/* ═══ 宝贝回家大图轮播（最顶部） ═══ */}
+          <div style={{ position: 'relative', zIndex: 3 }}>
+            <GoHomeBanner />
+          </div>
+
           {/* Animated grid background */}
           <div className='cy-grid-bg' />
           {/* Gold particles */}
@@ -344,9 +349,6 @@ const Home = () => {
               </div>
             </div>
           </section>
-
-          {/* ═══ 宝贝回家大图轮播 ═══ */}
-          <GoHomeBanner />
 
           {/* ═══ TICKER ═══ */}
           <div className='cy-ticker'>
