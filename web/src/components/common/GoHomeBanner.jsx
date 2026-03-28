@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 
-const API_BASE = 'https://api.xunjinlu.fun/api/babygome/index.php';
 const SLIDE_INTERVAL = 5000;
 const PRELOAD_COUNT = 5;
 
 const fetchOne = async () => {
   try {
-    const res = await fetch(`${API_BASE}?type=json&_t=${Date.now()}`);
+    const res = await fetch(`/api/babygome?_t=${Date.now()}`);
     const json = await res.json();
     if (json.code !== 200 || !json.data) return null;
     const d = json.data;
