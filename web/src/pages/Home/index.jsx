@@ -26,6 +26,7 @@ import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import NoticeModal from '../../components/layout/NoticeModal';
+import GoHomeBanner from '../../components/common/GoHomeBanner';
 import {
   Moonshot, OpenAI, XAI, Zhipu, Volcengine, Cohere, Claude, Gemini,
   Suno, Minimax, Wenxin, Spark, Qingyan, DeepSeek, Qwen, Midjourney,
@@ -239,6 +240,9 @@ const Home = () => {
         onClose={() => setNoticeVisible(false)}
         isMobile={isMobile}
       />
+      {/* 宝贝回家公益寻人横幅 */}
+      <GoHomeBanner variant='bar' />
+
       {homePageContentLoaded && homePageContent === '' ? (
         <>
           {/* Animated grid background */}

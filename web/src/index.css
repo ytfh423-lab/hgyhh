@@ -1124,6 +1124,145 @@ html:not(.dark) .npc-feature-card::after {
   );
 }
 
+/* ==================== 宝贝回家公益横幅 ==================== */
+
+/* 通知条（首页顶部 / 控制台顶部） */
+.gohome-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 16px;
+  background: linear-gradient(90deg, #7f1d1d 0%, #991b1b 50%, #7f1d1d 100%);
+  color: #fef2f2;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 60;
+  flex-wrap: wrap;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(239,68,68,0.4);
+}
+.gohome-bar:hover { background: linear-gradient(90deg, #991b1b 0%, #b91c1c 50%, #991b1b 100%); }
+
+.gohome-bar-icon { font-size: 15px; flex-shrink: 0; }
+.gohome-bar-label {
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fca5a5;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.gohome-bar-sep { color: rgba(252,165,165,0.4); flex-shrink: 0; }
+.gohome-bar-photo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(252,165,165,0.5);
+  flex-shrink: 0;
+}
+.gohome-bar-name {
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+.gohome-bar-field {
+  color: #fca5a5;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.gohome-bar-cta {
+  margin-left: auto;
+  font-weight: 600;
+  color: #fca5a5;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.gohome-bar-refresh {
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.gohome-bar-refresh:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+
+/* 卡片模式（控制台 Dashboard 内嵌） */
+.gohome-card {
+  background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
+  border: 1px solid rgba(239,68,68,0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  color: #fef2f2;
+}
+.gohome-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.gohome-card-icon { font-size: 16px; }
+.gohome-card-title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: #fca5a5;
+  flex: 1;
+}
+.gohome-card-refresh {
+  background: none;
+  border: none;
+  color: #fca5a5;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.gohome-card-refresh:hover { background: rgba(255,255,255,0.1); }
+.gohome-card-body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.gohome-card-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid rgba(252,165,165,0.4);
+  flex-shrink: 0;
+}
+.gohome-card-info { flex: 1; min-width: 0; }
+.gohome-card-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.gohome-card-field {
+  font-size: 12px;
+  color: #fca5a5;
+  margin-bottom: 2px;
+}
+.gohome-card-link {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fca5a5;
+  text-decoration: none;
+  border-top: 1px solid rgba(252,165,165,0.2);
+  padding-top: 8px;
+  transition: color 0.15s;
+}
+.gohome-card-link:hover { color: #fff; }
+
 /* ==================== CYBERPUNK LANDING PAGE ==================== */
 
 .cy-landing {
