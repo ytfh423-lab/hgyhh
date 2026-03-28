@@ -1120,6 +1120,154 @@ func WebFarmTreat(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("使用 %s%s 治疗成功！", cureItem.Emoji, cureItem.Name)})
 }
 
+// WebFarmTreatAll treats all event plots (status=3, non-drought)
+func WebFarmTreatAll(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	treated := 0
+	failed := 0
+	for _, plot := range plots {
+		if plot.Status != 3 || plot.EventType == "drought" {
+			continue
+		}
+		var cureItem *farmItemDef
+		for i := range farmItems {
+			if farmItems[i].Cures == plot.EventType {
+				cureItem = &farmItems[i]
+				break
+			}
+		}
+		if cureItem == nil {
+			failed++
+			continue
+		}
+		if err := model.DecrementFarmItem(tgId, cureItem.Key); err != nil {
+			failed++
+			continue
+		}
+		now := time.Now().Unix()
+		downtime := now - plot.EventAt
+		plot.PlantedAt += downtime
+		plot.Status = 1
+		plot.EventType = ""
+		plot.EventAt = 0
+		_ = model.UpdateFarmPlot(plot)
+		treated++
+	}
+	if treated == 0 {
+		msg := "没有可治疗的地块"
+		if failed > 0 {
+			msg = fmt.Sprintf("药品不足，%d 块地无法治疗", failed)
+		}
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
+		return
+	}
+	msg := fmt.Sprintf("成功治疗 %d 块地！", treated)
+	if failed > 0 {
+		msg += fmt.Sprintf("（%d 块因药品不足跳过）", failed)
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+}
+
+// WebFarmPlantAll plants all empty plots with the specified crop
+func WebFarmPlantAll(c *gin.Context) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		CropKey string `json:"crop_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+	crop := farmCropMap[req.CropKey]
+	if crop == nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "未知作物"})
+		return
+	}
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	inTutorial := model.IsFarmTutorialActive(tgId)
+	planted := 0
+	for _, plot := range plots {
+		if plot.Status != 0 {
+			continue
+		}
+		// Try inventory seed first, then deduct balance
+		seedKey := "seed_" + crop.Key
+		if errSeed := model.DecrementFarmItem(tgId, seedKey); errSeed != nil {
+			// Re-fetch user quota each iteration (mutates)
+			if user.Quota < crop.SeedCost {
+				break // out of money
+			}
+			if err := model.DecreaseUserQuota(user.Id, crop.SeedCost); err != nil {
+				break
+			}
+			user.Quota -= crop.SeedCost
+		}
+		now := time.Now().Unix()
+		plot.CropType = crop.Key
+		plot.PlantedAt = now
+		plot.Status = 1
+		plot.EventType = ""
+		plot.EventAt = 0
+		plot.StolenCount = 0
+		plot.LastWateredAt = now
+
+		webActualGrowSecs := crop.GrowSecs
+		webSoilLvl := plot.SoilLevel
+		if webSoilLvl < 1 {
+			webSoilLvl = 1
+		}
+		if webSoilLvl > 1 {
+			sBonus := int64(common.TgBotFarmSoilSpeedBonus * (webSoilLvl - 1))
+			webActualGrowSecs = webActualGrowSecs * (100 - sBonus) / 100
+			if webActualGrowSecs < 60 {
+				webActualGrowSecs = 60
+			}
+		}
+		webSeasonGrowthPct := getSeasonGrowthMultiplier(crop, now)
+		webActualGrowSecs = webActualGrowSecs * int64(webSeasonGrowthPct) / 100
+		if webActualGrowSecs < 60 {
+			webActualGrowSecs = 60
+		}
+		_ = webActualGrowSecs
+
+		bugChance := getSeasonEventChance(common.TgBotFarmEventChance, crop, now)
+		if !inTutorial && rand.Intn(100) < bugChance {
+			plot.EventType = "bugs"
+			offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+			plot.EventAt = now + offset
+		}
+		droughtChance := getSeasonEventChance(common.TgBotFarmDisasterChance, crop, now)
+		if !inTutorial && plot.EventType == "" && !model.HasAutomation(tgId, "irrigation") && rand.Intn(100) < droughtChance {
+			plot.EventType = "drought"
+			offset := crop.GrowSecs * int64(30+rand.Intn(50)) / 100
+			plot.EventAt = now + offset
+		}
+		_ = model.UpdateFarmPlot(plot)
+		model.AddFarmLog(tgId, "plant", -crop.SeedCost, fmt.Sprintf("一键种植%s%s", crop.Emoji, crop.Name))
+		planted++
+	}
+	if planted == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有空地，或余额/种子不足"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功种植 %s%s × %d 块！", crop.Emoji, crop.Name, planted)})
+}
+
 // WebFarmFertilize fertilizes a plot
 func WebFarmFertilize(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)

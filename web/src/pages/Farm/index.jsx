@@ -467,7 +467,7 @@ const Farm = () => {
 
     switch (activePage) {
       case 'overview':
-        return <FarmOverview {...commonProps} loading={loading} />;
+        return <FarmOverview {...commonProps} crops={crops} loading={loading} />;
       case 'plant':
         return <PlantPage {...commonProps} crops={crops} />;
       case 'ranch':
@@ -516,7 +516,7 @@ const Farm = () => {
       case 'logs':
         return <LogsPage t={t} />;
       default:
-        return <FarmOverview {...commonProps} loading={loading} />;
+        return <FarmOverview {...commonProps} crops={crops} loading={loading} />;
     }
   };
 
