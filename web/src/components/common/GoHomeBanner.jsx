@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 const API_BASE = 'https://api.xunjinlu.fun/api/babygome/index.php';
-const INTERVAL = 7000;
-const PRELOAD = 5;
+const SLIDE_INTERVAL = 5000;
+const PRELOAD_COUNT = 5;
 
 const fetchOne = async () => {
   try {
@@ -10,23 +10,24 @@ const fetchOne = async () => {
     const json = await res.json();
     if (json.code !== 200 || !json.data) return null;
     const d = json.data;
-    // 计算走失时年龄
     let age = '';
     if (d.birthDay && d.lostDay) {
       const birth = new Date(d.birthDay);
       const lost = new Date(d.lostDay);
       const y = lost.getFullYear() - birth.getFullYear();
-      const m = lost.getMonth() - birth.getMonth();
-      age = String(m < 0 ? y - 1 : y);
+      age = String(lost.getMonth() < birth.getMonth() ? y - 1 : y);
     }
     return {
       name: d.name || '',
       sex: d.sex || '',
       age,
       lostDay: d.lostDay || '',
-      lostAddress: d.lostAddress || '',
+      lostAddress: (d.lostAddress || '').replace(/,/g, ' '),
+      lostHeight: d.lostHeight || '',
+      feature: d.feature || '',
       photoUrl: d.photoUrl || '',
       detailUrl: d.detailUrl || 'https://www.baobeihuijia.com/',
+      categoryName: d.categoryName || '',
     };
   } catch (_) {
     return null;
@@ -34,85 +35,173 @@ const fetchOne = async () => {
 };
 
 const GoHomeBanner = () => {
-  const [items, setItems] = useState([]);
-  const [idx, setIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
+  const [slides, setSlides] = useState([]);
+  const [cur, setCur] = useState(0);
+  const [animating, setAnimating] = useState(false);
   const timerRef = useRef(null);
+  const loadedRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      for (let i = 0; i < PRELOAD; i++) {
+      for (let i = 0; i < PRELOAD_COUNT; i++) {
         if (cancelled) break;
         const item = await fetchOne();
-        if (item && item.name) setItems(prev => [...prev, item]);
-        await new Promise(r => setTimeout(r, 400));
+        if (item && item.name) {
+          setSlides(prev => [...prev, item]);
+          loadedRef.current += 1;
+        }
+        await new Promise(r => setTimeout(r, 500));
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    if (items.length < 2) return;
-    timerRef.current = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setIdx(prev => (prev + 1) % items.length);
-        setVisible(true);
-      }, 400);
-    }, INTERVAL);
-    return () => clearInterval(timerRef.current);
-  }, [items.length]);
+  const goTo = useCallback((next) => {
+    if (animating) return;
+    setAnimating(true);
+    setTimeout(() => {
+      setCur(next);
+      setAnimating(false);
+    }, 450);
+  }, [animating]);
 
-  const cur = items[idx];
+  useEffect(() => {
+    if (slides.length < 2) return;
+    timerRef.current = setInterval(() => {
+      setCur(prev => {
+        const next = (prev + 1) % slides.length;
+        return next;
+      });
+    }, SLIDE_INTERVAL);
+    return () => clearInterval(timerRef.current);
+  }, [slides.length]);
+
+  const handleDot = (i) => {
+    clearInterval(timerRef.current);
+    setCur(i);
+    timerRef.current = setInterval(() => {
+      setCur(prev => (prev + 1) % slides.length);
+    }, SLIDE_INTERVAL);
+  };
+
+  const handlePrev = () => {
+    clearInterval(timerRef.current);
+    setCur(prev => (prev - 1 + slides.length) % slides.length);
+    timerRef.current = setInterval(() => {
+      setCur(prev => (prev + 1) % slides.length);
+    }, SLIDE_INTERVAL);
+  };
+
+  const handleNext = () => {
+    clearInterval(timerRef.current);
+    setCur(prev => (prev + 1) % slides.length);
+    timerRef.current = setInterval(() => {
+      setCur(prev => (prev + 1) % slides.length);
+    }, SLIDE_INTERVAL);
+  };
+
+  const slide = slides[cur];
 
   return (
-    <div className='gohome-topbar'>
-      {/* 左侧标签 */}
-      <span className='gohome-topbar-badge'>🔍 宝贝回家</span>
-      <span className='gohome-topbar-divider' />
-
-      {/* 轮播内容 */}
-      <div className={`gohome-topbar-content ${visible ? 'gohome-visible' : 'gohome-hidden'}`}>
-        {cur ? (
-          <>
-            {cur.photoUrl && (
-              <a href={cur.detailUrl} target='_blank' rel='noopener noreferrer' className='gohome-topbar-img-wrap'>
-                <img
-                  className='gohome-topbar-photo'
-                  src={cur.photoUrl}
-                  alt={cur.name}
-                  referrerPolicy='no-referrer'
-                />
-              </a>
-            )}
-            <span className='gohome-topbar-name'>{cur.name}</span>
-            {cur.sex && <span className='gohome-topbar-meta'>{cur.sex}</span>}
-            {cur.age && <span className='gohome-topbar-meta'>走失时 {cur.age} 岁</span>}
-            {cur.lostDay && <span className='gohome-topbar-meta'>· {cur.lostDay} 走失</span>}
-            {cur.lostAddress && <span className='gohome-topbar-meta'>· {cur.lostAddress}</span>}
-          </>
+    <div className='gohome-carousel'>
+      {/* 滑动轨道 */}
+      <div className='gohome-track'>
+        {slides.length === 0 ? (
+          <div className='gohome-loading'>
+            <div className='gohome-loading-spinner' />
+            <span>加载寻人信息中...</span>
+          </div>
         ) : (
-          <span className='gohome-topbar-meta'>数据加载中...</span>
+          slides.map((s, i) => (
+            <div
+              key={i}
+              className={`gohome-slide ${i === cur ? 'gohome-slide-active' : ''}`}
+            >
+              {/* 背景模糊图 */}
+              {s.photoUrl && (
+                <div
+                  className='gohome-slide-bg'
+                  style={{ backgroundImage: `url(${s.photoUrl})` }}
+                />
+              )}
+              <div className='gohome-slide-overlay' />
+
+              {/* 内容 */}
+              <div className='gohome-slide-body'>
+                {/* 照片 */}
+                <a href={s.detailUrl} target='_blank' rel='noopener noreferrer' className='gohome-slide-photo-link'>
+                  {s.photoUrl ? (
+                    <img
+                      className='gohome-slide-photo'
+                      src={s.photoUrl}
+                      alt={s.name}
+                      referrerPolicy='no-referrer'
+                    />
+                  ) : (
+                    <div className='gohome-slide-photo gohome-slide-photo-empty'>?</div>
+                  )}
+                </a>
+
+                {/* 文字区 */}
+                <div className='gohome-slide-info'>
+                  <div className='gohome-slide-tag'>
+                    {s.categoryName || '宝贝回家 · 寻人公益'}
+                  </div>
+                  <div className='gohome-slide-name'>{s.name}</div>
+                  <div className='gohome-slide-fields'>
+                    {s.sex && <span className='gohome-slide-field'>{s.sex}</span>}
+                    {s.age && <span className='gohome-slide-field'>走失时 {s.age} 岁</span>}
+                    {s.lostHeight && s.lostHeight !== '未知' && (
+                      <span className='gohome-slide-field'>身高 {s.lostHeight}</span>
+                    )}
+                    {s.lostDay && <span className='gohome-slide-field'>走失 {s.lostDay}</span>}
+                  </div>
+                  {s.lostAddress && (
+                    <div className='gohome-slide-address'>📍 {s.lostAddress}</div>
+                  )}
+                  {s.feature && (
+                    <div className='gohome-slide-feature'>"{s.feature}"</div>
+                  )}
+                  <div className='gohome-slide-actions'>
+                    <a
+                      href={s.detailUrl}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='gohome-slide-btn'
+                    >
+                      查看详情
+                    </a>
+                    <span className='gohome-slide-hotline'>如有线索请拨打 <strong>110</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* 查看详情 */}
-      {cur?.detailUrl && (
-        <a
-          href={cur.detailUrl}
-          target='_blank'
-          rel='noopener noreferrer'
-          className='gohome-topbar-link'
-        >
-          查看详情 →
-        </a>
+      {/* 左右箭头 */}
+      {slides.length > 1 && (
+        <>
+          <button className='gohome-arrow gohome-arrow-left' onClick={handlePrev}>‹</button>
+          <button className='gohome-arrow gohome-arrow-right' onClick={handleNext}>›</button>
+        </>
       )}
 
-      {/* 右侧提示 */}
-      <span className='gohome-topbar-hotline'>
-        线索请拨 <strong>110</strong>
-      </span>
+      {/* 底部圆点 + 标题 */}
+      <div className='gohome-footer'>
+        <span className='gohome-footer-label'>🔍 宝贝回家公益寻人</span>
+        <div className='gohome-dots'>
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              className={`gohome-dot ${i === cur ? 'gohome-dot-active' : ''}`}
+              onClick={() => handleDot(i)}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

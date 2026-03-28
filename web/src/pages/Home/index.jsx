@@ -26,6 +26,7 @@ import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import NoticeModal from '../../components/layout/NoticeModal';
+import GoHomeBanner from '../../components/common/GoHomeBanner';
 import {
   Moonshot, OpenAI, XAI, Zhipu, Volcengine, Cohere, Claude, Gemini,
   Suno, Minimax, Wenxin, Spark, Qingyan, DeepSeek, Qwen, Midjourney,
@@ -343,6 +344,9 @@ const Home = () => {
               </div>
             </div>
           </section>
+
+          {/* ═══ 宝贝回家大图轮播 ═══ */}
+          <GoHomeBanner />
 
           {/* ═══ TICKER ═══ */}
           <div className='cy-ticker'>

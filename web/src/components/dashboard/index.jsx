@@ -30,6 +30,7 @@ import AnnouncementsPanel from './AnnouncementsPanel';
 import FaqPanel from './FaqPanel';
 import UptimePanel from './UptimePanel';
 import SearchModal from './modals/SearchModal';
+import GoHomeBanner from '../common/GoHomeBanner';
 
 import { useDashboardData } from '../../hooks/dashboard/useDashboardData';
 import { useDashboardStats } from '../../hooks/dashboard/useDashboardStats';
@@ -140,6 +141,10 @@ const Dashboard = () => {
 
   return (
     <div className='h-full'>
+      <div className='mb-4 rounded-xl overflow-hidden'>
+        <GoHomeBanner />
+      </div>
+
       <DashboardHeader
         getGreeting={dashboardData.getGreeting}
         greetingVisible={dashboardData.greetingVisible}

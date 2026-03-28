@@ -18,7 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import HeaderBar from './headerbar';
-import GoHomeBanner from '../common/GoHomeBanner';
 import { Layout } from '@douyinfe/semi-ui';
 import SiderBar from './SiderBar';
 import App from '../../App';
@@ -142,7 +141,6 @@ const PageLayout = () => {
             zIndex: 100,
           }}
         >
-          <GoHomeBanner />
           <HeaderBar
             onMobileMenuToggle={() => setDrawerOpen((prev) => !prev)}
             drawerOpen={drawerOpen}
@@ -154,7 +152,7 @@ const PageLayout = () => {
           overflow: isMobile ? 'visible' : 'auto',
           display: 'flex',
           flexDirection: 'column',
-          marginTop: isFarmPage ? '0' : '120px',
+          marginTop: isFarmPage ? '0' : '64px',
         }}
       >
         {showSider && (
@@ -163,7 +161,7 @@ const PageLayout = () => {
             style={{
               position: 'fixed',
               left: 0,
-              top: '120px',
+              top: '64px',
               zIndex: 99,
               border: 'none',
               paddingRight: '0',
