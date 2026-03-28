@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Typography } from '@douyinfe/semi-ui';
+import GoHomeBanner from '../../../components/common/GoHomeBanner';
 import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2 } from 'lucide-react';
 import { formatBalance, formatDuration, confirmAction } from './utils';
 import { useTutorial } from './TutorialProvider';
@@ -369,6 +370,11 @@ const FarmOverview = ({ farmData, loading, loadFarm, actionLoading, doAction, t 
             t={t}
           />
         )}
+      </div>
+
+      {/* ═══ 宝贝回家公益寻人 ═══ */}
+      <div style={{ borderRadius: 12, overflow: 'hidden', marginTop: 14, marginBottom: 4 }}>
+        <GoHomeBanner />
       </div>
 
       {/* ═══ Backpack: Seeds & Items ═══ */}
