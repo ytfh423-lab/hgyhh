@@ -1,110 +1,92 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 
-const API_URL = 'https://api.zjb522.cn/api?type=json&order=latest';
+const IMG_URL = 'https://api.zjb522.cn/api?type=img&order=latest';
+const JSON_URL = 'https://api.zjb522.cn/api?type=json&order=latest';
 
-const GoHomeBanner = ({ variant = 'bar' }) => {
-  const [child, setChild] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [imgErr, setImgErr] = useState(false);
+// 给图片加时间戳，每次点刷新时强制重新加载
+const makeImgUrl = (seed) =>
+  `${IMG_URL}&_t=${seed}`;
 
-  const fetchData = useCallback(async () => {
+const GoHomeBanner = () => {
+  const [info, setInfo] = useState(null);
+  const [seed, setSeed] = useState(() => Date.now());
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const imgRef = useRef(null);
+
+  const fetchInfo = useCallback(async () => {
     try {
-      setLoading(true);
-      setImgErr(false);
-      const res = await fetch(API_URL);
+      const res = await fetch(JSON_URL + `&_t=${Date.now()}`);
       const data = await res.json();
-      setChild(data);
+      setInfo(data);
     } catch (_) {
-      setChild(null);
-    } finally {
-      setLoading(false);
+      // CORS 或网络问题时只展示图片，忽略文字信息
+      setInfo(null);
     }
   }, []);
 
+  const refresh = useCallback(() => {
+    setSeed(Date.now());
+    setImgLoaded(false);
+    fetchInfo();
+  }, [fetchInfo]);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInfo();
+  }, [fetchInfo]);
 
-  if (loading || !child) return null;
+  const name = info?.name || info?.xing_ming || '';
+  const age = info?.age || info?.nian_ling || '';
+  const missingDate = info?.missing_time || info?.shi_zong_shi_jian || info?.time || '';
+  const missingPlace = info?.missing_place || info?.shi_zong_di_dian || info?.place || '';
+  const detailUrl = info?.baobei_url || info?.url || info?.link || 'https://www.baobeihuijia.com/';
 
-  const name = child.name || child.xing_ming || '';
-  const age = child.age || child.nian_ling || child.shi_zong_shi_nian_ling || '';
-  const missingDate = child.missing_time || child.shi_zong_shi_jian || child.time || '';
-  const missingPlace = child.missing_place || child.shi_zong_di_dian || child.place || '';
-  const detailUrl = child.baobei_url || child.url || child.link || 'https://www.baobeihuijia.com/';
-  const imgUrl = child.img || child.image || child.pic || '';
-
-  // 横向通知条（首页顶部和控制台顶部共用）
-  if (variant === 'bar') {
-    return (
+  return (
+    <div className='gohome-wrap'>
+      {/* 图片区 */}
       <a
         href={detailUrl}
         target='_blank'
         rel='noopener noreferrer'
-        className='gohome-bar'
-        title='点击查看详情 · 帮助失踪儿童回家'
+        className='gohome-img-link'
+        title='点击查看详情，帮助孩子回家'
       >
-        <span className='gohome-bar-icon'>🔍</span>
-        <span className='gohome-bar-label'>宝贝回家公益寻人</span>
-        <span className='gohome-bar-sep'>|</span>
-        {imgUrl && !imgErr && (
-          <img
-            className='gohome-bar-photo'
-            src={imgUrl}
-            alt={name}
-            onError={() => setImgErr(true)}
-          />
-        )}
-        {name && <span className='gohome-bar-name'>{name}</span>}
-        {age && <span className='gohome-bar-field'>{age}岁</span>}
-        {missingDate && <span className='gohome-bar-field'>失踪于 {missingDate}</span>}
-        {missingPlace && <span className='gohome-bar-field'>{missingPlace}</span>}
-        <span className='gohome-bar-cta'>查看详情 →</span>
-        <span className='gohome-bar-refresh' onClick={(e) => { e.preventDefault(); fetchData(); }} title='换一条'>
-          ↺
-        </span>
+        <img
+          ref={imgRef}
+          key={seed}
+          src={makeImgUrl(seed)}
+          alt='宝贝回家寻人'
+          className={`gohome-photo ${imgLoaded ? 'gohome-photo-loaded' : ''}`}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgLoaded(true)}
+        />
       </a>
-    );
-  }
 
-  // 卡片模式（控制台内嵌卡片）
-  return (
-    <div className='gohome-card'>
-      <div className='gohome-card-header'>
-        <span className='gohome-card-icon'>🔍</span>
-        <span className='gohome-card-title'>宝贝回家 · 公益寻人</span>
-        <button
-          className='gohome-card-refresh'
-          onClick={fetchData}
-          title='换一条'
-        >
-          ↺
-        </button>
-      </div>
-      <div className='gohome-card-body'>
-        {imgUrl && !imgErr && (
-          <img
-            className='gohome-card-photo'
-            src={imgUrl}
-            alt={name}
-            onError={() => setImgErr(true)}
-          />
-        )}
-        <div className='gohome-card-info'>
-          {name && <div className='gohome-card-name'>{name}</div>}
-          {age && <div className='gohome-card-field'>年龄：{age}岁</div>}
-          {missingDate && <div className='gohome-card-field'>失踪时间：{missingDate}</div>}
-          {missingPlace && <div className='gohome-card-field'>失踪地点：{missingPlace}</div>}
+      {/* 文字信息区 */}
+      <div className='gohome-info'>
+        <div className='gohome-tag'>🔍 宝贝回家 · 公益寻人</div>
+        {name && <div className='gohome-name'>{name}</div>}
+        <div className='gohome-fields'>
+          {age && <span className='gohome-field'>年龄 {age}岁</span>}
+          {missingDate && <span className='gohome-field'>失踪 {missingDate}</span>}
+          {missingPlace && <span className='gohome-field'>{missingPlace}</span>}
+        </div>
+        <div className='gohome-actions'>
+          <a
+            href={detailUrl}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='gohome-detail-btn'
+          >
+            查看详情 →
+          </a>
+          <button className='gohome-next-btn' onClick={refresh} title='换一个'>
+            换一个 ↺
+          </button>
+        </div>
+        <div className='gohome-hint'>
+          如有线索请拨打 <strong>110</strong> 或联系宝贝回家志愿者协会
         </div>
       </div>
-      <a
-        href={detailUrl}
-        target='_blank'
-        rel='noopener noreferrer'
-        className='gohome-card-link'
-      >
-        查看详情，帮助 {name || '孩子'} 回家 →
-      </a>
     </div>
   );
 };

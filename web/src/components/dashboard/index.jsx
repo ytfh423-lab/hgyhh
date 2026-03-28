@@ -30,7 +30,6 @@ import AnnouncementsPanel from './AnnouncementsPanel';
 import FaqPanel from './FaqPanel';
 import UptimePanel from './UptimePanel';
 import SearchModal from './modals/SearchModal';
-import GoHomeBanner from '../common/GoHomeBanner';
 
 import { useDashboardData } from '../../hooks/dashboard/useDashboardData';
 import { useDashboardStats } from '../../hooks/dashboard/useDashboardStats';
@@ -141,9 +140,6 @@ const Dashboard = () => {
 
   return (
     <div className='h-full'>
-      {/* 宝贝回家公益寻人 */}
-      <GoHomeBanner variant='bar' />
-
       <DashboardHeader
         getGreeting={dashboardData.getGreeting}
         greetingVisible={dashboardData.greetingVisible}
