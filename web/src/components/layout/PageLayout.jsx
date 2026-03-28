@@ -154,7 +154,7 @@ const PageLayout = () => {
           overflow: isMobile ? 'visible' : 'auto',
           display: 'flex',
           flexDirection: 'column',
-          marginTop: isFarmPage ? '0' : '100px',
+          marginTop: isFarmPage ? '0' : '120px',
         }}
       >
         {showSider && (
@@ -163,7 +163,7 @@ const PageLayout = () => {
             style={{
               position: 'fixed',
               left: 0,
-              top: '100px',
+              top: '120px',
               zIndex: 99,
               border: 'none',
               paddingRight: '0',

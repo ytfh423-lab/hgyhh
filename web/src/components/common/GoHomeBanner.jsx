@@ -73,16 +73,18 @@ const GoHomeBanner = () => {
       <span className='gohome-topbar-divider' />
 
       {/* 轮播内容 */}
-      <span className={`gohome-topbar-content ${visible ? 'gohome-visible' : 'gohome-hidden'}`}>
+      <div className={`gohome-topbar-content ${visible ? 'gohome-visible' : 'gohome-hidden'}`}>
         {cur ? (
           <>
             {cur.photoUrl && (
-              <img
-                className='gohome-topbar-avatar'
-                src={cur.photoUrl}
-                alt={cur.name}
-                referrerPolicy='no-referrer'
-              />
+              <a href={cur.detailUrl} target='_blank' rel='noopener noreferrer' className='gohome-topbar-img-wrap'>
+                <img
+                  className='gohome-topbar-photo'
+                  src={cur.photoUrl}
+                  alt={cur.name}
+                  referrerPolicy='no-referrer'
+                />
+              </a>
             )}
             <span className='gohome-topbar-name'>{cur.name}</span>
             {cur.sex && <span className='gohome-topbar-meta'>{cur.sex}</span>}
@@ -93,7 +95,7 @@ const GoHomeBanner = () => {
         ) : (
           <span className='gohome-topbar-meta'>数据加载中...</span>
         )}
-      </span>
+      </div>
 
       {/* 查看详情 */}
       {cur?.detailUrl && (
