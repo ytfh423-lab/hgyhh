@@ -15,7 +15,7 @@ const hashText = (str) => {
   return 'farm_ann_' + (h >>> 0).toString(36);
 };
 
-const FarmAnnouncementBar = ({ t }) => {
+const FarmAnnouncementBar = ({ t, inline = false }) => {
   const [announcement, setAnnouncement] = useState(null);
   const [dismissed, setDismissed] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -55,6 +55,21 @@ const FarmAnnouncementBar = ({ t }) => {
   if (dismissed || !announcement) return null;
 
   const theme = TYPE_THEMES[announcement.type] || TYPE_THEMES.info;
+
+  if (inline) {
+    return (
+      <div className={`farm-ann-inline ${theme.badgeClass} ${visible ? 'visible' : ''}`} style={{ marginBottom: 12 }}>
+        <div className='farm-ann-inner' style={{ borderRadius: 10, whiteSpace: 'normal' }}>
+          <span className={`farm-ann-icon ${theme.badgeClass}`}>{theme.badge}</span>
+          <span className={`farm-ann-badge ${theme.badgeClass}`}>{t ? t(theme.badgeLabel) : theme.badgeLabel}</span>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#ede4d4', lineHeight: 1.5 }}>
+            {announcement.text}
+          </div>
+          <button className='farm-ann-close' onClick={dismiss} aria-label='Close'>✕</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`farm-ann-bar ${visible ? 'visible' : ''} ${theme.badgeClass}`}>

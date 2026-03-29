@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Button, Typography, Select } from '@douyinfe/semi-ui';
-import GoHomeBanner from '../../../components/common/GoHomeBanner';
 import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2, Zap } from 'lucide-react';
 import { formatBalance, formatDuration, confirmAction } from './utils';
 import { useTutorial } from './TutorialProvider';
@@ -32,7 +31,7 @@ const statusClassMap = {
   4: 'farm-plot-card farm-plot-wilting',
 };
 
-const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle, t }) => {
+const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onToggle, t }) => {
   const { handleWater, handleFertilize, handleTreat, handleUpgradeSoil, handleClearPlot } = handlers;
   const soilLv = plot.soil_level || 1;
   const soilMax = farmData.soil_max_level || 5;
@@ -186,7 +185,7 @@ const PlotCard = ({ plot, farmData, handlers, actionLoading, expanded, onToggle,
       </div>
     </div>
   );
-};
+});
 
 /* ═══════════════════════════════════════════════════════════════
    BuyLandCard — 购买新地块入口
@@ -245,32 +244,35 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
   const [expandedPlot, setExpandedPlot] = useState(null);
   const [plantCrop, setPlantCrop] = useState('');
 
-  if (!farmData) return null;
-
-  const handleWater = (idx) => doAction('/api/farm/water', { plot_index: idx });
-  const handleWaterAll = () => doAction('/api/farm/water/all', {});
-  const handleTreat = (idx) => doAction('/api/farm/treat', { plot_index: idx });
-  const handleFertilize = (idx) => doAction('/api/farm/fertilize', { plot_index: idx });
-  const handleFertilizeAll = () => doAction('/api/farm/fertilize/all', {});
-  const handleHarvest = () => doAction('/api/farm/harvest', {});
-  const handleHarvestStore = () => doAction('/api/farm/harvest/store', {});
-  const handleBuyLand = async () => {
-    const price = farmData.plot_price != null ? `$${farmData.plot_price.toFixed(2)}` : '';
+  const handleWater = useCallback((idx) => doAction('/api/farm/water', { plot_index: idx }), [doAction]);
+  const handleWaterAll = useCallback(() => doAction('/api/farm/water/all', {}), [doAction]);
+  const handleTreat = useCallback((idx) => doAction('/api/farm/treat', { plot_index: idx }), [doAction]);
+  const handleFertilize = useCallback((idx) => doAction('/api/farm/fertilize', { plot_index: idx }), [doAction]);
+  const handleFertilizeAll = useCallback(() => doAction('/api/farm/fertilize/all', {}), [doAction]);
+  const handleHarvest = useCallback(() => doAction('/api/farm/harvest', {}), [doAction]);
+  const handleHarvestStore = useCallback(() => doAction('/api/farm/harvest/store', {}), [doAction]);
+  const handleBuyLand = useCallback(async () => {
+    const price = farmData?.plot_price != null ? `$${farmData.plot_price.toFixed(2)}` : '';
     if (await confirmAction(t('购买农田'), t('确认花费') + ` ${price} ` + t('购买一块新农田？')))
       doAction('/api/farm/buyland', {});
-  };
-  const handleUpgradeSoil = async (idx) => {
-    const plot = (farmData.plots || [])[idx];
+  }, [doAction, farmData, t]);
+  const handleUpgradeSoil = useCallback(async (idx) => {
+    const plot = (farmData?.plots || [])[idx];
     const nextLv = (plot?.soil_level || 1) + 1;
-    const priceKey = String(nextLv);
-    const prices = farmData.soil_upgrade_prices || {};
-    const price = prices[priceKey] != null ? `$${prices[priceKey].toFixed(2)}` : '';
+    const prices = farmData?.soil_upgrade_prices || {};
+    const price = prices[String(nextLv)] != null ? `$${prices[String(nextLv)].toFixed(2)}` : '';
     if (await confirmAction(t('升级农田'), t('确认花费') + ` ${price} ` + t('升级农田土壤？升级后该地块上的作物收获速度将加快。')))
       doAction('/api/farm/upgrade-soil', { plot_index: idx });
-  };
-  const handleClearPlot = (idx) => doAction('/api/farm/clear-plot', { plot_index: idx });
+  }, [doAction, farmData, t]);
+  const handleClearPlot = useCallback((idx) => doAction('/api/farm/clear-plot', { plot_index: idx }), [doAction]);
 
-  const handlers = { handleWater, handleFertilize, handleTreat, handleUpgradeSoil, handleClearPlot };
+  // Stable handlers object — only recreated when any handler changes
+  const handlers = React.useMemo(
+    () => ({ handleWater, handleFertilize, handleTreat, handleUpgradeSoil, handleClearPlot }),
+    [handleWater, handleFertilize, handleTreat, handleUpgradeSoil, handleClearPlot]
+  );
+
+  if (!farmData) return null;
 
   const plots = farmData.plots || [];
   const matureCount = plots.filter(p => p.status === 2).length;
@@ -285,7 +287,7 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
   return (
     <div>
       {/* ═══ Announcement ═══ */}
-      <FarmAnnouncementBar t={t} />
+      <FarmAnnouncementBar t={t} inline />
 
       {/* ═══ Weather Banner ═══ */}
       {farmData.weather && (
@@ -416,11 +418,6 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             t={t}
           />
         )}
-      </div>
-
-      {/* ═══ 宝贝回家公益寻人 ═══ */}
-      <div style={{ borderRadius: 12, overflow: 'hidden', marginTop: 14, marginBottom: 4 }}>
-        <GoHomeBanner />
       </div>
 
       {/* ═══ Backpack: Seeds & Items ═══ */}
