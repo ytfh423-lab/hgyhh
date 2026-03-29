@@ -475,6 +475,7 @@ func SetApiRouter(router *gin.Engine) {
 			treeFarmRoute.POST("/water", controller.WebTreeFarmWater)
 			treeFarmRoute.POST("/fertilize", controller.WebTreeFarmFertilize)
 			treeFarmRoute.POST("/harvest", controller.WebTreeFarmHarvest)
+			treeFarmRoute.POST("/harvest/all", controller.WebTreeFarmHarvestAll)
 			treeFarmRoute.POST("/chop", controller.WebTreeFarmChop)
 			treeFarmRoute.POST("/clear", controller.WebTreeFarmClearStump)
 			treeFarmRoute.POST("/buyslot", controller.WebTreeFarmBuySlot)

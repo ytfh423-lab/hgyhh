@@ -54,6 +54,7 @@ const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const slots = treeData.slots || [];
   const emptySlots = slots.filter(s => s.status === 0);
   const activeSlots = slots.filter(s => s.status > 0);
+  const harvestableCount = slots.filter(s => s.can_harvest).length;
 
   const handlePlant = async (treeKey, slotIndex) => {
     setPlantModal({ visible: false, slotIndex: null });
@@ -70,6 +71,13 @@ const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
         <div className='farm-pill farm-pill-blue'>🧪 {t('施肥加速')} {treeData.fert_bonus}%</div>
         <div style={{ flex: 1 }} />
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadTree} loading={loading} className='farm-btn' />
+        {harvestableCount > 0 && (
+          <Button size='small' theme='solid' onClick={() => doTreeAction('/api/tree/harvest/all', {})}
+            loading={actionLoading} className='farm-btn'
+            style={{ background: 'linear-gradient(135deg, #52c41a, #389e0d)' }}>
+            🍎 {t('一键采收')} ({harvestableCount})
+          </Button>
+        )}
         {slots.length < treeData.max_slots && (
           <Button size='small' theme='light' onClick={async () => {
             if (await confirmAction(t('购买确认'), `${t('确认花费')} ${formatBalance(treeData.slot_price)} ${t('开垦一个新树位？')}`))

@@ -629,6 +629,101 @@ func WebTreeFarmHarvest(c *gin.Context) {
 	})
 }
 
+// WebTreeFarmHarvestAll 一键采收所有可采收的果树
+func WebTreeFarmHarvestAll(c *gin.Context) {
+	_, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return
+	}
+	if !webCheckFeatureLevel(c, tgId, common.TgBotFarmUnlockTreeFarm, "树场") {
+		return
+	}
+
+	slots, _ := model.GetOrCreateTreeSlots(tgId)
+	now := time.Now().Unix()
+
+	// 预取仓库容量
+	currentTotal := model.GetWarehouseTotalCount(tgId)
+	whLevel := model.GetWarehouseLevel(tgId)
+	whMax := model.GetWarehouseMaxSlots(whLevel)
+
+	collected := 0
+	totalItems := 0
+	var allDetails []map[string]interface{}
+
+	for i := range slots {
+		slot := &slots[i]
+
+		// 自动成熟判定
+		if slot.Status == 1 && now >= slot.PlantedAt+treeFarmTreeMap[slot.TreeType].GrowSecs {
+			slot.Status = 2
+		}
+		if slot.Status != 2 {
+			continue
+		}
+
+		tree := treeFarmTreeMap[slot.TreeType]
+		if tree == nil || !tree.Repeatable {
+			continue
+		}
+
+		// 检查采收冷却
+		if slot.LastHarvestedAt > 0 && now < slot.LastHarvestedAt+tree.HarvestCooldown {
+			continue
+		}
+
+		// 计算产出
+		items := calcTreeYieldItems(tree.HarvestYield)
+		itemCount := 0
+		for _, item := range items {
+			itemCount += item.Amount
+		}
+
+		// 仓库容量检查，放不下就跳过
+		if currentTotal+itemCount > whMax {
+			continue
+		}
+
+		// 存入仓库
+		for _, item := range items {
+			_ = model.AddToWarehouseWithCategory(tgId, "wood_"+item.ItemKey, item.Amount, "wood")
+			allDetails = append(allDetails, map[string]interface{}{
+				"tree":   tree.Name,
+				"item":   item.Name,
+				"emoji":  item.Emoji,
+				"amount": item.Amount,
+			})
+		}
+		_ = model.HarvestTree(slot.Id, now)
+		currentTotal += itemCount
+		totalItems += itemCount
+		collected++
+
+		msg := fmt.Sprintf("采收%s%s：", tree.Emoji, tree.Name)
+		for _, item := range items {
+			msg += fmt.Sprintf("%s%s×%d ", item.Emoji, item.Name, item.Amount)
+		}
+		model.AddFarmLog(tgId, "tree_harvest", 0, msg)
+	}
+
+	if collected == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可采收的果树"})
+		return
+	}
+
+	model.AddFarmLog(tgId, "tree_harvest_all", 0, fmt.Sprintf("一键采收%d棵果树，共%d件产物", collected, totalItems))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("一键采收 %d 棵果树，共 %d 件产物已存入仓库", collected, totalItems),
+		"data": gin.H{
+			"count":      collected,
+			"totalItems": totalItems,
+			"details":    allDetails,
+		},
+	})
+}
+
 // WebTreeFarmChop 伐木，产物存入仓库
 func WebTreeFarmChop(c *gin.Context) {
 	_, tgId, ok := getWebFarmUser(c)
