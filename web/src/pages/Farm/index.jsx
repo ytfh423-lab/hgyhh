@@ -42,15 +42,16 @@ const { Text, Title } = Typography;
 
 /* ── Floating "Join Group" TG-style button ── */
 const JoinGroupButton = ({ t }) => {
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState(_groupConfigCache || null);
   useEffect(() => {
+    if (_groupConfigCache !== undefined) return; // already fetched this session
     (async () => {
       try {
         const { data: res } = await API.get('/api/farm/group-config');
-        if (res.success && res.data && res.data.enabled) {
-          setConfig(res.data);
-        }
-      } catch (e) { /* ignore */ }
+        const cfg = (res.success && res.data && res.data.enabled) ? res.data : null;
+        _groupConfigCache = cfg;
+        if (cfg) setConfig(cfg);
+      } catch (e) { _groupConfigCache = null; }
     })();
   }, []);
   if (!config) return null;
@@ -185,13 +186,24 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, navigate, t, userLevel = 
   );
 };
 
+// Module-level caches — survive page tab switches within same session
+let _cropsCache = null;
+let _groupConfigCache = undefined; // undefined = not fetched yet, null = fetched but disabled
+const FARM_CACHE_KEY = 'farm_view_v1';
+
 const Farm = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [statusState] = useContext(StatusContext);
   const [loading, setLoading] = useState(true);
-  const [farmData, setFarmData] = useState(null);
-  const [crops, setCrops] = useState([]);
+  const [farmData, setFarmData] = useState(() => {
+    // Stale-while-revalidate: show cached data immediately so there's no blank spinner
+    try {
+      const raw = sessionStorage.getItem(FARM_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  });
+  const [crops, setCrops] = useState(_cropsCache || []);
   const [actionLoading, setActionLoading] = useState(false);
   const [activePage, setActivePage] = useState('overview');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -213,6 +225,7 @@ const Farm = () => {
       if (res.success) {
         setFarmData(res.data);
         setBetaGate(null);
+        try { sessionStorage.setItem(FARM_CACHE_KEY, JSON.stringify(res.data)); } catch (e) {}
       } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS' || res.code === 'BETA_AGREEMENT_REQUIRED' || res.code === 'BETA_EXPIRED') {
         setBetaGate(res.code);
         setBetaMessage(res.message);
@@ -227,9 +240,10 @@ const Farm = () => {
   }, [t]);
 
   const loadCrops = useCallback(async () => {
+    if (_cropsCache) { setCrops(_cropsCache); return; }
     try {
       const { data: res } = await API.get('/api/farm/crops');
-      if (res.success) setCrops(res.data || []);
+      if (res.success) { _cropsCache = res.data || []; setCrops(_cropsCache); }
     } catch (err) { /* ignore */ }
   }, []);
 
@@ -238,8 +252,11 @@ const Farm = () => {
     loadCrops();
   }, [loadFarm, loadCrops]);
 
+  // Pause polling when tab is hidden — resumes on visibility change
   useEffect(() => {
-    const interval = setInterval(loadFarm, 30000);
+    const interval = setInterval(() => {
+      if (!document.hidden) loadFarm();
+    }, 30000);
     return () => clearInterval(interval);
   }, [loadFarm]);
 

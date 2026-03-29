@@ -9,9 +9,12 @@ const statusLabels = { 0: '空地', 1: '生长中', 2: '已成熟', 3: '树桩' 
 const statusColors = { 0: 'grey', 1: 'blue', 2: 'green', 3: 'orange' };
 const treeStageEmojis = { 0: '⬜', 1: '🌱', 2: '🌳', 3: '🪵' };
 
+// Module-level cache for tree types — these rarely change
+let _treeTypesCache = null;
+
 const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const [treeData, setTreeData] = useState(null);
-  const [treeTypes, setTreeTypes] = useState([]);
+  const [treeTypes, setTreeTypes] = useState(_treeTypesCache || []);
   const [loading, setLoading] = useState(true);
   const [plantModal, setPlantModal] = useState({ visible: false, slotIndex: null });
   const [detailSlot, setDetailSlot] = useState(null);
@@ -27,16 +30,19 @@ const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
   }, []);
 
   const loadTypes = useCallback(async () => {
+    if (_treeTypesCache) { setTreeTypes(_treeTypesCache); return; }
     try {
       const { data: res } = await API.get('/api/tree/types');
-      if (res.success) setTreeTypes(res.data || []);
+      if (res.success) { _treeTypesCache = res.data || []; setTreeTypes(_treeTypesCache); }
     } catch (err) { /* ignore */ }
   }, []);
 
   useEffect(() => { loadTree(); loadTypes(); }, [loadTree, loadTypes]);
 
   useEffect(() => {
-    const interval = setInterval(loadTree, 30000);
+    const interval = setInterval(() => {
+      if (!document.hidden) loadTree();
+    }, 60000);
     return () => clearInterval(interval);
   }, [loadTree]);
 
