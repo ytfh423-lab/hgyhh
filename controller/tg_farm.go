@@ -4020,10 +4020,26 @@ func doFarmCollectAll(chatId int64, editMsgId int, tgId string, from *TgUser) {
 		return
 	}
 
-	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
-	model.AddFarmLog(tgId, "craft_sell", totalValue, fmt.Sprintf("收取%d件加工品", collected))
+	// 应用转生加成
+	prestige := model.GetPrestigeLevel(tgId)
+	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
+	prestigeAdd := 0
+	if bonus > 0 {
+		prestigeAdd = common.SafeQuotaMulDiv(totalValue, bonus, 100)
+	}
+	finalValue := common.SafeQuotaAdd(totalValue, prestigeAdd)
 
-	farmSend(chatId, editMsgId, fmt.Sprintf("📥 收取成功！\n\n收取 %d 件成品\n💰 收入 %s", collected, farmQuotaStr(totalValue)),
+	adminId := common.FarmAdminUserId
+	if adminId > 0 && adminId != user.Id {
+		_ = model.DecreaseUserQuota(adminId, finalValue)
+		_ = model.IncreaseUserQuota(user.Id, finalValue, true)
+		model.AddFarmLog(tgId, "craft_sell", finalValue, fmt.Sprintf("收取%d件加工品(加成+%d%%)", collected, bonus))
+	} else {
+		_ = model.IncreaseUserQuota(user.Id, finalValue, true)
+		model.AddFarmLog(tgId, "craft_sell", finalValue, fmt.Sprintf("收取%d件加工品(加成+%d%%)", collected, bonus))
+	}
+
+	farmSend(chatId, editMsgId, fmt.Sprintf("📥 收取成功！\n\n收取 %d 件成品\n💰 收入 %s（转生加成+%d%%）", collected, farmQuotaStr(finalValue), bonus),
 		&TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🏭 返回加工坊", CallbackData: "farm_workshop"}},

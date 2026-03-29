@@ -2529,15 +2529,31 @@ func WebFarmWorkshopCollect(c *gin.Context) {
 		return
 	}
 
-	_ = model.IncreaseUserQuota(user.Id, totalValue, true)
-	model.AddFarmLog(tgId, "craft_sell", totalValue, fmt.Sprintf("收取%d件加工品", collected))
+	// 应用转生加成
+	prestige := model.GetPrestigeLevel(tgId)
+	bonus := prestige * common.TgBotFarmPrestigeBonusPerLevel
+	prestigeAdd := 0
+	if bonus > 0 {
+		prestigeAdd = common.SafeQuotaMulDiv(totalValue, bonus, 100)
+	}
+	finalValue := common.SafeQuotaAdd(totalValue, prestigeAdd)
+
+	adminId := common.FarmAdminUserId
+	if adminId > 0 && adminId != user.Id {
+		_ = model.DecreaseUserQuota(adminId, finalValue)
+		_ = model.IncreaseUserQuota(user.Id, finalValue, true)
+		model.AddFarmLog(tgId, "craft_sell", finalValue, fmt.Sprintf("收取%d件加工品: $%.2f(加成+%d%%)", collected, webFarmQuotaFloat(finalValue), bonus))
+	} else {
+		_ = model.IncreaseUserQuota(user.Id, finalValue, true)
+		model.AddFarmLog(tgId, "craft_sell", finalValue, fmt.Sprintf("收取%d件加工品: $%.2f(加成+%d%%)", collected, webFarmQuotaFloat(finalValue), bonus))
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("收取 %d 件成品，收入 $%.2f", collected, webFarmQuotaFloat(totalValue)),
+		"message": fmt.Sprintf("收取 %d 件成品，收入 $%.2f（转生加成+%d%%）", collected, webFarmQuotaFloat(finalValue), bonus),
 		"data": gin.H{
 			"count": collected,
-			"total": webFarmQuotaFloat(totalValue),
+			"total": webFarmQuotaFloat(finalValue),
 		},
 	})
 }
