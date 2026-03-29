@@ -4,6 +4,7 @@ import GoHomeBanner from '../../../components/common/GoHomeBanner';
 import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2, Zap } from 'lucide-react';
 import { formatBalance, formatDuration, confirmAction } from './utils';
 import { useTutorial } from './TutorialProvider';
+import FarmAnnouncementBar from './FarmAnnouncementBar';
 
 const { Text } = Typography;
 
@@ -283,6 +284,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
 
   return (
     <div>
+      {/* ═══ Announcement ═══ */}
+      <FarmAnnouncementBar t={t} />
+
       {/* ═══ Weather Banner ═══ */}
       {farmData.weather && (
         <div className='farm-card' style={{ padding: '8px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(90,143,180,0.06)', border: '1px solid rgba(90,143,180,0.15)' }}>

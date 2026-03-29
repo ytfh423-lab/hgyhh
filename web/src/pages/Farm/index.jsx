@@ -34,7 +34,6 @@ import LogsPage from './components/LogsPage';
 import EntrustPage from './components/EntrustPage';
 import EntrustWorkPage from './components/EntrustWorkPage';
 import BetaApplicationGate from './components/BetaApplicationGate';
-import FarmAnnouncementBar from './components/FarmAnnouncementBar';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
 import { FEATURE_LEVEL_MAP } from './constants';
@@ -523,7 +522,6 @@ const Farm = () => {
   return (
     <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={navigateTo} farmData={farmData} loadFarm={loadFarm} t={t}>
       <div className='farm-layout'>
-        <FarmAnnouncementBar t={t} />
         <Sidebar activeKey={activePage} onNavigate={navigateTo} t={t} farmData={farmData} userLevel={userLevel} />
         <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
           <StatusBar farmData={farmData} t={t} />
