@@ -324,58 +324,53 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             style={{ color: 'var(--farm-text-3)' }} />
         </div>
 
-        {/* 收获行 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 8 }}>
           <Button size='small' icon={<Wheat size={13} />}
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
             theme='solid'
-            style={{ background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : undefined, borderRadius: 6 }}
+            style={{ background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : undefined, borderRadius: 6, width: '100%' }}
             onClick={handleHarvest} className='farm-btn'>
             🌾 {t('一键收获出售')}{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
           <Button size='small' icon={<Package size={13} />}
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(160,132,94,0.12)', border: '1px solid rgba(160,132,94,0.3)', color: 'var(--farm-harvest)', borderRadius: 6 }}
+            style={{ background: 'rgba(160,132,94,0.12)', border: '1px solid rgba(160,132,94,0.3)', color: 'var(--farm-harvest)', borderRadius: 6, width: '100%' }}
             onClick={handleHarvestStore} className='farm-btn'>
             📦 {t('一键收获入仓')}{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
-        </div>
-
-        {/* 维护行 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
           <Button size='small' icon={<Droplets size={13} />}
             disabled={needsWaterCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(90,143,180,0.1)', border: '1px solid rgba(90,143,180,0.25)', color: 'var(--farm-sky)', borderRadius: 6 }}
+            style={{ background: 'rgba(90,143,180,0.1)', border: '1px solid rgba(90,143,180,0.25)', color: 'var(--farm-sky)', borderRadius: 6, width: '100%' }}
             onClick={handleWaterAll} className='farm-btn'>
             💧 {t('一键浇水')}{needsWaterCount > 0 ? ` (${needsWaterCount})` : ''}
           </Button>
           <Button size='small' icon={<FlaskConical size={13} />}
             disabled={canFertilizeCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.25)', color: 'var(--farm-leaf)', borderRadius: 6 }}
+            style={{ background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.25)', color: 'var(--farm-leaf)', borderRadius: 6, width: '100%' }}
             onClick={handleFertilizeAll} className='farm-btn'>
             🧪 {t('一键施肥')}{canFertilizeCount > 0 ? ` (${canFertilizeCount})` : ''}
           </Button>
           <Button size='small' icon={<Pill size={13} />}
             disabled={eventCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(184,66,51,0.1)', border: '1px solid rgba(184,66,51,0.25)', color: 'var(--farm-danger)', borderRadius: 6 }}
+            style={{ background: 'rgba(184,66,51,0.1)', border: '1px solid rgba(184,66,51,0.25)', color: 'var(--farm-danger)', borderRadius: 6, width: '100%' }}
             onClick={() => doAction('/api/farm/treat/all', {})} className='farm-btn'>
             💊 {t('一键治疗')}{eventCount > 0 ? ` (${eventCount})` : ''}
           </Button>
         </div>
 
         {/* 一键种植行 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Select
             size='small'
             placeholder={t('选择作物')}
             value={plantCrop || undefined}
             onChange={v => setPlantCrop(v)}
-            style={{ width: 140 }}
+            style={{ minWidth: 140, flex: 1, maxWidth: 200 }}
             showClear
           >
             {(crops || []).map(crop => (
