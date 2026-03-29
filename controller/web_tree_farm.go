@@ -651,8 +651,7 @@ func WebTreeFarmHarvestAll(c *gin.Context) {
 	totalItems := 0
 	var allDetails []map[string]interface{}
 
-	for i := range slots {
-		slot := &slots[i]
+	for _, slot := range slots {
 
 		// 自动成熟判定
 		if slot.Status == 1 && now >= slot.PlantedAt+treeFarmTreeMap[slot.TreeType].GrowSecs {
