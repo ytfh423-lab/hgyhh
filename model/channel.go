@@ -118,7 +118,13 @@ func (channel *Channel) GetKeys() []string {
 	return keys
 }
 
-func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
+// GetNextEnabledKey selects the next available key for this channel.
+// skipIndices: optional set of key indices already tried (and failed) in this request — they will be avoided.
+func (channel *Channel) GetNextEnabledKey(skipIndices ...map[int]bool) (string, int, *types.NewAPIError) {
+	var skip map[int]bool
+	if len(skipIndices) > 0 {
+		skip = skipIndices[0]
+	}
 	// If not in multi-key mode, return the original key string directly.
 	// Safety: if ChannelInfo.IsMultiKey is false but the key actually contains newlines
 	// (e.g. due to DB Scan type mismatch), treat it as multi-key to avoid injecting
@@ -160,16 +166,22 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 		return common.ChannelStatusEnabled
 	}
 
-	// Collect indexes of enabled keys
+	// Collect indexes of enabled keys, excluding any that already failed in this request.
 	enabledIdx := make([]int, 0, len(keys))
 	for i := range keys {
-		if getStatus(i) == common.ChannelStatusEnabled {
+		if getStatus(i) == common.ChannelStatusEnabled && (skip == nil || !skip[i]) {
 			enabledIdx = append(enabledIdx, i)
 		}
 	}
-	// If no specific status list or none enabled, return an explicit error so caller can
-	// properly handle a channel with no available keys (e.g. mark channel disabled).
-	// Returning the first key here caused requests to keep using an already-disabled key.
+	// If all non-tried keys are exhausted, fall back to any enabled key (ignore request-level skip).
+	// This ensures we always attempt a request rather than returning a channel-error unnecessarily.
+	if len(enabledIdx) == 0 {
+		for i := range keys {
+			if getStatus(i) == common.ChannelStatusEnabled {
+				enabledIdx = append(enabledIdx, i)
+			}
+		}
+	}
 	if len(enabledIdx) == 0 {
 		return "", 0, types.NewError(errors.New("no enabled keys"), types.ErrorCodeChannelNoAvailableKey)
 	}
@@ -204,8 +216,16 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 		}
 		for i := 0; i < len(keys); i++ {
 			idx := (start + i) % len(keys)
-			if getStatus(idx) == common.ChannelStatusEnabled {
+			if getStatus(idx) == common.ChannelStatusEnabled && (skip == nil || !skip[idx]) {
 				// update polling index for next call (point to the next position)
+				channel.ChannelInfo.MultiKeyPollingIndex = (idx + 1) % len(keys)
+				return keys[idx], idx, nil
+			}
+		}
+		// All non-tried keys exhausted — fall back to any enabled key
+		for i := 0; i < len(keys); i++ {
+			idx := (start + i) % len(keys)
+			if getStatus(idx) == common.ChannelStatusEnabled {
 				channel.ChannelInfo.MultiKeyPollingIndex = (idx + 1) % len(keys)
 				return keys[idx], idx, nil
 			}

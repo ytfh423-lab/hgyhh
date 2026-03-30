@@ -37,6 +37,9 @@ const (
 	ContextKeyChannelIsMultiKey        ContextKey = "channel_is_multi_key"
 	ContextKeyChannelMultiKeyIndex     ContextKey = "channel_multi_key_index"
 	ContextKeyChannelKey               ContextKey = "channel_key"
+	// ContextKeyChannelTriedKeyIndices stores per-request failed key indices: map[channelId]map[keyIndex]bool
+	// Used to skip previously-failed keys when retrying the same multi-key channel within one request.
+	ContextKeyChannelTriedKeyIndices ContextKey = "channel_tried_key_indices"
 
 	ContextKeyAutoGroup           ContextKey = "auto_group"
 	ContextKeyAutoGroupIndex      ContextKey = "auto_group_index"

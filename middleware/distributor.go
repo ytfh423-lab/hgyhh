@@ -357,13 +357,36 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	common.SetContextKey(c, constant.ContextKeyChannelModelMapping, channel.GetModelMapping())
 	common.SetContextKey(c, constant.ContextKeyChannelStatusCodeMapping, channel.GetStatusCodeMapping())
 
-	key, index, newAPIError := channel.GetNextEnabledKey()
+	// For multi-key channels: pass request-level tried indices so we avoid re-picking a failed key.
+	var skipIndices map[int]bool
+	if channel.ChannelInfo.IsMultiKey {
+		if allTried, ok := c.Get(string(constant.ContextKeyChannelTriedKeyIndices)); ok {
+			if allTriedMap, ok := allTried.(map[int]map[int]bool); ok {
+				skipIndices = allTriedMap[channel.Id]
+			}
+		}
+	}
+
+	key, index, newAPIError := channel.GetNextEnabledKey(skipIndices)
 	if newAPIError != nil {
 		return newAPIError
 	}
 	if channel.ChannelInfo.IsMultiKey {
 		common.SetContextKey(c, constant.ContextKeyChannelIsMultiKey, true)
 		common.SetContextKey(c, constant.ContextKeyChannelMultiKeyIndex, index)
+		// Record this key index as tried for this request (so retries prefer a different key)
+		var allTriedMap map[int]map[int]bool
+		if v, ok := c.Get(string(constant.ContextKeyChannelTriedKeyIndices)); ok {
+			allTriedMap, _ = v.(map[int]map[int]bool)
+		}
+		if allTriedMap == nil {
+			allTriedMap = make(map[int]map[int]bool)
+		}
+		if allTriedMap[channel.Id] == nil {
+			allTriedMap[channel.Id] = make(map[int]bool)
+		}
+		allTriedMap[channel.Id][index] = true
+		c.Set(string(constant.ContextKeyChannelTriedKeyIndices), allTriedMap)
 	} else {
 		// 必须设置为 false，否则在重试到单个 key 的时候会导致日志显示错误
 		common.SetContextKey(c, constant.ContextKeyChannelIsMultiKey, false)
