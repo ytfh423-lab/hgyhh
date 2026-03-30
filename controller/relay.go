@@ -183,7 +183,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		Retry:      common.GetPointer(0),
 	}
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	// multiKeyExtraRetries provides additional retry budget for multi-key channels when a
+	// per-key exhaustion error occurs (e.g. insufficient_quota). This allows transparent
+	// key failover even when the global RetryTimes setting is 0.
+	multiKeyExtraRetries := 0
+	for ; retryParam.GetRetry() <= common.RetryTimes+multiKeyExtraRetries; retryParam.IncreaseRetry() {
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
 			logger.LogError(c, channelErr.Error())
@@ -222,6 +226,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
+
+		// For multi-key channels, per-key exhaustion errors should transparently fail over
+		// to the next key, regardless of the global RetryTimes setting.
+		// Use the context key (set by SetupContextForSelectedChannel) because on the first
+		// iteration getChannel returns a minimal channel without ChannelInfo populated.
+		if common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey) && isPerKeyExhaustionError(newAPIError) && multiKeyExtraRetries < 20 {
+			multiKeyExtraRetries++
+			continue
+		}
 
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			break
@@ -305,6 +318,22 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		return nil, newAPIError
 	}
 	return channel, nil
+}
+
+// isPerKeyExhaustionError returns true for errors indicating the specific API key is
+// exhausted or invalid, so a sibling key on the same multi-key channel might succeed.
+func isPerKeyExhaustionError(err *types.NewAPIError) bool {
+	if err == nil {
+		return false
+	}
+	switch string(err.GetErrorCode()) {
+	case "insufficient_quota", "quota_exceeded",
+		"authentication_error", "invalid_api_key",
+		"permission_denied", "permission_error",
+		"access_denied", "forbidden":
+		return true
+	}
+	return false
 }
 
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
