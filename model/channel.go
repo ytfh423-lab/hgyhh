@@ -120,8 +120,21 @@ func (channel *Channel) GetKeys() []string {
 
 func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 	// If not in multi-key mode, return the original key string directly.
+	// Safety: if ChannelInfo.IsMultiKey is false but the key actually contains newlines
+	// (e.g. due to DB Scan type mismatch), treat it as multi-key to avoid injecting
+	// a multi-line value into an HTTP header which would cause do_request_failed.
 	if !channel.ChannelInfo.IsMultiKey {
-		return channel.Key, 0, nil
+		trimmed := strings.TrimSpace(channel.Key)
+		if !strings.Contains(trimmed, "\n") ||
+			strings.HasPrefix(trimmed, "[") ||
+			strings.HasPrefix(trimmed, "{") {
+			return trimmed, 0, nil
+		}
+		// Key contains newlines and is not JSON — fix up IsMultiKey on the fly
+		channel.ChannelInfo.IsMultiKey = true
+		if channel.ChannelInfo.MultiKeyMode == "" {
+			channel.ChannelInfo.MultiKeyMode = constant.MultiKeyModeRandom
+		}
 	}
 
 	// Obtain all keys (split by \n)
