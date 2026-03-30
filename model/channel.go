@@ -98,7 +98,15 @@ func (channel *Channel) GetKeys() []string {
 		}
 	}
 	// Otherwise, fall back to splitting by newline
-	keys := strings.Split(strings.Trim(channel.Key, "\n"), "\n")
+	// TrimSpace each key to strip \r (Windows CRLF) or other whitespace that would corrupt HTTP headers
+	rawKeys := strings.Split(strings.Trim(channel.Key, "\n"), "\n")
+	keys := make([]string, 0, len(rawKeys))
+	for _, k := range rawKeys {
+		k = strings.TrimSpace(k)
+		if k != "" {
+			keys = append(keys, k)
+		}
+	}
 	return keys
 }
 
