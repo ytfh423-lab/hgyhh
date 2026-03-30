@@ -332,6 +332,13 @@ func migrateDB() error {
 		}
 	}
 
+	// 一次性迁移：将所有渠道的 auto_ban 设置为 0（关闭自动禁用）
+	var autoBanMigrationFlag Option
+	if DB.Where(commonKeyCol+" = ?", "auto_ban_disabled_migration").First(&autoBanMigrationFlag).Error != nil {
+		DB.Model(&Channel{}).Where("auto_ban = ?", 1).Update("auto_ban", 0)
+		DB.Create(&Option{Key: "auto_ban_disabled_migration", Value: "true"})
+	}
+
 	// 硬删除所有被软删除的幽灵用户（注册失败遗留）
 	DB.Unscoped().Where("deleted_at IS NOT NULL").Delete(&User{})
 

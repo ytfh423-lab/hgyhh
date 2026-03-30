@@ -151,7 +151,7 @@ const EditChannelModal = (props) => {
     model_mapping: '',
     status_code_mapping: '',
     models: [],
-    auto_ban: 1,
+    auto_ban: 0,
     test_model: '',
     groups: ['default'],
     priority: 0,
