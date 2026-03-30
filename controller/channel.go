@@ -764,7 +764,37 @@ func AddChannel(c *gin.Context) {
 			keys = strings.Split(addChannelRequest.Channel.Key, "\n")
 		}
 	case "single":
-		keys = []string{addChannelRequest.Channel.Key}
+		trimmedKey := strings.TrimSpace(addChannelRequest.Channel.Key)
+		// Auto-detect multi-key: if the key contains newlines and is NOT JSON format (Vertex/Codex)
+		if strings.Contains(trimmedKey, "\n") &&
+			!strings.HasPrefix(trimmedKey, "[") &&
+			!strings.HasPrefix(trimmedKey, "{") {
+			cleanKeys := make([]string, 0)
+			for _, key := range strings.Split(trimmedKey, "\n") {
+				key = strings.TrimSpace(key)
+				if key != "" {
+					cleanKeys = append(cleanKeys, key)
+				}
+			}
+			if len(cleanKeys) > 1 {
+				addChannelRequest.Channel.ChannelInfo.IsMultiKey = true
+				addChannelRequest.Channel.ChannelInfo.MultiKeySize = len(cleanKeys)
+				if addChannelRequest.MultiKeyMode == "" {
+					addChannelRequest.Channel.ChannelInfo.MultiKeyMode = constant.MultiKeyModeRandom
+				} else {
+					addChannelRequest.Channel.ChannelInfo.MultiKeyMode = addChannelRequest.MultiKeyMode
+				}
+				addChannelRequest.Channel.Key = strings.Join(cleanKeys, "\n")
+				keys = []string{addChannelRequest.Channel.Key}
+			} else if len(cleanKeys) == 1 {
+				addChannelRequest.Channel.Key = cleanKeys[0]
+				keys = []string{addChannelRequest.Channel.Key}
+			} else {
+				keys = []string{addChannelRequest.Channel.Key}
+			}
+		} else {
+			keys = []string{addChannelRequest.Channel.Key}
+		}
 	default:
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

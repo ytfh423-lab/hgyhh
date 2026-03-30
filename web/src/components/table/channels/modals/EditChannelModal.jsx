@@ -47,6 +47,7 @@ import {
   Highlight,
   Input,
   Tooltip,
+  Select,
 } from '@douyinfe/semi-ui';
 import {
   getChannelModels,
@@ -213,6 +214,8 @@ const EditChannelModal = (props) => {
   const [useManualInput, setUseManualInput] = useState(false); // 是否使用手动输入模式
   const [keyMode, setKeyMode] = useState('append'); // 密钥模式：replace（覆盖）或 append（追加）
   const [isEnterpriseAccount, setIsEnterpriseAccount] = useState(false); // 是否为企业账户
+  const [autoDetectedMultiKey, setAutoDetectedMultiKey] = useState(false); // 自动检测到多密钥
+  const [autoMultiKeyMode, setAutoMultiKeyMode] = useState('random'); // 自动多密钥模式策略
   const [doubaoApiEditUnlocked, setDoubaoApiEditUnlocked] = useState(false); // 豆包渠道自定义 API 地址隐藏入口
   const redirectModelList = useMemo(() => {
     const mapping = inputs.model_mapping;
@@ -1529,6 +1532,9 @@ const EditChannelModal = (props) => {
     let mode = 'single';
     if (batch) {
       mode = multiToSingle ? 'multi_to_single' : 'batch';
+    } else if (autoDetectedMultiKey && !isEdit) {
+      // 自动检测到多密钥，自动提升为多密钥渠道
+      mode = 'multi_to_single';
     }
 
     if (isEdit) {
@@ -1538,9 +1544,12 @@ const EditChannelModal = (props) => {
         key_mode: isMultiKeyChannel ? keyMode : undefined, // 只在多key模式下传递
       });
     } else {
+      const effectiveMultiKeyMode = mode === 'multi_to_single'
+        ? (batch ? multiKeyMode : autoMultiKeyMode)
+        : undefined;
       res = await API.post(`/api/channel/`, {
         mode: mode,
-        multi_key_mode: mode === 'multi_to_single' ? multiKeyMode : undefined,
+        multi_key_mode: effectiveMultiKeyMode,
         channel: localInputs,
       });
     }
@@ -2388,7 +2397,7 @@ const EditChannelModal = (props) => {
                             )}
                           </>
                         ) : (
-                          <Form.Input
+                          <Form.TextArea
                             field='key'
                             label={
                               isEdit
@@ -2398,43 +2407,80 @@ const EditChannelModal = (props) => {
                             placeholder={
                               inputs.type === 33
                                 ? inputs.aws_key_type === 'api_key'
-                                  ? t('请输入 API Key，格式：APIKey|Region')
+                                  ? t('请输入 API Key，格式：APIKey|Region，支持多行（一行一个）')
                                   : t(
-                                      '按照如下格式输入：AccessKey|SecretAccessKey|Region',
+                                      '按照如下格式输入：AccessKey|SecretAccessKey|Region，支持多行（一行一个）',
                                     )
-                                : t(type2secretPrompt(inputs.type))
+                                : t('请输入密钥，支持多行输入（一行一个），多行时自动启用多密钥模式')
                             }
                             rules={
                               isEdit
                                 ? []
                                 : [{ required: true, message: t('请输入密钥') }]
                             }
+                            autosize={{ minRows: 1, maxRows: 10 }}
                             autoComplete='new-password'
-                            onChange={(value) =>
-                              handleInputChange('key', value)
-                            }
+                            onChange={(value) => {
+                              handleInputChange('key', value);
+                              // 自动检测多密钥
+                              const lines = (value || '').split('\n').filter(l => l.trim() !== '');
+                              setAutoDetectedMultiKey(lines.length > 1);
+                            }}
                             extraText={
-                              <div className='flex items-center gap-2'>
-                                {isEdit &&
-                                  isMultiKeyChannel &&
-                                  keyMode === 'append' && (
-                                    <Text type='warning' size='small'>
-                                      {t(
-                                        '追加模式：新密钥将添加到现有密钥列表的末尾',
-                                      )}
-                                    </Text>
+                              <div className='flex flex-col gap-2'>
+                                <div className='flex items-center gap-2 flex-wrap'>
+                                  {isEdit &&
+                                    isMultiKeyChannel &&
+                                    keyMode === 'append' && (
+                                      <Text type='warning' size='small'>
+                                        {t(
+                                          '追加模式：新密钥将添加到现有密钥列表的末尾',
+                                        )}
+                                      </Text>
+                                    )}
+                                  {isEdit && (
+                                    <Button
+                                      size='small'
+                                      type='primary'
+                                      theme='outline'
+                                      onClick={handleShow2FAModal}
+                                    >
+                                      {t('查看密钥')}
+                                    </Button>
                                   )}
-                                {isEdit && (
-                                  <Button
-                                    size='small'
-                                    type='primary'
-                                    theme='outline'
-                                    onClick={handleShow2FAModal}
-                                  >
-                                    {t('查看密钥')}
-                                  </Button>
+                                  {(autoDetectedMultiKey || batch) && (
+                                    <Button
+                                      size='small'
+                                      type='primary'
+                                      theme='outline'
+                                      onClick={deduplicateKeys}
+                                    >
+                                      {t('密钥去重')}
+                                    </Button>
+                                  )}
+                                  {batchExtra}
+                                </div>
+                                {autoDetectedMultiKey && !batch && (
+                                  <div className='flex items-center gap-2 flex-wrap'>
+                                    <Tag color='blue' size='small'>
+                                      {t('检测到 {{count}} 个密钥，将自动创建多密钥渠道', {
+                                        count: (inputs.key || '').split('\n').filter(l => l.trim() !== '').length,
+                                      })}
+                                    </Tag>
+                                    {!isEdit && (
+                                      <Select
+                                        size='small'
+                                        value={autoMultiKeyMode}
+                                        onChange={(value) => setAutoMultiKeyMode(value)}
+                                        optionList={[
+                                          { label: t('随机'), value: 'random' },
+                                          { label: t('轮询'), value: 'polling' },
+                                        ]}
+                                        style={{ width: 100 }}
+                                      />
+                                    )}
+                                  </div>
                                 )}
-                                {batchExtra}
                               </div>
                             }
                             showClear
