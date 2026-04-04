@@ -199,15 +199,31 @@ const FriendListPage = ({ onChatOpen, t }) => {
     return () => clearInterval(timer);
   }, [loadFriends, loadRequests]);
 
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [searchLabel, setSearchLabel] = useState('');
+
   const doSearch = async () => {
     if (!searchQ.trim()) return;
     setSearchLoading(true);
+    setSearchLabel('');
     try {
       const { data: res } = await API.get(`/api/social/friends/search?q=${encodeURIComponent(searchQ)}`);
-      if (res.success) setSearchResults(res.data || []);
+      if (res.success) { setSearchResults(res.data || []); setSearchLabel(`搜索「${searchQ}」`); }
       else showError(res.message);
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const loadOnlineUsers = async () => {
+    setOnlineLoading(true);
+    setSearchQ('');
+    try {
+      const { data: res } = await API.get('/api/social/online-users');
+      if (res.success) { setSearchResults(res.data || []); setSearchLabel('当前在线用户'); }
+      else showError(res.message);
+    } finally {
+      setOnlineLoading(false);
     }
   };
 
@@ -309,7 +325,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
         {/* ── 搜索用户 ── */}
         <TabPane tab={`🔍 ${t('搜索')}`} itemKey='search'>
           <div style={{ marginTop: 10 }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <Input
                 prefix={<Search size={14} />}
                 placeholder={t('搜索用户名或昵称')}
@@ -327,13 +343,40 @@ const FriendListPage = ({ onChatOpen, t }) => {
                 {t('搜索')}
               </Button>
             </div>
+            {/* 查看在线用户 */}
+            <button
+              onClick={loadOnlineUsers}
+              disabled={onlineLoading}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, padding: '8px 14px', marginBottom: 10, borderRadius: 9,
+                border: '1px dashed rgba(76,175,80,0.45)',
+                background: 'rgba(74,124,63,0.07)',
+                color: 'var(--farm-leaf)', fontSize: 13, fontWeight: 600,
+                cursor: onlineLoading ? 'default' : 'pointer',
+                opacity: onlineLoading ? 0.6 : 1,
+                transition: 'background .15s',
+              }}
+            >
+              <span style={{
+                display: 'inline-block', width: 9, height: 9, borderRadius: '50%',
+                background: '#4caf50', boxShadow: '0 0 0 2px rgba(76,175,80,0.3)',
+                animation: 'farm-pulse 1.6s infinite', flexShrink: 0,
+              }} />
+              {onlineLoading ? '加载中…' : t('查看当前所有在线用户')}
+            </button>
+            {searchResults !== null && searchLabel && (
+              <div style={{ fontSize: 11, color: 'var(--farm-text-3)', marginBottom: 8 }}>
+                {searchLabel} · 共 {searchResults.length} 人
+              </div>
+            )}
             {searchResults === null ? (
-              <div style={{ textAlign: 'center', color: 'var(--farm-text-3)', padding: '30px 0', fontSize: 13 }}>
-                输入关键词搜索用户
+              <div style={{ textAlign: 'center', color: 'var(--farm-text-3)', padding: '24px 0', fontSize: 13 }}>
+                输入关键词搜索，或点击上方按钮查看在线用户
               </div>
             ) : searchResults.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--farm-text-3)', padding: '30px 0', fontSize: 13 }}>
-                未找到用户
+              <div style={{ textAlign: 'center', color: 'var(--farm-text-3)', padding: '24px 0', fontSize: 13 }}>
+                没有找到用户
               </div>
             ) : (
               searchResults.map((u) => (
