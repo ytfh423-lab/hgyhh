@@ -32,7 +32,7 @@ type linuxdoUser struct {
 	Active         bool   `json:"active"`
 	TrustLevel     int    `json:"trust_level"`
 	Silenced       bool   `json:"silenced"`
-	AvatarTemplate string `json:"avatar_template"` // e.g. /user_avatar/connect.linux.do/{username}/{size}/xxx.png
+	AvatarTemplate string `json:"avatar_template"` // connect.linux.do 可能返回，也可能不返回
 }
 
 func (p *LinuxDOProvider) GetName() string {
@@ -108,6 +108,59 @@ func (p *LinuxDOProvider) ExchangeToken(ctx context.Context, code string, c *gin
 	}, nil
 }
 
+// buildLinuxDOAvatarURL 构建 LinuxDO 头像 URL。
+// 优先使用 connect.linux.do 返回的 avatar_template；
+// 若为空则调用 linux.do 公开 JSON API 获取（超时 3s，失败静默忽略）。
+func buildLinuxDOAvatarURL(avatarTemplate, username string) string {
+	const size = "288"
+
+	fromTemplate := func(tmpl string) string {
+		if tmpl == "" {
+			return ""
+		}
+		tmpl = strings.ReplaceAll(tmpl, "{size}", size)
+		if strings.HasPrefix(tmpl, "/") {
+			return "https://linux.do" + tmpl
+		}
+		return tmpl
+	}
+
+	if avatarTemplate != "" {
+		return fromTemplate(avatarTemplate)
+	}
+
+	if username == "" {
+		return ""
+	}
+
+	// 从 linux.do 公开接口获取 avatar_template
+	type profileResp struct {
+		User struct {
+			AvatarTemplate string `json:"avatar_template"`
+		} `json:"user"`
+	}
+	ctx2, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx2, "GET",
+		"https://linux.do/u/"+username+".json", nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 new-api/avatar-fetch")
+	client := http.Client{Timeout: 3 * time.Second}
+	res, err := client.Do(req)
+	if err != nil || res.StatusCode != 200 {
+		return ""
+	}
+	defer res.Body.Close()
+
+	var p profileResp
+	if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
+		return ""
+	}
+	return fromTemplate(p.User.AvatarTemplate)
+}
+
 func (p *LinuxDOProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAuthUser, error) {
 	userEndpoint := common.GetEnvOrDefaultString("LINUX_DO_USER_ENDPOINT", "https://connect.linux.do/api/user")
 
@@ -156,16 +209,9 @@ func (p *LinuxDOProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*
 
 	logger.LogDebug(ctx, "[OAuth-LinuxDO] GetUserInfo success: id=%d, username=%s", linuxdoUser.Id, linuxdoUser.Username)
 
-	// 构建头像 URL：将 {size} 替换为 288
-	avatarUrl := ""
-	if linuxdoUser.AvatarTemplate != "" {
-		tmpl := strings.ReplaceAll(linuxdoUser.AvatarTemplate, "{size}", "288")
-		if strings.HasPrefix(tmpl, "/") {
-			avatarUrl = "https://connect.linux.do" + tmpl
-		} else {
-			avatarUrl = tmpl
-		}
-	}
+	// 优先用 avatar_template（若 connect.linux.do 返回了的话）
+	// 否则从 linux.do 公开用户信息接口拉取头像
+	avatarUrl := buildLinuxDOAvatarURL(linuxdoUser.AvatarTemplate, linuxdoUser.Username)
 
 	return &OAuthUser{
 		ProviderUserID: strconv.Itoa(linuxdoUser.Id),
