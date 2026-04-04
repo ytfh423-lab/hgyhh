@@ -781,6 +781,8 @@ func WebFarmHarvest(c *gin.Context) {
 	}
 
 	sellResult := farmSellToAdmin(user, tgId, "crop", "harvest_batch", harvestedCount, totalQuota, fmt.Sprintf("收获%d种作物", harvestedCount))
+	// 单独记录 harvest 动作供任务/成就统计（farmSellToAdmin 只记录通用 "sell"）
+	model.AddFarmLog(tgId, "harvest", sellResult.FinalValue, fmt.Sprintf("收获出售%d种作物", harvestedCount))
 	common.SysLog(fmt.Sprintf("Web Farm: user %s harvested %d crops, total %d quota (prestige+%d)", tgId, harvestedCount, sellResult.FinalValue, sellResult.PrestigeBonus))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -1709,6 +1711,7 @@ func WebFarmBuyDog(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "购买失败，已退款"})
 		return
 	}
+	model.AddFarmLog(tgId, "shop", -price, fmt.Sprintf("购买看门狗「%s」", dogName))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -2893,6 +2896,8 @@ func WebFarmFishSell(c *gin.Context) {
 
 	_, _ = model.SellAllFish(tgId)
 	sellResult := farmSellToAdmin(user, tgId, "fish", "fish_batch", totalCount, totalValue, fmt.Sprintf("出售%d条鱼", totalCount))
+	// 记录 fish_sell 动作供任务/成就统计
+	model.AddFarmLog(tgId, "fish_sell", sellResult.FinalValue, fmt.Sprintf("出售%d条鱼", totalCount))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -3360,6 +3365,8 @@ func WebFarmWarehouseSell(c *gin.Context) {
 	_ = model.RemoveFromWarehouse(tgId, req.ItemKey, item.Quantity)
 	model.RecordMarketSell(req.ItemKey, item.Quantity)
 	sellResult := farmSellToAdmin(user, tgId, "warehouse", req.ItemKey, item.Quantity, totalValue, fmt.Sprintf("仓库出售%s×%d", name, item.Quantity))
+	// 记录 warehouse_sell 动作供任务统计
+	model.AddFarmLog(tgId, "warehouse_sell", sellResult.FinalValue, fmt.Sprintf("仓库出售%s×%d", name, item.Quantity))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -3396,6 +3403,8 @@ func WebFarmWarehouseSellAll(c *gin.Context) {
 	}
 
 	sellResult := farmSellToAdmin(user, tgId, "warehouse", "warehouse_all", totalCount, totalValue, "仓库全部出售")
+	// 记录 warehouse_sell 动作供任务统计
+	model.AddFarmLog(tgId, "warehouse_sell", sellResult.FinalValue, "仓库全部出售")
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

@@ -78,18 +78,20 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     setWsLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/workshop/collect');
-      if (res.success) {
-        showSuccess(res.message);
-        loadWorkshop();
-        loadFarm();
-      } else {
-        showError(res.message);
-      }
-    } catch (err) {
-      showError(t('操作失败'));
-    } finally {
-      setWsLoading(false);
-    }
+      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+    finally { setWsLoading(false); }
+  };
+
+  const doCollectStore = async () => {
+    setWsLoading(true);
+    try {
+      const { data: res } = await API.post('/api/farm/workshop/collect/store');
+      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm(); }
+      else showError(res.message);
+    } catch (err) { showError(t('操作失败')); }
+    finally { setWsLoading(false); }
   };
 
   const sortedRecipes = useMemo(() => {
@@ -120,10 +122,16 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
           : <div className='farm-pill farm-pill-red'>⛔ {t('满载运转')}</div>
         }
         {hasCollectable && (
-          <Button theme='solid' type='warning' size='small' loading={wsLoading}
-            onClick={doCollect} className='farm-btn'>
-            📥 {t('收取全部成品')}
-          </Button>
+          <>
+            <Button theme='solid' type='warning' size='small' loading={wsLoading}
+              onClick={doCollect} className='farm-btn'>
+              📥 {t('收取成品出售')}
+            </Button>
+            <Button theme='light' type='primary' size='small' loading={wsLoading}
+              onClick={doCollectStore} className='farm-btn'>
+              📦 {t('收取成品入仓')}
+            </Button>
+          </>
         )}
       </div>
 
