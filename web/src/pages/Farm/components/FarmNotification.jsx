@@ -17,7 +17,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
 
   const cfg = {
     friend_request: {
-      icon: <UserPlus size={18} />,
+      icon: <UserPlus size={20} />,
       color: 'var(--farm-sky)',
       bg: 'rgba(90,143,180,0.12)',
       border: 'rgba(90,143,180,0.3)',
@@ -29,7 +29,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
       ],
     },
     friend_accepted: {
-      icon: <UserPlus size={18} />,
+      icon: <UserPlus size={20} />,
       color: 'var(--farm-leaf)',
       bg: 'rgba(74,124,63,0.1)',
       border: 'rgba(74,124,63,0.25)',
@@ -38,7 +38,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
       actions: [],
     },
     farm_invite: {
-      icon: <Tractor size={18} />,
+      icon: <Tractor size={20} />,
       color: 'var(--farm-harvest)',
       bg: 'rgba(200,146,42,0.1)',
       border: 'rgba(200,146,42,0.25)',
@@ -49,7 +49,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
       ],
     },
     chat_message: {
-      icon: <MessageCircle size={18} />,
+      icon: <MessageCircle size={20} />,
       color: 'var(--farm-sky)',
       bg: 'rgba(90,143,180,0.10)',
       border: 'rgba(90,143,180,0.2)',
@@ -73,23 +73,23 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <span style={{ color: cfg.color, flexShrink: 0, marginTop: 2 }}>{cfg.icon}</span>
+        <span style={{ color: cfg.color, flexShrink: 0, marginTop: 3 }}>{cfg.icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--farm-text-0)', marginBottom: 2 }}>
+          <div className='farm-notif-title' style={{ color: 'var(--farm-text-0)', marginBottom: 3 }}>
             {cfg.title}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--farm-text-1)', wordBreak: 'break-all' }}>
+          <div className='farm-notif-body' style={{ color: 'var(--farm-text-1)', wordBreak: 'break-word' }}>
             {cfg.body}
           </div>
           {cfg.actions.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               {cfg.actions.map((a) => (
                 <Button
                   key={a.type}
                   size='small'
                   theme='solid'
-                  style={{ fontSize: 11, height: 24, padding: '0 10px',
-                    background: cfg.color, border: 'none', borderRadius: 5 }}
+                  style={{ fontSize: 12, height: 28, padding: '0 14px',
+                    background: cfg.color, border: 'none', borderRadius: 6 }}
                   onClick={() => { onAction(notif, a.type); dismiss(); }}
                 >
                   {a.label}
@@ -101,9 +101,9 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
         <button
           onClick={dismiss}
           style={{ background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--farm-text-3)', padding: 0, flexShrink: 0 }}
+            color: 'var(--farm-text-3)', padding: 2, flexShrink: 0 }}
         >
-          <X size={14} />
+          <X size={16} />
         </button>
       </div>
     </div>
@@ -111,7 +111,8 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
 };
 
 /* ─── 全局通知容器（挂在 FarmPage 或 PageLayout 中） ─── */
-const FarmNotification = ({ userId, onChatOpen }) => {
+// onChatMessage(fromId, fromName, payload) — 对方发来聊天消息时的回调，用于实时更新已打开的聊天窗口
+const FarmNotification = ({ userId, onChatOpen, onChatMessage, openChatFriendId }) => {
   const [notifs, setNotifs] = useState([]);
   const nextId = useRef(0);
   const navigate = useNavigate();
@@ -119,10 +120,9 @@ const FarmNotification = ({ userId, onChatOpen }) => {
   const addNotif = useCallback((ev) => {
     const id = nextId.current++;
     setNotifs((prev) => [...prev, { ...ev, id }]);
-    // 8 秒自动消失
     setTimeout(() => {
       setNotifs((prev) => prev.filter((n) => n.id !== id));
-    }, 8000);
+    }, 10000);
   }, []);
 
   const dismiss = useCallback((id) => {
@@ -156,14 +156,23 @@ const FarmNotification = ({ userId, onChatOpen }) => {
         const { data: res } = await API.get('/api/farm/events/poll', { disableDuplicate: true });
         if (!alive || !res.success) return;
         for (const ev of (res.data?.events ?? [])) {
-          addNotif(ev);
+          if (ev.type === 'chat_message') {
+            // 无论聊天窗是否打开，都把消息推进去
+            onChatMessage && onChatMessage(ev.from_id, ev.from_name, ev.payload);
+            // 只有聊天窗没有打开时才显示通知弹窗
+            if (openChatFriendId !== ev.from_id) {
+              addNotif(ev);
+            }
+          } else {
+            addNotif(ev);
+          }
         }
       } catch { /* ignore */ }
     };
     poll();
     const timer = setInterval(poll, 3000);
     return () => { alive = false; clearInterval(timer); };
-  }, [userId, addNotif]);
+  }, [userId, addNotif, onChatMessage, openChatFriendId]);
 
   if (notifs.length === 0) return null;
 

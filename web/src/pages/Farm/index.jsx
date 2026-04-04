@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useContext } from 'react';
+import React, { useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
@@ -217,9 +217,10 @@ const Farm = () => {
   const [agreementChecked, setAgreementChecked] = useState(false);
 
   // 好友 & 聊天状态
-  const [chatOpen, setChatOpen] = useState(null); // {friendId, friendName, newMessages:[]}
+  const [chatOpen, setChatOpen] = useState(null); // {friendId, friendName}
   const [friendRequestCount, setFriendRequestCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState(0);
+  const chatWidgetRef = useRef(null); // 用于直接调用 pushMessage
 
   // 获取当前用户 ID
   useEffect(() => {
@@ -244,16 +245,22 @@ const Farm = () => {
   }, [currentUserId]);
 
   const openChat = useCallback((friendId, friendName) => {
-    setChatOpen({ friendId, friendName, newMessages: [] });
+    setChatOpen({ friendId, friendName });
   }, []);
 
-  // 收到 chat_message 事件时传给聊天窗口
-  const handleChatEvent = useCallback((fromId, payload) => {
-    setChatOpen((prev) => {
-      if (!prev || prev.friendId !== fromId) return prev;
-      return { ...prev, newMessages: [...(prev.newMessages || []), payload] };
-    });
-  }, []);
+  // 收到对方聊天消息：若聊天窗已打开就直接推入，否则 FarmNotification 会弹提示
+  const handleChatMessage = useCallback((fromId, fromName, payload) => {
+    if (chatWidgetRef.current && chatOpen?.friendId === fromId) {
+      chatWidgetRef.current.pushMessage(payload);
+    } else if (!chatOpen || chatOpen.friendId !== fromId) {
+      // 聊天窗未打开该好友 — 自动打开并推入消息
+      setChatOpen({ friendId: fromId, friendName: fromName });
+      // pushMessage 会在下一渲染周期通过 ref 调用
+      setTimeout(() => {
+        chatWidgetRef.current?.pushMessage(payload);
+      }, 100);
+    }
+  }, [chatOpen]);
 
   const navigateTo = useCallback((page) => {
     setActivePage(page);
@@ -600,19 +607,19 @@ const Farm = () => {
         {currentUserId > 0 && (
           <FarmNotification
             userId={currentUserId}
-            onChatOpen={(fromId, fromName) => {
-              openChat(fromId, fromName);
-            }}
+            onChatOpen={openChat}
+            onChatMessage={handleChatMessage}
+            openChatFriendId={chatOpen?.friendId ?? null}
           />
         )}
 
         {/* 聊天窗口 */}
         {chatOpen && currentUserId > 0 && (
           <FriendChatWidget
+            ref={chatWidgetRef}
             friendId={chatOpen.friendId}
             friendName={chatOpen.friendName}
             currentUserId={currentUserId}
-            newMessages={chatOpen.newMessages}
             onClose={() => setChatOpen(null)}
           />
         )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Input, Button } from '@douyinfe/semi-ui';
 import { X, Send, Minus } from 'lucide-react';
 import { API } from '../../../helpers';
@@ -8,23 +8,23 @@ const Bubble = ({ msg, isMine }) => (
   <div style={{
     display: 'flex',
     justifyContent: isMine ? 'flex-end' : 'flex-start',
-    marginBottom: 6,
+    marginBottom: 8,
   }}>
     <div style={{
-      maxWidth: '75%',
-      padding: '7px 11px',
-      borderRadius: isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-      background: isMine ? 'rgba(74,124,63,0.25)' : 'rgba(255,255,255,0.08)',
+      maxWidth: '78%',
+      padding: '9px 14px',
+      borderRadius: isMine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+      background: isMine ? 'rgba(74,124,63,0.28)' : 'rgba(255,255,255,0.09)',
       border: isMine
-        ? '1px solid rgba(74,124,63,0.35)'
-        : '1px solid rgba(255,255,255,0.1)',
-      fontSize: 13,
+        ? '1px solid rgba(74,124,63,0.4)'
+        : '1px solid rgba(255,255,255,0.12)',
+      fontSize: 14,
       color: 'var(--farm-text-0)',
       wordBreak: 'break-word',
-      lineHeight: 1.5,
+      lineHeight: 1.55,
     }}>
       {msg.content}
-      <div style={{ fontSize: 10, color: 'var(--farm-text-3)', marginTop: 3, textAlign: 'right' }}>
+      <div style={{ fontSize: 11, color: 'var(--farm-text-3)', marginTop: 4, textAlign: 'right' }}>
         {new Date(msg.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
       </div>
     </div>
@@ -32,7 +32,8 @@ const Bubble = ({ msg, isMine }) => (
 );
 
 /* ─── 聊天窗口主组件 ─── */
-const FriendChatWidget = ({ friendId, friendName, currentUserId, onClose, newMessages }) => {
+// ref 暴露 pushMessage(payload) 让父组件直接推入新消息
+const FriendChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose }, ref) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -50,31 +51,30 @@ const FriendChatWidget = ({ friendId, friendName, currentUserId, onClose, newMes
     loadHistory();
   }, [loadHistory]);
 
-  // 收到新消息时追加（来自 FarmNotification 的事件）
-  useEffect(() => {
-    if (!newMessages || newMessages.length === 0) return;
-    setMessages((prev) => {
-      const existingIds = new Set(prev.map((m) => m.id));
-      const fresh = newMessages.filter((m) => !existingIds.has(m.msg_id));
-      if (fresh.length === 0) return prev;
-      return [
-        ...prev,
-        ...fresh.map((m) => ({
-          id: m.msg_id,
-          from_user_id: friendId,
-          to_user_id: currentUserId,
-          content: m.content,
-          created_at: m.created_at,
-        })),
-      ];
-    });
-    setMinimized(false); // 收到消息自动展开
-  }, [newMessages, friendId, currentUserId]);
+  // 暴露给父组件：推入一条对方发来的新消息
+  useImperativeHandle(ref, () => ({
+    pushMessage(payload) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === payload.msg_id)) return prev;
+        return [
+          ...prev,
+          {
+            id: payload.msg_id ?? Date.now(),
+            from_user_id: friendId,
+            to_user_id: currentUserId,
+            content: payload.content,
+            created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
+          },
+        ];
+      });
+      setMinimized(false);
+    },
+  }), [friendId, currentUserId]);
 
   // 滚到底部
   useEffect(() => {
     if (!minimized) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     }
   }, [messages, minimized]);
 
@@ -83,7 +83,6 @@ const FriendChatWidget = ({ friendId, friendName, currentUserId, onClose, newMes
     if (!text || sending) return;
     setSending(true);
     setInput('');
-    // 乐观更新
     const optimistic = {
       id: Date.now(),
       from_user_id: currentUserId,
@@ -102,66 +101,57 @@ const FriendChatWidget = ({ friendId, friendName, currentUserId, onClose, newMes
     <div className='farm-chat-widget'>
       {/* 标题栏 */}
       <div className='farm-chat-header' onClick={() => setMinimized((v) => !v)}>
-        <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>
           💬 {friendName}
         </span>
-        <button
-          className='farm-chat-btn'
-          onClick={(e) => { e.stopPropagation(); setMinimized((v) => !v); }}
-        >
-          <Minus size={14} />
+        <button className='farm-chat-btn'
+          onClick={(e) => { e.stopPropagation(); setMinimized((v) => !v); }}>
+          <Minus size={15} />
         </button>
-        <button
-          className='farm-chat-btn'
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
-        >
-          <X size={14} />
+        <button className='farm-chat-btn'
+          onClick={(e) => { e.stopPropagation(); onClose(); }}>
+          <X size={15} />
         </button>
       </div>
 
       {!minimized && (
         <>
-          {/* 消息列表 */}
           <div className='farm-chat-messages'>
             {messages.length === 0 && (
               <div style={{ textAlign: 'center', color: 'var(--farm-text-3)',
-                fontSize: 12, padding: '20px 0' }}>
+                fontSize: 13, padding: '30px 0' }}>
                 开始聊天吧 👋
               </div>
             )}
             {messages.map((msg) => (
-              <Bubble
-                key={msg.id}
-                msg={msg}
-                isMine={msg.from_user_id === currentUserId}
-              />
+              <Bubble key={msg.id} msg={msg} isMine={msg.from_user_id === currentUserId} />
             ))}
             <div ref={bottomRef} />
           </div>
 
-          {/* 输入框 */}
           <div className='farm-chat-input-row'>
             <Input
               value={input}
               onChange={setInput}
               onEnterPress={send}
-              placeholder='输入消息…'
+              placeholder='输入消息… (Enter 发送)'
               maxLength={300}
-              style={{ flex: 1, fontSize: 12 }}
+              style={{ flex: 1, fontSize: 13 }}
             />
             <Button
-              icon={<Send size={14} />}
+              icon={<Send size={15} />}
               loading={sending}
               onClick={send}
               theme='solid'
               style={{ background: 'var(--farm-leaf)', border: 'none',
-                width: 34, height: 34, padding: 0, flexShrink: 0 }}
+                width: 38, height: 38, padding: 0, flexShrink: 0 }}
             />
           </div>
         </>
       )}
     </div>
   );
-};
+});
 
+FriendChatWidget.displayName = 'FriendChatWidget';
 export default FriendChatWidget;
