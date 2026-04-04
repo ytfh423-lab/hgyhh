@@ -107,6 +107,7 @@ func setupLogin(user *model.User, c *gin.Context) {
 			"role":         user.Role,
 			"status":       user.Status,
 			"group":        user.Group,
+			"avatar_url":   user.AvatarUrl,
 		},
 	})
 }

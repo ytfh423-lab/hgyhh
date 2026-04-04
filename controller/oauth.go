@@ -129,6 +129,10 @@ func HandleOAuth(c *gin.Context) {
 			common.ApiErrorI18n(c, i18n.MsgOAuthUserBanned)
 			return
 		}
+		// LinuxDO 登录时同步最新的头像、昵称、用户名
+		if strings.EqualFold(providerName, "linuxdo") {
+			syncLinuxDOUserProfile(user, oauthUser)
+		}
 		setupLogin(user, c)
 		return
 	}
@@ -345,6 +349,9 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, sessio
 	if oauthUser.Email != "" {
 		user.Email = oauthUser.Email
 	}
+	if oauthUser.AvatarUrl != "" {
+		user.AvatarUrl = oauthUser.AvatarUrl
+	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
 
@@ -506,5 +513,30 @@ func handleOAuthError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgOAuthTrustLevelLow)
 	default:
 		common.ApiError(c, err)
+	}
+}
+
+// syncLinuxDOUserProfile 登录时将 LinuxDO 最新信息同步到本地用户
+func syncLinuxDOUserProfile(user *model.User, oauthUser *oauth.OAuthUser) {
+	updates := map[string]interface{}{}
+
+	if oauthUser.DisplayName != "" && oauthUser.DisplayName != user.DisplayName {
+		// DisplayName 最大 20 字符（User 模型验证）
+		dn := oauthUser.DisplayName
+		if len([]rune(dn)) > 20 {
+			runes := []rune(dn)
+			dn = string(runes[:20])
+		}
+		updates["display_name"] = dn
+		user.DisplayName = dn
+	}
+
+	if oauthUser.AvatarUrl != "" && oauthUser.AvatarUrl != user.AvatarUrl {
+		updates["avatar_url"] = oauthUser.AvatarUrl
+		user.AvatarUrl = oauthUser.AvatarUrl
+	}
+
+	if len(updates) > 0 {
+		model.DB.Model(user).Updates(updates)
 	}
 }

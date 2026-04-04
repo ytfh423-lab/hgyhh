@@ -26,12 +26,13 @@ func init() {
 type LinuxDOProvider struct{}
 
 type linuxdoUser struct {
-	Id         int    `json:"id"`
-	Username   string `json:"username"`
-	Name       string `json:"name"`
-	Active     bool   `json:"active"`
-	TrustLevel int    `json:"trust_level"`
-	Silenced   bool   `json:"silenced"`
+	Id             int    `json:"id"`
+	Username       string `json:"username"`
+	Name           string `json:"name"`
+	Active         bool   `json:"active"`
+	TrustLevel     int    `json:"trust_level"`
+	Silenced       bool   `json:"silenced"`
+	AvatarTemplate string `json:"avatar_template"` // e.g. /user_avatar/connect.linux.do/{username}/{size}/xxx.png
 }
 
 func (p *LinuxDOProvider) GetName() string {
@@ -155,10 +156,22 @@ func (p *LinuxDOProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*
 
 	logger.LogDebug(ctx, "[OAuth-LinuxDO] GetUserInfo success: id=%d, username=%s", linuxdoUser.Id, linuxdoUser.Username)
 
+	// 构建头像 URL：将 {size} 替换为 288
+	avatarUrl := ""
+	if linuxdoUser.AvatarTemplate != "" {
+		tmpl := strings.ReplaceAll(linuxdoUser.AvatarTemplate, "{size}", "288")
+		if strings.HasPrefix(tmpl, "/") {
+			avatarUrl = "https://connect.linux.do" + tmpl
+		} else {
+			avatarUrl = tmpl
+		}
+	}
+
 	return &OAuthUser{
 		ProviderUserID: strconv.Itoa(linuxdoUser.Id),
 		Username:       linuxdoUser.Username,
 		DisplayName:    linuxdoUser.Name,
+		AvatarUrl:      avatarUrl,
 		Extra: map[string]any{
 			"trust_level": linuxdoUser.TrustLevel,
 			"active":      linuxdoUser.Active,
