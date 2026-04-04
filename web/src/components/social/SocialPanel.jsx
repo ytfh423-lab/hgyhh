@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { API, showSuccess, showError } from '../../helpers';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '../../hooks/common/useIsMobile';
 import './social.css';
 
 /* ─────────────────────── helpers ─────────────────────── */
@@ -670,6 +671,7 @@ const DraggableCard = ({ children, requestCount }) => {
    主组件
 ═══════════════════════════════════════════════════════ */
 const SocialPanel = () => {
+  const isMobile = useIsMobile();
   const [currentUserId, setCurrentUserId] = useState(0);
   const [chat, setChat] = useState(null);
   const [notifs, setNotifs] = useState([]);
@@ -762,12 +764,14 @@ const SocialPanel = () => {
   return (
     <>
       {/* 新手引导 */}
-      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
+      {showOnboarding && !isMobile && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
 
-      {/* 可拖动浮动卡片 */}
-      <DraggableCard requestCount={requestCount}>
-        <FriendPanel currentUserId={currentUserId} onChatOpen={(id, name) => setChat({ friendId: id, friendName: name })} />
-      </DraggableCard>
+      {/* 可拖动浮动卡片（仅桌面端） */}
+      {!isMobile && (
+        <DraggableCard requestCount={requestCount}>
+          <FriendPanel currentUserId={currentUserId} onChatOpen={(id, name) => setChat({ friendId: id, friendName: name })} />
+        </DraggableCard>
+      )}
 
       {/* 通知弹窗 */}
       {notifs.length > 0 && (
