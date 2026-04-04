@@ -54,6 +54,14 @@ const navGroups = [
     ],
   },
   {
+    key: 'social',
+    label: '社交',
+    emoji: '👥',
+    items: [
+      { key: 'friends', label: '好友', emoji: '👫' },
+    ],
+  },
+  {
     key: 'system',
     label: '系统功能',
     emoji: '⚙️',
@@ -68,7 +76,7 @@ const navGroups = [
 
 export { navGroups };
 
-const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
+const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequestCount = 0 }) => {
   const [collapsed, setCollapsed] = useState({});
   const navigate = useNavigate();
 
@@ -111,6 +119,13 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1 }) => {
                 >
                   <span style={{ fontSize: 15 }}>{locked ? '🔒' : item.emoji}</span>
                   <span>{t(item.label)}</span>
+                  {item.key === 'friends' && friendRequestCount > 0 && (
+                    <span className='farm-pill' style={{
+                      marginLeft: 'auto', fontSize: 10, padding: '1px 6px',
+                      background: 'var(--farm-danger)', color: '#fff',
+                      borderRadius: 8, fontWeight: 700, lineHeight: '16px',
+                    }}>{friendRequestCount}</span>
+                  )}
                   {item.key === 'tasks' && !locked && farmData?.task_summary && (
                     <span className='farm-pill' style={{
                       marginLeft: 'auto',

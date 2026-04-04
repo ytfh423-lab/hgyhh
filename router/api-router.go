@@ -18,6 +18,7 @@ func SetApiRouter(router *gin.Engine) {
 	apiRouter.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	{
+		apiRouter.POST("/heartbeat", middleware.UserAuth(), controller.SiteHeartbeat)
 		apiRouter.GET("/setup", controller.GetSetup)
 		apiRouter.POST("/setup", controller.PostSetup)
 		apiRouter.GET("/status", controller.GetStatus)
@@ -438,6 +439,24 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/tutorial/skip", controller.WebFarmTutorialSkip)
 			farmRoute.POST("/tutorial/restart", controller.WebFarmTutorialRestart)
 			farmRoute.POST("/tutorial/unlock", controller.WebFarmTutorialUnlock)
+
+			// 事件轮询
+			farmRoute.GET("/events/poll", controller.WebFarmEventsPoll)
+
+			// 好友系统
+			farmRoute.GET("/friends", controller.WebFarmFriendList)
+			farmRoute.GET("/friends/requests", controller.WebFarmFriendRequests)
+			farmRoute.GET("/friends/search", controller.WebFarmFriendSearch)
+			farmRoute.POST("/friends/request", controller.WebFarmFriendRequest)
+			farmRoute.POST("/friends/respond", controller.WebFarmFriendRespond)
+			farmRoute.DELETE("/friends/:friend_id", controller.WebFarmFriendRemove)
+
+			// 农场邀请
+			farmRoute.POST("/invite", controller.WebFarmInviteFriend)
+
+			// 站内聊天
+			farmRoute.GET("/chat/:friend_id", controller.WebFarmChatHistory)
+			farmRoute.POST("/chat/:friend_id", controller.WebFarmChatSend)
 
 			farmRoute.GET("/entrust/hall", controller.WebEntrustHall)
 			farmRoute.GET("/entrust/detail", controller.WebEntrustDetail)

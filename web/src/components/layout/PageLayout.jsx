@@ -120,6 +120,20 @@ const PageLayout = () => {
     }
   }, [i18n]);
 
+  // 全站在线心跳（30秒一次，登录后才发）
+  useEffect(() => {
+    const sendHeartbeat = () => {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!u.id) return;
+        API.post('/api/heartbeat').catch(() => {});
+      } catch { /* ignore */ }
+    };
+    sendHeartbeat();
+    const timer = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <Layout
       className='app-layout'

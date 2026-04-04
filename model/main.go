@@ -317,6 +317,8 @@ func migrateDB() error {
 		&FarmStealConfig{},
 		&FarmStealConfigLog{},
 		&MessageBoardPost{},
+		&FarmFriend{},
+		&FarmMessage{},
 	)
 	if err != nil {
 		return err

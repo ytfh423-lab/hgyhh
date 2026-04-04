@@ -37,6 +37,9 @@ import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
 import { FEATURE_LEVEL_MAP } from './constants';
+import FriendListPage from './components/FriendListPage';
+import FriendChatWidget from './components/FriendChatWidget';
+import FarmNotification from './components/FarmNotification';
 
 const { Text, Title } = Typography;
 
@@ -212,6 +215,45 @@ const Farm = () => {
   const [betaMessage, setBetaMessage] = useState('');
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
+
+  // 好友 & 聊天状态
+  const [chatOpen, setChatOpen] = useState(null); // {friendId, friendName, newMessages:[]}
+  const [friendRequestCount, setFriendRequestCount] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState(0);
+
+  // 获取当前用户 ID
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      if (u.id) setCurrentUserId(u.id);
+    } catch { /* ignore */ }
+  }, []);
+
+  // 轮询好友申请数
+  useEffect(() => {
+    if (!currentUserId) return;
+    const poll = async () => {
+      try {
+        const { data: res } = await API.get('/api/farm/friends/requests', { disableDuplicate: true });
+        if (res.success) setFriendRequestCount((res.data || []).length);
+      } catch { /* ignore */ }
+    };
+    poll();
+    const t2 = setInterval(poll, 15000);
+    return () => clearInterval(t2);
+  }, [currentUserId]);
+
+  const openChat = useCallback((friendId, friendName) => {
+    setChatOpen({ friendId, friendName, newMessages: [] });
+  }, []);
+
+  // 收到 chat_message 事件时传给聊天窗口
+  const handleChatEvent = useCallback((fromId, payload) => {
+    setChatOpen((prev) => {
+      if (!prev || prev.friendId !== fromId) return prev;
+      return { ...prev, newMessages: [...(prev.newMessages || []), payload] };
+    });
+  }, []);
 
   const navigateTo = useCallback((page) => {
     setActivePage(page);
@@ -531,6 +573,8 @@ const Farm = () => {
         return <PrestigePage loadFarm={loadFarm} t={t} />;
       case 'logs':
         return <LogsPage t={t} />;
+      case 'friends':
+        return <FriendListPage onChatOpen={openChat} t={t} />;
       default:
         return <FarmOverview {...commonProps} crops={crops} loading={loading} />;
     }
@@ -539,7 +583,7 @@ const Farm = () => {
   return (
     <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={navigateTo} farmData={farmData} loadFarm={loadFarm} t={t}>
       <div className='farm-layout'>
-        <Sidebar activeKey={activePage} onNavigate={navigateTo} t={t} farmData={farmData} userLevel={userLevel} />
+        <Sidebar activeKey={activePage} onNavigate={navigateTo} t={t} farmData={farmData} userLevel={userLevel} friendRequestCount={friendRequestCount} />
         <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
           <StatusBar farmData={farmData} t={t} />
           <div className='farm-content'>
@@ -551,6 +595,28 @@ const Farm = () => {
           </div>
         </div>
         <JoinGroupButton t={t} />
+
+        {/* 全局实时通知弹窗 */}
+        {currentUserId > 0 && (
+          <FarmNotification
+            userId={currentUserId}
+            onChatOpen={(fromId, fromName) => {
+              openChat(fromId, fromName);
+            }}
+          />
+        )}
+
+        {/* 聊天窗口 */}
+        {chatOpen && currentUserId > 0 && (
+          <FriendChatWidget
+            friendId={chatOpen.friendId}
+            friendName={chatOpen.friendName}
+            currentUserId={currentUserId}
+            newMessages={chatOpen.newMessages}
+            onClose={() => setChatOpen(null)}
+          />
+        )}
+
         <MobileBottomNav
           activeKey={activePage}
           onNavigate={navigateTo}
