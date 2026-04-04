@@ -506,29 +506,67 @@ const SearchRow = ({ user }) => {
    可拖动浮动卡片
 ═══════════════════════════════════════════════════════ */
 const CARD_KEY = 'social_card_pos';
+const CARD_W_COLLAPSED = 340;
+const CARD_W_EXPANDED  = 380;
+const HEADER_H = 46;
+const QUICK_H  = 60;
+const GAP      = 12; // 距屏幕边缘最小留白
+
+/** 将 (x, y) 夹紧到视口内，保证标题栏始终可见 */
+function clampToViewport(x, y, cardW) {
+  return {
+    x: Math.max(GAP, Math.min(window.innerWidth  - cardW - GAP, x)),
+    y: Math.max(GAP, Math.min(window.innerHeight - HEADER_H - GAP, y)),
+  };
+}
+
+/** 从 localStorage 读取并立刻校验是否在当前视口内 */
+function loadPos() {
+  try {
+    const s = JSON.parse(localStorage.getItem(CARD_KEY) || 'null');
+    if (s && typeof s.x === 'number' && typeof s.y === 'number') {
+      return clampToViewport(s.x, s.y, CARD_W_COLLAPSED);
+    }
+  } catch { /* ignore */ }
+  // 默认：右下角，距边缘 GAP
+  return {
+    x: window.innerWidth  - CARD_W_COLLAPSED - GAP,
+    y: window.innerHeight - HEADER_H - QUICK_H - GAP * 2,
+  };
+}
 
 const DraggableCard = ({ children, requestCount }) => {
-  const [pos, setPos] = useState(() => {
-    try {
-      const s = JSON.parse(localStorage.getItem(CARD_KEY) || 'null');
-      if (s && typeof s.x === 'number') return s;
-    } catch { /* ignore */ }
-    return { x: window.innerWidth - 380, y: window.innerHeight - 60 };
-  });
+  const [pos, setPos]         = useState(loadPos);
   const [expanded, setExpanded] = useState(false);
   const dragging = useRef(false);
-  const offset = useRef({ x: 0, y: 0 });
-  const cardRef = useRef(null);
+  const offset   = useRef({ x: 0, y: 0 });
+  const cardRef  = useRef(null);
 
-  // 保持卡片在屏幕内
-  const clamp = useCallback((x, y) => {
-    const w = cardRef.current?.offsetWidth || 340;
-    const h = cardRef.current?.offsetHeight || 48;
-    return {
-      x: Math.max(0, Math.min(window.innerWidth - w, x)),
-      y: Math.max(0, Math.min(window.innerHeight - h, y)),
-    };
+  // 挂载后再次校验（应对 SSR 或视口尺寸变化）
+  useEffect(() => {
+    setPos(prev => clampToViewport(prev.x, prev.y, CARD_W_COLLAPSED));
   }, []);
+
+  // 视口 resize 时重新夹紧
+  useEffect(() => {
+    const onResize = () => {
+      setPos(prev => {
+        const w = expanded ? CARD_W_EXPANDED : CARD_W_COLLAPSED;
+        return clampToViewport(prev.x, prev.y, w);
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [expanded]);
+
+  // 展开时确保卡片不超出屏幕右边
+  useEffect(() => {
+    if (expanded) {
+      setPos(prev => clampToViewport(prev.x, prev.y, CARD_W_EXPANDED));
+    }
+  }, [expanded]);
+
+  const savePos = (p) => { localStorage.setItem(CARD_KEY, JSON.stringify(p)); return p; };
 
   const onMouseDown = (e) => {
     if (e.button !== 0) return;
@@ -538,20 +576,16 @@ const DraggableCard = ({ children, requestCount }) => {
   };
   const onMouseMove = useCallback((e) => {
     if (!dragging.current) return;
-    const p = clamp(e.clientX - offset.current.x, e.clientY - offset.current.y);
-    setPos(p);
-  }, [clamp]);
+    const w = cardRef.current?.offsetWidth || CARD_W_COLLAPSED;
+    setPos(clampToViewport(e.clientX - offset.current.x, e.clientY - offset.current.y, w));
+  }, []);
   const onMouseUp = useCallback(() => {
     if (!dragging.current) return;
     dragging.current = false;
     document.body.style.userSelect = '';
-    setPos(prev => {
-      localStorage.setItem(CARD_KEY, JSON.stringify(prev));
-      return prev;
-    });
+    setPos(prev => savePos(prev));
   }, []);
 
-  // Touch support
   const onTouchStart = (e) => {
     const t = e.touches[0];
     dragging.current = true;
@@ -560,55 +594,59 @@ const DraggableCard = ({ children, requestCount }) => {
   const onTouchMove = useCallback((e) => {
     if (!dragging.current) return;
     const t = e.touches[0];
-    const p = clamp(t.clientX - offset.current.x, t.clientY - offset.current.y);
-    setPos(p);
-  }, [clamp]);
+    const w = cardRef.current?.offsetWidth || CARD_W_COLLAPSED;
+    setPos(clampToViewport(t.clientX - offset.current.x, t.clientY - offset.current.y, w));
+  }, []);
   const onTouchEnd = useCallback(() => {
     dragging.current = false;
-    setPos(prev => { localStorage.setItem(CARD_KEY, JSON.stringify(prev)); return prev; });
+    setPos(prev => savePos(prev));
   }, []);
 
   useEffect(() => {
     window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mouseup',   onMouseUp);
     window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchend',  onTouchEnd);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mouseup',   onMouseUp);
       window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchend',  onTouchEnd);
     };
   }, [onMouseMove, onMouseUp, onTouchMove, onTouchEnd]);
 
+  // 展开时动态计算可用高度，避免溢出底部
+  const bodyMaxH = expanded
+    ? Math.max(180, window.innerHeight - pos.y - HEADER_H - GAP * 2)
+    : 0;
+
   return (
-    <div ref={cardRef} className={`sp-card${expanded ? ' sp-card--expanded' : ''}`}
+    <div ref={cardRef}
+      className={`sp-card${expanded ? ' sp-card--expanded' : ''}`}
       style={{ left: pos.x, top: pos.y }}>
-      {/* 拖动标题栏 */}
-      <div className='sp-card-header'
-        onMouseDown={onMouseDown}
-        onTouchStart={onTouchStart}>
+
+      {/* ── 拖动标题栏 ── */}
+      <div className='sp-card-header' onMouseDown={onMouseDown} onTouchStart={onTouchStart}>
         <GripHorizontal size={14} style={{ color: 'var(--sp-text-3)', flexShrink: 0 }} />
-        <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>
-          👥 好友社交
-        </span>
+        <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>👥 好友社交</span>
         {requestCount > 0 && !expanded && (
           <span className='sp-card-badge'>{requestCount > 9 ? '9+' : requestCount}</span>
         )}
         <button className='sp-close-btn'
-          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+          onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
           title={expanded ? '收起' : '展开'}>
           {expanded ? <Minus size={14} /> : <Maximize2 size={13} />}
         </button>
       </div>
-      {/* 快捷入口行（折叠时可见） */}
+
+      {/* ── 折叠态：快捷按钮 ── */}
       {!expanded && (
         <div className='sp-card-quick'>
           <button className='sp-quick-btn' onClick={() => setExpanded(true)}>
             <Users size={13} /> 好友列表
           </button>
-          <button className='sp-quick-btn sp-quick-btn--accent' onClick={() => setExpanded(true)}
-            style={{ position: 'relative' }}>
+          <button className='sp-quick-btn sp-quick-btn--accent' style={{ position: 'relative' }}
+            onClick={() => setExpanded(true)}>
             <Bell size={13} /> 好友申请
             {requestCount > 0 && <span className='sp-mini-badge'>{requestCount}</span>}
           </button>
@@ -617,9 +655,10 @@ const DraggableCard = ({ children, requestCount }) => {
           </button>
         </div>
       )}
-      {/* 展开内容 */}
+
+      {/* ── 展开态：面板内容 ── */}
       {expanded && (
-        <div className='sp-card-body'>
+        <div className='sp-card-body' style={{ maxHeight: bodyMaxH }}>
           {children}
         </div>
       )}

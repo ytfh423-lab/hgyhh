@@ -110,12 +110,13 @@
   padding: 0 3px;
 }
 
-/* 展开内容区 */
+/* 展开内容区 — 高度由 JS 动态注入 maxHeight，防止溢出屏幕 */
 .sp-card-body {
-  height: 460px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* min-height 保证至少能看到 Tab 栏 */
+  min-height: 180px;
 }
 
 /* ══════════════════════════════════
