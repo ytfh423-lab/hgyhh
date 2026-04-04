@@ -242,23 +242,20 @@ const TutorialRestartButton = ({ t }) => {
 };
 
 const OnlineBadge = ({ t }) => {
-  const [count, setCount] = useState(null);
-  const timerRef = useRef(null);
-
-  const fetchOnline = useCallback(async () => {
-    try {
-      const { data: res } = await API.get('/api/farm/online');
-      if (res.success) setCount(res.data.online_count);
-    } catch { /* ignore */ }
-  }, []);
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
+    let alive = true;
+    const fetchOnline = async () => {
+      try {
+        const { data: res } = await API.get('/api/farm/online');
+        if (alive && res.success) setCount(res.data.online_count ?? 0);
+      } catch { /* ignore */ }
+    };
     fetchOnline();
-    timerRef.current = setInterval(fetchOnline, 30000); // 每 30 秒刷新
-    return () => clearInterval(timerRef.current);
-  }, [fetchOnline]);
-
-  if (count === null) return null;
+    const timer = setInterval(fetchOnline, 30000);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
 
   return (
     <div className='farm-stat-card' style={{ background: 'rgba(74,124,63,0.08)', border: '1px solid rgba(74,124,63,0.18)' }}>
