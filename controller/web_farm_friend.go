@@ -56,6 +56,43 @@ func siteOnlineHeartbeat(userId int) {
 	}
 }
 
+// getOnlineUserIds 返回当前在线的所有用户 ID（去除自己）
+func getOnlineUserIds(excludeId int) []int {
+	now := time.Now().Unix()
+	cutoff := now - siteOnlineTTLSec
+	var ids []int
+	if common.RedisEnabled {
+		ctx := context.Background()
+		members, err := common.RDB.ZRangeByScore(ctx, siteOnlineKey, &redisv8.ZRangeBy{
+			Min: strconv.FormatInt(cutoff, 10),
+			Max: "+inf",
+		}).Result()
+		if err != nil {
+			return ids
+		}
+		for _, m := range members {
+			id, err := strconv.Atoi(m)
+			if err == nil && id != excludeId {
+				ids = append(ids, id)
+			}
+		}
+	} else {
+		siteOnlineMemory.Range(func(key, value interface{}) bool {
+			ts, ok := value.(int64)
+			if !ok || ts < cutoff {
+				siteOnlineMemory.Delete(key)
+				return true
+			}
+			id, ok := key.(int)
+			if ok && id != excludeId {
+				ids = append(ids, id)
+			}
+			return true
+		})
+	}
+	return ids
+}
+
 func isSiteOnline(userId int) bool {
 	now := time.Now().Unix()
 	cutoff := now - siteOnlineTTLSec
@@ -352,6 +389,48 @@ func WebFarmFriendSearch(c *gin.Context) {
 			"is_friend":    isFr,
 			"req_status":   reqStatus,
 			"online":       isSiteOnline(u.Id),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+// GET /api/social/online-users — 返回当前所有在线用户（含好友关系状态）
+func WebSocialOnlineUsers(c *gin.Context) {
+	userId := c.GetInt("id")
+	if userId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
+		return
+	}
+	onlineIds := getOnlineUserIds(userId)
+	if len(onlineIds) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
+		return
+	}
+	// 批量查用户信息
+	var users []model.User
+	if err := model.DB.Select("id, username, display_name").
+		Where("id IN ? AND deleted_at IS NULL", onlineIds).
+		Limit(100).Find(&users).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	result := make([]map[string]interface{}, 0, len(users))
+	for _, u := range users {
+		isFr := model.IsFriend(userId, u.Id)
+		var reqStatus string
+		if !isFr {
+			existing, err2 := model.GetFriendRequestByUsers(userId, u.Id)
+			if err2 == nil {
+				reqStatus = existing.Status
+			}
+		}
+		result = append(result, map[string]interface{}{
+			"user_id":      u.Id,
+			"username":     u.Username,
+			"display_name": u.DisplayName,
+			"is_friend":    isFr,
+			"req_status":   reqStatus,
+			"online":       true,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})

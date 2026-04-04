@@ -28,6 +28,7 @@ func SetApiRouter(router *gin.Engine) {
 			socialRoute.GET("/friends", controller.WebFarmFriendList)
 			socialRoute.GET("/friends/requests", controller.WebFarmFriendRequests)
 			socialRoute.GET("/friends/search", controller.WebFarmFriendSearch)
+			socialRoute.GET("/online-users", controller.WebSocialOnlineUsers)
 			socialRoute.POST("/friends/request", controller.WebFarmFriendRequest)
 			socialRoute.POST("/friends/respond", controller.WebFarmFriendRespond)
 			socialRoute.DELETE("/friends/:friend_id", controller.WebFarmFriendRemove)

@@ -320,14 +320,28 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
 
   useEffect(() => { load(); const t = setInterval(load, 12000); return () => clearInterval(t); }, [load]);
 
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [searchLabel, setSearchLabel] = useState('');   // 当前结果来源描述
+
   const doSearch = async () => {
     if (!searchQ.trim()) return;
     setSearchLoading(true);
+    setSearchLabel('');
     try {
       const { data: res } = await API.get(`/api/social/friends/search?q=${encodeURIComponent(searchQ)}`);
-      if (res.success) setSearchResults(res.data || []);
+      if (res.success) { setSearchResults(res.data || []); setSearchLabel(`搜索「${searchQ}」的结果`); }
       else showError(res.message);
     } finally { setSearchLoading(false); }
+  };
+
+  const loadOnlineUsers = async () => {
+    setOnlineLoading(true);
+    setSearchQ('');
+    try {
+      const { data: res } = await API.get('/api/social/online-users');
+      if (res.success) { setSearchResults(res.data || []); setSearchLabel('当前在线用户'); }
+      else showError(res.message);
+    } finally { setOnlineLoading(false); }
   };
 
   const respond = async (req, action) => {
@@ -439,17 +453,30 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
         {/* 搜索 */}
         {activeTab === 'search' && (
           <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, marginTop: 4 }}>
+            {/* 搜索栏 */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, marginTop: 4 }}>
               <Input prefix={<Search size={13} />} placeholder='输入用户名或昵称搜索'
                 value={searchQ} onChange={setSearchQ} onEnterPress={doSearch} style={{ flex: 1, fontSize: 13 }} />
               <button className='sp-txt-btn sp-txt-btn--leaf' style={{ flexShrink: 0 }} onClick={doSearch}>
                 {searchLoading ? '搜索中…' : <><Search size={13} /> 搜索</>}
               </button>
             </div>
+            {/* 查看在线用户按钮 */}
+            <button className='sp-online-users-btn' onClick={loadOnlineUsers} disabled={onlineLoading}>
+              <span className='sp-online-dot-anim' />
+              {onlineLoading ? '加载中…' : '查看当前所有在线用户'}
+            </button>
+            {/* 结果标题 */}
+            {searchResults !== null && searchLabel && (
+              <div style={{ fontSize: 11, color: 'var(--sp-text-3)', marginBottom: 8, marginTop: 4 }}>
+                {searchLabel} · 共 {searchResults.length} 人
+              </div>
+            )}
+            {/* 结果列表 */}
             {searchResults === null
-              ? <div className='sp-empty'>输入关键词搜索用户</div>
+              ? <div className='sp-empty'>输入关键词搜索，或点击上方按钮查看在线用户</div>
               : searchResults.length === 0
-                ? <div className='sp-empty'>未找到相关用户</div>
+                ? <div className='sp-empty'>没有找到用户</div>
                 : searchResults.map(u => <SearchRow key={u.user_id} user={u} />)
             }
           </div>
