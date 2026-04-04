@@ -4,6 +4,7 @@ import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus,
 import { formatBalance, formatDuration, confirmAction } from './utils';
 import { useTutorial } from './TutorialProvider';
 import FarmAnnouncementBar from './FarmAnnouncementBar';
+import { API } from '../../../helpers';
 
 const { Text } = Typography;
 
@@ -246,9 +247,8 @@ const OnlineBadge = ({ t }) => {
 
   const fetchOnline = useCallback(async () => {
     try {
-      const res = await fetch('/api/farm/online');
-      const json = await res.json();
-      if (json.success) setCount(json.data.online_count);
+      const { data: res } = await API.get('/api/farm/online');
+      if (res.success) setCount(res.data.online_count);
     } catch { /* ignore */ }
   }, []);
 
