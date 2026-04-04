@@ -1,47 +1,137 @@
 /**
- * SocialPanel — 全站右侧社交浮窗
- * 挂在 PageLayout，所有页面均可用。
- * 通过 window CustomEvent 与其他页面组件通信：
- *   - 'social:open-chat'  { detail: { friendId, friendName } }
+ * SocialPanel — 可拖动浮动社交卡片
+ * - 拖动标题栏移动位置，位置持久化到 localStorage
+ * - 首次访问显示新手引导弹窗
+ * - 全站挂载（PageLayout），所有页面可用
  */
 import React, {
   useState, useEffect, useCallback, useRef,
   forwardRef, useImperativeHandle,
 } from 'react';
-import { Button, Input, Avatar, Badge, Tabs, TabPane } from '@douyinfe/semi-ui';
+import { Input, Avatar } from '@douyinfe/semi-ui';
 import {
   Users, X, MessageCircle, UserPlus, UserCheck, UserX,
-  Trash2, Tractor, Search, Send, Minus, ChevronRight,
+  Trash2, Tractor, Search, Send, Minus, Maximize2,
+  GripHorizontal, ChevronRight, Bell,
 } from 'lucide-react';
 import { API, showSuccess, showError } from '../../helpers';
 import { useNavigate } from 'react-router-dom';
 import './social.css';
 
-/* ══════════════════════════════════════
-   小工具
-══════════════════════════════════════ */
-const OnlineDot = ({ online, size = 9 }) => (
+/* ─────────────────────── helpers ─────────────────────── */
+const OnlineDot = ({ online }) => (
   <span style={{
-    display: 'inline-block', width: size, height: size,
-    borderRadius: '50%', flexShrink: 0,
-    background: online ? '#4caf50' : 'rgba(180,180,180,0.5)',
-    boxShadow: online ? '0 0 6px rgba(76,175,80,0.8)' : 'none',
-    transition: 'background 0.3s',
+    display: 'inline-block', width: 9, height: 9, borderRadius: '50%',
+    background: online ? '#4caf50' : 'rgba(160,160,160,0.4)',
+    boxShadow: online ? '0 0 6px rgba(76,175,80,0.85)' : 'none',
+    flexShrink: 0, transition: 'background .3s',
   }} />
 );
 
-/* ══════════════════════════════════════
-   通知弹窗（右下角）
-══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   新手引导弹窗
+═══════════════════════════════════════════════════════ */
+const ONBOARD_KEY = 'social_onboarding_v1';
+
+const STEPS = [
+  {
+    emoji: '🎉',
+    title: '好友功能上线啦！',
+    desc: '我们为你带来全新的社交体验。添加好友、一起种菜、实时聊天，快来探索吧！',
+  },
+  {
+    emoji: '🔍',
+    title: '搜索并添加好友',
+    desc: '点击右下角「社交卡片」→「搜索用户」，输入对方用户名即可发送好友申请，对方接受后正式成为好友。',
+    highlight: '搜索用户',
+  },
+  {
+    emoji: '🔔',
+    title: '接受好友申请',
+    desc: '当有人申请加你为好友时，右下角会弹出通知。你也可以在「申请」标签页随时查看并一键接受或拒绝。',
+    highlight: '好友申请',
+  },
+  {
+    emoji: '💬',
+    title: '和好友实时聊天',
+    desc: '在好友列表点击「发消息」即可打开聊天窗，支持实时消息推送、输入状态显示和已读回执。',
+    highlight: '发消息',
+  },
+  {
+    emoji: '🚜',
+    title: '邀请好友一起种菜',
+    desc: '当好友在线时，点击「邀请种菜」按钮，对方的屏幕上会立即弹出邀请通知，一键前往农场！',
+    highlight: '邀请种菜',
+  },
+];
+
+const OnboardingModal = ({ onClose }) => {
+  const [step, setStep] = useState(0);
+  const s = STEPS[step];
+  const isLast = step === STEPS.length - 1;
+
+  const finish = () => {
+    localStorage.setItem(ONBOARD_KEY, '1');
+    onClose();
+  };
+
+  return (
+    <div className='sp-onboard-overlay'>
+      <div className='sp-onboard-modal'>
+        {/* 关闭 */}
+        <button className='sp-onboard-close' onClick={finish}><X size={16} /></button>
+
+        {/* 步骤指示 */}
+        <div className='sp-onboard-steps'>
+          {STEPS.map((_, i) => (
+            <span key={i} className={`sp-onboard-dot${i === step ? ' active' : ''}`} />
+          ))}
+        </div>
+
+        {/* 内容 */}
+        <div className='sp-onboard-emoji'>{s.emoji}</div>
+        <div className='sp-onboard-title'>{s.title}</div>
+        <div className='sp-onboard-desc'>{s.desc}</div>
+        {s.highlight && (
+          <div className='sp-onboard-highlight'>
+            <ChevronRight size={14} style={{ marginRight: 4 }} />
+            在右下角社交卡片中找到「{s.highlight}」
+          </div>
+        )}
+
+        {/* 导航按钮 */}
+        <div className='sp-onboard-nav'>
+          {step > 0 && (
+            <button className='sp-onboard-btn sp-onboard-btn--ghost'
+              onClick={() => setStep(s => s - 1)}>上一步</button>
+          )}
+          <div style={{ flex: 1 }} />
+          {!isLast ? (
+            <button className='sp-onboard-btn sp-onboard-btn--primary'
+              onClick={() => setStep(s => s + 1)}>下一步</button>
+          ) : (
+            <button className='sp-onboard-btn sp-onboard-btn--primary' onClick={finish}>
+              开始使用 🚀
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════
+   通知弹窗
+═══════════════════════════════════════════════════════ */
 const NotifCard = ({ notif, onDismiss, onAction }) => {
   const [out, setOut] = useState(false);
   const dismiss = () => { setOut(true); setTimeout(() => onDismiss(notif.id), 280); };
 
   const cfg = {
-    friend_request:  { icon: <UserPlus  size={22} />, color: '#5a8fb4', bg: 'rgba(90,143,180,0.13)',  border: 'rgba(90,143,180,0.35)',  title: '好友申请',  body: `${notif.from_name} 想加你为好友`, actions: [{ label: '接受', type: 'accept' }, { label: '拒绝', type: 'reject' }] },
-    friend_accepted: { icon: <UserCheck size={22} />, color: '#4a7c3f', bg: 'rgba(74,124,63,0.12)',   border: 'rgba(74,124,63,0.3)',    title: '好友通知',  body: `${notif.from_name} 接受了你的好友申请`, actions: [] },
-    farm_invite:     { icon: <Tractor   size={22} />, color: '#c8921a', bg: 'rgba(200,146,42,0.11)',  border: 'rgba(200,146,42,0.3)',   title: '农场邀请',  body: `${notif.from_name} 邀请你一起来农场种菜`, actions: [{ label: '去农场', type: 'go_farm' }] },
-    chat_message:    { icon: <MessageCircle size={22} />, color: '#5a8fb4', bg: 'rgba(90,143,180,0.10)', border: 'rgba(90,143,180,0.25)', title: '新消息', body: `${notif.from_name}：${(notif.payload?.content ?? '').slice(0, 50)}`, actions: [{ label: '查看', type: 'open_chat' }] },
+    friend_request:  { icon: '👋', color: '#5a8fb4', bg: 'rgba(90,143,180,0.14)',  border: 'rgba(90,143,180,0.38)',  title: '好友申请',  body: `${notif.from_name} 想加你为好友`,           actions: [{ label: '✅ 接受', type: 'accept' }, { label: '❌ 拒绝', type: 'reject' }] },
+    friend_accepted: { icon: '🤝', color: '#4a7c3f', bg: 'rgba(74,124,63,0.13)',   border: 'rgba(74,124,63,0.32)',   title: '好友通知',  body: `${notif.from_name} 接受了你的好友申请`,   actions: [] },
+    farm_invite:     { icon: '🌾', color: '#c8921a', bg: 'rgba(200,146,42,0.12)',  border: 'rgba(200,146,42,0.32)',  title: '农场邀请',  body: `${notif.from_name} 邀请你一起来农场种菜`, actions: [{ label: '🚜 去农场', type: 'go_farm' }] },
+    chat_message:    { icon: '💬', color: '#5a8fb4', bg: 'rgba(90,143,180,0.10)', border: 'rgba(90,143,180,0.26)',  title: '新消息',    body: `${notif.from_name}：${(notif.payload?.content ?? '').slice(0, 50)}`, actions: [{ label: '📖 查看', type: 'open_chat' }] },
   }[notif.type] || null;
   if (!cfg) return null;
 
@@ -49,15 +139,15 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
     <div className={`sp-notif-card${out ? ' sp-notif-out' : ''}`}
       style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderLeft: `4px solid ${cfg.color}` }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <span style={{ color: cfg.color, flexShrink: 0, marginTop: 2 }}>{cfg.icon}</span>
+        <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1, marginTop: 1 }}>{cfg.icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sp-text-0)', marginBottom: 3 }}>{cfg.title}</div>
-          <div style={{ fontSize: 13, color: 'var(--sp-text-1)', wordBreak: 'break-word' }}>{cfg.body}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sp-text-0)', marginBottom: 4 }}>{cfg.title}</div>
+          <div style={{ fontSize: 13, color: 'var(--sp-text-1)', wordBreak: 'break-word', lineHeight: 1.5 }}>{cfg.body}</div>
           {cfg.actions.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               {cfg.actions.map(a => (
-                <button key={a.type} className='sp-action-btn'
-                  style={{ background: cfg.color }}
+                <button key={a.type} className='sp-notif-action-btn'
+                  style={{ borderColor: cfg.color, color: cfg.color }}
                   onClick={() => { onAction(notif, a.type); dismiss(); }}>
                   {a.label}
                 </button>
@@ -65,30 +155,32 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
             </div>
           )}
         </div>
-        <button className='sp-icon-btn' onClick={dismiss}><X size={16} /></button>
+        <button className='sp-close-btn' onClick={dismiss}><X size={15} /></button>
       </div>
     </div>
   );
 };
 
-/* ══════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    聊天窗口（带 typing + 已读）
-══════════════════════════════════════ */
+═══════════════════════════════════════════════════════ */
 const Bubble = ({ msg, isMine }) => (
   <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
     <div style={{
-      maxWidth: '78%', padding: '9px 14px', fontSize: 14, lineHeight: 1.55,
+      maxWidth: '78%', padding: '9px 14px', fontSize: 13.5, lineHeight: 1.55,
       wordBreak: 'break-word', color: 'var(--sp-text-0)',
       borderRadius: isMine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
       background: isMine ? 'rgba(74,124,63,0.28)' : 'rgba(255,255,255,0.09)',
       border: isMine ? '1px solid rgba(74,124,63,0.4)' : '1px solid rgba(255,255,255,0.12)',
     }}>
       {msg.content}
-      <div style={{ fontSize: 11, color: 'var(--sp-text-3)', marginTop: 3,
-        display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', gap: 6, alignItems: 'center' }}>
+      <div style={{
+        fontSize: 11, color: 'var(--sp-text-3)', marginTop: 3,
+        display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', gap: 6,
+      }}>
         <span>{new Date(msg.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         {isMine && (
-          <span style={{ color: msg.is_read ? '#4caf50' : 'var(--sp-text-3)', fontWeight: msg.is_read ? 600 : 400 }}>
+          <span style={{ color: msg.is_read ? '#4caf50' : 'var(--sp-text-3)', fontWeight: 600 }}>
             {msg.is_read ? '已读' : '未读'}
           </span>
         )}
@@ -121,11 +213,8 @@ const ChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose },
       setMessages(prev => {
         if (prev.some(m => m.id === payload.msg_id)) return prev;
         return [...prev, {
-          id: payload.msg_id ?? Date.now(),
-          from_user_id: friendId, to_user_id: currentUserId,
-          content: payload.content,
-          created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
-          is_read: false,
+          id: payload.msg_id ?? Date.now(), from_user_id: friendId, to_user_id: currentUserId,
+          content: payload.content, created_at: payload.created_at ?? Math.floor(Date.now() / 1000), is_read: false,
         }];
       });
       setMinimized(false);
@@ -136,39 +225,31 @@ const ChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose },
       typingTimer.current = setTimeout(() => setFriendTyping(false), 3500);
     },
     markRead() {
-      setMessages(prev => prev.map(m =>
-        m.from_user_id === currentUserId ? { ...m, is_read: true } : m
-      ));
+      setMessages(prev => prev.map(m => m.from_user_id === currentUserId ? { ...m, is_read: true } : m));
     },
   }), [friendId, currentUserId]);
 
   useEffect(() => {
-    if (!minimized)
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    if (!minimized) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
   }, [messages, minimized, friendTyping]);
 
   const handleInputChange = (v) => {
     setInput(v);
-    // 防抖发送 typing 事件
     clearTimeout(typingDebounce.current);
-    if (v.trim()) {
-      typingDebounce.current = setTimeout(() => {
-        API.post('/api/social/chat/typing', { friend_id: friendId }).catch(() => {});
-      }, 600);
-    }
+    if (v.trim()) typingDebounce.current = setTimeout(() => {
+      API.post('/api/social/chat/typing', { friend_id: friendId }).catch(() => {});
+    }, 600);
   };
 
   const send = async () => {
     const text = input.trim();
     if (!text || sending) return;
-    setSending(true);
-    setInput('');
+    setSending(true); setInput('');
     clearTimeout(typingDebounce.current);
-    const optimistic = {
+    setMessages(prev => [...prev, {
       id: Date.now(), from_user_id: currentUserId, to_user_id: friendId,
       content: text, created_at: Math.floor(Date.now() / 1000), is_read: false,
-    };
-    setMessages(prev => [...prev, optimistic]);
+    }]);
     try { await API.post(`/api/social/chat/${friendId}`, { content: text }); }
     catch { /* ignore */ }
     setSending(false);
@@ -177,9 +258,9 @@ const ChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose },
   return (
     <div className='sp-chat-widget'>
       <div className='sp-chat-header' onClick={() => setMinimized(v => !v)}>
-        <span style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>💬 {friendName}</span>
-        <button className='sp-icon-btn' onClick={e => { e.stopPropagation(); setMinimized(v => !v); }}><Minus size={15} /></button>
-        <button className='sp-icon-btn' onClick={e => { e.stopPropagation(); onClose(); }}><X size={15} /></button>
+        <span style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>💬 与 {friendName} 聊天</span>
+        <button className='sp-close-btn' onClick={e => { e.stopPropagation(); setMinimized(v => !v); }}><Minus size={14} /></button>
+        <button className='sp-close-btn' onClick={e => { e.stopPropagation(); onClose(); }}><X size={14} /></button>
       </div>
       {!minimized && (
         <>
@@ -190,8 +271,11 @@ const ChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose },
             {messages.map(m => <Bubble key={m.id} msg={m} isMine={m.from_user_id === currentUserId} />)}
             {friendTyping && (
               <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
-                <div className='sp-typing-indicator'>
-                  <span /><span /><span />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                  borderRadius: '16px 16px 16px 4px', background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.1)', fontSize: 12, color: 'var(--sp-text-2)' }}>
+                  <div className='sp-typing-indicator'><span /><span /><span /></div>
+                  <span>{friendName} 正在输入…</span>
                 </div>
               </div>
             )}
@@ -199,10 +283,10 @@ const ChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose },
           </div>
           <div className='sp-chat-input-row'>
             <Input value={input} onChange={handleInputChange} onEnterPress={send}
-              placeholder='输入消息… (Enter 发送)' maxLength={300}
-              style={{ flex: 1, fontSize: 13 }} />
-            <Button icon={<Send size={15} />} loading={sending} onClick={send}
-              theme='solid' style={{ background: '#4a7c3f', border: 'none', width: 38, height: 38, padding: 0, flexShrink: 0 }} />
+              placeholder='输入消息… (Enter 发送)' maxLength={300} style={{ flex: 1, fontSize: 13 }} />
+            <button className='sp-send-btn' onClick={send} disabled={sending}>
+              {sending ? '…' : <Send size={15} />}
+            </button>
           </div>
         </>
       )}
@@ -211,9 +295,9 @@ const ChatWidget = forwardRef(({ friendId, friendName, currentUserId, onClose },
 });
 ChatWidget.displayName = 'ChatWidget';
 
-/* ══════════════════════════════════════
-   好友面板内容
-══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   好友面板内容（卡片内部）
+═══════════════════════════════════════════════════════ */
 const FriendPanel = ({ currentUserId, onChatOpen }) => {
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -233,11 +317,7 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 12000);
-    return () => clearInterval(t);
-  }, [load]);
+  useEffect(() => { load(); const t = setInterval(load, 12000); return () => clearInterval(t); }, [load]);
 
   const doSearch = async () => {
     if (!searchQ.trim()) return;
@@ -251,69 +331,77 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
 
   const respond = async (req, action) => {
     const { data: res } = await API.post('/api/social/friends/respond', { request_id: req.request_id, action });
-    if (res.success) { showSuccess(res.message); load(); }
-    else showError(res.message);
+    if (res.success) { showSuccess(res.message); load(); } else showError(res.message);
   };
 
-  const removeFriend = async (friend) => {
-    if (!window.confirm(`确定删除好友 ${friend.display_name || friend.username}？`)) return;
-    const { data: res } = await API.delete(`/api/social/friends/${friend.user_id}`);
-    if (res.success) { showSuccess(res.message); load(); }
-    else showError(res.message);
+  const removeFriend = async (f) => {
+    if (!window.confirm(`确定删除好友 ${f.display_name || f.username}？`)) return;
+    const { data: res } = await API.delete(`/api/social/friends/${f.user_id}`);
+    if (res.success) { showSuccess(res.message); load(); } else showError(res.message);
   };
 
-  const invite = async (friend) => {
-    const { data: res } = await API.post('/api/social/invite', { friend_id: friend.user_id });
-    if (res.success) showSuccess(res.message);
-    else showError(res.message);
+  const invite = async (f) => {
+    const { data: res } = await API.post('/api/social/invite', { friend_id: f.user_id });
+    if (res.success) showSuccess(res.message); else showError(res.message);
   };
+
+  const TABS = [
+    { key: 'friends',  label: `👫 好友列表`,   badge: 0 },
+    { key: 'requests', label: `🔔 好友申请`,  badge: requests.length },
+    { key: 'search',   label: `🔍 搜索用户`,   badge: 0 },
+  ];
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} size='small' style={{ flex: '0 0 auto' }}>
-        <TabPane tab={`👫 好友 (${friends.length})`} itemKey='friends' />
-        <TabPane tab={<span>🔔 申请{requests.length > 0 && <Badge count={requests.length} style={{ marginLeft: 5 }} />}</span>} itemKey='requests' />
-        <TabPane tab='🔍 搜索' itemKey='search' />
-      </Tabs>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* 标签栏 */}
+      <div className='sp-tab-bar'>
+        {TABS.map(tab => (
+          <button key={tab.key}
+            className={`sp-tab-btn${activeTab === tab.key ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}>
+            {tab.label}
+            {tab.badge > 0 && <span className='sp-tab-badge'>{tab.badge}</span>}
+          </button>
+        ))}
+      </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
+      {/* 内容区 */}
+      <div className='sp-panel-scroll'>
         {/* 好友列表 */}
         {activeTab === 'friends' && (
           friends.length === 0
-            ? <div className='sp-empty'>还没有好友，快去搜索添加吧 👀</div>
+            ? <div className='sp-empty'>还没有好友，去「搜索用户」添加吧 👀</div>
             : friends.map(f => (
-              <div key={f.user_id} className='sp-friend-row'>
-                <Avatar size='small' style={{ background: '#4a7c3f', flexShrink: 0 }}>
-                  {(f.display_name || f.username || '?')[0].toUpperCase()}
-                </Avatar>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-0)' }}>
-                      {f.display_name || f.username}
-                    </span>
-                    <OnlineDot online={f.online} />
-                    {f.unread_count > 0 && (
-                      <span className='sp-badge'>{f.unread_count}</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--sp-text-3)' }}>
-                    {f.online ? '在线' : '离线'} · @{f.username}
+              <div key={f.user_id} className='sp-friend-card'>
+                <div className='sp-friend-card__top'>
+                  <Avatar size='small' style={{ background: '#4a7c3f', flexShrink: 0 }}>
+                    {(f.display_name || f.username || '?')[0].toUpperCase()}
+                  </Avatar>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--sp-text-0)' }}>
+                        {f.display_name || f.username}
+                      </span>
+                      <OnlineDot online={f.online} />
+                      {f.unread_count > 0 && <span className='sp-badge'>{f.unread_count}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--sp-text-3)', marginTop: 1 }}>
+                      {f.online ? '🟢 在线' : '⚫ 离线'} · @{f.username}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                  <button className='sp-icon-btn sp-icon-btn--sky'
-                    title='聊天' onClick={() => onChatOpen(f.user_id, f.display_name || f.username)}>
-                    <MessageCircle size={14} />
+                <div className='sp-friend-card__actions'>
+                  <button className='sp-txt-btn sp-txt-btn--sky'
+                    onClick={() => onChatOpen(f.user_id, f.display_name || f.username)}>
+                    <MessageCircle size={13} /> 发消息
                   </button>
                   {f.online && (
-                    <button className='sp-icon-btn sp-icon-btn--leaf'
-                      title='邀请种菜' onClick={() => invite(f)}>
-                      <Tractor size={14} />
+                    <button className='sp-txt-btn sp-txt-btn--leaf' onClick={() => invite(f)}>
+                      <Tractor size={13} /> 邀请种菜
                     </button>
                   )}
-                  <button className='sp-icon-btn sp-icon-btn--danger'
-                    title='删除好友' onClick={() => removeFriend(f)}>
-                    <Trash2 size={13} />
+                  <button className='sp-txt-btn sp-txt-btn--danger' onClick={() => removeFriend(f)}>
+                    <Trash2 size={12} /> 删除好友
                   </button>
                 </div>
               </div>
@@ -323,43 +411,44 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
         {/* 好友申请 */}
         {activeTab === 'requests' && (
           requests.length === 0
-            ? <div className='sp-empty'>暂无好友申请</div>
+            ? <div className='sp-empty'>暂无待处理的好友申请 ✅</div>
             : requests.map(r => (
-              <div key={r.request_id} className='sp-friend-row'
-                style={{ background: 'rgba(90,143,180,0.07)', borderColor: 'rgba(90,143,180,0.2)' }}>
-                <Avatar size='small' style={{ background: '#5a8fb4', flexShrink: 0 }}>
-                  {(r.display_name || r.username || '?')[0].toUpperCase()}
-                </Avatar>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-0)' }}>
-                    {r.display_name || r.username}
+              <div key={r.request_id} className='sp-friend-card' style={{ borderColor: 'rgba(90,143,180,0.25)' }}>
+                <div className='sp-friend-card__top'>
+                  <Avatar size='small' style={{ background: '#5a8fb4', flexShrink: 0 }}>
+                    {(r.display_name || r.username || '?')[0].toUpperCase()}
+                  </Avatar>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--sp-text-0)' }}>{r.display_name || r.username}</div>
+                    <div style={{ fontSize: 11, color: 'var(--sp-text-3)', marginTop: 1 }}>想加你为好友 · @{r.username}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--sp-text-3)' }}>@{r.username}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                  <button className='sp-icon-btn sp-icon-btn--leaf' title='接受'
-                    onClick={() => respond(r, 'accept')}><UserCheck size={14} /></button>
-                  <button className='sp-icon-btn sp-icon-btn--danger' title='拒绝'
-                    onClick={() => respond(r, 'reject')}><UserX size={14} /></button>
+                <div className='sp-friend-card__actions'>
+                  <button className='sp-txt-btn sp-txt-btn--leaf' onClick={() => respond(r, 'accept')}>
+                    <UserCheck size={13} /> 接受申请
+                  </button>
+                  <button className='sp-txt-btn sp-txt-btn--danger' onClick={() => respond(r, 'reject')}>
+                    <UserX size={13} /> 拒绝
+                  </button>
                 </div>
               </div>
             ))
         )}
 
-        {/* 搜索用户 */}
+        {/* 搜索 */}
         {activeTab === 'search' && (
           <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <Input prefix={<Search size={13} />} placeholder='搜索用户名或昵称'
-                value={searchQ} onChange={setSearchQ} onEnterPress={doSearch}
-                style={{ flex: 1, fontSize: 13 }} />
-              <button className='sp-action-btn' style={{ background: '#4a7c3f', padding: '0 14px' }}
-                onClick={doSearch}>{searchLoading ? '…' : '搜索'}</button>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, marginTop: 4 }}>
+              <Input prefix={<Search size={13} />} placeholder='输入用户名或昵称搜索'
+                value={searchQ} onChange={setSearchQ} onEnterPress={doSearch} style={{ flex: 1, fontSize: 13 }} />
+              <button className='sp-txt-btn sp-txt-btn--leaf' style={{ flexShrink: 0 }} onClick={doSearch}>
+                {searchLoading ? '搜索中…' : <><Search size={13} /> 搜索</>}
+              </button>
             </div>
             {searchResults === null
               ? <div className='sp-empty'>输入关键词搜索用户</div>
               : searchResults.length === 0
-                ? <div className='sp-empty'>未找到用户</div>
+                ? <div className='sp-empty'>未找到相关用户</div>
                 : searchResults.map(u => <SearchRow key={u.user_id} user={u} />)
             }
           </div>
@@ -372,46 +461,186 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
 const SearchRow = ({ user }) => {
   const [status, setStatus] = useState(user.req_status || (user.is_friend ? 'accepted' : ''));
   const [loading, setLoading] = useState(false);
+  const isFriend = status === 'accepted' || user.is_friend;
+  const isPending = status === 'pending';
   const send = async () => {
     setLoading(true);
     try {
       const { data: res } = await API.post('/api/social/friends/request', { friend_id: user.user_id });
-      if (res.success) { showSuccess(res.message); setStatus('pending'); }
-      else showError(res.message);
+      if (res.success) { showSuccess(res.message); setStatus('pending'); } else showError(res.message);
     } finally { setLoading(false); }
   };
-  const isFriend = status === 'accepted' || user.is_friend;
-  const isPending = status === 'pending';
   return (
-    <div className='sp-friend-row'>
-      <Avatar size='small' style={{ background: '#888', flexShrink: 0 }}>
-        {(user.display_name || user.username || '?')[0].toUpperCase()}
-      </Avatar>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-0)' }}>
-            {user.display_name || user.username}
-          </span>
-          <OnlineDot online={user.online} />
+    <div className='sp-friend-card'>
+      <div className='sp-friend-card__top'>
+        <Avatar size='small' style={{ background: '#777', flexShrink: 0 }}>
+          {(user.display_name || user.username || '?')[0].toUpperCase()}
+        </Avatar>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--sp-text-0)' }}>{user.display_name || user.username}</span>
+            <OnlineDot online={user.online} />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-3)', marginTop: 1 }}>
+            {user.online ? '🟢 在线' : '⚫ 离线'} · @{user.username}
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: 'var(--sp-text-3)' }}>@{user.username}</div>
       </div>
-      <button className='sp-icon-btn'
-        disabled={isFriend || isPending || loading}
-        title={isFriend ? '已是好友' : isPending ? '已申请' : '加好友'}
-        style={{ opacity: isFriend || isPending ? 0.5 : 1 }}
-        onClick={send}>
-        <UserPlus size={14} />
-      </button>
+      <div className='sp-friend-card__actions'>
+        {isFriend
+          ? <span style={{ fontSize: 12, color: 'var(--sp-text-3)' }}>✅ 已是好友</span>
+          : isPending
+            ? <span style={{ fontSize: 12, color: 'var(--sp-text-3)' }}>⏳ 申请已发送</span>
+            : (
+              <button className='sp-txt-btn sp-txt-btn--sky' onClick={send} disabled={loading}>
+                <UserPlus size={13} /> {loading ? '发送中…' : '发送好友申请'}
+              </button>
+            )
+        }
+      </div>
     </div>
   );
 };
 
-/* ══════════════════════════════════════
-   主组件 SocialPanel
-══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   可拖动浮动卡片
+═══════════════════════════════════════════════════════ */
+const CARD_KEY = 'social_card_pos';
+
+const DraggableCard = ({ children, requestCount }) => {
+  const [pos, setPos] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(CARD_KEY) || 'null');
+      if (s && typeof s.x === 'number') return s;
+    } catch { /* ignore */ }
+    return { x: window.innerWidth - 380, y: window.innerHeight - 60 };
+  });
+  const [expanded, setExpanded] = useState(false);
+  const dragging = useRef(false);
+  const offset = useRef({ x: 0, y: 0 });
+  const cardRef = useRef(null);
+
+  // 保持卡片在屏幕内
+  const clamp = useCallback((x, y) => {
+    const w = cardRef.current?.offsetWidth || 340;
+    const h = cardRef.current?.offsetHeight || 48;
+    return {
+      x: Math.max(0, Math.min(window.innerWidth - w, x)),
+      y: Math.max(0, Math.min(window.innerHeight - h, y)),
+    };
+  }, []);
+
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return;
+    dragging.current = true;
+    offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    document.body.style.userSelect = 'none';
+  };
+  const onMouseMove = useCallback((e) => {
+    if (!dragging.current) return;
+    const p = clamp(e.clientX - offset.current.x, e.clientY - offset.current.y);
+    setPos(p);
+  }, [clamp]);
+  const onMouseUp = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    document.body.style.userSelect = '';
+    setPos(prev => {
+      localStorage.setItem(CARD_KEY, JSON.stringify(prev));
+      return prev;
+    });
+  }, []);
+
+  // Touch support
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    dragging.current = true;
+    offset.current = { x: t.clientX - pos.x, y: t.clientY - pos.y };
+  };
+  const onTouchMove = useCallback((e) => {
+    if (!dragging.current) return;
+    const t = e.touches[0];
+    const p = clamp(t.clientX - offset.current.x, t.clientY - offset.current.y);
+    setPos(p);
+  }, [clamp]);
+  const onTouchEnd = useCallback(() => {
+    dragging.current = false;
+    setPos(prev => { localStorage.setItem(CARD_KEY, JSON.stringify(prev)); return prev; });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [onMouseMove, onMouseUp, onTouchMove, onTouchEnd]);
+
+  return (
+    <div ref={cardRef} className={`sp-card${expanded ? ' sp-card--expanded' : ''}`}
+      style={{ left: pos.x, top: pos.y }}>
+      {/* 拖动标题栏 */}
+      <div className='sp-card-header'
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}>
+        <GripHorizontal size={14} style={{ color: 'var(--sp-text-3)', flexShrink: 0 }} />
+        <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>
+          👥 好友社交
+        </span>
+        {requestCount > 0 && !expanded && (
+          <span className='sp-card-badge'>{requestCount > 9 ? '9+' : requestCount}</span>
+        )}
+        <button className='sp-close-btn'
+          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+          title={expanded ? '收起' : '展开'}>
+          {expanded ? <Minus size={14} /> : <Maximize2 size={13} />}
+        </button>
+      </div>
+      {/* 快捷入口行（折叠时可见） */}
+      {!expanded && (
+        <div className='sp-card-quick'>
+          <button className='sp-quick-btn' onClick={() => setExpanded(true)}>
+            <Users size={13} /> 好友列表
+          </button>
+          <button className='sp-quick-btn sp-quick-btn--accent' onClick={() => setExpanded(true)}
+            style={{ position: 'relative' }}>
+            <Bell size={13} /> 好友申请
+            {requestCount > 0 && <span className='sp-mini-badge'>{requestCount}</span>}
+          </button>
+          <button className='sp-quick-btn' onClick={() => setExpanded(true)}>
+            <Search size={13} /> 搜索用户
+          </button>
+        </div>
+      )}
+      {/* 展开内容 */}
+      {expanded && (
+        <div className='sp-card-body'>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════
+   主组件
+═══════════════════════════════════════════════════════ */
 const SocialPanel = () => {
   const [currentUserId, setCurrentUserId] = useState(0);
+  const [chat, setChat] = useState(null);
+  const [notifs, setNotifs] = useState([]);
+  const [requestCount, setRequestCount] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const chatRef = useRef(null);
+  const nextId = useRef(0);
+  const navigate = useNavigate();
+
+  // 读取用户 ID
   useEffect(() => {
     const read = () => {
       try { setCurrentUserId(JSON.parse(localStorage.getItem('user') || '{}').id || 0); }
@@ -421,46 +650,38 @@ const SocialPanel = () => {
     window.addEventListener('storage', read);
     return () => window.removeEventListener('storage', read);
   }, []);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [chat, setChat] = useState(null);           // {friendId, friendName}
-  const [notifs, setNotifs] = useState([]);
-  const [requestCount, setRequestCount] = useState(0);
-  const chatRef = useRef(null);
-  const nextNotifId = useRef(0);
-  const navigate = useNavigate();
 
-  /* ── 接收来自其他组件的打开聊天请求 ── */
+  // 首次使用引导
   useEffect(() => {
-    const handler = (e) => {
-      const { friendId, friendName } = e.detail || {};
-      if (friendId) setChat({ friendId, friendName });
-    };
-    window.addEventListener('social:open-chat', handler);
-    return () => window.removeEventListener('social:open-chat', handler);
+    if (!currentUserId) return;
+    if (!localStorage.getItem(ONBOARD_KEY)) {
+      const t = setTimeout(() => setShowOnboarding(true), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [currentUserId]);
+
+  // 监听 open-chat 事件
+  useEffect(() => {
+    const h = (e) => { const { friendId, friendName } = e.detail || {}; if (friendId) setChat({ friendId, friendName }); };
+    window.addEventListener('social:open-chat', h);
+    return () => window.removeEventListener('social:open-chat', h);
   }, []);
 
-  /* ── 通知 ── */
+  // 通知
   const addNotif = useCallback((ev) => {
-    const id = nextNotifId.current++;
+    const id = nextId.current++;
     setNotifs(prev => [...prev, { ...ev, id }]);
     setTimeout(() => setNotifs(prev => prev.filter(n => n.id !== id)), 10000);
   }, []);
 
-  const dismissNotif = useCallback((id) => setNotifs(prev => prev.filter(n => n.id !== id)), []);
-
-  const handleNotifAction = useCallback((notif, actionType) => {
-    if (actionType === 'accept') {
-      API.post('/api/social/friends/respond', { request_id: notif.payload?.request_id, action: 'accept' });
-    } else if (actionType === 'reject') {
-      API.post('/api/social/friends/respond', { request_id: notif.payload?.request_id, action: 'reject' });
-    } else if (actionType === 'go_farm') {
-      navigate('/farm');
-    } else if (actionType === 'open_chat') {
-      setChat({ friendId: notif.from_id, friendName: notif.from_name });
-    }
+  const handleNotifAction = useCallback((notif, type) => {
+    if (type === 'accept') API.post('/api/social/friends/respond', { request_id: notif.payload?.request_id, action: 'accept' });
+    else if (type === 'reject') API.post('/api/social/friends/respond', { request_id: notif.payload?.request_id, action: 'reject' });
+    else if (type === 'go_farm') navigate('/farm');
+    else if (type === 'open_chat') setChat({ friendId: notif.from_id, friendName: notif.from_name });
   }, [navigate]);
 
-  /* ── 事件轮询 ── */
+  // 事件轮询
   useEffect(() => {
     if (!currentUserId) return;
     let alive = true;
@@ -470,36 +691,22 @@ const SocialPanel = () => {
         if (!alive || !res.success) return;
         for (const ev of (res.data?.events ?? [])) {
           if (ev.type === 'chat_message') {
-            // 推入已打开的聊天窗
-            if (chat?.friendId === ev.from_id) {
-              chatRef.current?.pushMessage(ev.payload);
-            } else {
-              // 没打开 → 显示通知
-              addNotif(ev);
-              // 自动打开聊天
-              setChat({ friendId: ev.from_id, friendName: ev.from_name });
-              setTimeout(() => chatRef.current?.pushMessage(ev.payload), 120);
-            }
+            if (chat?.friendId === ev.from_id) chatRef.current?.pushMessage(ev.payload);
+            else { addNotif(ev); setChat({ friendId: ev.from_id, friendName: ev.from_name }); setTimeout(() => chatRef.current?.pushMessage(ev.payload), 120); }
           } else if (ev.type === 'typing') {
-            if (chat?.friendId === ev.from_id) {
-              chatRef.current?.showTyping();
-            }
+            if (chat?.friendId === ev.from_id) chatRef.current?.showTyping();
           } else if (ev.type === 'messages_read') {
-            if (chat?.friendId === ev.from_id) {
-              chatRef.current?.markRead();
-            }
-          } else {
-            addNotif(ev);
-          }
+            if (chat?.friendId === ev.from_id) chatRef.current?.markRead();
+          } else { addNotif(ev); }
         }
       } catch { /* ignore */ }
     };
     poll();
-    const timer = setInterval(poll, 3000);
-    return () => { alive = false; clearInterval(timer); };
+    const t = setInterval(poll, 3000);
+    return () => { alive = false; clearInterval(t); };
   }, [currentUserId, addNotif, chat]);
 
-  /* ── 统计申请数（更新角标）── */
+  // 申请数
   useEffect(() => {
     if (!currentUserId) return;
     const poll = async () => {
@@ -508,64 +715,34 @@ const SocialPanel = () => {
         if (res.success) setRequestCount((res.data || []).length);
       } catch { /* ignore */ }
     };
-    poll();
-    const t = setInterval(poll, 15000);
-    return () => clearInterval(t);
+    poll(); const t = setInterval(poll, 15000); return () => clearInterval(t);
   }, [currentUserId]);
 
   if (!currentUserId) return null;
 
   return (
     <>
-      {/* 右侧浮动按钮 */}
-      <button
-        className={`sp-fab${panelOpen ? ' sp-fab--open' : ''}`}
-        onClick={() => setPanelOpen(v => !v)}
-        title='社交'
-      >
-        <Users size={20} />
-        {requestCount > 0 && !panelOpen && (
-          <span className='sp-fab-badge'>{requestCount > 9 ? '9+' : requestCount}</span>
-        )}
-      </button>
+      {/* 新手引导 */}
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
 
-      {/* 滑出面板 */}
-      <div className={`sp-panel${panelOpen ? ' sp-panel--open' : ''}`}>
-        <div className='sp-panel-header'>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>👥 社交</span>
-          <button className='sp-icon-btn' onClick={() => setPanelOpen(false)}>
-            <X size={16} />
-          </button>
-        </div>
-        <div className='sp-panel-body'>
-          <FriendPanel currentUserId={currentUserId} onChatOpen={(id, name) => {
-            setChat({ friendId: id, friendName: name });
-            setPanelOpen(false);
-          }} />
-        </div>
-      </div>
-
-      {/* 面板遮罩 */}
-      {panelOpen && <div className='sp-overlay' onClick={() => setPanelOpen(false)} />}
+      {/* 可拖动浮动卡片 */}
+      <DraggableCard requestCount={requestCount}>
+        <FriendPanel currentUserId={currentUserId} onChatOpen={(id, name) => setChat({ friendId: id, friendName: name })} />
+      </DraggableCard>
 
       {/* 通知弹窗 */}
       {notifs.length > 0 && (
         <div className='sp-notif-container'>
           {notifs.map(n => (
-            <NotifCard key={n.id} notif={n} onDismiss={dismissNotif} onAction={handleNotifAction} />
+            <NotifCard key={n.id} notif={n} onDismiss={(id) => setNotifs(p => p.filter(x => x.id !== id))} onAction={handleNotifAction} />
           ))}
         </div>
       )}
 
       {/* 聊天窗口 */}
       {chat && (
-        <ChatWidget
-          ref={chatRef}
-          friendId={chat.friendId}
-          friendName={chat.friendName}
-          currentUserId={currentUserId}
-          onClose={() => setChat(null)}
-        />
+        <ChatWidget ref={chatRef} friendId={chat.friendId} friendName={chat.friendName}
+          currentUserId={currentUserId} onClose={() => setChat(null)} />
       )}
     </>
   );
