@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Tabs, TabPane, Avatar, Badge } from '@douyinfe/semi-ui';
 import { Search, UserPlus, UserCheck, UserX, Trash2, MessageCircle, Tractor } from 'lucide-react';
 import { API, showSuccess, showError } from '../../../helpers';
+import { farmConfirm } from './farmConfirm';
 
 /* ─── 在线状态圆点 ─── */
 const OnlineDot = ({ online }) => (
@@ -235,7 +236,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
   };
 
   const handleRemove = async (friend) => {
-    if (!window.confirm(`确定要删除好友 ${friend.display_name || friend.username} 吗？`)) return;
+    if (!await farmConfirm('删除好友', `确定要删除好友「${friend.display_name || friend.username}」吗？删除后需重新申请。`, { icon: '👤', confirmType: 'danger', confirmText: '删除好友' })) return;
     const { data: res } = await API.delete(`/api/social/friends/${friend.user_id}`);
     if (res.success) {
       showSuccess(res.message);

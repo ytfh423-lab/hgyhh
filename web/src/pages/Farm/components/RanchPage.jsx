@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button, Empty, Spin, Tag, Typography } from '@douyinfe/semi-ui';
 import { RefreshCw } from 'lucide-react';
 import { API, formatBalance, formatDuration } from './utils';
+import { farmConfirm } from './farmConfirm';
 
 const { Text, Title } = Typography;
 
@@ -138,7 +139,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
                   )}
                   {animal.status !== 5 && (
                     <Button size='small' theme='light' type='danger'
-                      onClick={() => { if (window.confirm(t('确定要放生这只动物吗？不会退款。'))) doRanchAction('/api/ranch/release', { animal_id: animal.id }); }}
+                      onClick={async () => { if (await farmConfirm(t('放生动物'), t('确定要放生这只动物吗？不会退款。'), { icon: '🐾', confirmType: 'danger', confirmText: t('放生') })) doRanchAction('/api/ranch/release', { animal_id: animal.id }); }}
                       loading={actionLoading} className='farm-btn'>
                       🔓 {t('放生')}
                     </Button>

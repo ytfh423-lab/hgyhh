@@ -1,18 +1,5 @@
-import { Modal } from '@douyinfe/semi-ui';
-
 export { API, showError, showSuccess } from '../../../helpers';
-
-export const confirmAction = (title, content) =>
-  new Promise((resolve) => {
-    Modal.confirm({
-      title,
-      content,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => resolve(true),
-      onCancel: () => resolve(false),
-    });
-  });
+export { farmConfirm as confirmAction } from './farmConfirm';
 
 export const formatDuration = (secs) => {
   if (!secs || secs <= 0) return '0分';

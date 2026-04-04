@@ -17,6 +17,7 @@ import {
 import { API, showSuccess, showError } from '../../helpers';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
+import { farmConfirm } from '../../pages/Farm/components/farmConfirm';
 import './social.css';
 
 /* ─────────────────────── helpers ─────────────────────── */
@@ -350,7 +351,7 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
   };
 
   const removeFriend = async (f) => {
-    if (!window.confirm(`确定删除好友 ${f.display_name || f.username}？`)) return;
+    if (!await farmConfirm('删除好友', `确定要删除好友「${f.display_name || f.username}」吗？删除后需重新申请。`, { icon: '👤', confirmType: 'danger', confirmText: '删除好友' })) return;
     const { data: res } = await API.delete(`/api/social/friends/${f.user_id}`);
     if (res.success) { showSuccess(res.message); load(); } else showError(res.message);
   };

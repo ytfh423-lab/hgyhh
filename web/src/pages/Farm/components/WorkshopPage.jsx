@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { Button, Spin, Typography } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, formatDuration } from './utils';
+import { farmConfirm } from './farmConfirm';
 
 const { Text } = Typography;
 
@@ -153,7 +154,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
                       <span>${p.sell_price.toFixed(2)}</span>
                       {p.status !== 2 && (
                         <Button size='small' theme='light' type='danger'
-                          onClick={() => { if (window.confirm(t('确定要取消这个加工任务吗？材料不会退还。'))) { doAction('/api/farm/workshop/cancel', { process_id: p.id }).then(r => { if (r) { loadWorkshop(); loadFarm(); } }); } }}
+                          onClick={async () => { if (await farmConfirm(t('取消加工'), t('确定要取消这个加工任务吗？材料不会退还。'), { icon: '🏭', confirmType: 'danger', confirmText: t('取消加工') })) { doAction('/api/farm/workshop/cancel', { process_id: p.id }).then(r => { if (r) { loadWorkshop(); loadFarm(); } }); } }}
                           loading={wsLoading} className='farm-btn' style={{ padding: '0 6px', fontSize: 11 }}>
                           ✕
                         </Button>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button, Empty, Modal, Spin, Tag, Typography, InputNumber, Select, Radio, RadioGroup } from '@douyinfe/semi-ui';
 import { RefreshCw } from 'lucide-react';
 import { API, showError, showSuccess, formatDuration, formatBalance } from './utils';
+import { farmConfirm } from './farmConfirm';
 
 const { Text, Title } = Typography;
 
@@ -81,7 +82,7 @@ const TaskCard = ({ task, mode, onAccept, onCancel, onWork, actionLoading, t }) 
           )}
           {mode === 'owner' && (task.status === 'published' || task.status === 'in_progress') && (
             <Button size='small' theme='light' type='danger' loading={actionLoading}
-              onClick={() => { if (window.confirm(t('确定取消该委托？已完成部分将按比例结算。'))) onCancel(task.id); }}
+              onClick={async () => { if (await farmConfirm(t('取消委托'), t('确定取消该委托？已完成部分将按比例结算。'), { icon: '📋', confirmType: 'danger', confirmText: t('取消委托') })) onCancel(task.id); }}
               className='farm-btn'>
               ✕ {t('取消')}
             </Button>
@@ -327,7 +328,7 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
   };
 
   const handleAbandon = async (taskId) => {
-    if (!window.confirm(t('确定放弃该委托？'))) return;
+    if (!await farmConfirm(t('放弃委托'), t('确定放弃该委托？'), { icon: '🤝', confirmType: 'danger', confirmText: t('放弃') })) return;
     try {
       const { data: res } = await API.post('/api/farm/entrust/abandon', { task_id: taskId });
       if (res.success) { showSuccess(res.message); loadMyAccepted(); }

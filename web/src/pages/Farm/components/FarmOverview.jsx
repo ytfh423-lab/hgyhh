@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { Button, Typography, Select } from '@douyinfe/semi-ui';
 import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2, Zap, Users } from 'lucide-react';
 import { formatBalance, formatDuration, confirmAction } from './utils';
+import { farmConfirm } from './farmConfirm';
 import { useTutorial } from './TutorialProvider';
 import FarmAnnouncementBar from './FarmAnnouncementBar';
 import { API } from '../../../helpers';
@@ -178,7 +179,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           </Button>
         )}
         <Button size='small' icon={<Trash2 size={12} />}
-          onClick={e => { e.stopPropagation(); if (window.confirm(t('确定要铲除这块地的作物吗？'))) handleClearPlot(plot.plot_index); }}
+          onClick={async e => { e.stopPropagation(); if (await farmConfirm(t('铲除作物'), t('确定要铲除这块地的作物吗？'), { icon: '🗑', confirmType: 'danger', confirmText: t('铲除') })) handleClearPlot(plot.plot_index); }}
           loading={actionLoading} className='farm-btn'
           style={{ background: 'rgba(184,66,51,0.08)', border: '1px solid rgba(184,66,51,0.2)', color: 'var(--farm-danger)' }}>
           {t('铲除')}

@@ -38,6 +38,7 @@ import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useLocation } from 'react-router-dom';
 import SocialPanel from '../social/SocialPanel';
+import { FarmConfirmProvider } from '../../pages/Farm/components/farmConfirm';
 const { Sider, Content, Header } = Layout;
 
 const PageLayout = () => {
@@ -227,6 +228,7 @@ const PageLayout = () => {
       </Layout>
       <ToastContainer />
       <SocialPanel />
+      <FarmConfirmProvider />
     </Layout>
   );
 };
