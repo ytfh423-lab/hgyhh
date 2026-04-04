@@ -308,6 +308,7 @@
     "优惠": "特典",
     "低于此额度时将发送邮件提醒用户": "このクォータを下回った場合に、ユーザーへメールで通知します。",
     "余额": "残高",
+    "当前在线": "オンライン",
     "余额充值管理": "残高チャージ管理",
     "你似乎并没有修改什么": "何も変更されていないようです",
     "你可以在“自定义模型名称”处手动添加它们，然后点击填入后再提交，或者直接使用下方操作自动处理。": "You can manually add them under “Custom model names”, click Fill and submit, or use the actions below to handle them automatically.",

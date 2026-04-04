@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"math/rand"
@@ -13,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 )
 
 // ========== 管理员钓鱼神器 ==========
@@ -468,6 +470,9 @@ func WebFarmView(c *gin.Context) {
 		"ends_in":  weather.EndsAt - now,
 		"season":   getCurrentSeason(),
 	}
+
+	// 记录在线心跳
+	farmOnlineHeartbeat(tgId)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -3742,4 +3747,71 @@ func WebWorkshopCancel(c *gin.Context) {
 	_ = model.DeleteFarmProcess(req.ProcessId)
 	model.AddFarmLog(tgId, "workshop_cancel", 0, fmt.Sprintf("取消加工%s", recipeName))
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "已取消该加工任务"})
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   农场实时在线人数
+   ═══════════════════════════════════════════════════════════════ */
+
+const (
+	farmOnlineKey    = "farm:online"
+	farmOnlineTTLSec = 300 // 5 分钟内有活动视为在线
+)
+
+// 内存回退：Redis 不可用时使用
+var farmOnlineMemory sync.Map // farmId -> int64(unix timestamp)
+
+// farmOnlineHeartbeat 记录用户活跃心跳
+func farmOnlineHeartbeat(farmId string) {
+	now := time.Now().Unix()
+	if common.RedisEnabled {
+		ctx := context.Background()
+		common.RDB.ZAdd(ctx, farmOnlineKey, &redis.Z{
+			Score:  float64(now),
+			Member: farmId,
+		})
+		// 清理过期成员，避免集合无限增长
+		cutoff := float64(now - farmOnlineTTLSec)
+		common.RDB.ZRemRangeByScore(ctx, farmOnlineKey, "-inf", fmt.Sprintf("%f", cutoff))
+	} else {
+		farmOnlineMemory.Store(farmId, now)
+	}
+}
+
+// farmOnlineCount 返回当前在线人数
+func farmOnlineCount() int64 {
+	now := time.Now().Unix()
+	if common.RedisEnabled {
+		ctx := context.Background()
+		min := fmt.Sprintf("%d", now-farmOnlineTTLSec)
+		max := "+inf"
+		count, err := common.RDB.ZCount(ctx, farmOnlineKey, min, max).Result()
+		if err != nil {
+			return 0
+		}
+		return count
+	}
+	// 内存回退
+	var count int64
+	cutoff := now - farmOnlineTTLSec
+	farmOnlineMemory.Range(func(key, value interface{}) bool {
+		ts, ok := value.(int64)
+		if ok && ts >= cutoff {
+			count++
+		} else {
+			farmOnlineMemory.Delete(key)
+		}
+		return true
+	})
+	return count
+}
+
+// WebFarmOnlineCount GET /api/farm/online — 返回实时在线人数
+func WebFarmOnlineCount(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"online_count": farmOnlineCount(),
+		},
+	})
 }

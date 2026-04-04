@@ -1,6 +1,6 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { Button, Typography, Select } from '@douyinfe/semi-ui';
-import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2, Zap } from 'lucide-react';
+import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2, Zap, Users } from 'lucide-react';
 import { formatBalance, formatDuration, confirmAction } from './utils';
 import { useTutorial } from './TutorialProvider';
 import FarmAnnouncementBar from './FarmAnnouncementBar';
@@ -240,6 +240,43 @@ const TutorialRestartButton = ({ t }) => {
   );
 };
 
+const OnlineBadge = ({ t }) => {
+  const [count, setCount] = useState(null);
+  const timerRef = useRef(null);
+
+  const fetchOnline = useCallback(async () => {
+    try {
+      const res = await fetch('/api/farm/online');
+      const json = await res.json();
+      if (json.success) setCount(json.data.online_count);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchOnline();
+    timerRef.current = setInterval(fetchOnline, 30000); // 每 30 秒刷新
+    return () => clearInterval(timerRef.current);
+  }, [fetchOnline]);
+
+  if (count === null) return null;
+
+  return (
+    <div className='farm-stat-card' style={{ background: 'rgba(74,124,63,0.08)', border: '1px solid rgba(74,124,63,0.18)' }}>
+      <Users size={20} strokeWidth={2} style={{ color: 'var(--farm-leaf)', flexShrink: 0 }} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, color: 'var(--farm-text-2)', whiteSpace: 'nowrap', letterSpacing: 0.3 }}>{t('当前在线')}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--farm-leaf)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+            background: '#4caf50', boxShadow: '0 0 6px rgba(76,175,80,0.6)',
+          }} />
+          {count}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAction, t }) => {
   const [expandedPlot, setExpandedPlot] = useState(null);
   const [plantCrop, setPlantCrop] = useState('');
@@ -313,6 +350,7 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
         {matureCount > 0 && <StatCard emoji='✅' label={t('可收获')} value={matureCount} accent='var(--farm-leaf)' />}
         {eventCount > 0 && <StatCard emoji='⚠️' label={t('需处理')} value={eventCount} accent='var(--farm-danger)' />}
         {emptyCount > 0 && <StatCard emoji='⬜' label={t('空地')} value={emptyCount} />}
+        <OnlineBadge t={t} />
         <div style={{ marginLeft: 'auto' }}>
           <TutorialRestartButton t={t} />
         </div>
