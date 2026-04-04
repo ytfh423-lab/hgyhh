@@ -112,7 +112,7 @@ const SearchCard = ({ user, onRequest, t }) => {
   const send = async () => {
     setLoading(true);
     try {
-      const { data: res } = await API.post('/api/farm/friends/request', { friend_id: user.user_id });
+      const { data: res } = await API.post('/api/social/friends/request', { friend_id: user.user_id });
       if (res.success) {
         showSuccess(res.message);
         setStatus('pending');
@@ -179,14 +179,14 @@ const FriendListPage = ({ onChatOpen, t }) => {
 
   const loadFriends = useCallback(async () => {
     try {
-      const { data: res } = await API.get('/api/farm/friends');
+      const { data: res } = await API.get('/api/social/friends');
       if (res.success) setFriends(res.data || []);
     } catch { /* ignore */ }
   }, []);
 
   const loadRequests = useCallback(async () => {
     try {
-      const { data: res } = await API.get('/api/farm/friends/requests');
+      const { data: res } = await API.get('/api/social/friends/requests');
       if (res.success) setRequests(res.data || []);
     } catch { /* ignore */ }
   }, []);
@@ -202,7 +202,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
     if (!searchQ.trim()) return;
     setSearchLoading(true);
     try {
-      const { data: res } = await API.get(`/api/farm/friends/search?q=${encodeURIComponent(searchQ)}`);
+      const { data: res } = await API.get(`/api/social/friends/search?q=${encodeURIComponent(searchQ)}`);
       if (res.success) setSearchResults(res.data || []);
       else showError(res.message);
     } finally {
@@ -213,7 +213,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
   const handleAccept = async (req) => {
     setLoading(true);
     try {
-      const { data: res } = await API.post('/api/farm/friends/respond',
+      const { data: res } = await API.post('/api/social/friends/respond',
         { request_id: req.request_id, action: 'accept' });
       if (res.success) {
         showSuccess(res.message);
@@ -226,7 +226,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
   const handleReject = async (req) => {
     setLoading(true);
     try {
-      const { data: res } = await API.post('/api/farm/friends/respond',
+      const { data: res } = await API.post('/api/social/friends/respond',
         { request_id: req.request_id, action: 'reject' });
       if (res.success) {
         setRequests((prev) => prev.filter((r) => r.request_id !== req.request_id));
@@ -236,7 +236,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
 
   const handleRemove = async (friend) => {
     if (!window.confirm(`确定要删除好友 ${friend.display_name || friend.username} 吗？`)) return;
-    const { data: res } = await API.delete(`/api/farm/friends/${friend.user_id}`);
+    const { data: res } = await API.delete(`/api/social/friends/${friend.user_id}`);
     if (res.success) {
       showSuccess(res.message);
       setFriends((prev) => prev.filter((f) => f.user_id !== friend.user_id));
@@ -244,7 +244,7 @@ const FriendListPage = ({ onChatOpen, t }) => {
   };
 
   const handleInvite = async (friend) => {
-    const { data: res } = await API.post('/api/farm/invite', { friend_id: friend.user_id });
+    const { data: res } = await API.post('/api/social/invite', { friend_id: friend.user_id });
     if (res.success) showSuccess(res.message);
     else showError(res.message);
   };

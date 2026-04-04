@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useContext, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
@@ -38,8 +38,6 @@ import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
 import { FEATURE_LEVEL_MAP } from './constants';
 import FriendListPage from './components/FriendListPage';
-import FriendChatWidget from './components/FriendChatWidget';
-import FarmNotification from './components/FarmNotification';
 
 const { Text, Title } = Typography;
 
@@ -216,51 +214,24 @@ const Farm = () => {
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
 
-  // 好友 & 聊天状态
-  const [chatOpen, setChatOpen] = useState(null); // {friendId, friendName}
+  // 好友请求数（从 SocialPanel 事件同步，用于侧边栏角标）
   const [friendRequestCount, setFriendRequestCount] = useState(0);
-  const [currentUserId, setCurrentUserId] = useState(0);
-  const chatWidgetRef = useRef(null); // 用于直接调用 pushMessage
-
-  // 获取当前用户 ID
   useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}');
-      if (u.id) setCurrentUserId(u.id);
-    } catch { /* ignore */ }
-  }, []);
-
-  // 轮询好友申请数
-  useEffect(() => {
-    if (!currentUserId) return;
     const poll = async () => {
       try {
-        const { data: res } = await API.get('/api/farm/friends/requests', { disableDuplicate: true });
+        const { data: res } = await API.get('/api/social/friends/requests', { disableDuplicate: true });
         if (res.success) setFriendRequestCount((res.data || []).length);
       } catch { /* ignore */ }
     };
     poll();
-    const t2 = setInterval(poll, 15000);
+    const t2 = setInterval(poll, 20000);
     return () => clearInterval(t2);
-  }, [currentUserId]);
-
-  const openChat = useCallback((friendId, friendName) => {
-    setChatOpen({ friendId, friendName });
   }, []);
 
-  // 收到对方聊天消息：若聊天窗已打开就直接推入，否则 FarmNotification 会弹提示
-  const handleChatMessage = useCallback((fromId, fromName, payload) => {
-    if (chatWidgetRef.current && chatOpen?.friendId === fromId) {
-      chatWidgetRef.current.pushMessage(payload);
-    } else if (!chatOpen || chatOpen.friendId !== fromId) {
-      // 聊天窗未打开该好友 — 自动打开并推入消息
-      setChatOpen({ friendId: fromId, friendName: fromName });
-      // pushMessage 会在下一渲染周期通过 ref 调用
-      setTimeout(() => {
-        chatWidgetRef.current?.pushMessage(payload);
-      }, 100);
-    }
-  }, [chatOpen]);
+  // 打开聊天：派发全局事件给 SocialPanel
+  const openChat = useCallback((friendId, friendName) => {
+    window.dispatchEvent(new CustomEvent('social:open-chat', { detail: { friendId, friendName } }));
+  }, []);
 
   const navigateTo = useCallback((page) => {
     setActivePage(page);
@@ -602,28 +573,6 @@ const Farm = () => {
           </div>
         </div>
         <JoinGroupButton t={t} />
-
-        {/* 全局实时通知弹窗 */}
-        {currentUserId > 0 && (
-          <FarmNotification
-            userId={currentUserId}
-            onChatOpen={openChat}
-            onChatMessage={handleChatMessage}
-            openChatFriendId={chatOpen?.friendId ?? null}
-          />
-        )}
-
-        {/* 聊天窗口 */}
-        {chatOpen && currentUserId > 0 && (
-          <FriendChatWidget
-            ref={chatWidgetRef}
-            friendId={chatOpen.friendId}
-            friendName={chatOpen.friendName}
-            currentUserId={currentUserId}
-            onClose={() => setChatOpen(null)}
-          />
-        )}
-
         <MobileBottomNav
           activeKey={activePage}
           onNavigate={navigateTo}

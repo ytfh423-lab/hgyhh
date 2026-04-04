@@ -37,6 +37,7 @@ import {
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useLocation } from 'react-router-dom';
+import SocialPanel from '../social/SocialPanel';
 const { Sider, Content, Header } = Layout;
 
 const PageLayout = () => {
@@ -225,6 +226,7 @@ const PageLayout = () => {
         </Layout>
       </Layout>
       <ToastContainer />
+      <SocialPanel />
     </Layout>
   );
 };

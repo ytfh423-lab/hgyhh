@@ -396,7 +396,7 @@ func WebFarmInviteFriend(c *gin.Context) {
    站内聊天
    ═══════════════════════════════════════════════════════════════ */
 
-// GET /api/farm/chat/:friend_id
+// GET /api/farm/chat/:friend_id  (also used by /api/social/chat/:friend_id)
 func WebFarmChatHistory(c *gin.Context) {
 	userId := c.GetInt("id")
 	if userId == 0 {
@@ -418,6 +418,14 @@ func WebFarmChatHistory(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
 		return
 	}
+	// 通知好友：我已读了他发的消息
+	me, _ := model.GetUserById(userId, false)
+	pushEvent(friendId, FarmEvent{
+		Type:     "messages_read",
+		FromId:   userId,
+		FromName: nameOf(me),
+		Payload:  map[string]interface{}{"reader_id": userId},
+	})
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": msgs})
 }
 
@@ -472,6 +480,37 @@ func WebFarmChatSend(c *gin.Context) {
 		},
 	})
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": msg})
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Typing 指示器
+   ═══════════════════════════════════════════════════════════════ */
+
+// POST /api/social/chat/typing  body: {friend_id: int}
+func WebFarmChatTyping(c *gin.Context) {
+	userId := c.GetInt("id")
+	if userId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false})
+		return
+	}
+	var req struct {
+		FriendId int `json:"friend_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.FriendId == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false})
+		return
+	}
+	if !model.IsFriend(userId, req.FriendId) {
+		c.JSON(http.StatusOK, gin.H{"success": false})
+		return
+	}
+	me, _ := model.GetUserById(userId, false)
+	pushEvent(req.FriendId, FarmEvent{
+		Type:     "typing",
+		FromId:   userId,
+		FromName: nameOf(me),
+	})
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 /* ═══════════════════════════════════════════════════════════════

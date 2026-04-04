@@ -19,6 +19,23 @@ func SetApiRouter(router *gin.Engine) {
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	{
 		apiRouter.POST("/heartbeat", middleware.UserAuth(), controller.SiteHeartbeat)
+
+		// 全站社交路由（不要求农场 beta 资格）
+		socialRoute := apiRouter.Group("/social")
+		socialRoute.Use(middleware.UserAuth())
+		{
+			socialRoute.GET("/events/poll", controller.WebFarmEventsPoll)
+			socialRoute.GET("/friends", controller.WebFarmFriendList)
+			socialRoute.GET("/friends/requests", controller.WebFarmFriendRequests)
+			socialRoute.GET("/friends/search", controller.WebFarmFriendSearch)
+			socialRoute.POST("/friends/request", controller.WebFarmFriendRequest)
+			socialRoute.POST("/friends/respond", controller.WebFarmFriendRespond)
+			socialRoute.DELETE("/friends/:friend_id", controller.WebFarmFriendRemove)
+			socialRoute.POST("/invite", controller.WebFarmInviteFriend)
+			socialRoute.POST("/chat/typing", controller.WebFarmChatTyping)
+			socialRoute.GET("/chat/:friend_id", controller.WebFarmChatHistory)
+			socialRoute.POST("/chat/:friend_id", controller.WebFarmChatSend)
+		}
 		apiRouter.GET("/setup", controller.GetSetup)
 		apiRouter.POST("/setup", controller.PostSetup)
 		apiRouter.GET("/status", controller.GetStatus)

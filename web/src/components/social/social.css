@@ -1,0 +1,264 @@
+/* ====== Social Panel Design System ====== */
+:root {
+  --sp-bg: rgba(18, 24, 14, 0.97);
+  --sp-border: rgba(255,255,255,0.1);
+  --sp-text-0: #e8e4da;
+  --sp-text-1: #c8c0b0;
+  --sp-text-2: #9a9080;
+  --sp-text-3: #6a6258;
+  --sp-leaf: #4a7c3f;
+  --sp-sky: #5a8fb4;
+  --sp-danger: #b84233;
+  --sp-harvest: #c8921a;
+  --sp-radius: 14px;
+}
+
+/* ── 浮动按钮 ── */
+.sp-fab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 8000;
+  width: 44px;
+  height: 56px;
+  border-radius: 12px 0 0 12px;
+  background: var(--sp-leaf);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: -3px 0 16px rgba(0,0,0,0.3);
+  transition: width 0.2s, background 0.2s;
+}
+.sp-fab:hover { width: 50px; background: #3a6432; }
+.sp-fab--open { background: #2d4f27; width: 50px; }
+.sp-fab-badge {
+  position: absolute;
+  top: 6px; right: 6px;
+  background: var(--sp-danger);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+/* ── 滑出面板 ── */
+.sp-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 360px;
+  max-width: 92vw;
+  z-index: 7999;
+  background: var(--sp-bg);
+  border-left: 1px solid var(--sp-border);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.35);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  display: flex;
+  flex-direction: column;
+}
+.sp-panel--open { transform: translateX(0); }
+.sp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--sp-border);
+  flex-shrink: 0;
+}
+.sp-panel-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 遮罩 ── */
+.sp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 7998;
+  background: rgba(0,0,0,0.35);
+}
+
+/* ── 好友行 ── */
+.sp-friend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 6px;
+  transition: background 0.15s;
+}
+.sp-friend-row:hover { background: rgba(255,255,255,0.06); }
+.sp-empty {
+  text-align: center;
+  color: var(--sp-text-3);
+  font-size: 13px;
+  padding: 36px 0;
+}
+
+/* ── 图标按钮 ── */
+.sp-icon-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--sp-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.sp-icon-btn:hover { background: rgba(255,255,255,0.14); color: var(--sp-text-0); }
+.sp-icon-btn:disabled { opacity: 0.35; cursor: default; }
+.sp-icon-btn--sky  { color: var(--sp-sky);    border-color: rgba(90,143,180,0.3);  background: rgba(90,143,180,0.1); }
+.sp-icon-btn--leaf { color: var(--sp-leaf);   border-color: rgba(74,124,63,0.3);   background: rgba(74,124,63,0.1); }
+.sp-icon-btn--danger { color: var(--sp-danger); border-color: rgba(184,66,51,0.25); background: rgba(184,66,51,0.08); }
+.sp-icon-btn--sky:hover  { background: rgba(90,143,180,0.22); }
+.sp-icon-btn--leaf:hover { background: rgba(74,124,63,0.22); }
+.sp-icon-btn--danger:hover { background: rgba(184,66,51,0.2); }
+
+/* ── 操作按钮 ── */
+.sp-action-btn {
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  transition: filter 0.15s;
+  height: 30px;
+  white-space: nowrap;
+}
+.sp-action-btn:hover { filter: brightness(1.15); }
+
+/* ── 角标 ── */
+.sp-badge {
+  background: var(--sp-danger);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+/* ── 通知弹窗 ── */
+.sp-notif-container {
+  position: fixed;
+  bottom: 28px;
+  right: 62px; /* fab 宽度右边留空 */
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 390px;
+  max-width: calc(100vw - 80px);
+  pointer-events: none;
+}
+.sp-notif-card {
+  pointer-events: all;
+  border-radius: 14px;
+  padding: 16px 18px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  animation: sp-notif-in 0.25s ease;
+}
+.sp-notif-out { animation: sp-notif-out 0.25s ease forwards; }
+@keyframes sp-notif-in {
+  from { transform: translateX(50px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes sp-notif-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(50px); opacity: 0; }
+}
+
+/* ── 聊天窗口 ── */
+.sp-chat-widget {
+  position: fixed;
+  bottom: 28px;
+  right: 62px;
+  width: 390px;
+  max-width: calc(100vw - 80px);
+  z-index: 8001;
+  border-radius: 16px;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-border);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.38);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sp-chat-header {
+  display: flex;
+  align-items: center;
+  padding: 13px 16px;
+  background: rgba(74,124,63,0.22);
+  border-bottom: 1px solid var(--sp-border);
+  cursor: pointer;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sp-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 8px;
+  max-height: 400px;
+  min-height: 160px;
+}
+.sp-chat-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--sp-border);
+  flex-shrink: 0;
+}
+
+/* ── 正在输入动画 ── */
+.sp-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 14px;
+  border-radius: 16px 16px 16px 4px;
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.12);
+  width: fit-content;
+}
+.sp-typing-indicator span {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--sp-text-2);
+  animation: sp-typing-bounce 1.2s infinite;
+}
+.sp-typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.sp-typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes sp-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
