@@ -38,6 +38,7 @@ import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
 import { FEATURE_LEVEL_MAP } from './constants';
 import FriendListPage from './components/FriendListPage';
+import VisitFarmPage from './components/VisitFarmPage';
 
 const { Text, Title } = Typography;
 
@@ -233,9 +234,25 @@ const Farm = () => {
     window.dispatchEvent(new CustomEvent('social:open-chat', { detail: { friendId, friendName } }));
   }, []);
 
+  // 访问好友农场状态
+  const [visitFriend, setVisitFriend] = useState(null); // {id, name}
+
+  useEffect(() => {
+    const handler = (e) => {
+      const { friendId, friendName } = e.detail || {};
+      if (friendId) {
+        setVisitFriend({ id: friendId, name: friendName });
+        setActivePage('visit');
+      }
+    };
+    window.addEventListener('farm:visit-friend', handler);
+    return () => window.removeEventListener('farm:visit-friend', handler);
+  }, []);
+
   const navigateTo = useCallback((page) => {
     setActivePage(page);
     if (page !== 'entrust') setEntrustWorkTaskId(null);
+    if (page !== 'visit') setVisitFriend(null);
   }, []);
 
   const loadFarm = useCallback(async () => {
@@ -553,6 +570,15 @@ const Farm = () => {
         return <LogsPage t={t} />;
       case 'friends':
         return <FriendListPage onChatOpen={openChat} t={t} />;
+      case 'visit':
+        return visitFriend ? (
+          <VisitFarmPage
+            friendId={visitFriend.id}
+            friendName={visitFriend.name}
+            onBack={() => navigateTo('friends')}
+            t={t}
+          />
+        ) : null;
       default:
         return <FarmOverview {...commonProps} crops={crops} loading={loading} />;
     }

@@ -13,6 +13,10 @@ const OnlineDot = ({ online }) => (
   }} />
 );
 
+const dispatchVisitFarm = (friendId, friendName) => {
+  window.dispatchEvent(new CustomEvent('farm:visit-friend', { detail: { friendId, friendName } }));
+};
+
 /* ─── 好友卡片 ─── */
 const FriendCard = ({ friend, onChat, onInvite, onRemove, t }) => (
   <div className='farm-row' style={{
@@ -59,6 +63,13 @@ const FriendCard = ({ friend, onChat, onInvite, onRemove, t }) => (
           {t('邀请种菜')}
         </Button>
       )}
+      <Button size='small' icon={<span style={{ fontSize: 12 }}>🌾</span>}
+        className='farm-btn'
+        style={{ background: 'rgba(200,146,42,0.1)', border: '1px solid rgba(200,146,42,0.28)',
+          color: 'var(--farm-harvest)' }}
+        onClick={() => dispatchVisitFarm(friend.user_id, friend.display_name || friend.username)}>
+        {t('访问农场')}
+      </Button>
       <Button size='small' icon={<Trash2 size={12} />}
         className='farm-btn'
         style={{ background: 'rgba(184,66,51,0.08)', border: '1px solid rgba(184,66,51,0.2)',

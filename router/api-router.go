@@ -458,6 +458,18 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/tutorial/restart", controller.WebFarmTutorialRestart)
 			farmRoute.POST("/tutorial/unlock", controller.WebFarmTutorialUnlock)
 
+			// 好友农场访问
+			visitRoute := farmRoute.Group("/visit/:friend_id")
+			{
+				visitRoute.GET("", controller.WebFarmVisitView)
+				visitRoute.GET("/inventory", controller.WebFarmVisitMyInventory)
+				visitRoute.POST("/harvest", controller.WebFarmVisitHarvest)
+				visitRoute.POST("/water", controller.WebFarmVisitWaterAll)
+				visitRoute.POST("/fertilize", controller.WebFarmVisitFertilizeAll)
+				visitRoute.POST("/plant", controller.WebFarmVisitPlant)
+				visitRoute.POST("/treat", controller.WebFarmVisitTreatAll)
+			}
+
 			// 事件轮询
 			farmRoute.GET("/events/poll", controller.WebFarmEventsPoll)
 

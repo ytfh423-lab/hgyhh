@@ -411,6 +411,13 @@ const FriendPanel = ({ currentUserId, onChatOpen }) => {
                     onClick={() => onChatOpen(f.user_id, f.display_name || f.username)}>
                     <MessageCircle size={13} /> 发消息
                   </button>
+                  <button className='sp-txt-btn sp-txt-btn--harvest'
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('farm:visit-friend',
+                        { detail: { friendId: f.user_id, friendName: f.display_name || f.username } }));
+                    }}>
+                    🌾 访问农场
+                  </button>
                   {f.online && (
                     <button className='sp-txt-btn sp-txt-btn--leaf' onClick={() => invite(f)}>
                       <Tractor size={13} /> 邀请种菜

@@ -220,12 +220,14 @@
   line-height: 1;
 }
 .sp-txt-btn:disabled { opacity: 0.45; cursor: default; }
-.sp-txt-btn--sky    { background: rgba(90,143,180,0.13); border-color: rgba(90,143,180,0.3);   color: #8ec4e8; }
-.sp-txt-btn--leaf   { background: rgba(74,124,63,0.14);  border-color: rgba(74,124,63,0.32);   color: #a8d4a0; }
-.sp-txt-btn--danger { background: rgba(184,66,51,0.1);   border-color: rgba(184,66,51,0.28);   color: #e07878; }
-.sp-txt-btn--sky:hover    { background: rgba(90,143,180,0.26); filter: brightness(1.1); }
-.sp-txt-btn--leaf:hover   { background: rgba(74,124,63,0.28);  filter: brightness(1.1); }
-.sp-txt-btn--danger:hover { background: rgba(184,66,51,0.22);  filter: brightness(1.1); }
+.sp-txt-btn--sky     { background: rgba(90,143,180,0.13);  border-color: rgba(90,143,180,0.3);  color: #8ec4e8; }
+.sp-txt-btn--leaf    { background: rgba(74,124,63,0.14);   border-color: rgba(74,124,63,0.32);  color: #a8d4a0; }
+.sp-txt-btn--danger  { background: rgba(184,66,51,0.1);    border-color: rgba(184,66,51,0.28);  color: #e07878; }
+.sp-txt-btn--harvest { background: rgba(200,146,42,0.12);  border-color: rgba(200,146,42,0.3);  color: #e8c070; }
+.sp-txt-btn--sky:hover     { background: rgba(90,143,180,0.26);  filter: brightness(1.1); }
+.sp-txt-btn--leaf:hover    { background: rgba(74,124,63,0.28);   filter: brightness(1.1); }
+.sp-txt-btn--danger:hover  { background: rgba(184,66,51,0.22);   filter: brightness(1.1); }
+.sp-txt-btn--harvest:hover { background: rgba(200,146,42,0.24);  filter: brightness(1.1); }
 
 /* ══════════════════════════════════
    通用小工具
