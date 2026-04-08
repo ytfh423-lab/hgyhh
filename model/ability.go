@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -42,6 +43,36 @@ func GetGroupEnabledModels(group string) []string {
 	var models []string
 	// Find distinct models
 	DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
+	return models
+}
+
+func GetGroupsEnabledModels(groups []string) []string {
+	if len(groups) == 0 {
+		return []string{}
+	}
+	groupSet := make(map[string]struct{}, len(groups))
+	normalizedGroups := make([]string, 0, len(groups))
+	for _, group := range groups {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			continue
+		}
+		if _, ok := groupSet[group]; ok {
+			continue
+		}
+		groupSet[group] = struct{}{}
+		normalizedGroups = append(normalizedGroups, group)
+	}
+	if len(normalizedGroups) == 0 {
+		return []string{}
+	}
+	models := make([]string, 0, 64)
+	DB.Table("abilities").
+		Where(commonGroupCol+" IN ? AND enabled = ?", normalizedGroups, true).
+		Distinct("model").
+		Order("model ASC").
+		Pluck("model", &models)
+	sort.Strings(models)
 	return models
 }
 

@@ -31,7 +31,7 @@ const LevelPage = ({ actionLoading, loadFarm, t }) => {
       if (res.success) {
         showSuccess(res.message);
         loadLevel();
-        loadFarm();
+        loadFarm({ silent: true });
       } else {
         showError(res.message);
       }

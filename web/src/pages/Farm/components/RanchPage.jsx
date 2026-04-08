@@ -6,7 +6,7 @@ import { farmConfirm } from './farmConfirm';
 
 const { Text, Title } = Typography;
 
-const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
+const RanchPage = ({ actionLoading, doAction, t }) => {
   const [ranchData, setRanchData] = useState(null);
   const [ranchLoading, setRanchLoading] = useState(true);
 
@@ -30,7 +30,7 @@ const RanchPage = ({ actionLoading, doAction, loadFarm, t }) => {
 
   const doRanchAction = async (url, body) => {
     const res = await doAction(url, body);
-    if (res) { loadRanch(); loadFarm(); }
+    if (res) { loadRanch(); }
     return res;
   };
 

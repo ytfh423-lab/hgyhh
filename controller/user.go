@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/cachex"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 
@@ -22,11 +25,74 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/samber/hot"
 )
 
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+const userModelsCacheNamespace = "new-api:user_models:v1"
+
+var (
+	userModelsCacheOnce sync.Once
+	userModelsCache     *cachex.HybridCache[[]string]
+)
+
+func userModelsCacheTTL() time.Duration {
+	ttlSeconds := common.GetEnvOrDefault("USER_MODELS_CACHE_TTL", 30)
+	if ttlSeconds <= 0 {
+		ttlSeconds = 30
+	}
+	return time.Duration(ttlSeconds) * time.Second
+}
+
+func userModelsCacheCapacity() int {
+	capacity := common.GetEnvOrDefault("USER_MODELS_CACHE_CAP", 256)
+	if capacity <= 0 {
+		capacity = 256
+	}
+	return capacity
+}
+
+func getUserModelsCache() *cachex.HybridCache[[]string] {
+	userModelsCacheOnce.Do(func() {
+		ttl := userModelsCacheTTL()
+		userModelsCache = cachex.NewHybridCache[[]string](cachex.HybridCacheConfig[[]string]{
+			Namespace: cachex.Namespace(userModelsCacheNamespace),
+			Redis:     common.RDB,
+			RedisEnabled: func() bool {
+				return common.RedisEnabled && common.RDB != nil
+			},
+			RedisCodec: cachex.JSONCodec[[]string]{},
+			Memory: func() *hot.HotCache[string, []string] {
+				return hot.NewHotCache[string, []string](hot.LRU, userModelsCacheCapacity()).
+					WithTTL(ttl).
+					WithJanitor().
+					Build()
+			},
+		})
+	})
+	return userModelsCache
+}
+
+func getUserModelsCacheKey(group string) string {
+	group = strings.TrimSpace(group)
+	if group == "" {
+		return "guest"
+	}
+	return group
+}
+
+func buildUserModelsByGroup(userGroup string) []string {
+	groups := service.GetUserUsableGroups(userGroup)
+	groupKeys := make([]string, 0, len(groups))
+	for group := range groups {
+		groupKeys = append(groupKeys, group)
+	}
+	sort.Strings(groupKeys)
+	return model.GetGroupsEnabledModels(groupKeys)
 }
 
 func Login(c *gin.Context) {
@@ -542,13 +608,16 @@ func GetUserModels(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	groups := service.GetUserUsableGroups(user.Group)
-	var models []string
-	for group := range groups {
-		for _, g := range model.GetGroupEnabledModels(group) {
-			if !common.StringsContains(models, g) {
-				models = append(models, g)
-			}
+	cacheKey := getUserModelsCacheKey(user.Group)
+	cache := getUserModelsCache()
+	models, found, cacheErr := cache.Get(cacheKey)
+	if cacheErr != nil {
+		common.SysLog("GetUserModels cache get failed: " + cacheErr.Error())
+	}
+	if !found {
+		models = buildUserModelsByGroup(user.Group)
+		if err := cache.SetWithTTL(cacheKey, models, userModelsCacheTTL()); err != nil {
+			common.SysLog("GetUserModels cache set failed: " + err.Error())
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{

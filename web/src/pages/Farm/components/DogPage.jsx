@@ -4,7 +4,7 @@ import { API, confirmAction } from './utils';
 
 const { Text } = Typography;
 
-const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
+const DogPage = ({ actionLoading, doAction, t }) => {
   const [dogData, setDogData] = useState(null);
   const [dogLoading, setDogLoading] = useState(true);
 
@@ -22,13 +22,13 @@ const DogPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const handleBuyDog = async () => {
     if (!await confirmAction(t('购买确认'), t('确认购买看门狗？'))) return;
     const res = await doAction('/api/farm/buydog', {});
-    if (res) { loadDog(); loadFarm(); }
+    if (res) { loadDog(); }
   };
 
   const handleFeedDog = async () => {
     if (!await confirmAction(t('喂狗确认'), t('确认花费喂狗粮？'))) return;
     const res = await doAction('/api/farm/feeddog', {});
-    if (res) { loadDog(); loadFarm(); }
+    if (res) { loadDog(); }
   };
 
   if (dogLoading) {

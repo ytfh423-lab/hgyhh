@@ -118,7 +118,7 @@ const FishPage = ({ loadFarm, t }) => {
         showSuccess(res.message);
         setLastCatch(null);
         loadFish();
-        loadFarm();
+        loadFarm({ silent: true });
       } else {
         showError(res.message || t('操作失败'));
       }
@@ -137,7 +137,7 @@ const FishPage = ({ loadFarm, t }) => {
         showSuccess(res.message);
         setLastCatch(null);
         loadFish();
-        loadFarm();
+        loadFarm({ silent: true });
       } else {
         showError(res.message || t('操作失败'));
       }

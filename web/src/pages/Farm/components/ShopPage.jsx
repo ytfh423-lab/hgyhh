@@ -7,7 +7,7 @@ const { Text } = Typography;
 /* ═══════════════════════════════════════════════════════════════
    ShopPage — 赛博贩卖机 Master-Detail 布局
    ═══════════════════════════════════════════════════════════════ */
-const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, onNavigate, t }) => {
+const ShopPage = ({ farmData, actionLoading, doAction, onNavigate, t }) => {
   const [shopData, setShopData] = useState(null);
   const [shopLoading, setShopLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tool');
@@ -42,14 +42,14 @@ const ShopPage = ({ farmData, actionLoading, doAction, loadFarm, onNavigate, t }
     const name = item ? item.name : key;
     if (!await confirmAction(t('购买确认'), `${t('确认花费')} ${totalCost} ${t('购买')} ${name} ×${qty}？`)) return;
     const res = await doAction('/api/farm/buy', { item_key: key, quantity: qty });
-    if (res) { loadShop(); loadFarm(); }
+    if (res) { loadShop(); }
   };
 
   const handleBuyDog = async () => {
     const price = shopData?.dog_price != null ? `$${shopData.dog_price.toFixed(2)}` : '';
     if (!await confirmAction(t('购买确认'), `${t('确认花费')} ${price} ${t('购买看门狗？')}`)) return;
     const res = await doAction('/api/farm/buydog', {});
-    if (res) { loadShop(); loadFarm(); }
+    if (res) { loadShop(); }
   };
 
   // Normalize all items into a unified list with category tags

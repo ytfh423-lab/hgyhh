@@ -5,7 +5,7 @@ import FarmConfirmModal from './FarmConfirmModal';
 
 const { Text } = Typography;
 
-const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
+const BankPage = ({ farmData, actionLoading, doAction, t }) => {
   const [bankData, setBankData] = useState(null);
   const [bankLoading, setBankLoading] = useState(true);
   const [mortgageAmount, setMortgageAmount] = useState(100);
@@ -52,7 +52,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       </div>,
       async () => {
         const res = await doAction('/api/farm/bank/loan', {});
-        if (res) { loadBank(); loadFarm(); }
+        if (res) { loadBank(); }
       },
       'primary'
     );
@@ -85,7 +85,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       </div>,
       async () => {
         const res = await doAction('/api/farm/bank/mortgage', { amount: mortgageAmount });
-        if (res) { loadBank(); loadFarm(); }
+        if (res) { loadBank(); }
       },
       'danger'
     );
@@ -116,7 +116,7 @@ const BankPage = ({ farmData, actionLoading, doAction, loadFarm, t }) => {
       </div>,
       async () => {
         const res = await doAction('/api/farm/bank/repay', { percent });
-        if (res) { loadBank(); loadFarm(); }
+        if (res) { loadBank(); }
       },
       'primary'
     );

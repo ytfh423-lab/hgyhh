@@ -22,7 +22,7 @@ const TAG_COLORS = {
   '高效快刷': '#fa8c16',
 };
 
-const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) => {
+const PlantPage = ({ farmData, crops, actionLoading, doAction, t }) => {
   const [selectedCrop, setSelectedCrop] = useState(null);
 
   if (!farmData) return null;
@@ -35,8 +35,7 @@ const PlantPage = ({ farmData, crops, actionLoading, doAction, loadFarm, t }) =>
       showError(t('请先选择作物'));
       return;
     }
-    const res = await doAction('/api/farm/plant', { crop_key: selectedCrop, plot_index: plotIndex });
-    if (res) loadFarm();
+    await doAction('/api/farm/plant', { crop_key: selectedCrop, plot_index: plotIndex });
   };
 
   return (

@@ -20,6 +20,8 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import {
   API,
+  getUserGroupsCached,
+  getUserModelsCached,
   showError,
   showSuccess,
   timestamp2string,
@@ -98,7 +100,7 @@ const EditTokenModal = (props) => {
   };
 
   const loadModels = async () => {
-    let res = await API.get(`/api/user/models`);
+    let res = await getUserModelsCached();
     const { success, message, data } = res.data;
     if (success) {
       const categories = getModelCategories(t);
@@ -127,7 +129,7 @@ const EditTokenModal = (props) => {
   };
 
   const loadGroups = async () => {
-    let res = await API.get(`/api/user/self/groups`);
+    let res = await getUserGroupsCached();
     const { success, message, data } = res.data;
     if (success) {
       let localGroupOptions = Object.entries(data).map(([group, info]) => ({

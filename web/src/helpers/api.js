@@ -66,6 +66,86 @@ function patchAPIInstance(instance) {
 
 patchAPIInstance(API);
 
+const sharedCacheMemory = new Map();
+const sharedCachePending = new Map();
+
+const readSharedCache = (cacheKey, ttlMs) => {
+  const now = Date.now();
+  const memoryValue = sharedCacheMemory.get(cacheKey);
+  if (memoryValue && now-memoryValue.ts < ttlMs) {
+    return memoryValue.data;
+  }
+  try {
+    const raw = sessionStorage.getItem(`shared_cache:${cacheKey}`);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || now-parsed.ts >= ttlMs) {
+      sessionStorage.removeItem(`shared_cache:${cacheKey}`);
+      return null;
+    }
+    sharedCacheMemory.set(cacheKey, parsed);
+    return parsed.data;
+  } catch (_) {
+    return null;
+  }
+};
+
+const writeSharedCache = (cacheKey, data) => {
+  const payload = { data, ts: Date.now() };
+  sharedCacheMemory.set(cacheKey, payload);
+  try {
+    sessionStorage.setItem(`shared_cache:${cacheKey}`, JSON.stringify(payload));
+  } catch (_) {}
+};
+
+const loadSharedCachedResource = async (cacheKey, loader, ttlMs = 30000) => {
+  const cachedData = readSharedCache(cacheKey, ttlMs);
+  if (cachedData) {
+    return { data: cachedData, fromCache: true };
+  }
+  if (sharedCachePending.has(cacheKey)) {
+    return sharedCachePending.get(cacheKey);
+  }
+  const request = loader()
+    .then((response) => {
+      if (response?.data?.success) {
+        writeSharedCache(cacheKey, response.data);
+      }
+      return response;
+    })
+    .finally(() => {
+      sharedCachePending.delete(cacheKey);
+    });
+  sharedCachePending.set(cacheKey, request);
+  return request;
+};
+
+export const getUserModelsCached = async (ttlMs = 30000) => {
+  return loadSharedCachedResource(
+    'user-models',
+    () => API.get('/api/user/models', { disableDuplicate: true }),
+    ttlMs,
+  );
+};
+
+export const getUserGroupsCached = async (ttlMs = 30000) => {
+  return loadSharedCachedResource(
+    'user-groups',
+    () => API.get('/api/user/self/groups', { disableDuplicate: true }),
+    ttlMs,
+  );
+};
+
+export const invalidateSharedCache = (cacheKey) => {
+  sharedCacheMemory.delete(cacheKey);
+  sharedCachePending.delete(cacheKey);
+  try {
+    sessionStorage.removeItem(`shared_cache:${cacheKey}`);
+  } catch (_) {}
+};
+
 export function updateAPI() {
   API = axios.create({
     baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL

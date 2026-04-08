@@ -322,7 +322,7 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
   const handleCancel = async (taskId) => {
     try {
       const { data: res } = await API.post('/api/farm/entrust/cancel', { task_id: taskId });
-      if (res.success) { showSuccess(res.message); loadMyPublished(); loadFarm(); }
+      if (res.success) { showSuccess(res.message); loadMyPublished(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };
@@ -382,7 +382,7 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
 
       {/* ═══ 发布委托 ═══ */}
       {tab === 'create' && (
-        <CreateForm balance={farmData?.balance || 0} onCreated={() => { setTab('published'); loadMyPublished(); loadFarm(); }}
+        <CreateForm balance={farmData?.balance || 0} onCreated={() => { setTab('published'); loadMyPublished(); loadFarm({ silent: true }); }}
           actionLoading={actionLoading} t={t} />
       )}
 

@@ -27,7 +27,7 @@ import {
   Select,
 } from '@douyinfe/semi-ui';
 import {
-  API,
+  getUserModelsCached,
   showError,
   getModelCategories,
   selectFilter,
@@ -80,7 +80,7 @@ function TokensPage() {
 
   const loadModels = async () => {
     try {
-      const res = await API.get('/api/user/models');
+      const res = await getUserModelsCached();
       const { success, message, data } = res.data || {};
       if (success) {
         const categories = getModelCategories(tokensData.t);

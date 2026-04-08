@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@douyinfe/semi-ui';
 import {
@@ -30,15 +30,47 @@ import {
 import { ITEMS_PER_PAGE } from '../../constants';
 import { useTableCompactMode } from '../common/useTableCompactMode';
 
+const TOKENS_CACHE_PREFIX = 'tokens_list_v1';
+const TOKENS_CACHE_TTL = 15000;
+
+const getTokensCacheKey = (page, size) => `${TOKENS_CACHE_PREFIX}:${page}:${size}`;
+
+const readTokensCache = (page, size) => {
+  try {
+    const raw = sessionStorage.getItem(getTokensCacheKey(page, size));
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || Date.now()-parsed.ts >= TOKENS_CACHE_TTL) {
+      sessionStorage.removeItem(getTokensCacheKey(page, size));
+      return null;
+    }
+    return parsed.data || null;
+  } catch (_) {
+    return null;
+  }
+};
+
+const writeTokensCache = (page, size, data) => {
+  try {
+    sessionStorage.setItem(
+      getTokensCacheKey(page, size),
+      JSON.stringify({ data, ts: Date.now() }),
+    );
+  } catch (_) {}
+};
+
 export const useTokensData = (openFluentNotification) => {
   const { t } = useTranslation();
+  const initialCacheRef = useRef(readTokensCache(1, ITEMS_PER_PAGE));
 
   // Basic state
-  const [tokens, setTokens] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState(1);
-  const [tokenCount, setTokenCount] = useState(0);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [tokens, setTokens] = useState(() => initialCacheRef.current?.items || []);
+  const [loading, setLoading] = useState(() => !initialCacheRef.current);
+  const [activePage, setActivePage] = useState(() => initialCacheRef.current?.page || 1);
+  const [tokenCount, setTokenCount] = useState(() => initialCacheRef.current?.total || 0);
+  const [pageSize, setPageSize] = useState(() => initialCacheRef.current?.page_size || ITEMS_PER_PAGE);
   const [searching, setSearching] = useState(false);
   const [searchMode, setSearchMode] = useState(false); // 是否处于搜索结果视图
 
@@ -82,30 +114,41 @@ export const useTokensData = (openFluentNotification) => {
   };
 
   // Sync page data from API response
-  const syncPageData = (payload) => {
+  const syncPageData = (payload, persist = true) => {
     setTokens(payload.items || []);
     setTokenCount(payload.total || 0);
     setActivePage(payload.page || 1);
     setPageSize(payload.page_size || pageSize);
+    if (persist && payload.page && payload.page_size) {
+      writeTokensCache(payload.page, payload.page_size, payload);
+    }
   };
 
   // Load tokens function
-  const loadTokens = async (page = 1, size = pageSize) => {
-    setLoading(true);
-    setSearchMode(false);
-    const res = await API.get(`/api/token/?p=${page}&size=${size}`);
-    const { success, message, data } = res.data;
-    if (success) {
-      syncPageData(data);
-    } else {
-      showError(message);
+  const loadTokens = async (page = 1, size = pageSize, options = {}) => {
+    const shouldToggleLoading = !options.silent || tokens.length === 0;
+    if (shouldToggleLoading) {
+      setLoading(true);
     }
-    setLoading(false);
+    setSearchMode(false);
+    try {
+      const res = await API.get(`/api/token/?p=${page}&size=${size}`);
+      const { success, message, data } = res.data;
+      if (success) {
+        syncPageData(data);
+      } else {
+        showError(message);
+      }
+    } finally {
+      if (shouldToggleLoading) {
+        setLoading(false);
+      }
+    }
   };
 
   // Refresh function
   const refresh = async (page = activePage) => {
-    await loadTokens(page);
+    await loadTokens(page, pageSize, { silent: tokens.length > 0 });
     setSelectedKeys([]);
   };
 
@@ -208,7 +251,7 @@ export const useTokensData = (openFluentNotification) => {
     const { success, message, data } = res.data;
     if (success) {
       setSearchMode(true);
-      syncPageData(data);
+      syncPageData(data, false);
     } else {
       showError(message);
     }
@@ -346,12 +389,12 @@ export const useTokensData = (openFluentNotification) => {
 
   // Initialize data
   useEffect(() => {
-    loadTokens(1)
+    loadTokens(1, pageSize, { silent: !!initialCacheRef.current })
       .then()
       .catch((reason) => {
         showError(reason);
       });
-  }, [pageSize]);
+  }, []);
 
   return {
     // Basic state

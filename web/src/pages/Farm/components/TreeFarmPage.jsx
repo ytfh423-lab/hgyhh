@@ -12,7 +12,7 @@ const treeStageEmojis = { 0: '⬜', 1: '🌱', 2: '🌳', 3: '🪵' };
 // Module-level cache for tree types — these rarely change
 let _treeTypesCache = null;
 
-const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
+const TreeFarmPage = ({ actionLoading, doAction, t }) => {
   const [treeData, setTreeData] = useState(null);
   const [treeTypes, setTreeTypes] = useState(_treeTypesCache || []);
   const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ const TreeFarmPage = ({ actionLoading, doAction, loadFarm, t }) => {
 
   const doTreeAction = async (url, body) => {
     const res = await doAction(url, body);
-    if (res) { loadTree(); loadFarm(); }
+    if (res) { loadTree(); }
     return res;
   };
 

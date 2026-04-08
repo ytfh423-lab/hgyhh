@@ -22,7 +22,7 @@ const AutomationPage = ({ loadFarm, t }) => {
   const buy = async (type) => {
     try {
       const { data: res } = await API.post('/api/farm/automation/buy', { type });
-      if (res.success) { showSuccess(res.message); load(); loadFarm(); }
+      if (res.success) { showSuccess(res.message); load(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };

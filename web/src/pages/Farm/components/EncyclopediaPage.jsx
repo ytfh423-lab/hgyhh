@@ -22,7 +22,7 @@ const EncyclopediaPage = ({ actionLoading, loadFarm, t }) => {
   const claim = async (category) => {
     try {
       const { data: res } = await API.post('/api/farm/encyclopedia/claim', { category });
-      if (res.success) { showSuccess(res.message); load(); loadFarm(); }
+      if (res.success) { showSuccess(res.message); load(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };

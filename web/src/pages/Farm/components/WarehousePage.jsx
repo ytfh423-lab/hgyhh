@@ -12,7 +12,7 @@ const fmtExpiry = (secs) => {
   return `${h}时${m}分`;
 };
 
-const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
+const WarehousePage = ({ actionLoading, doAction, t }) => {
   const [whData, setWhData] = useState(null);
   const [whLoading, setWhLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
@@ -30,12 +30,12 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
 
   const handleSell = async (cropKey) => {
     const res = await doAction('/api/farm/warehouse/sell', { item_key: cropKey });
-    if (res) { loadWarehouse(); loadFarm(); }
+    if (res) { loadWarehouse(); }
   };
 
   const handleSellAll = async () => {
     const res = await doAction('/api/farm/warehouse/sellall', {});
-    if (res) { loadWarehouse(); loadFarm(); }
+    if (res) { loadWarehouse(); }
   };
 
   const handleUpgrade = async () => {
@@ -43,7 +43,7 @@ const WarehousePage = ({ actionLoading, doAction, loadFarm, t }) => {
     if (!await confirmAction(t('升级确认'), `${t('确认花费')} ${price} ${t('升级仓库？')}`)) return;
     setUpgrading(true);
     const res = await doAction('/api/farm/warehouse/upgrade', {});
-    if (res) { loadWarehouse(); loadFarm(); }
+    if (res) { loadWarehouse(); }
     setUpgrading(false);
   };
 

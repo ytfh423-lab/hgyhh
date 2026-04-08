@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useContext } from 'react';
+import React, { useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
@@ -214,6 +214,11 @@ const Farm = () => {
   const [betaMessage, setBetaMessage] = useState('');
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
+  const farmDataRef = useRef(farmData);
+
+  useEffect(() => {
+    farmDataRef.current = farmData;
+  }, [farmData]);
 
   // 好友请求数（从 SocialPanel 事件同步，用于侧边栏角标）
   const [friendRequestCount, setFriendRequestCount] = useState(0);
@@ -224,9 +229,14 @@ const Farm = () => {
         if (res.success) setFriendRequestCount((res.data || []).length);
       } catch { /* ignore */ }
     };
-    poll();
-    const t2 = setInterval(poll, 20000);
-    return () => clearInterval(t2);
+    const starter = setTimeout(poll, 1200);
+    const t2 = setInterval(() => {
+      if (!document.hidden) poll();
+    }, 20000);
+    return () => {
+      clearTimeout(starter);
+      clearInterval(t2);
+    };
   }, []);
 
   // 打开聊天：派发全局事件给 SocialPanel
@@ -255,8 +265,41 @@ const Farm = () => {
     if (page !== 'visit') setVisitFriend(null);
   }, []);
 
-  const loadFarm = useCallback(async () => {
-    setLoading(true);
+  const persistFarmData = useCallback((nextData) => {
+    try { sessionStorage.setItem(FARM_CACHE_KEY, JSON.stringify(nextData)); } catch (e) {}
+  }, []);
+
+  const mergeFarmData = useCallback((partialData) => {
+    setFarmData((prev) => {
+      const nextData = {
+        ...(prev || {}),
+        ...(partialData || {}),
+      };
+      persistFarmData(nextData);
+      farmDataRef.current = nextData;
+      return nextData;
+    });
+  }, [persistFarmData]);
+
+  const loadFarmDynamic = useCallback(async () => {
+    try {
+      const { data: res } = await API.get('/api/farm/view/dynamic', { disableDuplicate: true });
+      if (res.success) {
+        mergeFarmData(res.data || { task_summary: { done: 0, total: 0, claimed: 0 } });
+      }
+    } catch (err) { /* ignore */ }
+  }, [mergeFarmData]);
+
+  const loadFarm = useCallback(async (options = {}) => {
+    const silent = options.silent ?? !!farmDataRef.current;
+    const dynamicOnly = options.dynamicOnly ?? false;
+    if (dynamicOnly) {
+      await loadFarmDynamic();
+      return;
+    }
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [lightResp, dynamicResp] = await Promise.all([
         API.get('/api/farm/view/light'),
@@ -267,11 +310,14 @@ const Farm = () => {
       if (lightRes.success) {
         const mergedData = {
           ...lightRes.data,
-          ...(dynamicRes.success ? dynamicRes.data : { task_summary: { done: 0, total: 0, claimed: 0 } }),
+          ...(dynamicRes.success
+            ? dynamicRes.data
+            : { task_summary: farmDataRef.current?.task_summary || { done: 0, total: 0, claimed: 0 } }),
         };
         setFarmData(mergedData);
+        farmDataRef.current = mergedData;
         setBetaGate(null);
-        try { sessionStorage.setItem(FARM_CACHE_KEY, JSON.stringify(mergedData)); } catch (e) {}
+        persistFarmData(mergedData);
       } else if (lightRes.code === 'BETA_NOT_STARTED' || lightRes.code === 'BETA_NO_ACCESS' || lightRes.code === 'BETA_AGREEMENT_REQUIRED' || lightRes.code === 'BETA_EXPIRED') {
         setBetaGate(lightRes.code);
         setBetaMessage(lightRes.message);
@@ -281,9 +327,11 @@ const Farm = () => {
     } catch (err) {
       showError(t('加载失败'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
-  }, [t]);
+  }, [loadFarmDynamic, persistFarmData, t]);
 
   const loadCrops = useCallback(async () => {
     if (_cropsCache) { setCrops(_cropsCache); return; }
@@ -294,14 +342,18 @@ const Farm = () => {
   }, []);
 
   useEffect(() => {
-    loadFarm();
-    loadCrops();
+    loadFarm({ silent: !!farmDataRef.current });
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(() => loadCrops(), { timeout: 1200 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+    const timer = setTimeout(() => { loadCrops(); }, 0);
+    return () => clearTimeout(timer);
   }, [loadFarm, loadCrops]);
 
-  // Pause polling when tab is hidden — resumes on visibility change
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!document.hidden) loadFarm();
+      if (!document.hidden) loadFarm({ dynamicOnly: true, silent: true });
     }, 30000);
     return () => clearInterval(interval);
   }, [loadFarm]);
@@ -330,7 +382,7 @@ const Farm = () => {
       const { data: res } = await API.post(url, body);
       if (res.success) {
         showSuccess(res.message || t('操作成功'));
-        loadFarm();
+        loadFarm({ silent: true });
         if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: res });
         return res;
       } else {
@@ -362,7 +414,7 @@ const Farm = () => {
       const { data: res } = await API.post('/api/farm/beta/accept-agreement');
       if (res.success) {
         setBetaGate(null);
-        loadFarm();
+        await loadFarm({ silent: false });
       } else {
         showError(res.message);
       }

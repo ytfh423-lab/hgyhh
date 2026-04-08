@@ -28,7 +28,7 @@ const AchievementsPage = ({ actionLoading, loadFarm, t }) => {
       if (res.success) {
         showSuccess(res.message);
         loadAch();
-        loadFarm();
+        loadFarm({ silent: true });
       } else {
         showError(res.message);
       }

@@ -277,7 +277,7 @@ const GamesPage = ({ loadFarm, t }) => {
     setWheelResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/wheel');
-      if (res.success) { setWheelResult(res.data); loadFarm(); loadHistory(); return res.data; }
+      if (res.success) { setWheelResult(res.data); loadHistory(); loadFarm({ silent: true }); return res.data; }
       else { showError(res.message); return null; }
     } catch (err) { showError(t('操作失败')); return null; }
     finally { setGameLoading(false); }
@@ -288,7 +288,7 @@ const GamesPage = ({ loadFarm, t }) => {
     setScratchResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/scratch');
-      if (res.success) { setScratchResult(res.data); loadFarm(); loadHistory(); }
+      if (res.success) { setScratchResult(res.data); loadHistory(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
     finally { setGameLoading(false); }
@@ -299,7 +299,7 @@ const GamesPage = ({ loadFarm, t }) => {
     setGameLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/game/play', { game_key: gameKey, score: score ?? 0 });
-      if (res.success) { loadFarm(); loadHistory(); return res.data; }
+      if (res.success) { loadHistory(); loadFarm({ silent: true }); return res.data; }
       else { showError(res.message); return null; }
     } catch (err) { showError(t('操作失败')); return null; }
     finally { setGameLoading(false); }

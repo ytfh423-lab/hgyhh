@@ -44,7 +44,7 @@ const StealPage = ({ actionLoading, doAction, loadFarm, t }) => {
         data: res.data,
       }, ...prev]);
       loadTargets();
-      loadFarm();
+      loadFarm({ silent: true });
     }
   };
 

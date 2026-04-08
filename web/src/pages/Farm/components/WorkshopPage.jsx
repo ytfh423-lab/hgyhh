@@ -62,7 +62,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
       if (res.success) {
         showSuccess(res.message);
         loadWorkshop();
-        loadFarm();
+        loadFarm({ silent: true });
       } else {
         showError(res.message);
       }
@@ -78,7 +78,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     setWsLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/workshop/collect');
-      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm(); }
+      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
     finally { setWsLoading(false); }
@@ -88,7 +88,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     setWsLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/workshop/collect/store');
-      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm(); }
+      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
     finally { setWsLoading(false); }
@@ -162,7 +162,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
                       <span>${p.sell_price.toFixed(2)}</span>
                       {p.status !== 2 && (
                         <Button size='small' theme='light' type='danger'
-                          onClick={async () => { if (await farmConfirm(t('取消加工'), t('确定要取消这个加工任务吗？材料不会退还。'), { icon: '🏭', confirmType: 'danger', confirmText: t('取消加工') })) { doAction('/api/farm/workshop/cancel', { process_id: p.id }).then(r => { if (r) { loadWorkshop(); loadFarm(); } }); } }}
+                          onClick={async () => { if (await farmConfirm(t('取消加工'), t('确定要取消这个加工任务吗？材料不会退还。'), { icon: '🏭', confirmType: 'danger', confirmText: t('取消加工') })) { doAction('/api/farm/workshop/cancel', { process_id: p.id }).then(r => { if (r) { loadWorkshop(); } }); } }}
                           loading={wsLoading} className='farm-btn' style={{ padding: '0 6px', fontSize: 11 }}>
                           ✕
                         </Button>

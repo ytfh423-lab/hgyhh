@@ -32,7 +32,7 @@ const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
   const buyTrade = async (tradeId) => {
     try {
       const { data: res } = await API.post('/api/farm/trade/buy', { trade_id: tradeId });
-      if (res.success) { showSuccess(res.message); loadTrades(); loadFarm(); }
+      if (res.success) { showSuccess(res.message); loadTrades(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };
@@ -52,7 +52,7 @@ const TradingPage = ({ actionLoading, doAction, loadFarm, t }) => {
     }
     try {
       const { data: res } = await API.post('/api/farm/trade/create', sellForm);
-      if (res.success) { showSuccess(res.message); loadTrades(); setSellForm({ crop_type: '', quantity: 1, price: 1 }); }
+      if (res.success) { showSuccess(res.message); loadTrades(); loadFarm({ silent: true }); setSellForm({ crop_type: '', quantity: 1, price: 1 }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };
