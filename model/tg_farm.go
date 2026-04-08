@@ -7,11 +7,108 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 )
+
+type farmIntCacheEntry struct {
+	Value     int
+	ExpiresAt int64
+}
+
+type farmBoolMapCacheEntry struct {
+	Value     map[string]bool
+	ExpiresAt int64
+}
+
+type farmActionCountCacheEntry struct {
+	Value     map[string]int64
+	Version   int64
+	ExpiresAt int64
+}
+
+type farmTaskClaimsCacheEntry struct {
+	Value     []int
+	ExpiresAt int64
+}
+
+type farmLeaderboardCacheEntry struct {
+	Value     []FarmLeaderboardEntry
+	ExpiresAt int64
+}
+
+type farmRankCacheEntry struct {
+	Value     int64
+	ExpiresAt int64
+}
+
+const (
+	farmLevelCacheTTLSeconds       int64 = 30
+	farmWarehouseCacheTTLSeconds   int64 = 30
+	farmAutomationCacheTTLSeconds  int64 = 30
+	farmActionCacheTTLSeconds      int64 = 10
+	farmTaskClaimsCacheTTLSeconds  int64 = 10
+	farmLeaderboardTTLSeconds      int64 = 15
+	farmRankTTLSeconds             int64 = 15
+)
+
+var farmLevelCache sync.Map
+var farmWarehouseLevelCache sync.Map
+var farmAutomationCache sync.Map
+var farmActionCountCache sync.Map
+var farmTaskClaimsCache sync.Map
+var farmLeaderboardCache sync.Map
+var farmRankCache sync.Map
+var farmActionVersionLock sync.RWMutex
+var farmActionVersions = make(map[string]int64)
+
+func cloneFarmBoolMap(src map[string]bool) map[string]bool {
+	if len(src) == 0 {
+		return map[string]bool{}
+	}
+	dst := make(map[string]bool, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func cloneFarmActionCountMap(src map[string]int64) map[string]int64 {
+	if len(src) == 0 {
+		return map[string]int64{}
+	}
+	dst := make(map[string]int64, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func getFarmActionVersion(telegramId string) int64 {
+	farmActionVersionLock.RLock()
+	defer farmActionVersionLock.RUnlock()
+	return farmActionVersions[telegramId]
+}
+
+func bumpFarmActionVersion(telegramId string) {
+	farmActionVersionLock.Lock()
+	farmActionVersions[telegramId]++
+	farmActionVersionLock.Unlock()
+}
+
+func invalidateFarmLeaderboardCaches() {
+	farmLeaderboardCache.Range(func(key, value any) bool {
+		farmLeaderboardCache.Delete(key)
+		return true
+	})
+	farmRankCache.Range(func(key, value any) bool {
+		farmRankCache.Delete(key)
+		return true
+	})
+}
 
 // TgFarmPlot 农场地块
 type TgFarmPlot struct {
@@ -388,6 +485,15 @@ func GetRanchAnimals(telegramId string) ([]*TgRanchAnimal, error) {
 	return animals, err
 }
 
+func GetActiveRanchAnimalsByTelegramIds(telegramIds []string) ([]*TgRanchAnimal, error) {
+	if len(telegramIds) == 0 {
+		return []*TgRanchAnimal{}, nil
+	}
+	var animals []*TgRanchAnimal
+	err := DB.Where("telegram_id IN ? AND status != ?", telegramIds, 5).Order("telegram_id asc, id asc").Find(&animals).Error
+	return animals, err
+}
+
 func GetRanchAnimalCount(telegramId string) (int64, error) {
 	var count int64
 	err := DB.Model(&TgRanchAnimal{}).Where("telegram_id = ?", telegramId).Count(&count).Error
@@ -424,11 +530,21 @@ func CleanRanchAnimals(telegramId string) error {
 // ========== 等级 ==========
 
 func GetFarmLevel(telegramId string) int {
+	now := time.Now().Unix()
+	if cached, ok := farmLevelCache.Load(telegramId); ok {
+		entry := cached.(farmIntCacheEntry)
+		if entry.ExpiresAt >= now {
+			return entry.Value
+		}
+		farmLevelCache.Delete(telegramId)
+	}
 	var item TgFarmItem
 	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_level").First(&item).Error
 	if err != nil || item.Quantity < 1 {
+		farmLevelCache.Store(telegramId, farmIntCacheEntry{Value: 1, ExpiresAt: now + farmLevelCacheTTLSeconds})
 		return 1
 	}
+	farmLevelCache.Store(telegramId, farmIntCacheEntry{Value: item.Quantity, ExpiresAt: now + farmLevelCacheTTLSeconds})
 	return item.Quantity
 }
 
@@ -438,9 +554,13 @@ func SetFarmLevel(telegramId string, level int) {
 	if err != nil {
 		item = TgFarmItem{TelegramId: telegramId, ItemType: "_level", Quantity: level}
 		_ = DB.Create(&item).Error
+		farmLevelCache.Store(telegramId, farmIntCacheEntry{Value: level, ExpiresAt: time.Now().Unix() + farmLevelCacheTTLSeconds})
+		invalidateFarmLeaderboardCaches()
 		return
 	}
 	_ = DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", level).Error
+	farmLevelCache.Store(telegramId, farmIntCacheEntry{Value: level, ExpiresAt: time.Now().Unix() + farmLevelCacheTTLSeconds})
+	invalidateFarmLeaderboardCaches()
 }
 
 // ========== 每日任务 & 成就 ==========
@@ -460,6 +580,17 @@ type TgFarmAchievement struct {
 }
 
 func GetTaskClaims(telegramId, taskDate string) ([]int, error) {
+	cacheKey := telegramId + "|" + taskDate
+	now := time.Now().Unix()
+	if cached, ok := farmTaskClaimsCache.Load(cacheKey); ok {
+		entry := cached.(farmTaskClaimsCacheEntry)
+		if entry.ExpiresAt >= now {
+			result := make([]int, len(entry.Value))
+			copy(result, entry.Value)
+			return result, nil
+		}
+		farmTaskClaimsCache.Delete(cacheKey)
+	}
 	var claims []*TgFarmTaskClaim
 	err := DB.Model(&TgFarmTaskClaim{}).
 		Select("task_index").
@@ -472,15 +603,22 @@ func GetTaskClaims(telegramId, taskDate string) ([]int, error) {
 	for _, c := range claims {
 		indices = append(indices, c.TaskIndex)
 	}
+	cachedValue := make([]int, len(indices))
+	copy(cachedValue, indices)
+	farmTaskClaimsCache.Store(cacheKey, farmTaskClaimsCacheEntry{Value: cachedValue, ExpiresAt: now + farmTaskClaimsCacheTTLSeconds})
 	return indices, nil
 }
 
 func ClaimTask(telegramId, taskDate string, taskIndex int) error {
-	return DB.Create(&TgFarmTaskClaim{
+	err := DB.Create(&TgFarmTaskClaim{
 		TelegramId: telegramId,
 		TaskDate:   taskDate,
 		TaskIndex:  taskIndex,
 	}).Error
+	if err == nil {
+		farmTaskClaimsCache.Delete(telegramId + "|" + taskDate)
+	}
+	return err
 }
 
 func CountTodayActions(telegramId, action string) int64 {
@@ -527,6 +665,17 @@ func GetActionCountsSince(telegramId string, actions []string, since int64) (map
 	if len(uniqueActions) == 0 {
 		return result, nil
 	}
+	sort.Strings(uniqueActions)
+	cacheKey := telegramId + "|" + strconv.FormatInt(since, 10) + "|" + strings.Join(uniqueActions, ",")
+	now := time.Now().Unix()
+	version := getFarmActionVersion(telegramId)
+	if cached, ok := farmActionCountCache.Load(cacheKey); ok {
+		entry := cached.(farmActionCountCacheEntry)
+		if entry.ExpiresAt >= now && entry.Version == version {
+			return cloneFarmActionCountMap(entry.Value), nil
+		}
+		farmActionCountCache.Delete(cacheKey)
+	}
 
 	var rows []farmActionCountRow
 	query := DB.Model(&TgFarmLog{}).
@@ -541,6 +690,11 @@ func GetActionCountsSince(telegramId string, actions []string, since int64) (map
 	for _, row := range rows {
 		result[row.Action] = row.Count
 	}
+	farmActionCountCache.Store(cacheKey, farmActionCountCacheEntry{
+		Value:     cloneFarmActionCountMap(result),
+		Version:   version,
+		ExpiresAt: now + farmActionCacheTTLSeconds,
+	})
 	return result, nil
 }
 
@@ -776,6 +930,7 @@ func AddFarmLog(telegramId, action string, amount int, detail string) {
 		CreatedAt:  time.Now().Unix(),
 	}
 	_ = DB.Create(log).Error
+	bumpFarmActionVersion(telegramId)
 }
 
 func AddFarmLogs(telegramId, action string, amount int, detail string, count int) {
@@ -795,6 +950,7 @@ func AddFarmLogs(telegramId, action string, amount int, detail string, count int
 		})
 	}
 	_ = DB.Create(&logs).Error
+	bumpFarmActionVersion(telegramId)
 }
 
 // ========== 银行贷款 ==========
@@ -1085,11 +1241,21 @@ func CheckCreditLoanDefault(telegramId string) (bool, string) {
 
 // GetWarehouseLevel 获取用户仓库等级（最低1）
 func GetWarehouseLevel(telegramId string) int {
+	now := time.Now().Unix()
+	if cached, ok := farmWarehouseLevelCache.Load(telegramId); ok {
+		entry := cached.(farmIntCacheEntry)
+		if entry.ExpiresAt >= now {
+			return entry.Value
+		}
+		farmWarehouseLevelCache.Delete(telegramId)
+	}
 	var item TgFarmItem
 	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").First(&item).Error
 	if err != nil || item.Quantity < 1 {
+		farmWarehouseLevelCache.Store(telegramId, farmIntCacheEntry{Value: 1, ExpiresAt: now + farmWarehouseCacheTTLSeconds})
 		return 1
 	}
+	farmWarehouseLevelCache.Store(telegramId, farmIntCacheEntry{Value: item.Quantity, ExpiresAt: now + farmWarehouseCacheTTLSeconds})
 	return item.Quantity
 }
 
@@ -1098,9 +1264,17 @@ func SetWarehouseLevel(telegramId string, level int) error {
 	var item TgFarmItem
 	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").First(&item).Error
 	if err != nil {
-		return DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_warehouse_level", Quantity: level}).Error
+		err = DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_warehouse_level", Quantity: level}).Error
+		if err == nil {
+			farmWarehouseLevelCache.Store(telegramId, farmIntCacheEntry{Value: level, ExpiresAt: time.Now().Unix() + farmWarehouseCacheTTLSeconds})
+		}
+		return err
 	}
-	return DB.Model(&TgFarmItem{}).Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").Update("quantity", level).Error
+	err = DB.Model(&TgFarmItem{}).Where("telegram_id = ? AND item_type = ?", telegramId, "_warehouse_level").Update("quantity", level).Error
+	if err == nil {
+		farmWarehouseLevelCache.Store(telegramId, farmIntCacheEntry{Value: level, ExpiresAt: time.Now().Unix() + farmWarehouseCacheTTLSeconds})
+	}
+	return err
 }
 
 // GetWarehouseMaxSlots 根据等级计算仓库最大容量
@@ -1461,6 +1635,14 @@ func GetAutomations(telegramId string) ([]*TgFarmAutomation, error) {
 }
 
 func GetInstalledAutomations(telegramId string) (map[string]bool, error) {
+	now := time.Now().Unix()
+	if cached, ok := farmAutomationCache.Load(telegramId); ok {
+		entry := cached.(farmBoolMapCacheEntry)
+		if entry.ExpiresAt >= now {
+			return cloneFarmBoolMap(entry.Value), nil
+		}
+		farmAutomationCache.Delete(telegramId)
+	}
 	result := make(map[string]bool)
 	items, err := GetAutomations(telegramId)
 	if err != nil {
@@ -1469,19 +1651,80 @@ func GetInstalledAutomations(telegramId string) (map[string]bool, error) {
 	for _, item := range items {
 		result[item.Type] = true
 	}
+	farmAutomationCache.Store(telegramId, farmBoolMapCacheEntry{Value: cloneFarmBoolMap(result), ExpiresAt: now + farmAutomationCacheTTLSeconds})
 	return result, nil
 }
 
+func GetAutomationOwnerMap(autoTypes []string) (map[string][]string, error) {
+	result := make(map[string][]string)
+	uniqueTypes := uniqueStrings(autoTypes)
+	if len(uniqueTypes) == 0 {
+		return result, nil
+	}
+	for _, autoType := range uniqueTypes {
+		result[autoType] = []string{}
+	}
+	var items []*TgFarmAutomation
+	err := DB.Select("telegram_id, type").Where("type IN ?", uniqueTypes).Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]map[string]struct{}, len(uniqueTypes))
+	for _, item := range items {
+		if item.TelegramId == "" {
+			continue
+		}
+		if _, ok := seen[item.Type]; !ok {
+			seen[item.Type] = make(map[string]struct{})
+		}
+		if _, ok := seen[item.Type][item.TelegramId]; ok {
+			continue
+		}
+		seen[item.Type][item.TelegramId] = struct{}{}
+		result[item.Type] = append(result[item.Type], item.TelegramId)
+	}
+	return result, nil
+}
+
+func GetDueAutoWaterPlots(cutoff int64, telegramIds []string) ([]*TgFarmPlot, error) {
+	var plots []*TgFarmPlot
+	query := DB.Where("status = ? AND last_watered_at > 0 AND last_watered_at <= ?", 1, cutoff)
+	if len(telegramIds) > 0 {
+		query = query.Where("telegram_id IN ?", telegramIds)
+	}
+	err := query.Order("telegram_id asc, id asc").Find(&plots).Error
+	return plots, err
+}
+
+func GetTriggeredDroughtPlots(telegramIds []string, now int64) ([]*TgFarmPlot, error) {
+	if len(telegramIds) == 0 {
+		return []*TgFarmPlot{}, nil
+	}
+	var plots []*TgFarmPlot
+	err := DB.Where("telegram_id IN ? AND status = ? AND event_type = ? AND event_at > 0 AND event_at <= ?", telegramIds, 1, "drought", now).
+		Order("telegram_id asc, id asc").
+		Find(&plots).Error
+	return plots, err
+}
+
 func HasAutomation(telegramId, autoType string) bool {
-	var count int64
-	DB.Model(&TgFarmAutomation{}).Where("telegram_id = ? AND type = ?", telegramId, autoType).Count(&count)
-	return count > 0
+	installed, err := GetInstalledAutomations(telegramId)
+	if err != nil {
+		var count int64
+		DB.Model(&TgFarmAutomation{}).Where("telegram_id = ? AND type = ?", telegramId, autoType).Count(&count)
+		return count > 0
+	}
+	return installed[autoType]
 }
 
 func CreateAutomation(telegramId, autoType string) error {
-	return DB.Create(&TgFarmAutomation{
+	err := DB.Create(&TgFarmAutomation{
 		TelegramId: telegramId, Type: autoType, Level: 1, InstalledAt: time.Now().Unix(),
 	}).Error
+	if err == nil {
+		farmAutomationCache.Delete(telegramId)
+	}
+	return err
 }
 
 // ========== 排行榜 ==========
@@ -1493,26 +1736,50 @@ type FarmLeaderboardEntry struct {
 }
 
 func GetFarmLeaderboard(boardType string, limit int) ([]FarmLeaderboardEntry, error) {
+	cacheKey := boardType + "|" + strconv.Itoa(limit)
+	now := time.Now().Unix()
+	if cached, ok := farmLeaderboardCache.Load(cacheKey); ok {
+		entry := cached.(farmLeaderboardCacheEntry)
+		if entry.ExpiresAt >= now {
+			copied := make([]FarmLeaderboardEntry, len(entry.Value))
+			copy(copied, entry.Value)
+			return copied, nil
+		}
+		farmLeaderboardCache.Delete(cacheKey)
+	}
 	var entries []FarmLeaderboardEntry
+	var err error
 	switch boardType {
 	case "balance":
-		err := DB.Raw("SELECT telegram_id, username, quota as value FROM users WHERE telegram_id != '' AND status = 1 ORDER BY quota DESC LIMIT ?", limit).Scan(&entries).Error
-		return entries, err
+		err = DB.Raw("SELECT telegram_id, username, quota as value FROM users WHERE telegram_id != '' AND status = 1 ORDER BY quota DESC LIMIT ?", limit).Scan(&entries).Error
 	case "level":
-		err := DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
-		return entries, err
+		err = DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
 	case "harvest":
-		err := DB.Raw("SELECT fl.telegram_id, u.username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' GROUP BY fl.telegram_id, u.username ORDER BY value DESC LIMIT ?", limit).Scan(&entries).Error
-		return entries, err
+		err = DB.Raw("SELECT fl.telegram_id, u.username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' GROUP BY fl.telegram_id, u.username ORDER BY value DESC LIMIT ?", limit).Scan(&entries).Error
 	case "prestige":
-		err := DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
-		return entries, err
+		err = DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
 	default:
 		return entries, nil
 	}
+	if err != nil {
+		return entries, err
+	}
+	copied := make([]FarmLeaderboardEntry, len(entries))
+	copy(copied, entries)
+	farmLeaderboardCache.Store(cacheKey, farmLeaderboardCacheEntry{Value: copied, ExpiresAt: now + farmLeaderboardTTLSeconds})
+	return entries, nil
 }
 
 func GetFarmRank(telegramId, boardType string) int64 {
+	cacheKey := telegramId + "|" + boardType
+	now := time.Now().Unix()
+	if cached, ok := farmRankCache.Load(cacheKey); ok {
+		entry := cached.(farmRankCacheEntry)
+		if entry.ExpiresAt >= now {
+			return entry.Value
+		}
+		farmRankCache.Delete(cacheKey)
+	}
 	var rank int64
 	switch boardType {
 	case "balance":
@@ -1523,7 +1790,9 @@ func GetFarmRank(telegramId, boardType string) int64 {
 		level := GetFarmLevel(telegramId)
 		DB.Model(&TgFarmItem{}).Where("item_type = '_level' AND quantity > ?", level).Count(&rank)
 	}
-	return rank + 1
+	rank += 1
+	farmRankCache.Store(cacheKey, farmRankCacheEntry{Value: rank, ExpiresAt: now + farmRankTTLSeconds})
+	return rank
 }
 
 func GetFarmLogDetails(telegramId string, actions []string) []string {

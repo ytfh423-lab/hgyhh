@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -22,7 +23,10 @@ import (
 var (
 	adminFishOverrideMu sync.Mutex
 	adminFishOverride   = make(map[string]string) // tgId -> fishKey
+	farmAutomationTaskOnce sync.Once
 )
+
+var farmAutoIrrigationMemory sync.Map
 
 func SetAdminFishOverride(tgId, fishKey string) {
 	adminFishOverrideMu.Lock()
@@ -172,6 +176,311 @@ func webFarmQuotaFloat(quota int) float64 {
 	return float64(quota) / common.QuotaPerUnit
 }
 
+func shouldRunFarmAutoIrrigation(tgId string, now int64) bool {
+	if last, ok := farmAutoIrrigationMemory.Load(tgId); ok {
+		if lastTs, ok := last.(int64); ok && now-lastTs < 30 {
+			return false
+		}
+	}
+	farmAutoIrrigationMemory.Store(tgId, now)
+	return true
+}
+
+func getVerifiedWebFarmUser(c *gin.Context) (*model.User, string, bool) {
+	user, tgId, ok := getWebFarmUser(c)
+	if !ok {
+		return nil, "", false
+	}
+	creditDefaulted, _ := model.CheckCreditLoanDefault(tgId)
+	if creditDefaulted {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账户已被封禁。"})
+		return nil, "", false
+	}
+	mortgageDefaulted, mortgagePenalty := model.CheckMortgageDefault(tgId)
+	if mortgageDefaulted && mortgagePenalty == "ban" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！你的平台账户已被封禁。"})
+		return nil, "", false
+	}
+	return user, tgId, true
+}
+
+func buildWebFarmDogInfo(dog *model.TgFarmDog, now int64) map[string]interface{} {
+	if dog == nil {
+		return nil
+	}
+	hunger := dog.Hunger
+	if dog.LastFedAt > 0 {
+		hoursPassed := int((now - dog.LastFedAt) / 3600)
+		hunger = 100 - hoursPassed
+		if hunger < 0 {
+			hunger = 0
+		}
+	}
+	level := dog.Level
+	if level == 1 && hunger > 0 {
+		if int((now-dog.CreatedAt)/3600) >= common.TgBotFarmDogGrowHours {
+			level = 2
+		}
+	}
+	levelStr := "幼犬"
+	statusStr := "成长中"
+	if level == 2 {
+		levelStr = "成犬"
+		if hunger > 0 {
+			statusStr = "看门中"
+		} else {
+			statusStr = "饿坏了"
+		}
+	} else {
+		if hunger == 0 {
+			statusStr = "饿坏了"
+		} else {
+			hoursLeft := int64(common.TgBotFarmDogGrowHours) - (now-dog.CreatedAt)/3600
+			if hoursLeft < 0 {
+				hoursLeft = 0
+			}
+			statusStr = fmt.Sprintf("还需%d小时长大", hoursLeft)
+		}
+	}
+	return map[string]interface{}{
+		"name":       dog.Name,
+		"level":      level,
+		"level_name": levelStr,
+		"hunger":     hunger,
+		"status":     statusStr,
+		"guard_rate": common.TgBotFarmDogGuardRate,
+	}
+}
+
+func buildFarmTaskSummaryData(tgId string, nowTime time.Time) gin.H {
+	dateStr := todayDateStr()
+	tasks := getDailyTasks(dateStr)
+	taskActions := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		taskActions = append(taskActions, task.Action)
+	}
+	startOfDay := time.Date(nowTime.Year(), nowTime.Month(), nowTime.Day(), 0, 0, 0, 0, nowTime.Location()).Unix()
+	taskCounts, _ := model.GetActionCountsSince(tgId, taskActions, startOfDay)
+	claimed, _ := model.GetTaskClaims(tgId, dateStr)
+	claimedSet := make(map[int]bool, len(claimed))
+	for _, idx := range claimed {
+		claimedSet[idx] = true
+	}
+	doneTasks := 0
+	for i, task := range tasks {
+		if taskCounts[task.Action] >= int64(task.Target) || claimedSet[i] {
+			doneTasks++
+		}
+	}
+	return gin.H{"done": doneTasks, "total": len(tasks), "claimed": len(claimed)}
+}
+
+func buildFarmViewLiteData(user *model.User, tgId string, nowTime time.Time) (gin.H, error) {
+	plots, err := model.GetOrCreateFarmPlots(tgId)
+	if err != nil {
+		return nil, err
+	}
+	plotInfos := make([]webPlotInfo, 0, len(plots))
+	for _, plot := range plots {
+		plotInfos = append(plotInfos, buildPlotInfo(plot))
+	}
+	now := nowTime.Unix()
+	var dogInfo map[string]interface{}
+	dog, dogErr := model.GetFarmDog(tgId)
+	if dogErr == nil {
+		dogInfo = buildWebFarmDogInfo(dog, now)
+	}
+	items, _ := model.GetFarmItems(tgId)
+	userLevel := 1
+	prestigeLevel := 0
+	itemInfos := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		switch item.ItemType {
+		case "_level":
+			if item.Quantity > 0 {
+				userLevel = item.Quantity
+			}
+		case "_prestige":
+			if item.Quantity > 0 {
+				prestigeLevel = item.Quantity
+			}
+		}
+		def := farmItemMap[item.ItemType]
+		if def != nil {
+			itemInfos = append(itemInfos, map[string]interface{}{
+				"key":      item.ItemType,
+				"name":     def.Name,
+				"emoji":    def.Emoji,
+				"quantity": item.Quantity,
+				"category": "item",
+			})
+			continue
+		}
+		if strings.HasPrefix(item.ItemType, "seed_") {
+			cropKey := strings.TrimPrefix(item.ItemType, "seed_")
+			crop := farmCropMap[cropKey]
+			if crop != nil {
+				itemInfos = append(itemInfos, map[string]interface{}{
+					"key":       item.ItemType,
+					"name":      crop.Name + "种子",
+					"emoji":     crop.Emoji,
+					"quantity":  item.Quantity,
+					"category":  "seed",
+					"crop_key":  cropKey,
+					"seed_cost": webFarmQuotaFloat(crop.SeedCost),
+				})
+			}
+		}
+	}
+	weather := GetCurrentWeather()
+	weatherData := gin.H{
+		"type":     weather.Type,
+		"type_key": weather.TypeKey,
+		"name":     weather.Name,
+		"emoji":    weather.Emoji,
+		"effects":  weather.Effects,
+		"ends_in":  weather.EndsAt - now,
+		"season":   getCurrentSeason(),
+	}
+	return gin.H{
+		"plots":      plotInfos,
+		"dog":        dogInfo,
+		"items":      itemInfos,
+		"plot_count": len(plots),
+		"max_plots":  model.FarmMaxPlots,
+		"plot_price":       webFarmQuotaFloat(common.TgBotFarmPlotPrice),
+		"balance":          webFarmQuotaFloat(user.Quota),
+		"soil_max_level":   common.TgBotFarmSoilMaxLevel,
+		"soil_speed_bonus": common.TgBotFarmSoilSpeedBonus,
+		"soil_upgrade_prices": map[string]interface{}{
+			"2": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice2),
+			"3": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice3),
+			"4": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice4),
+			"5": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice5),
+		},
+		"user_level":     userLevel,
+		"weather":        weatherData,
+		"prestige_level": prestigeLevel,
+		"prestige_bonus": prestigeLevel * common.TgBotFarmPrestigeBonusPerLevel,
+		"beta_enabled":   common.FarmBetaEnabled,
+		"beta_end_time":  common.FarmBetaEndTime,
+	}, nil
+}
+
+func buildFarmViewDynamicData(tgId string, nowTime time.Time) gin.H {
+	farmOnlineHeartbeat(tgId)
+	return gin.H{
+		"task_summary": buildFarmTaskSummaryData(tgId, nowTime),
+	}
+}
+
+func StartFarmAutomationTask() {
+	farmAutomationTaskOnce.Do(func() {
+		if !common.IsMasterNode {
+			return
+		}
+		go func() {
+			runFarmAutomationTick()
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				runFarmAutomationTick()
+			}
+		}()
+	})
+}
+
+func runFarmAutomationTick() {
+	now := time.Now().Unix()
+	autoOwners, err := model.GetAutomationOwnerMap([]string{"irrigation", "auto_feeder"})
+	if err != nil {
+		return
+	}
+	processFarmAutoWaterTick(autoOwners["irrigation"], GetCurrentWeather().Type == 1, now)
+	processRanchAutoFeederTick(autoOwners["auto_feeder"], now)
+}
+
+func processFarmAutoWaterTick(irrigationOwners []string, weatherAutoWater bool, now int64) {
+	if !weatherAutoWater && len(irrigationOwners) == 0 {
+		return
+	}
+	waterCutoff := now - int64(common.TgBotFarmWaterInterval)/2
+	ownerScope := irrigationOwners
+	if weatherAutoWater {
+		ownerScope = nil
+	}
+	plots, err := model.GetDueAutoWaterPlots(waterCutoff, ownerScope)
+	if err == nil && len(plots) > 0 {
+		plotIDs := make([]int, 0, len(plots))
+		counts := make(map[string]int)
+		for _, plot := range plots {
+			plotIDs = append(plotIDs, plot.Id)
+			counts[plot.TelegramId]++
+		}
+		_ = model.WaterFarmPlots(plotIDs, now)
+		for tgId, count := range counts {
+			model.AddFarmLogs(tgId, "water", 0, "💧自动灌溉", count)
+		}
+	}
+	if len(irrigationOwners) == 0 {
+		return
+	}
+	droughtPlots, err := model.GetTriggeredDroughtPlots(irrigationOwners, now)
+	if err != nil {
+		return
+	}
+	for _, plot := range droughtPlots {
+		plot.EventType = ""
+		plot.EventAt = 0
+		_ = model.UpdateFarmPlot(plot)
+	}
+}
+
+func processRanchAutoFeederTick(ownerIds []string, now int64) {
+	if len(ownerIds) == 0 {
+		return
+	}
+	animals, err := model.GetActiveRanchAnimalsByTelegramIds(ownerIds)
+	if err != nil || len(animals) == 0 {
+		return
+	}
+	feedInterval := int64(common.TgBotRanchFeedInterval)
+	waterInterval := int64(common.TgBotRanchWaterInterval)
+	feedCounts := make(map[string]int)
+	waterCounts := make(map[string]int)
+	for _, animal := range animals {
+		changed := false
+		if now >= animal.LastFedAt+feedInterval {
+			animal.LastFedAt = now
+			feedCounts[animal.TelegramId]++
+			changed = true
+		}
+		if now >= animal.LastWateredAt+waterInterval {
+			animal.LastWateredAt = now
+			waterCounts[animal.TelegramId]++
+			changed = true
+		}
+		if !changed {
+			continue
+		}
+		if animal.Status == 3 || animal.Status == 4 {
+			def := ranchAnimalMap[animal.AnimalType]
+			if def != nil && now-animal.PurchasedAt >= *def.GrowSecs {
+				animal.Status = 2
+			} else {
+				animal.Status = 1
+			}
+		}
+		_ = model.UpdateRanchAnimal(animal)
+	}
+	for tgId, count := range feedCounts {
+		model.AddFarmLogs(tgId, "ranch_feed", 0, "🤖自动喂食", count)
+	}
+	for tgId, count := range waterCounts {
+		model.AddFarmLogs(tgId, "ranch_water", 0, "🤖自动喂水", count)
+	}
+}
+
 // checkFeatureLevel 检查用户是否达到功能解锁等级，未达到则返回错误并return false
 func webCheckFeatureLevel(c *gin.Context, tgId string, requiredLevel int, featureName string) bool {
 	userLevel := model.GetFarmLevel(tgId)
@@ -313,194 +622,43 @@ func buildPlotInfo(plot *model.TgFarmPlot) webPlotInfo {
 
 // WebFarmView returns the complete farm state
 func WebFarmView(c *gin.Context) {
-	user, tgId, ok := getWebFarmUser(c)
+	user, tgId, ok := getVerifiedWebFarmUser(c)
 	if !ok {
 		return
 	}
-
-	creditDefaulted, _ := model.CheckCreditLoanDefault(tgId)
-	if creditDefaulted {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的信用贷款已逾期违约！你的平台账户已被封禁。"})
-		return
-	}
-	mortgageDefaulted, mortgagePenalty := model.CheckMortgageDefault(tgId)
-	if mortgageDefaulted && mortgagePenalty == "ban" {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "你的抵押贷款已逾期违约！你的平台账户已被封禁。"})
-		return
-	}
-
-	plots, err := model.GetOrCreateFarmPlots(tgId)
+	nowTime := time.Now()
+	liteData, err := buildFarmViewLiteData(user, tgId, nowTime)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
 		return
 	}
-
-	installedAutomations, _ := model.GetInstalledAutomations(tgId)
-	weather := GetCurrentWeather()
-	nowTime := time.Now()
-	now := nowTime.Unix()
-	if installedAutomations["irrigation"] || weather.Type == 1 {
-		waterInterval := int64(common.TgBotFarmWaterInterval)
-		plotIdsToWater := make([]int, 0, len(plots))
-		for _, plot := range plots {
-			if plot.Status != 1 || plot.LastWateredAt <= 0 {
-				continue
-			}
-			if now-plot.LastWateredAt < waterInterval/2 {
-				continue
-			}
-			plotIdsToWater = append(plotIdsToWater, plot.Id)
-			plot.LastWateredAt = now
-		}
-		if len(plotIdsToWater) > 0 {
-			_ = model.WaterFarmPlots(plotIdsToWater, now)
-			model.AddFarmLogs(tgId, "water", 0, "💧自动灌溉", len(plotIdsToWater))
-		}
+	dynamicData := buildFarmViewDynamicData(tgId, nowTime)
+	for key, value := range dynamicData {
+		liteData[key] = value
 	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": liteData})
+}
 
-	plotInfos := make([]webPlotInfo, 0, len(plots))
-	for _, plot := range plots {
-		plotInfos = append(plotInfos, buildPlotInfo(plot))
+
+func WebFarmViewLite(c *gin.Context) {
+	user, tgId, ok := getVerifiedWebFarmUser(c)
+	if !ok {
+		return
 	}
-
-	var dogInfo map[string]interface{}
-	dog, dogErr := model.GetFarmDog(tgId)
-	if dogErr == nil {
-		model.UpdateDogHunger(dog)
-		levelStr := "幼犬"
-		statusStr := "成长中"
-		if dog.Level == 2 {
-			levelStr = "成犬"
-			if dog.Hunger > 0 {
-				statusStr = "看门中"
-			} else {
-				statusStr = "饿坏了"
-			}
-		} else {
-			if dog.Hunger == 0 {
-				statusStr = "饿坏了"
-			} else {
-				hoursLeft := int64(common.TgBotFarmDogGrowHours) - (now-dog.CreatedAt)/3600
-				if hoursLeft < 0 {
-					hoursLeft = 0
-				}
-				statusStr = fmt.Sprintf("还需%d小时长大", hoursLeft)
-			}
-		}
-		dogInfo = map[string]interface{}{
-			"name":       dog.Name,
-			"level":      dog.Level,
-			"level_name": levelStr,
-			"hunger":     dog.Hunger,
-			"status":     statusStr,
-			"guard_rate": common.TgBotFarmDogGuardRate,
-		}
+	data, err := buildFarmViewLiteData(user, tgId, time.Now())
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
 	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
 
-	items, _ := model.GetFarmItems(tgId)
-	userLevel := 1
-	prestigeLevel := 0
-	itemInfos := make([]map[string]interface{}, 0, len(items))
-	for _, item := range items {
-		switch item.ItemType {
-		case "_level":
-			if item.Quantity > 0 {
-				userLevel = item.Quantity
-			}
-		case "_prestige":
-			if item.Quantity > 0 {
-				prestigeLevel = item.Quantity
-			}
-		}
-
-		def := farmItemMap[item.ItemType]
-		if def != nil {
-			itemInfos = append(itemInfos, map[string]interface{}{
-				"key":      item.ItemType,
-				"name":     def.Name,
-				"emoji":    def.Emoji,
-				"quantity": item.Quantity,
-				"category": "item",
-			})
-			continue
-		}
-		if strings.HasPrefix(item.ItemType, "seed_") {
-			cropKey := strings.TrimPrefix(item.ItemType, "seed_")
-			crop := farmCropMap[cropKey]
-			if crop != nil {
-				itemInfos = append(itemInfos, map[string]interface{}{
-					"key":       item.ItemType,
-					"name":      crop.Name + "种子",
-					"emoji":     crop.Emoji,
-					"quantity":  item.Quantity,
-					"category":  "seed",
-					"crop_key":  cropKey,
-					"seed_cost": webFarmQuotaFloat(crop.SeedCost),
-				})
-			}
-		}
+func WebFarmViewDynamic(c *gin.Context) {
+	_, tgId, ok := getVerifiedWebFarmUser(c)
+	if !ok {
+		return
 	}
-
-	dateStr := todayDateStr()
-	tasks := getDailyTasks(dateStr)
-	taskActions := make([]string, 0, len(tasks))
-	for _, task := range tasks {
-		taskActions = append(taskActions, task.Action)
-	}
-	startOfDay := time.Date(nowTime.Year(), nowTime.Month(), nowTime.Day(), 0, 0, 0, 0, nowTime.Location()).Unix()
-	taskCounts, _ := model.GetActionCountsSince(tgId, taskActions, startOfDay)
-	claimed, _ := model.GetTaskClaims(tgId, dateStr)
-	claimedSet := make(map[int]bool, len(claimed))
-	for _, idx := range claimed {
-		claimedSet[idx] = true
-	}
-	doneTasks := 0
-	for i, task := range tasks {
-		if taskCounts[task.Action] >= int64(task.Target) || claimedSet[i] {
-			doneTasks++
-		}
-	}
-
-	weatherData := gin.H{
-		"type":     weather.Type,
-		"type_key": weather.TypeKey,
-		"name":     weather.Name,
-		"emoji":    weather.Emoji,
-		"effects":  weather.Effects,
-		"ends_in":  weather.EndsAt - now,
-		"season":   getCurrentSeason(),
-	}
-
-	// 记录在线心跳
-	farmOnlineHeartbeat(tgId)
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"plots":      plotInfos,
-			"dog":        dogInfo,
-			"items":      itemInfos,
-			"plot_count": len(plots),
-			"max_plots":  model.FarmMaxPlots,
-			"plot_price":       webFarmQuotaFloat(common.TgBotFarmPlotPrice),
-			"balance":          webFarmQuotaFloat(user.Quota),
-			"soil_max_level":   common.TgBotFarmSoilMaxLevel,
-			"soil_speed_bonus": common.TgBotFarmSoilSpeedBonus,
-			"soil_upgrade_prices": map[string]interface{}{
-				"2": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice2),
-				"3": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice3),
-				"4": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice4),
-				"5": webFarmQuotaFloat(common.TgBotFarmSoilUpgradePrice5),
-			},
-			"user_level":     userLevel,
-			"weather":        weatherData,
-			"prestige_level": prestigeLevel,
-			"prestige_bonus": prestigeLevel * common.TgBotFarmPrestigeBonusPerLevel,
-			"beta_enabled":   common.FarmBetaEnabled,
-			"beta_end_time":  common.FarmBetaEndTime,
-			"task_summary":   gin.H{"done": doneTasks, "total": len(tasks), "claimed": len(claimed)},
-		},
-	})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": buildFarmViewDynamicData(tgId, time.Now())})
 }
 
 // WebFarmCrops returns available crops
@@ -3765,23 +3923,35 @@ func WebWorkshopCancel(c *gin.Context) {
 const (
 	farmOnlineKey    = "farm:online"
 	farmOnlineTTLSec = 300 // 5 分钟内有活动视为在线
+	farmHeartbeatMinIntervalSec = 15
+	farmCleanupMinIntervalSec = 30
 )
 
 // 内存回退：Redis 不可用时使用
 var farmOnlineMemory sync.Map // farmId -> int64(unix timestamp)
+var farmOnlineWriteMemory sync.Map
+var farmOnlineLastCleanupUnix int64
 
 // farmOnlineHeartbeat 记录用户活跃心跳
 func farmOnlineHeartbeat(farmId string) {
 	now := time.Now().Unix()
+	if last, ok := farmOnlineWriteMemory.Load(farmId); ok {
+		if lastTs, ok := last.(int64); ok && now-lastTs < farmHeartbeatMinIntervalSec {
+			return
+		}
+	}
+	farmOnlineWriteMemory.Store(farmId, now)
 	if common.RedisEnabled {
 		ctx := context.Background()
 		common.RDB.ZAdd(ctx, farmOnlineKey, &redis.Z{
 			Score:  float64(now),
 			Member: farmId,
 		})
-		// 清理过期成员，避免集合无限增长
-		cutoff := float64(now - farmOnlineTTLSec)
-		common.RDB.ZRemRangeByScore(ctx, farmOnlineKey, "-inf", fmt.Sprintf("%f", cutoff))
+		lastCleanup := atomic.LoadInt64(&farmOnlineLastCleanupUnix)
+		if now-lastCleanup >= farmCleanupMinIntervalSec && atomic.CompareAndSwapInt64(&farmOnlineLastCleanupUnix, lastCleanup, now) {
+			cutoff := float64(now - farmOnlineTTLSec)
+			common.RDB.ZRemRangeByScore(ctx, farmOnlineKey, "-inf", fmt.Sprintf("%f", cutoff))
+		}
 	} else {
 		farmOnlineMemory.Store(farmId, now)
 	}

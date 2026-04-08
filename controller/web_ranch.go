@@ -136,42 +136,6 @@ func WebRanchView(c *gin.Context) {
 		updateRanchAnimalStatus(a)
 	}
 
-	// 自动喂食器：自动喂食和喂水所有需要的动物（免费）
-	if model.HasAutomation(tgId, "auto_feeder") {
-		now := time.Now().Unix()
-		feedInterval := int64(common.TgBotRanchFeedInterval)
-		waterInterval := int64(common.TgBotRanchWaterInterval)
-		for _, a := range animals {
-			if a.Status == 5 {
-				continue
-			}
-			needsFeed := now >= a.LastFedAt+feedInterval
-			needsWater := now >= a.LastWateredAt+waterInterval
-			changed := false
-			if needsFeed {
-				_ = model.FeedRanchAnimal(a.Id)
-				a.LastFedAt = now
-				changed = true
-				model.AddFarmLog(tgId, "ranch_feed", 0, "🤖自动喂食")
-			}
-			if needsWater {
-				_ = model.WaterRanchAnimal(a.Id)
-				a.LastWateredAt = now
-				changed = true
-				model.AddFarmLog(tgId, "ranch_water", 0, "🤖自动喂水")
-			}
-			if changed && (a.Status == 3 || a.Status == 4) {
-				def := ranchAnimalMap[a.AnimalType]
-				if def != nil && now-a.PurchasedAt >= *def.GrowSecs {
-					a.Status = 2
-				} else {
-					a.Status = 1
-				}
-				_ = model.UpdateRanchAnimal(a)
-			}
-		}
-	}
-
 	var animalInfos []webAnimalInfo
 	for _, a := range animals {
 		animalInfos = append(animalInfos, buildAnimalInfo(a))

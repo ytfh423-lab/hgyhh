@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -24,9 +25,13 @@ import (
 const (
 	siteOnlineKey    = "site:online"
 	siteOnlineTTLSec = 180 // 3 分钟
+	siteHeartbeatMinIntervalSec = 15
+	siteCleanupMinIntervalSec = 30
 )
 
 var siteOnlineMemory sync.Map // userId(int) -> int64(timestamp)
+var siteOnlineWriteMemory sync.Map
+var siteOnlineLastCleanupUnix int64
 
 // SiteHeartbeat POST /api/heartbeat — 更新在线状态
 func SiteHeartbeat(c *gin.Context) {
@@ -41,6 +46,12 @@ func SiteHeartbeat(c *gin.Context) {
 
 func siteOnlineHeartbeat(userId int) {
 	now := time.Now().Unix()
+	if last, ok := siteOnlineWriteMemory.Load(userId); ok {
+		if lastTs, ok := last.(int64); ok && now-lastTs < siteHeartbeatMinIntervalSec {
+			return
+		}
+	}
+	siteOnlineWriteMemory.Store(userId, now)
 	member := strconv.Itoa(userId)
 	if common.RedisEnabled {
 		ctx := context.Background()
@@ -48,9 +59,12 @@ func siteOnlineHeartbeat(userId int) {
 			Score:  float64(now),
 			Member: member,
 		})
-		cutoff := float64(now - siteOnlineTTLSec)
-		common.RDB.ZRemRangeByScore(ctx, siteOnlineKey, "-inf",
-			fmt.Sprintf("%f", cutoff))
+		lastCleanup := atomic.LoadInt64(&siteOnlineLastCleanupUnix)
+		if now-lastCleanup >= siteCleanupMinIntervalSec && atomic.CompareAndSwapInt64(&siteOnlineLastCleanupUnix, lastCleanup, now) {
+			cutoff := float64(now - siteOnlineTTLSec)
+			common.RDB.ZRemRangeByScore(ctx, siteOnlineKey, "-inf",
+				fmt.Sprintf("%f", cutoff))
+		}
 	} else {
 		siteOnlineMemory.Store(userId, now)
 	}
@@ -93,6 +107,52 @@ func getOnlineUserIds(excludeId int) []int {
 	return ids
 }
 
+func getOnlineUserIdsLimited(excludeId int, limit int) []int {
+	if limit <= 0 {
+		return getOnlineUserIds(excludeId)
+	}
+	now := time.Now().Unix()
+	cutoff := now - siteOnlineTTLSec
+	ids := make([]int, 0, limit)
+	if common.RedisEnabled {
+		ctx := context.Background()
+		members, err := common.RDB.ZRevRangeByScore(ctx, siteOnlineKey, &redisv8.ZRangeBy{
+			Min:   strconv.FormatInt(cutoff, 10),
+			Max:   "+inf",
+			Count: int64(limit + 1),
+		}).Result()
+		if err != nil {
+			return ids
+		}
+		for _, m := range members {
+			id, err := strconv.Atoi(m)
+			if err == nil && id != excludeId {
+				ids = append(ids, id)
+				if len(ids) >= limit {
+					break
+				}
+			}
+		}
+		return ids
+	}
+	siteOnlineMemory.Range(func(key, value interface{}) bool {
+		ts, ok := value.(int64)
+		if !ok || ts < cutoff {
+			siteOnlineMemory.Delete(key)
+			return true
+		}
+		id, ok := key.(int)
+		if ok && id != excludeId {
+			ids = append(ids, id)
+			if len(ids) >= limit {
+				return false
+			}
+		}
+		return true
+	})
+	return ids
+}
+
 func isSiteOnline(userId int) bool {
 	now := time.Now().Unix()
 	cutoff := now - siteOnlineTTLSec
@@ -110,6 +170,49 @@ func isSiteOnline(userId int) bool {
 	}
 	ts, ok := val.(int64)
 	return ok && ts >= cutoff
+}
+
+func getSiteOnlineStatusMap(userIds []int) map[int]bool {
+	result := make(map[int]bool, len(userIds))
+	if len(userIds) == 0 {
+		return result
+	}
+	now := time.Now().Unix()
+	cutoff := now - siteOnlineTTLSec
+	if common.RedisEnabled {
+		ctx := context.Background()
+		pipe := common.RDB.Pipeline()
+		cmds := make(map[int]*redisv8.FloatCmd, len(userIds))
+		seen := make(map[int]struct{}, len(userIds))
+		for _, userId := range userIds {
+			if _, ok := seen[userId]; ok {
+				continue
+			}
+			seen[userId] = struct{}{}
+			cmds[userId] = pipe.ZScore(ctx, siteOnlineKey, strconv.Itoa(userId))
+		}
+		_, _ = pipe.Exec(ctx)
+		for userId, cmd := range cmds {
+			if score, err := cmd.Result(); err == nil && int64(score) >= cutoff {
+				result[userId] = true
+			}
+		}
+		return result
+	}
+	for _, userId := range userIds {
+		if result[userId] {
+			continue
+		}
+		val, ok := siteOnlineMemory.Load(userId)
+		if !ok {
+			continue
+		}
+		ts, ok := val.(int64)
+		if ok && ts >= cutoff {
+			result[userId] = true
+		}
+	}
+	return result
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -223,7 +326,15 @@ func WebFarmFriendList(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
 		return
 	}
-	list, err := model.GetFriendInfoList(userId, isSiteOnline)
+	friendIds, err := model.GetFriendList(userId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	onlineMap := getSiteOnlineStatusMap(friendIds)
+	list, err := model.GetFriendInfoListByIds(userId, friendIds, func(friendId int) bool {
+		return onlineMap[friendId]
+	})
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
 		return
@@ -371,24 +482,26 @@ func WebFarmFriendSearch(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "搜索失败"})
 		return
 	}
+	targetIds := make([]int, 0, len(users))
+	for _, u := range users {
+		targetIds = append(targetIds, u.Id)
+	}
+	onlineMap := getSiteOnlineStatusMap(targetIds)
+	relationMap, err := model.GetOutgoingFriendStatusMap(userId, targetIds)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "搜索失败"})
+		return
+	}
 	result := make([]map[string]interface{}, 0, len(users))
 	for _, u := range users {
-		// 检查是否已是好友或已有申请
-		isFr := model.IsFriend(userId, u.Id)
-		var reqStatus string
-		if !isFr {
-			existing, err2 := model.GetFriendRequestByUsers(userId, u.Id)
-			if err2 == nil {
-				reqStatus = existing.Status
-			}
-		}
+		relation := relationMap[u.Id]
 		result = append(result, map[string]interface{}{
 			"user_id":      u.Id,
 			"username":     u.Username,
 			"display_name": u.DisplayName,
-			"is_friend":    isFr,
-			"req_status":   reqStatus,
-			"online":       isSiteOnline(u.Id),
+			"is_friend":    relation.IsFriend,
+			"req_status":   relation.ReqStatus,
+			"online":       onlineMap[u.Id],
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
@@ -401,7 +514,7 @@ func WebSocialOnlineUsers(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请先登录"})
 		return
 	}
-	onlineIds := getOnlineUserIds(userId)
+	onlineIds := getOnlineUserIdsLimited(userId, 100)
 	if len(onlineIds) == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
 		return
@@ -410,26 +523,28 @@ func WebSocialOnlineUsers(c *gin.Context) {
 	var users []model.User
 	if err := model.DB.Select("id, username, display_name").
 		Where("id IN ? AND deleted_at IS NULL", onlineIds).
-		Limit(100).Find(&users).Error; err != nil {
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
+		return
+	}
+	targetIds := make([]int, 0, len(users))
+	for _, u := range users {
+		targetIds = append(targetIds, u.Id)
+	}
+	relationMap, err := model.GetOutgoingFriendStatusMap(userId, targetIds)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "系统错误"})
 		return
 	}
 	result := make([]map[string]interface{}, 0, len(users))
 	for _, u := range users {
-		isFr := model.IsFriend(userId, u.Id)
-		var reqStatus string
-		if !isFr {
-			existing, err2 := model.GetFriendRequestByUsers(userId, u.Id)
-			if err2 == nil {
-				reqStatus = existing.Status
-			}
-		}
+		relation := relationMap[u.Id]
 		result = append(result, map[string]interface{}{
 			"user_id":      u.Id,
 			"username":     u.Username,
 			"display_name": u.DisplayName,
-			"is_friend":    isFr,
-			"req_status":   reqStatus,
+			"is_friend":    relation.IsFriend,
+			"req_status":   relation.ReqStatus,
 			"online":       true,
 		})
 	}

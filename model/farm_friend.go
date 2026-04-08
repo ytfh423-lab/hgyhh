@@ -183,6 +183,10 @@ func GetFriendInfoList(userId int, onlineChecker func(int) bool) ([]FriendInfo, 
 	if err != nil {
 		return nil, err
 	}
+	return GetFriendInfoListByIds(userId, friendIds, onlineChecker)
+}
+
+func GetFriendInfoListByIds(userId int, friendIds []int, onlineChecker func(int) bool) ([]FriendInfo, error) {
 	if len(friendIds) == 0 {
 		return []FriendInfo{}, nil
 	}
@@ -194,19 +198,30 @@ func GetFriendInfoList(userId int, onlineChecker func(int) bool) ([]FriendInfo, 
 	for _, u := range users {
 		userMap[u.Id] = u
 	}
+	var unreadRows []struct {
+		FromUserId int
+		Count      int64
+	}
+	if err := DB.Model(&FarmMessage{}).
+		Select("from_user_id, COUNT(*) as count").
+		Where("to_user_id = ? AND is_read = ? AND from_user_id IN ?", userId, false, friendIds).
+		Group("from_user_id").
+		Scan(&unreadRows).Error; err != nil {
+		return nil, err
+	}
+	unreadMap := make(map[int]int64, len(unreadRows))
+	for _, row := range unreadRows {
+		unreadMap[row.FromUserId] = row.Count
+	}
 	result := make([]FriendInfo, 0, len(friendIds))
 	for _, fid := range friendIds {
 		u := userMap[fid]
-		var unread int64
-		DB.Model(&FarmMessage{}).
-			Where("from_user_id = ? AND to_user_id = ? AND is_read = ?", fid, userId, false).
-			Count(&unread)
 		result = append(result, FriendInfo{
 			UserId:      fid,
 			Username:    u.Username,
 			DisplayName: u.DisplayName,
 			Online:      onlineChecker(fid),
-			UnreadCount: unread,
+			UnreadCount: unreadMap[fid],
 		})
 	}
 	return result, nil
@@ -240,6 +255,40 @@ func GetPendingRequestInfoList(userId int) ([]FriendInfo, error) {
 			DisplayName: u.DisplayName,
 			RequestId:   req.Id,
 		})
+	}
+	return result, nil
+}
+
+type FriendRelationState struct {
+	IsFriend  bool
+	ReqStatus string
+}
+
+func GetOutgoingFriendStatusMap(userId int, targetIds []int) (map[int]FriendRelationState, error) {
+	result := make(map[int]FriendRelationState)
+	if len(targetIds) == 0 {
+		return result, nil
+	}
+	uniqueIds := make([]int, 0, len(targetIds))
+	seen := make(map[int]struct{}, len(targetIds))
+	for _, id := range targetIds {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIds = append(uniqueIds, id)
+	}
+	var rows []FarmFriend
+	if err := DB.Select("friend_id, status").Where("user_id = ? AND friend_id IN ?", userId, uniqueIds).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		state := FriendRelationState{ReqStatus: row.Status}
+		if row.Status == "accepted" {
+			state.IsFriend = true
+			state.ReqStatus = ""
+		}
+		result[row.FriendId] = state
 	}
 	return result, nil
 }

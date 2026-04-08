@@ -191,7 +191,7 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, navigate, t, userLevel = 
 // Module-level caches — survive page tab switches within same session
 let _cropsCache = null;
 let _groupConfigCache = undefined; // undefined = not fetched yet, null = fetched but disabled
-const FARM_CACHE_KEY = 'farm_view_v1';
+const FARM_CACHE_KEY = 'farm_view_v2';
 
 const Farm = () => {
   const { t } = useTranslation();
@@ -258,16 +258,25 @@ const Farm = () => {
   const loadFarm = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: res } = await API.get('/api/farm/view');
-      if (res.success) {
-        setFarmData(res.data);
+      const [lightResp, dynamicResp] = await Promise.all([
+        API.get('/api/farm/view/light'),
+        API.get('/api/farm/view/dynamic', { disableDuplicate: true }),
+      ]);
+      const lightRes = lightResp.data;
+      const dynamicRes = dynamicResp.data;
+      if (lightRes.success) {
+        const mergedData = {
+          ...lightRes.data,
+          ...(dynamicRes.success ? dynamicRes.data : { task_summary: { done: 0, total: 0, claimed: 0 } }),
+        };
+        setFarmData(mergedData);
         setBetaGate(null);
-        try { sessionStorage.setItem(FARM_CACHE_KEY, JSON.stringify(res.data)); } catch (e) {}
-      } else if (res.code === 'BETA_NOT_STARTED' || res.code === 'BETA_NO_ACCESS' || res.code === 'BETA_AGREEMENT_REQUIRED' || res.code === 'BETA_EXPIRED') {
-        setBetaGate(res.code);
-        setBetaMessage(res.message);
+        try { sessionStorage.setItem(FARM_CACHE_KEY, JSON.stringify(mergedData)); } catch (e) {}
+      } else if (lightRes.code === 'BETA_NOT_STARTED' || lightRes.code === 'BETA_NO_ACCESS' || lightRes.code === 'BETA_AGREEMENT_REQUIRED' || lightRes.code === 'BETA_EXPIRED') {
+        setBetaGate(lightRes.code);
+        setBetaMessage(lightRes.message);
       } else {
-        showError(res.message);
+        showError(lightRes.message);
       }
     } catch (err) {
       showError(t('加载失败'));

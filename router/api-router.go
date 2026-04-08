@@ -379,6 +379,8 @@ func SetApiRouter(router *gin.Engine) {
 		farmRoute.Use(controller.CheckFarmBetaAccess())
 		{
 			farmRoute.GET("/online", controller.WebFarmOnlineCount)
+			farmRoute.GET("/view/light", controller.WebFarmViewLite)
+			farmRoute.GET("/view/dynamic", controller.WebFarmViewDynamic)
 			farmRoute.GET("/view", controller.WebFarmView)
 			farmRoute.GET("/crops", controller.WebFarmCrops)
 			farmRoute.GET("/shop", controller.WebFarmShop)
