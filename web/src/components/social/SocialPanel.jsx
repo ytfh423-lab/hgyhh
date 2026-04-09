@@ -127,7 +127,36 @@ const OnboardingModal = ({ onClose }) => {
 ═══════════════════════════════════════════════════════ */
 const NotifCard = ({ notif, onDismiss, onAction }) => {
   const [out, setOut] = useState(false);
-  const dismiss = () => { setOut(true); setTimeout(() => onDismiss(notif.id), 280); };
+  const dismissTimerRef = useRef(null);
+  const removeTimerRef = useRef(null);
+  const dismiss = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+    if (removeTimerRef.current) {
+      return;
+    }
+    setOut(true);
+    removeTimerRef.current = window.setTimeout(() => {
+      onDismiss(notif.id);
+    }, 280);
+  }, [notif.id, onDismiss]);
+
+  useEffect(() => {
+    const duration = typeof notif.duration === 'number' ? notif.duration : 10000;
+    dismissTimerRef.current = window.setTimeout(() => {
+      dismiss();
+    }, duration);
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+      }
+      if (removeTimerRef.current) {
+        clearTimeout(removeTimerRef.current);
+      }
+    };
+  }, [dismiss, notif.duration]);
 
   const cfg = {
     friend_request:  { icon: '👋', color: '#5a8fb4', bg: 'rgba(90,143,180,0.14)',  border: 'rgba(90,143,180,0.38)',  title: '好友申请',  body: `${notif.from_name} 想加你为好友`,           actions: [{ label: '✅ 接受', type: 'accept' }, { label: '❌ 拒绝', type: 'reject' }] },
@@ -747,8 +776,6 @@ const SocialPanel = () => {
   const addNotif = useCallback((ev) => {
     const id = nextId.current++;
     setNotifs(prev => [...prev, { ...ev, id }]);
-    const duration = typeof ev.duration === 'number' ? ev.duration : 10000;
-    setTimeout(() => setNotifs(prev => prev.filter(n => n.id !== id)), duration);
   }, []);
 
   useEffect(() => {
