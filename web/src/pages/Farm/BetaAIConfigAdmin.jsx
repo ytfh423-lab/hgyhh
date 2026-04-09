@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Button, Card, Input, Switch, Typography, Select, Space, Spin, TextArea, InputNumber, Modal, Tag, Table, Empty, Pagination,
 } from '@douyinfe/semi-ui';
-import { API, showError, showSuccess } from '../../helpers';
+import { API, showError, showSuccess } from './components/utils';
 import { useTranslation } from 'react-i18next';
 
 const { Text, Title } = Typography;

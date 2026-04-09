@@ -1,4 +1,22 @@
-export { API, showError, showSuccess } from '../../../helpers';
+import { API, showError, showSuccess as showGlobalSuccess } from '../../../helpers';
+
+export { API, showError };
+
+const isFarmSuccessRoute = (pathname) => pathname.startsWith('/farm') || pathname.startsWith('/console/farm-');
+
+export const showSuccess = (message, options = {}) => {
+  if (typeof window !== 'undefined' && isFarmSuccessRoute(window.location.pathname)) {
+    window.dispatchEvent(new CustomEvent('farm:success-notify', {
+      detail: {
+        message,
+        ...options,
+      },
+    }));
+    return;
+  }
+  showGlobalSuccess(message);
+};
+
 export { farmConfirm as confirmAction } from './farmConfirm';
 
 export const formatDuration = (secs) => {

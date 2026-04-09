@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useState, useContext, us
 import { useTranslation } from 'react-i18next';
 import { Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
-import { API, showError, showSuccess } from '../../helpers';
+import { API, showError, showSuccess } from './components/utils';
 import { StatusContext } from '../../context/Status';
 import { Link, useNavigate } from 'react-router-dom';
 import Loading from '../../components/common/ui/Loading';

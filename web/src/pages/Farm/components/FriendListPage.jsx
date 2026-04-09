@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Tabs, TabPane, Avatar, Badge } from '@douyinfe/semi-ui';
 import { Search, UserPlus, UserCheck, UserX, Trash2, MessageCircle, Tractor } from 'lucide-react';
-import { API, showSuccess, showError } from '../../../helpers';
+import { API, showSuccess, showError } from './utils';
 import { farmConfirm } from './farmConfirm';
 
 /* ─── 在线状态圆点 ─── */

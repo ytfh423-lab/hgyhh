@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Button, Select, Spin } from '@douyinfe/semi-ui';
 import { RefreshCw, Droplets, FlaskConical, Wheat, Sprout, Pill, ArrowLeft } from 'lucide-react';
-import { API, showSuccess, showError } from '../../../helpers';
-import { formatDuration } from './utils';
+import { API, showSuccess, showError, formatDuration } from './utils';
 
 /* ─── 只读地块卡片 ─── */
 const statusClassMap = {

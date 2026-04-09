@@ -44,13 +44,13 @@ const STEPS = [
   {
     emoji: '🔍',
     title: '搜索并添加好友',
-    desc: '点击右下角「社交卡片」→「搜索用户」，输入对方用户名即可发送好友申请，对方接受后正式成为好友。',
+    desc: '前往农场里的「好友」页面，在「搜索用户」中输入对方用户名即可发送好友申请，对方接受后正式成为好友。',
     highlight: '搜索用户',
   },
   {
     emoji: '🔔',
     title: '接受好友申请',
-    desc: '当有人申请加你为好友时，右下角会弹出通知。你也可以在「申请」标签页随时查看并一键接受或拒绝。',
+    desc: '当有人申请加你为好友时，右下角会弹出通知。你也可以在农场「好友」页面的「好友申请」标签页随时查看并一键接受或拒绝。',
     highlight: '好友申请',
   },
   {
@@ -97,7 +97,7 @@ const OnboardingModal = ({ onClose }) => {
         {s.highlight && (
           <div className='sp-onboard-highlight'>
             <ChevronRight size={14} style={{ marginRight: 4 }} />
-            在右下角社交卡片中找到「{s.highlight}」
+            在农场的「好友」页中找到「{s.highlight}」
           </div>
         )}
 
@@ -134,6 +134,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
     friend_accepted: { icon: '🤝', color: '#4a7c3f', bg: 'rgba(74,124,63,0.13)',   border: 'rgba(74,124,63,0.32)',   title: '好友通知',  body: `${notif.from_name} 接受了你的好友申请`,   actions: [] },
     farm_invite:     { icon: '🌾', color: '#c8921a', bg: 'rgba(200,146,42,0.12)',  border: 'rgba(200,146,42,0.32)',  title: '农场邀请',  body: `${notif.from_name} 邀请你一起来农场种菜`, actions: [{ label: '🚜 去农场', type: 'go_farm' }] },
     chat_message:    { icon: '💬', color: '#5a8fb4', bg: 'rgba(90,143,180,0.10)', border: 'rgba(90,143,180,0.26)',  title: '新消息',    body: `${notif.from_name}：${(notif.payload?.content ?? '').slice(0, 50)}`, actions: [{ label: '📖 查看', type: 'open_chat' }] },
+    farm_success:    { icon: '✅', color: '#4a7c3f', bg: 'rgba(74,124,63,0.13)',   border: 'rgba(74,124,63,0.32)',   title: notif.title || '操作成功', body: `${notif.payload?.message ?? ''}`, actions: [] },
   }[notif.type] || null;
   if (!cfg) return null;
 
@@ -710,7 +711,6 @@ const SocialPanel = () => {
   const [currentUserId, setCurrentUserId] = useState(0);
   const [chat, setChat] = useState(null);
   const [notifs, setNotifs] = useState([]);
-  const [requestCount, setRequestCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const chatRef = useRef(null);
   const nextId = useRef(0);
@@ -747,8 +747,27 @@ const SocialPanel = () => {
   const addNotif = useCallback((ev) => {
     const id = nextId.current++;
     setNotifs(prev => [...prev, { ...ev, id }]);
-    setTimeout(() => setNotifs(prev => prev.filter(n => n.id !== id)), 10000);
+    const duration = typeof ev.duration === 'number' ? ev.duration : 10000;
+    setTimeout(() => setNotifs(prev => prev.filter(n => n.id !== id)), duration);
   }, []);
+
+  useEffect(() => {
+    const handler = (event) => {
+      const detail = event.detail || {};
+      const message = typeof detail.message === 'string'
+        ? detail.message.trim()
+        : String(detail.message || '').trim();
+      if (!message) return;
+      addNotif({
+        type: 'farm_success',
+        title: typeof detail.title === 'string' && detail.title.trim() ? detail.title.trim() : '操作成功',
+        payload: { message },
+        duration: typeof detail.duration === 'number' ? detail.duration : 10000,
+      });
+    };
+    window.addEventListener('farm:success-notify', handler);
+    return () => window.removeEventListener('farm:success-notify', handler);
+  }, [addNotif]);
 
   const handleNotifAction = useCallback((notif, type) => {
     if (type === 'accept') API.post('/api/social/friends/respond', { request_id: notif.payload?.request_id, action: 'accept' });
@@ -799,51 +818,12 @@ const SocialPanel = () => {
     };
   }, [currentUserId, addNotif, chat]);
 
-  // 申请数
-  useEffect(() => {
-    if (!currentUserId) return;
-    let alive = true;
-    let timer = null;
-    const schedule = (delay) => {
-      if (!alive) return;
-      timer = window.setTimeout(run, delay);
-    };
-    const run = async () => {
-      if (!alive) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        schedule(30000);
-        return;
-      }
-      try {
-        const { data: res } = await API.get('/api/social/friends/requests', { disableDuplicate: true });
-        if (res.success) setRequestCount((res.data || []).length);
-      } catch { /* ignore */ }
-      finally {
-        schedule(15000);
-      }
-    };
-    run();
-    return () => {
-      alive = false;
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [currentUserId]);
-
   if (!currentUserId) return null;
 
   return (
     <>
       {/* 新手引导 */}
       {showOnboarding && !isMobile && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
-
-      {/* 可拖动浮动卡片（仅桌面端） */}
-      {!isMobile && (
-        <DraggableCard requestCount={requestCount}>
-          <FriendPanel currentUserId={currentUserId} onChatOpen={(id, name) => setChat({ friendId: id, friendName: name })} />
-        </DraggableCard>
-      )}
 
       {/* 通知弹窗 */}
       {notifs.length > 0 && (

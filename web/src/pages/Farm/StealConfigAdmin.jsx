@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Button, Card, Form, InputNumber, Switch, Spin, Toast, Typography,
+  Button, Card, Form, InputNumber, Switch, Spin, Typography,
   Divider, Tag, Table, Modal,
 } from '@douyinfe/semi-ui';
-import { API } from './components/utils';
+import { API, showSuccess, showError } from './components/utils';
 
 const { Text, Title } = Typography;
 
@@ -67,13 +67,13 @@ const StealConfigAdmin = () => {
     try {
       const { data: res } = await API.post('/api/tgbot/farm/steal-config', config);
       if (res.success) {
-        Toast.success('保存成功');
+        showSuccess('保存成功');
         loadConfig();
       } else {
-        Toast.error(res.message || '保存失败');
+        showError(res.message || '保存失败');
       }
     } catch (e) {
-      Toast.error('网络错误');
+      showError('网络错误');
     } finally { setSaving(false); }
   };
 
@@ -85,12 +85,12 @@ const StealConfigAdmin = () => {
         try {
           const { data: res } = await API.post('/api/tgbot/farm/steal-config/reset');
           if (res.success) {
-            Toast.success('已恢复默认配置');
+            showSuccess('已恢复默认配置');
             loadConfig();
           } else {
-            Toast.error(res.message || '重置失败');
+            showError(res.message || '重置失败');
           }
-        } catch (e) { Toast.error('网络错误'); }
+        } catch (e) { showError('网络错误'); }
       },
     });
   };
