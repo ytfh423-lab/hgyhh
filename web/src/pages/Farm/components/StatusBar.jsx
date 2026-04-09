@@ -36,18 +36,19 @@ const BetaCountdownBanner = ({ farmData, t }) => {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    padding: '6px 16px',
-    borderRadius: 10,
+    padding: '10px 18px',
+    borderRadius: 9999,
     fontSize: 13,
     fontWeight: 600,
     background: urgent
-      ? 'linear-gradient(90deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05))'
-      : 'linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.04))',
+      ? 'rgba(208,50,56,0.12)'
+      : 'rgba(255,209,26,0.18)',
     border: urgent
-      ? '1px solid rgba(239,68,68,0.25)'
-      : '1px solid rgba(251,191,36,0.18)',
-    color: urgent ? '#fca5a5' : '#fde68a',
+      ? '1px solid rgba(208,50,56,0.22)'
+      : '1px solid rgba(14,15,12,0.12)',
+    color: urgent ? '#8a1015' : '#5a4600',
     animation: urgent ? 'farm-beta-pulse 2s ease-in-out infinite' : 'none',
+    boxShadow: 'rgba(14,15,12,0.12) 0px 0px 0px 1px',
   };
 
   const unitStyle = {

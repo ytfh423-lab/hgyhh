@@ -143,6 +143,16 @@ const mobileQuickTabs = [
   { key: 'more', emoji: '☰', label: '更多' },
 ];
 
+const pageMetaMap = navGroups.reduce((acc, group) => {
+  group.items.forEach((item) => {
+    acc[item.key] = item;
+  });
+  return acc;
+}, {
+  overview: { key: 'overview', emoji: '🏠', label: '总览' },
+  visit: { key: 'visit', emoji: '🚜', label: '好友农场' },
+});
+
 const MobileBottomNav = ({ activeKey, onNavigate, showSheet, t }) => {
   return (
     <div className='farm-mobile-nav'>
@@ -672,6 +682,39 @@ const Farm = () => {
   const currentSeason = farmData.weather?.season ?? 0;
   const commonProps = { farmData, loadFarm, actionLoading, doAction, t, onMedalDrop: handleMedalDrop };
   const userLevel = farmData.user_level || 1;
+  const isVisitPage = activePage === 'visit' && visitFriend;
+  const pageMeta = activePage === 'visit' && visitFriend
+    ? { ...pageMetaMap.visit, label: `${visitFriend.name}的农场` }
+    : (pageMetaMap[activePage] || pageMetaMap.overview);
+  const pageTitle = isVisitPage ? pageMeta.label : t(pageMeta.label);
+  const pageDesc = {
+    overview: t('在一个更清爽、更大胆的视图里管理你的整座农场。'),
+    plant: t('快速安排播种、施肥、浇水和每一块土地的节奏。'),
+    ranch: t('照料你的动物、饲料与牧场收益。'),
+    fish: t('更专注地管理钓鱼、出售和收藏收获。'),
+    workshop: t('把原料加工成更高价值的产物。'),
+    market: t('追踪价格波动，抓住买卖时机。'),
+    shop: t('补给种子、道具和成长资源。'),
+    warehouse: t('整理库存、材料和稀有收获。'),
+    trading: t('用更清晰的视图完成挂单与交易。'),
+    entrust: t('发布、接受并跟进农场委托。'),
+    bank: t('让余额、利息和存款信息更直观。'),
+    profile: t('查看你的个人农场身份、成就与成长轨迹。'),
+    level: t('在更明确的层级里查看升级与解锁。'),
+    tasks: t('把每日与阶段任务集中到一个高对比面板中。'),
+    achievements: t('清晰浏览已完成与待达成的成就。'),
+    encyclopedia: t('用更整洁的方式查看图鉴收集进度。'),
+    leaderboard: t('更突出地查看农场排名与荣誉。'),
+    steal: t('更轻松地处理目标、冷却与结果记录。'),
+    games: t('以更轻快的视觉体验进入小游戏。'),
+    dog: t('关注狗狗状态、培养与收益辅助。'),
+    automation: t('集中管理自动化开关和效率策略。'),
+    treefarm: t('管理树场生长、采集与扩张。'),
+    prestige: t('更直观地查看转生收益与条件。'),
+    logs: t('统一查看农场日志与消费记录。'),
+    friends: t('在同一套视觉里管理好友、申请与聊天入口。'),
+    visit: t('查看好友农场的状态并进行互动。'),
+  }[activePage] || t('在一个更清爽、更大胆的视图里管理你的整座农场。');
 
   const renderPage = () => {
     // 等级锁定检查
@@ -763,6 +806,23 @@ const Farm = () => {
           <StatusBar farmData={farmData} t={t} />
           <div className='farm-content'>
             <div key={activePage} className='farm-content-inner app-route-shell'>
+              <div className='farm-page-hero'>
+                <div className='farm-page-hero-kicker'>{t('农场中枢')}</div>
+                <div className='farm-page-hero-row'>
+                  <div>
+                    <h1 className='farm-page-hero-title'>
+                      <span className='farm-page-hero-emoji'>{pageMeta.emoji}</span>
+                      <span>{pageTitle}</span>
+                    </h1>
+                    <p className='farm-page-hero-desc'>{pageDesc}</p>
+                  </div>
+                  <div className='farm-page-hero-chips'>
+                    <div className='farm-page-hero-chip'>⭐ Lv.{userLevel}</div>
+                    <div className='farm-page-hero-chip'>🌾 {farmData.plot_count}/{farmData.max_plots}</div>
+                    {farmData.weather && <div className='farm-page-hero-chip'>{farmData.weather.emoji} {farmData.weather.name}</div>}
+                  </div>
+                </div>
+              </div>
               <FarmErrorBoundary resetKey={activePage}>
                 <Suspense fallback={<Loading size='large' fullscreen={false} text={t('页面切换中')} />}>
                   {renderPage()}
