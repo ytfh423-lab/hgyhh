@@ -33,7 +33,11 @@ body {
 
 .app-route-shell {
   min-height: 100%;
+}
+
+.app-route-shell > :not(.app-loading) {
   animation: app-route-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
 }
 
 .app-loading {
@@ -137,6 +141,56 @@ body {
 
 .app-loading-dots span:nth-child(3) {
   animation-delay: 0.3s;
+}
+
+.semi-spin > .semi-spin-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--semi-color-text-1);
+}
+
+.semi-spin > .semi-spin-wrapper > svg,
+.semi-spin > .semi-spin-wrapper > .semi-spin-animate {
+  display: none !important;
+}
+
+.semi-spin > .semi-spin-wrapper::before {
+  content: '';
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 2px solid rgba(34, 197, 94, 0.16);
+  border-top-color: rgba(34, 197, 94, 0.92);
+  border-right-color: rgba(56, 189, 248, 0.68);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.16);
+  animation: app-loading-spin 1.1s linear infinite;
+}
+
+.semi-spin-small > .semi-spin-wrapper::before {
+  width: 28px;
+  height: 28px;
+}
+
+.semi-spin-large > .semi-spin-wrapper::before {
+  width: 52px;
+  height: 52px;
+}
+
+.semi-spin > .semi-spin-children {
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.semi-spin:not(.semi-spin-hidden) > .semi-spin-children {
+  transform: translate3d(0, 8px, 0);
+}
+
+.semi-spin.semi-spin-hidden > .semi-spin-children {
+  transform: translate3d(0, 0, 0);
 }
 
 @keyframes app-loading-spin {
@@ -2546,7 +2600,7 @@ html.dark .semi-card:hover {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.semi-layout-content > div:not(.app-route-shell) {
+.semi-layout-content > div:not(.app-route-shell):not(.app-loading) {
   animation: npc-page-fade-in 0.35s ease-out;
 }
 
