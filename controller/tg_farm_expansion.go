@@ -270,21 +270,88 @@ func doFarmClaimCollection(chatId int64, editMsgId int, tgId string, category st
 
 // ========== 排行 ==========
 
-func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType string, from *TgUser) {
-	boardNames := map[string]string{
-		"balance": "💰 资产", "level": "⭐ 等级",
-		"harvest": "🌾 收获", "prestige": "🔄 转生",
+func tgFarmLeaderboardLabel(boardType, period string) string {
+	if period == "weekly" {
+		switch boardType {
+		case "balance":
+			return "💸 净收益"
+		case "level":
+			return "⬆️ 升级"
+		case "harvest":
+			return "🌾 收获"
+		case "prestige":
+			return "🔄 转生"
+		case "steal":
+			return "🕵️ 偷菜"
+		}
 	}
-	boardName := boardNames[boardType]
-	if boardName == "" {
+	switch boardType {
+	case "balance":
+		return "💰 资产"
+	case "level":
+		return "⭐ 等级"
+	case "harvest":
+		return "🌾 收获"
+	case "prestige":
+		return "🔄 转生"
+	case "steal":
+		return "🕵️ 偷菜"
+	default:
+		return "💰 资产"
+	}
+}
+
+func getTgFarmLeaderboardOptions(tgId, scope, period string) (model.FarmLeaderboardOptions, bool) {
+	options := model.FarmLeaderboardOptions{Scope: scope, Period: period}
+	if scope != "friends" {
+		return options, false
+	}
+	user := model.User{TelegramId: tgId}
+	if err := user.FillUserByTelegramId(); err != nil {
+		options.Scope = "global"
+		return options, true
+	}
+	options.UserId = user.Id
+	return options, false
+}
+
+func farmRankCallbackData(boardType, scope, period string) string {
+	return fmt.Sprintf("farm_rank_%s_%s_%s", boardType, scope, period)
+}
+
+func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType string, scope string, period string, from *TgUser) {
+	if boardType != "balance" && boardType != "level" && boardType != "harvest" && boardType != "prestige" && boardType != "steal" {
 		boardType = "balance"
-		boardName = "💰 资产"
+	}
+	if scope != "friends" {
+		scope = "global"
+	}
+	if period != "weekly" {
+		period = "all"
+	}
+	options, fallbackToGlobal := getTgFarmLeaderboardOptions(tgId, scope, period)
+	scope = options.Scope
+	period = options.Period
+	boardName := tgFarmLeaderboardLabel(boardType, period)
+	scopeName := "🌍 全服"
+	if scope == "friends" {
+		scopeName = "👫 好友"
+	}
+	periodName := "🏆 总榜"
+	if period == "weekly" {
+		periodName = "� 周榜"
 	}
 
-	entries, _ := model.GetFarmLeaderboard(boardType, 10)
-	myRank := model.GetFarmRank(tgId, boardType)
+	entries, _ := model.GetFarmLeaderboardWithOptions(boardType, 10, options)
+	myRank := model.GetFarmRankWithOptions(tgId, boardType, options)
 
-	text := fmt.Sprintf("🏅 排行榜 — %s\n\n", boardName)
+	text := fmt.Sprintf("🏅 %s%s%s\n\n", scopeName, boardName, periodName)
+	if fallbackToGlobal {
+		text += "ℹ️ 你尚未绑定站内账号，已自动切换为全服榜\n\n"
+	}
+	if len(entries) == 0 {
+		text += "📭 暂无数据\n"
+	}
 
 	medals := []string{"🥇", "🥈", "🥉"}
 	for i, e := range entries {
@@ -302,7 +369,7 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 			name = e.TelegramId
 		}
 		valStr := fmt.Sprintf("%d", e.Value)
-		if boardType == "balance" {
+		if boardType == "balance" || boardType == "steal" {
 			valStr = farmQuotaStr(int(e.Value))
 		}
 		text += fmt.Sprintf("%s %s: %s%s\n", prefix, name, valStr, me)
@@ -315,7 +382,7 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 	var rows [][]TgInlineKeyboardButton
 	typeOrder := []struct{ key, label string }{
 		{"balance", "💰资产"}, {"level", "⭐等级"},
-		{"harvest", "🌾收获"}, {"prestige", "🔄转生"},
+		{"harvest", "🌾收获"}, {"prestige", "🔄转生"}, {"steal", "🕵️偷菜"},
 	}
 	var btnRow []TgInlineKeyboardButton
 	for _, tp := range typeOrder {
@@ -323,9 +390,17 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 		if tp.key == boardType {
 			label = "✅" + label
 		}
-		btnRow = append(btnRow, TgInlineKeyboardButton{Text: label, CallbackData: "farm_rank_" + tp.key})
+		btnRow = append(btnRow, TgInlineKeyboardButton{Text: label, CallbackData: farmRankCallbackData(tp.key, scope, period)})
 	}
 	rows = append(rows, btnRow)
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: map[bool]string{true: "✅👫好友", false: "👫好友"}[scope == "friends"], CallbackData: farmRankCallbackData(boardType, "friends", period)},
+		{Text: map[bool]string{true: "✅🌍全服", false: "🌍全服"}[scope == "global"], CallbackData: farmRankCallbackData(boardType, "global", period)},
+	})
+	rows = append(rows, []TgInlineKeyboardButton{
+		{Text: map[bool]string{true: "✅📅周榜", false: "📅周榜"}[period == "weekly"], CallbackData: farmRankCallbackData(boardType, scope, "weekly")},
+		{Text: map[bool]string{true: "✅🏆总榜", false: "🏆总榜"}[period == "all"], CallbackData: farmRankCallbackData(boardType, scope, "all")},
+	})
 	rows = append(rows, []TgInlineKeyboardButton{
 		{Text: "🔙 返回农场", CallbackData: "farm"},
 	})

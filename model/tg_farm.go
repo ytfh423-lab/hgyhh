@@ -110,6 +110,18 @@ func invalidateFarmLeaderboardCaches() {
 	})
 }
 
+func shouldInvalidateFarmLeaderboard(action string, amount int) bool {
+	if amount != 0 {
+		return true
+	}
+	switch action {
+	case "harvest", "steal", "levelup", "prestige":
+		return true
+	default:
+		return false
+	}
+}
+
 // TgFarmPlot 农场地块
 type TgFarmPlot struct {
 	Id          int    `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -374,7 +386,11 @@ func DecrementFarmItem(telegramId string, itemType string) error {
 // ========== TgFarmStealLog ==========
 
 func CreateFarmStealLog(log *TgFarmStealLog) error {
-	return DB.Create(log).Error
+	err := DB.Create(log).Error
+	if err == nil {
+		invalidateFarmLeaderboardCaches()
+	}
+	return err
 }
 
 func CountRecentSteals(thiefId, victimId string, sinceUnix int64) (int64, error) {
@@ -930,6 +946,9 @@ func AddFarmLog(telegramId, action string, amount int, detail string) {
 		CreatedAt:  time.Now().Unix(),
 	}
 	_ = DB.Create(log).Error
+	if shouldInvalidateFarmLeaderboard(action, amount) {
+		invalidateFarmLeaderboardCaches()
+	}
 	bumpFarmActionVersion(telegramId)
 }
 
@@ -950,6 +969,9 @@ func AddFarmLogs(telegramId, action string, amount int, detail string, count int
 		})
 	}
 	_ = DB.Create(&logs).Error
+	if shouldInvalidateFarmLeaderboard(action, amount) {
+		invalidateFarmLeaderboardCaches()
+	}
 	bumpFarmActionVersion(telegramId)
 }
 
@@ -1550,9 +1572,11 @@ func SetPrestigeLevel(telegramId string, level int) {
 	err := DB.Where("telegram_id = ? AND item_type = ?", telegramId, "_prestige").First(&item).Error
 	if err != nil {
 		DB.Create(&TgFarmItem{TelegramId: telegramId, ItemType: "_prestige", Quantity: level})
+		invalidateFarmLeaderboardCaches()
 		return
 	}
 	DB.Model(&TgFarmItem{}).Where("id = ?", item.Id).Update("quantity", level)
+	invalidateFarmLeaderboardCaches()
 }
 
 func CreatePrestigeRecord(telegramId string, level int) {
@@ -1735,43 +1759,339 @@ type FarmLeaderboardEntry struct {
 	Value      int64
 }
 
-func GetFarmLeaderboard(boardType string, limit int) ([]FarmLeaderboardEntry, error) {
-	cacheKey := boardType + "|" + strconv.Itoa(limit)
+type FarmLeaderboardRankedEntry struct {
+	Rank int64
+	FarmLeaderboardEntry
+}
+
+type FarmLeaderboardOptions struct {
+	Scope  string
+	Period string
+	UserId int
+}
+
+type farmLeaderboardValueRow struct {
+	TelegramId string
+	Value      int64
+}
+
+const (
+	farmLeaderboardScopeGlobal  = "global"
+	farmLeaderboardScopeFriends = "friends"
+	farmLeaderboardPeriodAll    = "all"
+	farmLeaderboardPeriodWeekly = "weekly"
+)
+
+func normalizeFarmLeaderboardScope(scope string) string {
+	if scope == farmLeaderboardScopeFriends {
+		return scope
+	}
+	return farmLeaderboardScopeGlobal
+}
+
+func normalizeFarmLeaderboardPeriod(period string) string {
+	if period == farmLeaderboardPeriodWeekly {
+		return period
+	}
+	return farmLeaderboardPeriodAll
+}
+
+func getFarmLeaderboardWeekStart() int64 {
+	now := time.Now()
+	weekday := int(now.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, 1-weekday)
+	return start.Unix()
+}
+
+func resolveFarmLeaderboardFarmId(user User) string {
+	if user.TelegramId != "" {
+		return user.TelegramId
+	}
+	return fmt.Sprintf("u_%d", user.Id)
+}
+
+func resolveFarmLeaderboardUserName(user User) string {
+	if user.DisplayName != "" {
+		return user.DisplayName
+	}
+	if user.Username != "" {
+		return user.Username
+	}
+	return resolveFarmLeaderboardFarmId(user)
+}
+
+func sortFarmLeaderboardEntries(entries []FarmLeaderboardEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Value == entries[j].Value {
+			return entries[i].TelegramId < entries[j].TelegramId
+		}
+		return entries[i].Value > entries[j].Value
+	})
+}
+
+func copyFarmLeaderboardEntries(entries []FarmLeaderboardEntry) []FarmLeaderboardEntry {
+	copied := make([]FarmLeaderboardEntry, len(entries))
+	copy(copied, entries)
+	return copied
+}
+
+func getFarmLeaderboardFriendUsers(userId int) ([]User, map[string]string, []string, error) {
+	if userId == 0 {
+		return []User{}, map[string]string{}, []string{}, nil
+	}
+	friendIds, err := GetFriendList(userId)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ids := make([]int, 0, len(friendIds)+1)
+	seen := make(map[int]struct{}, len(friendIds)+1)
+	ids = append(ids, userId)
+	seen[userId] = struct{}{}
+	for _, friendId := range friendIds {
+		if _, ok := seen[friendId]; ok {
+			continue
+		}
+		seen[friendId] = struct{}{}
+		ids = append(ids, friendId)
+	}
+	var users []User
+	if err := DB.Select("id, username, display_name, telegram_id, quota").Where("id IN ? AND status = ?", ids, 1).Find(&users).Error; err != nil {
+		return nil, nil, nil, err
+	}
+	nameMap := make(map[string]string, len(users))
+	farmIds := make([]string, 0, len(users))
+	for _, user := range users {
+		farmId := resolveFarmLeaderboardFarmId(user)
+		nameMap[farmId] = resolveFarmLeaderboardUserName(user)
+		farmIds = append(farmIds, farmId)
+	}
+	return users, nameMap, farmIds, nil
+}
+
+func buildFarmLeaderboardEntriesFromRows(rows []farmLeaderboardValueRow, nameMap map[string]string) []FarmLeaderboardEntry {
+	entries := make([]FarmLeaderboardEntry, 0, len(rows))
+	for _, row := range rows {
+		name := nameMap[row.TelegramId]
+		if name == "" {
+			continue
+		}
+		entries = append(entries, FarmLeaderboardEntry{
+			TelegramId: row.TelegramId,
+			Username:   name,
+			Value:      row.Value,
+		})
+	}
+	return entries
+	}
+
+func ensureFarmLeaderboardEntries(entries []FarmLeaderboardEntry, farmIds []string, nameMap map[string]string) []FarmLeaderboardEntry {
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		seen[entry.TelegramId] = struct{}{}
+	}
+	for _, farmId := range farmIds {
+		if _, ok := seen[farmId]; ok {
+			continue
+		}
+		entries = append(entries, FarmLeaderboardEntry{
+			TelegramId: farmId,
+			Username:   nameMap[farmId],
+			Value:      0,
+		})
+	}
+	return entries
+}
+
+func getGlobalFarmLeaderboardEntries(boardType, period string) ([]FarmLeaderboardEntry, error) {
+	var entries []FarmLeaderboardEntry
+	var err error
+	labelExpr := "COALESCE(NULLIF(display_name, ''), username)"
+	since := getFarmLeaderboardWeekStart()
+	switch boardType {
+	case "balance":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+		} else {
+			err = DB.Raw("SELECT telegram_id, " + labelExpr + " as username, quota as value FROM users WHERE telegram_id != '' AND status = 1 ORDER BY quota DESC, telegram_id ASC").Scan(&entries).Error
+		}
+	case "level":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'levelup' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+		} else {
+			err = DB.Raw("SELECT fi.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' AND u.telegram_id != '' AND u.status = 1 ORDER BY fi.quantity DESC, fi.telegram_id ASC").Scan(&entries).Error
+		}
+	case "harvest":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+		} else {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC").Scan(&entries).Error
+		}
+	case "prestige":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'prestige' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+		} else {
+			err = DB.Raw("SELECT fi.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 AND u.telegram_id != '' AND u.status = 1 ORDER BY fi.quantity DESC, fi.telegram_id ASC").Scan(&entries).Error
+		}
+	case "steal":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'steal' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+		} else {
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'steal' AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC").Scan(&entries).Error
+		}
+	default:
+		return []FarmLeaderboardEntry{}, nil
+	}
+	return entries, err
+}
+
+func getFriendFarmLeaderboardEntries(boardType, period string, userId int) ([]FarmLeaderboardEntry, error) {
+	users, nameMap, farmIds, err := getFarmLeaderboardFriendUsers(userId)
+	if err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		return []FarmLeaderboardEntry{}, nil
+	}
+	if boardType == "balance" && period == farmLeaderboardPeriodAll {
+		entries := make([]FarmLeaderboardEntry, 0, len(users))
+		for _, user := range users {
+			entries = append(entries, FarmLeaderboardEntry{
+				TelegramId: resolveFarmLeaderboardFarmId(user),
+				Username:   resolveFarmLeaderboardUserName(user),
+				Value:      int64(user.Quota),
+			})
+		}
+		sortFarmLeaderboardEntries(entries)
+		return entries, nil
+	}
+	var rows []farmLeaderboardValueRow
+	since := getFarmLeaderboardWeekStart()
+	switch boardType {
+	case "balance":
+		err = DB.Model(&TgFarmLog{}).
+			Select("telegram_id, COALESCE(SUM(amount), 0) as value").
+			Where("telegram_id IN ? AND created_at >= ?", farmIds, since).
+			Group("telegram_id").
+			Scan(&rows).Error
+	case "level":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Model(&TgFarmLog{}).
+				Select("telegram_id, COUNT(*) as value").
+				Where("action = ? AND telegram_id IN ? AND created_at >= ?", "levelup", farmIds, since).
+				Group("telegram_id").
+				Scan(&rows).Error
+		} else {
+			err = DB.Model(&TgFarmItem{}).
+				Select("telegram_id, quantity as value").
+				Where("item_type = ? AND telegram_id IN ?", "_level", farmIds).
+				Scan(&rows).Error
+		}
+	case "harvest":
+		query := DB.Model(&TgFarmLog{}).
+			Select("telegram_id, COUNT(*) as value").
+			Where("action = ? AND telegram_id IN ?", "harvest", farmIds)
+		if period == farmLeaderboardPeriodWeekly {
+			query = query.Where("created_at >= ?", since)
+		}
+		err = query.Group("telegram_id").Scan(&rows).Error
+	case "prestige":
+		if period == farmLeaderboardPeriodWeekly {
+			err = DB.Model(&TgFarmLog{}).
+				Select("telegram_id, COUNT(*) as value").
+				Where("action = ? AND telegram_id IN ? AND created_at >= ?", "prestige", farmIds, since).
+				Group("telegram_id").
+				Scan(&rows).Error
+		} else {
+			err = DB.Model(&TgFarmItem{}).
+				Select("telegram_id, quantity as value").
+				Where("item_type = ? AND quantity > 0 AND telegram_id IN ?", "_prestige", farmIds).
+				Scan(&rows).Error
+		}
+	case "steal":
+		query := DB.Model(&TgFarmLog{}).
+			Select("telegram_id, COALESCE(SUM(amount), 0) as value").
+			Where("action = ? AND telegram_id IN ?", "steal", farmIds)
+		if period == farmLeaderboardPeriodWeekly {
+			query = query.Where("created_at >= ?", since)
+		}
+		err = query.Group("telegram_id").Scan(&rows).Error
+	default:
+		return []FarmLeaderboardEntry{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	entries := buildFarmLeaderboardEntriesFromRows(rows, nameMap)
+	entries = ensureFarmLeaderboardEntries(entries, farmIds, nameMap)
+	sortFarmLeaderboardEntries(entries)
+	return entries, nil
+}
+
+func getFarmLeaderboardEntriesWithOptions(boardType string, options FarmLeaderboardOptions) ([]FarmLeaderboardEntry, error) {
+	options.Scope = normalizeFarmLeaderboardScope(options.Scope)
+	options.Period = normalizeFarmLeaderboardPeriod(options.Period)
+	if options.Scope == farmLeaderboardScopeFriends && options.UserId == 0 {
+		options.Scope = farmLeaderboardScopeGlobal
+	}
+	cacheKey := boardType + "|" + options.Scope + "|" + options.Period
+	if options.Scope == farmLeaderboardScopeFriends {
+		cacheKey += "|" + strconv.Itoa(options.UserId)
+	}
 	now := time.Now().Unix()
 	if cached, ok := farmLeaderboardCache.Load(cacheKey); ok {
 		entry := cached.(farmLeaderboardCacheEntry)
 		if entry.ExpiresAt >= now {
-			copied := make([]FarmLeaderboardEntry, len(entry.Value))
-			copy(copied, entry.Value)
-			return copied, nil
+			return copyFarmLeaderboardEntries(entry.Value), nil
 		}
 		farmLeaderboardCache.Delete(cacheKey)
 	}
 	var entries []FarmLeaderboardEntry
 	var err error
-	switch boardType {
-	case "balance":
-		err = DB.Raw("SELECT telegram_id, username, quota as value FROM users WHERE telegram_id != '' AND status = 1 ORDER BY quota DESC LIMIT ?", limit).Scan(&entries).Error
-	case "level":
-		err = DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
-	case "harvest":
-		err = DB.Raw("SELECT fl.telegram_id, u.username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' GROUP BY fl.telegram_id, u.username ORDER BY value DESC LIMIT ?", limit).Scan(&entries).Error
-	case "prestige":
-		err = DB.Raw("SELECT fi.telegram_id, u.username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 ORDER BY fi.quantity DESC LIMIT ?", limit).Scan(&entries).Error
-	default:
-		return entries, nil
+	if options.Scope == farmLeaderboardScopeFriends {
+		entries, err = getFriendFarmLeaderboardEntries(boardType, options.Period, options.UserId)
+	} else {
+		entries, err = getGlobalFarmLeaderboardEntries(boardType, options.Period)
 	}
 	if err != nil {
-		return entries, err
+		return nil, err
 	}
-	copied := make([]FarmLeaderboardEntry, len(entries))
-	copy(copied, entries)
-	farmLeaderboardCache.Store(cacheKey, farmLeaderboardCacheEntry{Value: copied, ExpiresAt: now + farmLeaderboardTTLSeconds})
+	copyForCache := copyFarmLeaderboardEntries(entries)
+	farmLeaderboardCache.Store(cacheKey, farmLeaderboardCacheEntry{Value: copyForCache, ExpiresAt: now + farmLeaderboardTTLSeconds})
 	return entries, nil
-}
+	}
 
-func GetFarmRank(telegramId, boardType string) int64 {
-	cacheKey := telegramId + "|" + boardType
+func getFarmLeaderboardEntries(boardType string) ([]FarmLeaderboardEntry, error) {
+	return getFarmLeaderboardEntriesWithOptions(boardType, FarmLeaderboardOptions{})
+	}
+
+func GetFarmLeaderboardWithOptions(boardType string, limit int, options FarmLeaderboardOptions) ([]FarmLeaderboardEntry, error) {
+	entries, err := getFarmLeaderboardEntriesWithOptions(boardType, options)
+	if err != nil {
+		return nil, err
+	}
+	if limit > 0 && len(entries) > limit {
+		entries = entries[:limit]
+	}
+	return copyFarmLeaderboardEntries(entries), nil
+	}
+
+func GetFarmLeaderboard(boardType string, limit int) ([]FarmLeaderboardEntry, error) {
+	return GetFarmLeaderboardWithOptions(boardType, limit, FarmLeaderboardOptions{})
+	}
+
+func GetFarmRankWithOptions(telegramId, boardType string, options FarmLeaderboardOptions) int64 {
+	options.Scope = normalizeFarmLeaderboardScope(options.Scope)
+	options.Period = normalizeFarmLeaderboardPeriod(options.Period)
+	if options.Scope == farmLeaderboardScopeFriends && options.UserId == 0 {
+		options.Scope = farmLeaderboardScopeGlobal
+	}
+	cacheKey := telegramId + "|" + boardType + "|" + options.Scope + "|" + options.Period
+	if options.Scope == farmLeaderboardScopeFriends {
+		cacheKey += "|" + strconv.Itoa(options.UserId)
+	}
 	now := time.Now().Unix()
 	if cached, ok := farmRankCache.Load(cacheKey); ok {
 		entry := cached.(farmRankCacheEntry)
@@ -1780,20 +2100,64 @@ func GetFarmRank(telegramId, boardType string) int64 {
 		}
 		farmRankCache.Delete(cacheKey)
 	}
-	var rank int64
-	switch boardType {
-	case "balance":
-		var userQuota int64
-		DB.Model(&User{}).Select("quota").Where("telegram_id = ?", telegramId).Scan(&userQuota)
-		DB.Model(&User{}).Where("telegram_id != '' AND status = 1 AND quota > ?", userQuota).Count(&rank)
-	case "level":
-		level := GetFarmLevel(telegramId)
-		DB.Model(&TgFarmItem{}).Where("item_type = '_level' AND quantity > ?", level).Count(&rank)
+	entries, err := getFarmLeaderboardEntriesWithOptions(boardType, options)
+	if err != nil {
+		return 0
 	}
-	rank += 1
+	var rank int64
+	for i, entry := range entries {
+		if entry.TelegramId == telegramId {
+			rank = int64(i + 1)
+			break
+		}
+	}
 	farmRankCache.Store(cacheKey, farmRankCacheEntry{Value: rank, ExpiresAt: now + farmRankTTLSeconds})
 	return rank
-}
+	}
+
+func GetFarmRank(telegramId, boardType string) int64 {
+	return GetFarmRankWithOptions(telegramId, boardType, FarmLeaderboardOptions{})
+	}
+
+func GetFarmLeaderboardContextWithOptions(telegramId, boardType string, radius int, options FarmLeaderboardOptions) ([]FarmLeaderboardRankedEntry, int64, error) {
+	if radius < 0 {
+		radius = 0
+	}
+	entries, err := getFarmLeaderboardEntriesWithOptions(boardType, options)
+	if err != nil {
+		return nil, 0, err
+	}
+	myIndex := -1
+	for i, entry := range entries {
+		if entry.TelegramId == telegramId {
+			myIndex = i
+			break
+		}
+	}
+	if myIndex < 0 {
+		return []FarmLeaderboardRankedEntry{}, 0, nil
+	}
+	start := myIndex - radius
+	if start < 0 {
+		start = 0
+	}
+	end := myIndex + radius + 1
+	if end > len(entries) {
+		end = len(entries)
+	}
+	nearby := make([]FarmLeaderboardRankedEntry, 0, end-start)
+	for i := start; i < end; i++ {
+		nearby = append(nearby, FarmLeaderboardRankedEntry{
+			Rank:                 int64(i + 1),
+			FarmLeaderboardEntry: entries[i],
+		})
+	}
+	return nearby, int64(myIndex + 1), nil
+	}
+
+func GetFarmLeaderboardContext(telegramId, boardType string, radius int) ([]FarmLeaderboardRankedEntry, int64, error) {
+	return GetFarmLeaderboardContextWithOptions(telegramId, boardType, radius, FarmLeaderboardOptions{})
+	}
 
 func GetFarmLogDetails(telegramId string, actions []string) []string {
 	var details []string

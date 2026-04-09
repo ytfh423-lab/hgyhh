@@ -504,8 +504,39 @@ func WebFarmAutomationBuy(c *gin.Context) {
 
 // ========== Leaderboard ==========
 
+func webFarmLeaderboardLabel(boardType, period string) string {
+	if period == "weekly" {
+		switch boardType {
+		case "balance":
+			return "净收益"
+		case "level":
+			return "升级"
+		case "harvest":
+			return "收获"
+		case "prestige":
+			return "转生"
+		case "steal":
+			return "偷菜"
+		}
+	}
+	switch boardType {
+	case "balance":
+		return "资产"
+	case "level":
+		return "等级"
+	case "harvest":
+		return "收获"
+	case "prestige":
+		return "转生"
+	case "steal":
+		return "偷菜"
+	default:
+		return "资产"
+	}
+}
+
 func WebFarmLeaderboard(c *gin.Context) {
-	_, tgId, ok := getWebFarmUser(c)
+	user, tgId, ok := getWebFarmUser(c)
 	if !ok {
 		return
 	}
@@ -513,12 +544,22 @@ func WebFarmLeaderboard(c *gin.Context) {
 		return
 	}
 	boardType := c.DefaultQuery("type", "balance")
-	entries, err := model.GetFarmLeaderboard(boardType, 20)
+	scope := c.DefaultQuery("scope", "global")
+	period := c.DefaultQuery("period", "all")
+	if boardType != "balance" && boardType != "level" && boardType != "harvest" && boardType != "prestige" && boardType != "steal" {
+		boardType = "balance"
+	}
+	options := model.FarmLeaderboardOptions{Scope: scope, Period: period, UserId: user.Id}
+	entries, err := model.GetFarmLeaderboardWithOptions(boardType, 20, options)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败"})
 		return
 	}
-	myRank := model.GetFarmRank(tgId, boardType)
+	nearbyEntries, myRank, err := model.GetFarmLeaderboardContextWithOptions(tgId, boardType, 2, options)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败"})
+		return
+	}
 
 	type rankItem struct {
 		Rank  int     `json:"rank"`
@@ -526,19 +567,63 @@ func WebFarmLeaderboard(c *gin.Context) {
 		Value float64 `json:"value"`
 		IsMe  bool    `json:"is_me"`
 	}
+	convertValue := func(raw int64) float64 {
+		if boardType == "balance" || boardType == "steal" {
+			return float64(raw) / 500000.0
+		}
+		return float64(raw)
+	}
+	buildName := func(username, telegramId string) string {
+		name := username
+		if name == "" && len(telegramId) > 6 {
+			name = telegramId[:6] + "..."
+		}
+		if name == "" {
+			name = telegramId
+		}
+		return name
+	}
 	var items []rankItem
 	for i, e := range entries {
-		val := float64(e.Value)
-		if boardType == "balance" {
-			val = float64(e.Value) / 500000.0
-		}
-		name := e.Username
-		if name == "" && len(e.TelegramId) > 6 {
-			name = e.TelegramId[:6] + "..."
-		}
-		items = append(items, rankItem{Rank: i + 1, Name: name, Value: val, IsMe: e.TelegramId == tgId})
+		items = append(items, rankItem{Rank: i + 1, Name: buildName(e.Username, e.TelegramId), Value: convertValue(e.Value), IsMe: e.TelegramId == tgId})
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "items": items, "my_rank": myRank}})
+	nearbyItems := make([]rankItem, 0, len(nearbyEntries))
+	myValue := 0.0
+	gapToPrev := 0.0
+	gapToNext := 0.0
+	for _, e := range nearbyEntries {
+		item := rankItem{Rank: int(e.Rank), Name: buildName(e.Username, e.TelegramId), Value: convertValue(e.Value), IsMe: e.TelegramId == tgId}
+		nearbyItems = append(nearbyItems, item)
+	}
+	for i, item := range nearbyItems {
+		if !item.IsMe {
+			continue
+		}
+		myValue = item.Value
+		if i > 0 {
+			gapToPrev = nearbyItems[i-1].Value - item.Value
+			if gapToPrev < 0 {
+				gapToPrev = 0
+			}
+		}
+		if i+1 < len(nearbyItems) {
+			gapToNext = item.Value - nearbyItems[i+1].Value
+			if gapToNext < 0 {
+				gapToNext = 0
+			}
+		}
+		break
+	}
+	label := webFarmLeaderboardLabel(boardType, period)
+	scopeLabel := "全服"
+	if scope == "friends" {
+		scopeLabel = "好友"
+	}
+	periodLabel := "总榜"
+	if period == "weekly" {
+		periodLabel = "周榜"
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "scope": scope, "period": period, "label": label, "scope_label": scopeLabel, "period_label": periodLabel, "title": scopeLabel + label + periodLabel, "items": items, "my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev, "gap_to_next": gapToNext, "nearby_items": nearbyItems}})
 }
 
 // ========== Mini-Games ==========

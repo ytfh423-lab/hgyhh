@@ -908,10 +908,23 @@ func handleFarmCallback(cb *TgCallbackQuery) {
 		doFarmClaimCollection(chatId, msgId, tgId, cat, from)
 	case data == "farm_rank":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockLeaderboard, "排行", chatId, msgId, from) { return }
-		showFarmLeaderboard(chatId, msgId, tgId, "balance", from)
+		showFarmLeaderboard(chatId, msgId, tgId, "balance", "global", "all", from)
 	case strings.HasPrefix(data, "farm_rank_"):
-		boardType := strings.TrimPrefix(data, "farm_rank_")
-		showFarmLeaderboard(chatId, msgId, tgId, boardType, from)
+		payload := strings.TrimPrefix(data, "farm_rank_")
+		parts := strings.Split(payload, "_")
+		boardType := "balance"
+		scope := "global"
+		period := "all"
+		if len(parts) > 0 && parts[0] != "" {
+			boardType = parts[0]
+		}
+		if len(parts) > 1 && parts[1] != "" {
+			scope = parts[1]
+		}
+		if len(parts) > 2 && parts[2] != "" {
+			period = parts[2]
+		}
+		showFarmLeaderboard(chatId, msgId, tgId, boardType, scope, period, from)
 	case data == "farm_trade":
 		if !checkFeatureLevel(tgId, model.GetFarmLevel(tgId), common.TgBotFarmUnlockTrading, "交易", chatId, msgId, from) { return }
 		showFarmTradeMarket(chatId, msgId, tgId, from)
