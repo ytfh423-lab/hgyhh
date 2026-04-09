@@ -91,8 +91,10 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequ
         <div className='farm-sidebar-brand' onClick={() => onNavigate('overview')}>
           <img src={getLogo()} alt='logo' className='farm-sidebar-logo' style={{ objectFit: 'contain' }} />
           <div className='farm-sidebar-brand-copy'>
-            <div className='farm-sidebar-kicker'>NPC</div>
-            <div className='farm-sidebar-title'>{t('农场')}</div>
+            <div className='farm-sidebar-title-row'>
+              <div className='farm-sidebar-badge'>NPC</div>
+              <div className='farm-sidebar-title'>{t('农场')}</div>
+            </div>
             <div className='farm-sidebar-subtitle'>
               {farmData ? `Lv.${farmData.user_level || 1}` : ''}
               {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
