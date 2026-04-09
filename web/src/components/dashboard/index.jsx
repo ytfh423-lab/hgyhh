@@ -88,12 +88,13 @@ const Dashboard = () => {
 
   // ========== 数据处理 ==========
   const initChart = async () => {
-    await dashboardData.loadQuotaData().then((data) => {
-      if (data && data.length > 0) {
-        dashboardCharts.updateChartData(data);
-      }
-    });
-    await dashboardData.loadUptimeData();
+    const [data] = await Promise.all([
+      dashboardData.loadQuotaData(),
+      dashboardData.loadUptimeData(),
+    ]);
+    if (data && data.length > 0) {
+      dashboardCharts.updateChartData(data);
+    }
   };
 
   const handleRefresh = async () => {

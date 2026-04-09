@@ -224,8 +224,10 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
   }, [userDispatch]);
 
   const refresh = useCallback(async () => {
-    const data = await loadQuotaData();
-    await loadUptimeData();
+    const [data] = await Promise.all([
+      loadQuotaData(),
+      loadUptimeData(),
+    ]);
     return data;
   }, [loadQuotaData, loadUptimeData]);
 
@@ -250,10 +252,12 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
 
   useEffect(() => {
     if (!initialized.current) {
-      getUserData();
+      if (!userState?.user?.id) {
+        getUserData();
+      }
       initialized.current = true;
     }
-  }, [getUserData]);
+  }, [getUserData, userState?.user?.id]);
 
   return {
     // 基础状态

@@ -485,10 +485,15 @@ func WebEntrustMyPublished(c *gin.Context) {
 		return
 	}
 	tasks, _ := model.GetEntrustsByOwner(tgId)
+	taskIds := make([]int, 0, len(tasks))
+	for _, task := range tasks {
+		taskIds = append(taskIds, task.Id)
+	}
+	settledMap, _ := model.GetEntrustSettledAmountMap(taskIds)
 	var list []gin.H
 	for _, t := range tasks {
 		m := entrustTaskToMap(t)
-		settled := model.GetEntrustSettledAmount(t.Id)
+		settled := settledMap[t.Id]
 		m["settled_amount"] = float64(settled) / entrustQuotaPerUnit
 		m["refundable"] = float64(t.RewardAmount-settled) / entrustQuotaPerUnit
 		list = append(list, m)
@@ -504,10 +509,17 @@ func WebEntrustMyAccepted(c *gin.Context) {
 		return
 	}
 	workers, _ := model.GetAllMyEntrustWorkers(tgId)
+	taskIds := make([]int, 0, len(workers))
+	for _, worker := range workers {
+		if worker.TaskId > 0 {
+			taskIds = append(taskIds, worker.TaskId)
+		}
+	}
+	taskMap, _ := model.GetEntrustsByIds(taskIds)
 	var list []gin.H
 	for _, w := range workers {
-		task, err := model.GetEntrustById(w.TaskId)
-		if err != nil {
+		task := taskMap[w.TaskId]
+		if task == nil {
 			continue
 		}
 		list = append(list, gin.H{

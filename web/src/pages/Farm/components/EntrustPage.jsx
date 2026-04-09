@@ -33,6 +33,70 @@ const workerStatusLabels = {
   accepted: '已接单', working: '工作中', completed: '已完成', abandoned: '已放弃',
 };
 
+const ENTRUST_CACHE_TTL = 15000;
+const entrustDataCache = {
+  hall: null,
+  published: null,
+  accepted: null,
+};
+const entrustDataCacheOwnerId = {
+  hall: 0,
+  published: 0,
+  accepted: 0,
+};
+const entrustDataCacheExpiresAt = {
+  hall: 0,
+  published: 0,
+  accepted: 0,
+};
+const entrustPendingMap = {
+  hall: null,
+  published: null,
+  accepted: null,
+};
+const entrustPendingOwnerId = {
+  hall: 0,
+  published: 0,
+  accepted: 0,
+};
+
+const getCurrentEntrustCacheOwnerId = () => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+  try {
+    return JSON.parse(window.localStorage.getItem('user') || '{}')?.id || 0;
+  } catch (_) {
+    return 0;
+  }
+};
+
+const readEntrustCache = (key) => {
+  if (
+    entrustDataCache[key] &&
+    entrustDataCacheExpiresAt[key] > Date.now() &&
+    entrustDataCacheOwnerId[key] === getCurrentEntrustCacheOwnerId()
+  ) {
+    return entrustDataCache[key];
+  }
+  return null;
+};
+
+const writeEntrustCache = (key, data) => {
+  entrustDataCache[key] = data;
+  entrustDataCacheExpiresAt[key] = Date.now() + ENTRUST_CACHE_TTL;
+  entrustDataCacheOwnerId[key] = getCurrentEntrustCacheOwnerId();
+  return data;
+};
+
+const invalidateEntrustCache = (...keys) => {
+  keys.forEach((key) => {
+    entrustDataCache[key] = null;
+    entrustDataCacheExpiresAt[key] = 0;
+    entrustDataCacheOwnerId[key] = 0;
+  });
+};
+
 /* ═══════════════════════════════════════════
    TaskCard — 任务卡片（大厅 / 我的委托通用）
    ═══════════════════════════════════════════ */
@@ -278,32 +342,57 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
   const [myAccepted, setMyAccepted] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const loadHall = useCallback(async () => {
+  const loadEntrustData = useCallback(async (key, url, setter, options = {}) => {
+    const force = options.force === true;
+    const currentOwnerId = getCurrentEntrustCacheOwnerId();
+    const cached = force ? null : readEntrustCache(key);
+    if (cached) {
+      setter(cached);
+      setLoading(false);
+      return cached;
+    }
     setLoading(true);
     try {
-      const { data: res } = await API.get('/api/farm/entrust/hall');
-      if (res.success) setHallData(res.data);
+      if (!force && entrustPendingMap[key] && entrustPendingOwnerId[key] === currentOwnerId) {
+        const pendingData = await entrustPendingMap[key];
+        if (pendingData) {
+          setter(pendingData);
+        }
+        return pendingData;
+      }
+      entrustPendingOwnerId[key] = currentOwnerId;
+      entrustPendingMap[key] = API.get(url, { disableDuplicate: true })
+        .then(({ data: res }) => {
+          if (res.success) {
+            return writeEntrustCache(key, res.data);
+          }
+          return null;
+        })
+        .catch(() => null)
+        .finally(() => {
+          entrustPendingMap[key] = null;
+          entrustPendingOwnerId[key] = 0;
+        });
+      const nextData = await entrustPendingMap[key];
+      if (nextData) {
+        setter(nextData);
+      }
+      return nextData;
     } catch (err) { /* ignore */ }
     finally { setLoading(false); }
   }, []);
 
-  const loadMyPublished = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: res } = await API.get('/api/farm/entrust/my-published');
-      if (res.success) setMyPublished(res.data);
-    } catch (err) { /* ignore */ }
-    finally { setLoading(false); }
-  }, []);
+  const loadHall = useCallback(async (options = {}) => {
+    return loadEntrustData('hall', '/api/farm/entrust/hall', setHallData, options);
+  }, [loadEntrustData]);
 
-  const loadMyAccepted = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: res } = await API.get('/api/farm/entrust/my-accepted');
-      if (res.success) setMyAccepted(res.data);
-    } catch (err) { /* ignore */ }
-    finally { setLoading(false); }
-  }, []);
+  const loadMyPublished = useCallback(async (options = {}) => {
+    return loadEntrustData('published', '/api/farm/entrust/my-published', setMyPublished, options);
+  }, [loadEntrustData]);
+
+  const loadMyAccepted = useCallback(async (options = {}) => {
+    return loadEntrustData('accepted', '/api/farm/entrust/my-accepted', setMyAccepted, options);
+  }, [loadEntrustData]);
 
   useEffect(() => {
     if (tab === 'hall') loadHall();
@@ -312,17 +401,28 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
   }, [tab, loadHall, loadMyPublished, loadMyAccepted]);
 
   const handleAccept = async (taskId) => {
+    setLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/entrust/accept', { task_id: taskId });
-      if (res.success) { showSuccess(res.message); loadHall(); }
+      if (res.success) {
+        showSuccess(res.message);
+        invalidateEntrustCache('hall', 'accepted');
+        await loadHall({ force: true });
+      }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
+    finally { setLoading(false); }
   };
 
   const handleCancel = async (taskId) => {
     try {
       const { data: res } = await API.post('/api/farm/entrust/cancel', { task_id: taskId });
-      if (res.success) { showSuccess(res.message); loadMyPublished(); loadFarm({ silent: true }); }
+      if (res.success) {
+        showSuccess(res.message);
+        invalidateEntrustCache('published', 'hall');
+        await loadMyPublished({ force: true });
+        loadFarm({ silent: true });
+      }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };
@@ -331,7 +431,11 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
     if (!await farmConfirm(t('放弃委托'), t('确定放弃该委托？'), { icon: '🤝', confirmType: 'danger', confirmText: t('放弃') })) return;
     try {
       const { data: res } = await API.post('/api/farm/entrust/abandon', { task_id: taskId });
-      if (res.success) { showSuccess(res.message); loadMyAccepted(); }
+      if (res.success) {
+        showSuccess(res.message);
+        invalidateEntrustCache('accepted', 'hall');
+        await loadMyAccepted({ force: true });
+      }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
   };
@@ -357,7 +461,7 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
         ))}
         {tab !== 'create' && (
           <Button size='small' icon={<RefreshCw size={12} />} theme='borderless'
-            onClick={() => { if (tab === 'hall') loadHall(); else if (tab === 'published') loadMyPublished(); else loadMyAccepted(); }}
+            onClick={() => { if (tab === 'hall') loadHall({ force: true }); else if (tab === 'published') loadMyPublished({ force: true }); else loadMyAccepted({ force: true }); }}
             loading={loading} className='farm-btn' style={{ marginLeft: 'auto' }} />
         )}
       </div>
@@ -382,7 +486,12 @@ const EntrustPage = ({ farmData, actionLoading, doAction, loadFarm, onEnterWork,
 
       {/* ═══ 发布委托 ═══ */}
       {tab === 'create' && (
-        <CreateForm balance={farmData?.balance || 0} onCreated={() => { setTab('published'); loadMyPublished(); loadFarm({ silent: true }); }}
+        <CreateForm balance={farmData?.balance || 0} onCreated={() => {
+          invalidateEntrustCache('hall', 'published');
+          setTab('published');
+          loadMyPublished({ force: true });
+          loadFarm({ silent: true });
+        }}
           actionLoading={actionLoading} t={t} />
       )}
 

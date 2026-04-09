@@ -27,7 +27,27 @@ export const UserContext = React.createContext({
 });
 
 export const UserProvider = ({ children }) => {
-  const [state, dispatch] = React.useReducer(reducer, initialState);
+  const [state, dispatch] = React.useReducer(reducer, initialState, (baseState) => {
+    if (typeof window === 'undefined') {
+      return baseState;
+    }
+    try {
+      const raw = window.localStorage.getItem('user');
+      if (!raw) {
+        return baseState;
+      }
+      const user = JSON.parse(raw);
+      if (!user) {
+        return baseState;
+      }
+      return {
+        ...baseState,
+        user,
+      };
+    } catch (_) {
+      return baseState;
+    }
+  });
   const { i18n } = useTranslation();
 
   // Sync language preference when user data is loaded

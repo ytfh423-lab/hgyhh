@@ -77,6 +77,37 @@ func GetEntrustById(id int) (*TgFarmEntrust, error) {
 	return &e, err
 }
 
+func GetEntrustsByIds(ids []int) (map[int]*TgFarmEntrust, error) {
+	result := make(map[int]*TgFarmEntrust)
+	if len(ids) == 0 {
+		return result, nil
+	}
+	uniqueIds := make([]int, 0, len(ids))
+	seen := make(map[int]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIds = append(uniqueIds, id)
+	}
+	if len(uniqueIds) == 0 {
+		return result, nil
+	}
+	var tasks []*TgFarmEntrust
+	err := DB.Where("id IN ?", uniqueIds).Find(&tasks).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, task := range tasks {
+		result[task.Id] = task
+	}
+	return result, nil
+}
+
 func GetPublishedEntrusts(page, pageSize int, module, action string) ([]*TgFarmEntrust, int64, error) {
 	var tasks []*TgFarmEntrust
 	var total int64
@@ -194,6 +225,46 @@ func GetEntrustSettledAmount(taskId int) int {
 	var total struct{ Sum int }
 	DB.Model(&TgFarmEntrustEscrow{}).Where("task_id = ? AND action = 'settle'", taskId).Select("COALESCE(SUM(amount),0) as sum").Scan(&total)
 	return total.Sum
+}
+
+func GetEntrustSettledAmountMap(taskIds []int) (map[int]int, error) {
+	result := make(map[int]int)
+	if len(taskIds) == 0 {
+		return result, nil
+	}
+	uniqueIds := make([]int, 0, len(taskIds))
+	seen := make(map[int]struct{}, len(taskIds))
+	for _, id := range taskIds {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIds = append(uniqueIds, id)
+		result[id] = 0
+	}
+	if len(uniqueIds) == 0 {
+		return result, nil
+	}
+	type settledRow struct {
+		TaskId int
+		Sum    int
+	}
+	var rows []settledRow
+	err := DB.Model(&TgFarmEntrustEscrow{}).
+		Select("task_id, COALESCE(SUM(amount),0) as sum").
+		Where("task_id IN ? AND action = 'settle'", uniqueIds).
+		Group("task_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.TaskId] = row.Sum
+	}
+	return result, nil
 }
 
 // ========== 每日限制计数 ==========

@@ -5,21 +5,98 @@ import FarmConfirmModal from './FarmConfirmModal';
 
 const { Text } = Typography;
 
+const BANK_CACHE_TTL = 15000;
+let bankDataCache = null;
+let bankDataCacheExpiresAt = 0;
+let bankDataPendingPromise = null;
+let bankDataPendingOwnerId = 0;
+let bankDataCacheOwnerId = 0;
+
+const getCurrentBankCacheOwnerId = () => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+  try {
+    return JSON.parse(window.localStorage.getItem('user') || '{}')?.id || 0;
+  } catch (_) {
+    return 0;
+  }
+};
+
+const readBankCache = (currentBalance) => {
+  const hasFreshBalance =
+    typeof currentBalance !== 'number' ||
+    Math.abs((bankDataCache?.balance || 0) - currentBalance) < 0.0001;
+  if (
+    bankDataCache &&
+    bankDataCacheExpiresAt > Date.now() &&
+    bankDataCacheOwnerId === getCurrentBankCacheOwnerId() &&
+    hasFreshBalance
+  ) {
+    return bankDataCache;
+  }
+  return null;
+};
+
+const writeBankCache = (data) => {
+  bankDataCache = data;
+  bankDataCacheExpiresAt = Date.now() + BANK_CACHE_TTL;
+  bankDataCacheOwnerId = getCurrentBankCacheOwnerId();
+  return data;
+};
+
+const invalidateBankCache = () => {
+  bankDataCache = null;
+  bankDataCacheExpiresAt = 0;
+  bankDataCacheOwnerId = 0;
+};
+
 const BankPage = ({ farmData, actionLoading, doAction, t }) => {
   const [bankData, setBankData] = useState(null);
   const [bankLoading, setBankLoading] = useState(true);
   const [mortgageAmount, setMortgageAmount] = useState(100);
   const [confirmState, setConfirmState] = useState({ visible: false, title: '', message: '', action: null, type: 'warning' });
 
-  const loadBank = useCallback(async () => {
+  const loadBank = useCallback(async (options = {}) => {
+    const force = options.force === true;
+    const currentOwnerId = getCurrentBankCacheOwnerId();
+    const cached = force ? null : readBankCache(farmData?.balance);
+    if (cached) {
+      setBankData(cached);
+      setBankLoading(false);
+      return cached;
+    }
     setBankLoading(true);
     try {
-      const { data: res } = await API.get('/api/farm/bank');
-      if (res.success) setBankData(res.data);
-      else showError(res.message);
+      if (!force && bankDataPendingPromise && bankDataPendingOwnerId === currentOwnerId) {
+        const pendingData = await bankDataPendingPromise;
+        if (pendingData) {
+          setBankData(pendingData);
+        }
+        return pendingData;
+      }
+      bankDataPendingOwnerId = currentOwnerId;
+      bankDataPendingPromise = API.get('/api/farm/bank', { disableDuplicate: true })
+        .then(({ data: res }) => {
+          if (res.success) {
+            return writeBankCache(res.data);
+          }
+          showError(res.message);
+          return null;
+        })
+        .catch(() => null)
+        .finally(() => {
+          bankDataPendingPromise = null;
+          bankDataPendingOwnerId = 0;
+        });
+      const nextData = await bankDataPendingPromise;
+      if (nextData) {
+        setBankData(nextData);
+      }
+      return nextData;
     } catch (err) { /* ignore */ }
     finally { setBankLoading(false); }
-  }, []);
+  }, [farmData?.balance]);
 
   useEffect(() => { loadBank(); }, [loadBank]);
 
@@ -52,7 +129,7 @@ const BankPage = ({ farmData, actionLoading, doAction, t }) => {
       </div>,
       async () => {
         const res = await doAction('/api/farm/bank/loan', {});
-        if (res) { loadBank(); }
+        if (res) { invalidateBankCache(); loadBank({ force: true }); }
       },
       'primary'
     );
@@ -85,7 +162,7 @@ const BankPage = ({ farmData, actionLoading, doAction, t }) => {
       </div>,
       async () => {
         const res = await doAction('/api/farm/bank/mortgage', { amount: mortgageAmount });
-        if (res) { loadBank(); }
+        if (res) { invalidateBankCache(); loadBank({ force: true }); }
       },
       'danger'
     );
@@ -116,7 +193,7 @@ const BankPage = ({ farmData, actionLoading, doAction, t }) => {
       </div>,
       async () => {
         const res = await doAction('/api/farm/bank/repay', { percent });
-        if (res) { loadBank(); }
+        if (res) { invalidateBankCache(); loadBank({ force: true }); }
       },
       'primary'
     );

@@ -45,6 +45,11 @@ type farmRankCacheEntry struct {
 	ExpiresAt int64
 }
 
+type farmCreditScoreStatsCacheEntry struct {
+	Value     FarmCreditScoreStats
+	ExpiresAt int64
+}
+
 const (
 	farmLevelCacheTTLSeconds       int64 = 30
 	farmWarehouseCacheTTLSeconds   int64 = 30
@@ -53,6 +58,7 @@ const (
 	farmTaskClaimsCacheTTLSeconds  int64 = 10
 	farmLeaderboardTTLSeconds      int64 = 15
 	farmRankTTLSeconds             int64 = 15
+	farmCreditScoreTTLSeconds      int64 = 20
 )
 
 var farmLevelCache sync.Map
@@ -62,6 +68,7 @@ var farmActionCountCache sync.Map
 var farmTaskClaimsCache sync.Map
 var farmLeaderboardCache sync.Map
 var farmRankCache sync.Map
+var farmCreditScoreStatsCache sync.Map
 var farmActionVersionLock sync.RWMutex
 var farmActionVersions = make(map[string]int64)
 
@@ -108,6 +115,13 @@ func invalidateFarmLeaderboardCaches() {
 		farmRankCache.Delete(key)
 		return true
 	})
+}
+
+func invalidateFarmCreditScoreCache(telegramId string) {
+	if telegramId == "" {
+		return
+	}
+	farmCreditScoreStatsCache.Delete(telegramId)
 }
 
 func shouldInvalidateFarmLeaderboard(action string, amount int) bool {
@@ -949,6 +963,7 @@ func AddFarmLog(telegramId, action string, amount int, detail string) {
 	if shouldInvalidateFarmLeaderboard(action, amount) {
 		invalidateFarmLeaderboardCaches()
 	}
+	invalidateFarmCreditScoreCache(telegramId)
 	bumpFarmActionVersion(telegramId)
 }
 
@@ -972,6 +987,7 @@ func AddFarmLogs(telegramId, action string, amount int, detail string, count int
 	if shouldInvalidateFarmLeaderboard(action, amount) {
 		invalidateFarmLeaderboardCaches()
 	}
+	invalidateFarmCreditScoreCache(telegramId)
 	bumpFarmActionVersion(telegramId)
 }
 
@@ -1012,6 +1028,14 @@ type FarmCreditScoreStats struct {
 
 func GetCreditScoreStats(telegramId string) (FarmCreditScoreStats, error) {
 	stats := FarmCreditScoreStats{Level: 1}
+	now := time.Now().Unix()
+	if cached, ok := farmCreditScoreStatsCache.Load(telegramId); ok {
+		entry := cached.(farmCreditScoreStatsCacheEntry)
+		if entry.ExpiresAt >= now {
+			return entry.Value, nil
+		}
+		farmCreditScoreStatsCache.Delete(telegramId)
+	}
 	thirtyDaysAgo := time.Now().Unix() - 30*86400
 
 	type incomeResult struct {
@@ -1050,6 +1074,7 @@ func GetCreditScoreStats(telegramId string) (FarmCreditScoreStats, error) {
 	if level, ok := itemMap["_level"]; ok && level > 0 {
 		stats.Level = level
 	}
+	farmCreditScoreStatsCache.Store(telegramId, farmCreditScoreStatsCacheEntry{Value: stats, ExpiresAt: now + farmCreditScoreTTLSeconds})
 
 	return stats, nil
 }
@@ -1126,6 +1151,9 @@ func CreateLoanWithType(telegramId string, principal, interest, totalDue int, cr
 		CreatedAt:   now,
 	}
 	err := DB.Create(loan).Error
+	if err == nil {
+		invalidateFarmCreditScoreCache(telegramId)
+	}
 	return loan, err
 }
 
@@ -1158,6 +1186,9 @@ func RepayLoanWithExtend(loanId int, amount int, extendDays int) (*TgFarmLoan, e
 		updates["due_at"] = loan.DueAt
 	}
 	err = DB.Model(&TgFarmLoan{}).Where("id = ?", loanId).Updates(updates).Error
+	if err == nil {
+		invalidateFarmCreditScoreCache(loan.TelegramId)
+	}
 	return &loan, err
 }
 

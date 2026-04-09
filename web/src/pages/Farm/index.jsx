@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useContext, useRef } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
@@ -10,36 +10,36 @@ import './farm.css';
 import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import FarmOverview from './components/FarmOverview';
-import PlantPage from './components/PlantPage';
-import RanchPage from './components/RanchPage';
-import FishPage from './components/FishPage';
-import WorkshopPage from './components/WorkshopPage';
-import MarketPage from './components/MarketPage';
-import ShopPage from './components/ShopPage';
-import WarehousePage from './components/WarehousePage';
-import TradingPage from './components/TradingPage';
-import BankPage from './components/BankPage';
-import LevelPage from './components/LevelPage';
-import TasksPage from './components/TasksPage';
-import AchievementsPage from './components/AchievementsPage';
-import EncyclopediaPage from './components/EncyclopediaPage';
-import LeaderboardPage from './components/LeaderboardPage';
-import ProfilePage from './components/ProfilePage';
-import StealPage from './components/StealPage';
-import GamesPage from './components/GamesPage';
-import DogPage from './components/DogPage';
-import AutomationPage from './components/AutomationPage';
-import TreeFarmPage from './components/TreeFarmPage';
-import PrestigePage from './components/PrestigePage';
-import LogsPage from './components/LogsPage';
-import EntrustPage from './components/EntrustPage';
-import EntrustWorkPage from './components/EntrustWorkPage';
 import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
 import { FEATURE_LEVEL_MAP } from './constants';
-import FriendListPage from './components/FriendListPage';
-import VisitFarmPage from './components/VisitFarmPage';
+const PlantPage = lazy(() => import('./components/PlantPage'));
+const RanchPage = lazy(() => import('./components/RanchPage'));
+const FishPage = lazy(() => import('./components/FishPage'));
+const WorkshopPage = lazy(() => import('./components/WorkshopPage'));
+const MarketPage = lazy(() => import('./components/MarketPage'));
+const ShopPage = lazy(() => import('./components/ShopPage'));
+const WarehousePage = lazy(() => import('./components/WarehousePage'));
+const TradingPage = lazy(() => import('./components/TradingPage'));
+const BankPage = lazy(() => import('./components/BankPage'));
+const LevelPage = lazy(() => import('./components/LevelPage'));
+const TasksPage = lazy(() => import('./components/TasksPage'));
+const AchievementsPage = lazy(() => import('./components/AchievementsPage'));
+const EncyclopediaPage = lazy(() => import('./components/EncyclopediaPage'));
+const LeaderboardPage = lazy(() => import('./components/LeaderboardPage'));
+const ProfilePage = lazy(() => import('./components/ProfilePage'));
+const StealPage = lazy(() => import('./components/StealPage'));
+const GamesPage = lazy(() => import('./components/GamesPage'));
+const DogPage = lazy(() => import('./components/DogPage'));
+const AutomationPage = lazy(() => import('./components/AutomationPage'));
+const TreeFarmPage = lazy(() => import('./components/TreeFarmPage'));
+const PrestigePage = lazy(() => import('./components/PrestigePage'));
+const LogsPage = lazy(() => import('./components/LogsPage'));
+const EntrustPage = lazy(() => import('./components/EntrustPage'));
+const EntrustWorkPage = lazy(() => import('./components/EntrustWorkPage'));
+const FriendListPage = lazy(() => import('./components/FriendListPage'));
+const VisitFarmPage = lazy(() => import('./components/VisitFarmPage'));
 
 const { Text, Title } = Typography;
 
@@ -705,7 +705,9 @@ const Farm = () => {
           <div className='farm-content'>
             <div className='farm-content-inner'>
               <FarmErrorBoundary resetKey={activePage}>
-                {renderPage()}
+                <Suspense fallback={<div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>}>
+                  {renderPage()}
+                </Suspense>
               </FarmErrorBoundary>
             </div>
           </div>
