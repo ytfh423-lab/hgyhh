@@ -36,6 +36,7 @@ const navGroups = [
     label: '成长进度',
     emoji: '⭐',
     items: [
+      { key: 'profile', label: '个人中心', emoji: '👤' },
       { key: 'level', label: '等级', emoji: '📊' },
       { key: 'tasks', label: '任务', emoji: '📝' },
       { key: 'achievements', label: '成就', emoji: '🏆' },

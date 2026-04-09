@@ -555,7 +555,7 @@ func WebFarmLeaderboard(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败"})
 		return
 	}
-	nearbyEntries, myRank, err := model.GetFarmLeaderboardContextWithOptions(tgId, boardType, 2, options)
+	contextEntries, myRank, err := model.GetFarmLeaderboardContextWithOptions(tgId, boardType, 1, options)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败"})
 		return
@@ -587,29 +587,17 @@ func WebFarmLeaderboard(c *gin.Context) {
 	for i, e := range entries {
 		items = append(items, rankItem{Rank: i + 1, Name: buildName(e.Username, e.TelegramId), Value: convertValue(e.Value), IsMe: e.TelegramId == tgId})
 	}
-	nearbyItems := make([]rankItem, 0, len(nearbyEntries))
 	myValue := 0.0
 	gapToPrev := 0.0
-	gapToNext := 0.0
-	for _, e := range nearbyEntries {
-		item := rankItem{Rank: int(e.Rank), Name: buildName(e.Username, e.TelegramId), Value: convertValue(e.Value), IsMe: e.TelegramId == tgId}
-		nearbyItems = append(nearbyItems, item)
-	}
-	for i, item := range nearbyItems {
-		if !item.IsMe {
+	for i, e := range contextEntries {
+		if e.TelegramId != tgId {
 			continue
 		}
-		myValue = item.Value
+		myValue = convertValue(e.Value)
 		if i > 0 {
-			gapToPrev = nearbyItems[i-1].Value - item.Value
+			gapToPrev = convertValue(contextEntries[i-1].Value) - myValue
 			if gapToPrev < 0 {
 				gapToPrev = 0
-			}
-		}
-		if i+1 < len(nearbyItems) {
-			gapToNext = item.Value - nearbyItems[i+1].Value
-			if gapToNext < 0 {
-				gapToNext = 0
 			}
 		}
 		break
@@ -623,7 +611,7 @@ func WebFarmLeaderboard(c *gin.Context) {
 	if period == "weekly" {
 		periodLabel = "周榜"
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "scope": scope, "period": period, "label": label, "scope_label": scopeLabel, "period_label": periodLabel, "title": scopeLabel + label + periodLabel, "items": items, "my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev, "gap_to_next": gapToNext, "nearby_items": nearbyItems}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "scope": scope, "period": period, "label": label, "scope_label": scopeLabel, "period_label": periodLabel, "title": scopeLabel + label + periodLabel, "items": items, "my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev}})
 }
 
 // ========== Mini-Games ==========

@@ -24,6 +24,7 @@ import TasksPage from './components/TasksPage';
 import AchievementsPage from './components/AchievementsPage';
 import EncyclopediaPage from './components/EncyclopediaPage';
 import LeaderboardPage from './components/LeaderboardPage';
+import ProfilePage from './components/ProfilePage';
 import StealPage from './components/StealPage';
 import GamesPage from './components/GamesPage';
 import DogPage from './components/DogPage';
@@ -653,6 +654,8 @@ const Farm = () => {
         return <EntrustPage {...commonProps} onEnterWork={(id) => setEntrustWorkTaskId(id)} />;
       case 'bank':
         return <BankPage {...commonProps} />;
+      case 'profile':
+        return <ProfilePage farmData={farmData} t={t} />;
       case 'level':
         return <LevelPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />;
       case 'tasks':

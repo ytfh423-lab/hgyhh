@@ -319,6 +319,19 @@ func farmRankCallbackData(boardType, scope, period string) string {
 	return fmt.Sprintf("farm_rank_%s_%s_%s", boardType, scope, period)
 }
 
+func tgFarmLeaderboardRewardLabel(rank int) string {
+	switch rank {
+	case 1:
+		return "👑 冠军勋章"
+	case 2:
+		return "🥈 亚军勋章"
+	case 3:
+		return "🥉 季军勋章"
+	default:
+		return ""
+	}
+}
+
 func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType string, scope string, period string, from *TgUser) {
 	if boardType != "balance" && boardType != "level" && boardType != "harvest" && boardType != "prestige" && boardType != "steal" {
 		boardType = "balance"
@@ -339,13 +352,14 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 	}
 	periodName := "🏆 总榜"
 	if period == "weekly" {
-		periodName = "� 周榜"
+		periodName = "📅 周榜"
 	}
 
 	entries, _ := model.GetFarmLeaderboardWithOptions(boardType, 10, options)
 	myRank := model.GetFarmRankWithOptions(tgId, boardType, options)
 
 	text := fmt.Sprintf("🏅 %s%s%s\n\n", scopeName, boardName, periodName)
+	text += "🎁 前三奖励：👑 冠军勋章 / 🥈 亚军勋章 / 🥉 季军勋章\n\n"
 	if fallbackToGlobal {
 		text += "ℹ️ 你尚未绑定站内账号，已自动切换为全服榜\n\n"
 	}
@@ -372,11 +386,19 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 		if boardType == "balance" || boardType == "steal" {
 			valStr = farmQuotaStr(int(e.Value))
 		}
+		rewardLabel := tgFarmLeaderboardRewardLabel(rank)
+		if rewardLabel != "" {
+			text += fmt.Sprintf("%s %s: %s · %s%s\n", prefix, name, valStr, rewardLabel, me)
+			continue
+		}
 		text += fmt.Sprintf("%s %s: %s%s\n", prefix, name, valStr, me)
 	}
 
 	if myRank > 0 {
 		text += fmt.Sprintf("\n📊 我的排名: #%d\n", myRank)
+		if rewardLabel := tgFarmLeaderboardRewardLabel(int(myRank)); rewardLabel != "" {
+			text += fmt.Sprintf("🏅 当前荣誉: %s\n", rewardLabel)
+		}
 	}
 
 	var rows [][]TgInlineKeyboardButton
