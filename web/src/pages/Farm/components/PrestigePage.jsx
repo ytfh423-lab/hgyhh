@@ -26,7 +26,21 @@ const PrestigePage = ({ loadFarm, t }) => {
     setPrestigeLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/prestige');
-      if (res.success) { showSuccess(res.message); load(); loadFarm({ silent: true }); }
+      if (res.success) {
+        showSuccess(res.message);
+        if (res.data) {
+          setData(res.data);
+        }
+        loadFarm({
+          silent: true,
+          patchData: {
+            user_level: res.data?.current_level,
+            prestige_level: res.data?.prestige_level,
+            prestige_bonus: res.data?.current_bonus,
+            balance: res.data?.balance,
+          },
+        });
+      }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
     finally { setPrestigeLoading(false); setShowConfirm(false); }

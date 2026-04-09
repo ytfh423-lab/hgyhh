@@ -2256,13 +2256,19 @@ func WebFarmLevelUp(c *gin.Context) {
 	if len(newUnlocks) > 0 {
 		msg += "，解锁: " + strings.Join(newUnlocks, ", ")
 	}
+	nextPrice := 0.0
+	if newLevel < common.TgBotFarmMaxLevel {
+		nextPrice = webFarmQuotaFloat(getLevelUpPrice(newLevel))
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": msg,
 		"data": gin.H{
-			"new_level": newLevel,
-			"unlocks":   newUnlocks,
+			"new_level":  newLevel,
+			"unlocks":    newUnlocks,
+			"balance":    webFarmQuotaFloat(userQuota - price),
+			"next_price": nextPrice,
 		},
 	})
 }

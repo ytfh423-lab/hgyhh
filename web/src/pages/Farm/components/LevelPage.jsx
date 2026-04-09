@@ -30,8 +30,27 @@ const LevelPage = ({ actionLoading, loadFarm, t }) => {
       const { data: res } = await API.post('/api/farm/levelup');
       if (res.success) {
         showSuccess(res.message);
-        loadLevel();
-        loadFarm({ silent: true });
+        const newLevel = res.data?.new_level ?? ((lvData?.level || 0) + 1);
+        setLvData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            level: newLevel,
+            next_price: res.data?.next_price ?? prev.prices?.find((item) => item.level === newLevel + 1)?.price ?? prev.next_price,
+            unlocks: (prev.unlocks || []).map((item) => ({
+              ...item,
+              unlocked: item.level <= newLevel,
+            })),
+          };
+        });
+        loadFarm({
+          silent: true,
+          dynamicOnly: true,
+          patchData: {
+            user_level: newLevel,
+            balance: res.data?.balance,
+          },
+        });
       } else {
         showError(res.message);
       }

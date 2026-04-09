@@ -215,6 +215,8 @@ const Farm = () => {
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
   const farmDataRef = useRef(farmData);
+  const silentLoadFarmPromiseRef = useRef(null);
+  const queuedSilentLoadFarmOptionsRef = useRef(null);
 
   useEffect(() => {
     farmDataRef.current = farmData;
@@ -270,16 +272,31 @@ const Farm = () => {
   }, []);
 
   const mergeFarmData = useCallback((partialData) => {
+    const sanitizedPatch = Object.fromEntries(
+      Object.entries(partialData || {}).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(sanitizedPatch).length === 0) {
+      return;
+    }
     setFarmData((prev) => {
       const nextData = {
         ...(prev || {}),
-        ...(partialData || {}),
+        ...sanitizedPatch,
       };
       persistFarmData(nextData);
       farmDataRef.current = nextData;
       return nextData;
     });
   }, [persistFarmData]);
+
+  const mergeLoadFarmOptions = useCallback((currentOptions, nextOptions) => ({
+    silent: true,
+    dynamicOnly: (currentOptions?.dynamicOnly ?? true) && (nextOptions?.dynamicOnly ?? true),
+    patchData: {
+      ...(currentOptions?.patchData || {}),
+      ...(nextOptions?.patchData || {}),
+    },
+  }), []);
 
   const loadFarmDynamic = useCallback(async () => {
     try {
@@ -293,45 +310,76 @@ const Farm = () => {
   const loadFarm = useCallback(async (options = {}) => {
     const silent = options.silent ?? !!farmDataRef.current;
     const dynamicOnly = options.dynamicOnly ?? false;
-    if (dynamicOnly) {
-      await loadFarmDynamic();
-      return;
-    }
-    if (!silent) {
-      setLoading(true);
-    }
-    try {
-      const [lightResp, dynamicResp] = await Promise.all([
-        API.get('/api/farm/view/light'),
-        API.get('/api/farm/view/dynamic', { disableDuplicate: true }),
-      ]);
-      const lightRes = lightResp.data;
-      const dynamicRes = dynamicResp.data;
-      if (lightRes.success) {
-        const mergedData = {
-          ...lightRes.data,
-          ...(dynamicRes.success
-            ? dynamicRes.data
-            : { task_summary: farmDataRef.current?.task_summary || { done: 0, total: 0, claimed: 0 } }),
-        };
-        setFarmData(mergedData);
-        farmDataRef.current = mergedData;
-        setBetaGate(null);
-        persistFarmData(mergedData);
-      } else if (lightRes.code === 'BETA_NOT_STARTED' || lightRes.code === 'BETA_NO_ACCESS' || lightRes.code === 'BETA_AGREEMENT_REQUIRED' || lightRes.code === 'BETA_EXPIRED') {
-        setBetaGate(lightRes.code);
-        setBetaMessage(lightRes.message);
-      } else {
-        showError(lightRes.message);
+    const patchData = options.patchData || null;
+    if (silent && silentLoadFarmPromiseRef.current) {
+      queuedSilentLoadFarmOptionsRef.current = mergeLoadFarmOptions(queuedSilentLoadFarmOptionsRef.current, {
+        silent,
+        dynamicOnly,
+        patchData,
+      });
+      if (patchData) {
+        mergeFarmData(patchData);
       }
-    } catch (err) {
-      showError(t('加载失败'));
-    } finally {
+      return silentLoadFarmPromiseRef.current;
+    }
+    if (patchData) {
+      mergeFarmData(patchData);
+    }
+    const request = (async () => {
+      if (dynamicOnly) {
+        await loadFarmDynamic();
+        return;
+      }
       if (!silent) {
-        setLoading(false);
+        setLoading(true);
       }
+      try {
+        const [lightResp, dynamicResp] = await Promise.all([
+          API.get('/api/farm/view/light'),
+          API.get('/api/farm/view/dynamic', { disableDuplicate: true }),
+        ]);
+        const lightRes = lightResp.data;
+        const dynamicRes = dynamicResp.data;
+        if (lightRes.success) {
+          const mergedData = {
+            ...lightRes.data,
+            ...(dynamicRes.success
+              ? dynamicRes.data
+              : { task_summary: farmDataRef.current?.task_summary || { done: 0, total: 0, claimed: 0 } }),
+          };
+          setFarmData(mergedData);
+          farmDataRef.current = mergedData;
+          setBetaGate(null);
+          persistFarmData(mergedData);
+        } else if (lightRes.code === 'BETA_NOT_STARTED' || lightRes.code === 'BETA_NO_ACCESS' || lightRes.code === 'BETA_AGREEMENT_REQUIRED' || lightRes.code === 'BETA_EXPIRED') {
+          setBetaGate(lightRes.code);
+          setBetaMessage(lightRes.message);
+        } else {
+          showError(lightRes.message);
+        }
+      } catch (err) {
+        showError(t('加载失败'));
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    })();
+    if (!silent) {
+      return request;
     }
-  }, [loadFarmDynamic, persistFarmData, t]);
+    silentLoadFarmPromiseRef.current = request.finally(() => {
+      silentLoadFarmPromiseRef.current = null;
+      const queuedOptions = queuedSilentLoadFarmOptionsRef.current;
+      queuedSilentLoadFarmOptionsRef.current = null;
+      if (queuedOptions) {
+        setTimeout(() => {
+          loadFarm(queuedOptions);
+        }, 0);
+      }
+    });
+    return silentLoadFarmPromiseRef.current;
+  }, [loadFarmDynamic, mergeFarmData, mergeLoadFarmOptions, persistFarmData, t]);
 
   const loadCrops = useCallback(async () => {
     if (_cropsCache) { setCrops(_cropsCache); return; }

@@ -46,7 +46,7 @@ function patchAPIInstance(instance) {
   };
 
   instance.get = (url, config = {}) => {
-    if (config?.disableDuplicate) {
+    if (config?.skipDeduplication || config?.disableDuplicate === false) {
       return originalGet(url, config);
     }
 

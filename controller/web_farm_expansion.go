@@ -408,10 +408,25 @@ func WebFarmPrestige(c *gin.Context) {
 	model.SetPrestigeLevel(tgId, newPrestige)
 	model.CreatePrestigeRecord(tgId, newPrestige)
 	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s", newPrestige, farmQuotaStr(price)))
+	newBonus := newPrestige * common.TgBotFarmPrestigeBonusPerLevel
+	nextBonus := (newPrestige + 1) * common.TgBotFarmPrestigeBonusPerLevel
+	nextPrice := model.GetPrestigePrice(newPrestige + 1)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("转生成功：已支付%.2f，仅保留成就和图鉴，永久收入加成+%d%%", webFarmQuotaFloat(price), newPrestige*common.TgBotFarmPrestigeBonusPerLevel),
+		"data": gin.H{
+			"current_level":   1,
+			"prestige_level":  newPrestige,
+			"min_level":       common.TgBotFarmPrestigeMinLevel,
+			"max_times":       common.TgBotFarmPrestigeMaxTimes,
+			"can_prestige":    false,
+			"bonus_per_level": common.TgBotFarmPrestigeBonusPerLevel,
+			"current_bonus":   newBonus,
+			"next_bonus":      nextBonus,
+			"next_price":      webFarmQuotaFloat(nextPrice),
+			"balance":         webFarmQuotaFloat(user.Quota - price),
+		},
 	})
 }
 
