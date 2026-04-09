@@ -65,6 +65,10 @@ const ProfilePage = ({ farmData, t }) => {
       }));
   }, [rankSummaries]);
 
+  const farmMedals = useMemo(() => {
+    return Array.isArray(farmData?.medals) ? farmData.medals : [];
+  }, [farmData]);
+
   return (
     <div>
       <div className='farm-card' style={{ marginBottom: 14 }}>
@@ -137,25 +141,46 @@ const ProfilePage = ({ farmData, t }) => {
       </div>
 
       <div className='farm-card' style={{ marginBottom: 14 }}>
-        <div className='farm-section-title'>🏅 {t('勋章墙')}</div>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
-        ) : honorEntries.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        <div className='farm-section-title'>🏅 {t('勋章墙')} {farmMedals.length > 0 ? `(${farmData?.medal_count || farmMedals.length})` : ''}</div>
+        {honorEntries.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             {honorEntries.map((item) => (
-              <div key={`honor-${item.boardType}`} className='farm-row' style={{ marginBottom: 0, gap: 10 }}>
-                <span style={{ fontSize: 22 }}>{item.reward?.emoji || '🏅'}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700 }}>{t(item.reward?.title || '上榜勋章')}</div>
-                  <div style={{ color: 'var(--semi-color-text-2)', fontSize: 12 }}>
-                    {item.boardIcon} {t(item.boardLabel)} · #{item.my_rank}
-                  </div>
+              <div key={`honor-${item.boardType}`} className='farm-pill farm-pill-amber'>
+                {item.reward?.emoji || '🏅'} {item.boardIcon} #{item.my_rank}
+              </div>
+            ))}
+          </div>
+        )}
+        {farmMedals.length > 0 ? (
+          <div className='farm-profile-medal-grid'>
+            {farmMedals.map((item) => (
+              <div
+                key={`medal-${item.key}`}
+                className={`farm-profile-medal-card farm-profile-medal-card--${item.rarity || 'common'}`}
+                style={{
+                  '--farm-medal-from': item.color_from || '#22c55e',
+                  '--farm-medal-to': item.color_to || '#86efac',
+                  '--farm-medal-glow': item.glow_color || 'rgba(34, 197, 94, 0.4)',
+                }}
+              >
+                <div className='farm-profile-medal-top'>
+                  <span className='farm-profile-medal-emoji'>{item.emoji}</span>
+                  <span className='farm-profile-medal-count'>×{item.quantity || 1}</span>
+                </div>
+                <div className='farm-profile-medal-name'>{item.name}</div>
+                <div className='farm-profile-medal-desc'>{item.description}</div>
+                <div className='farm-profile-medal-meta'>
+                  <span className='farm-profile-medal-pill'>{item.rarity_label || t('农场勋章')}</span>
+                  {item.source_label && <span className='farm-profile-medal-pill'>{item.source_label}</span>}
+                </div>
+                <div className='farm-profile-medal-footer'>
+                  {item.first_at ? `${t('获得于')} ${new Date(item.first_at * 1000).toLocaleDateString()}` : t('已收录')}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <Empty description={t('当前维度暂未获得前三勋章')} />
+          <Empty description={t('游玩农场时会随机掉落专属勋章')} />
         )}
       </div>
 

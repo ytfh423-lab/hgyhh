@@ -1508,6 +1508,34 @@ func RecordCollection(telegramId, category, itemKey string, qty int) {
 	DB.Model(&TgFarmCollection{}).Where("id = ?", item.Id).Update("quantity", item.Quantity+qty)
 }
 
+func RecordCollectionWithStatus(telegramId, category, itemKey string, qty int) (bool, int, int64, error) {
+	var item TgFarmCollection
+	err := DB.Where("telegram_id = ? AND category = ? AND item_key = ?", telegramId, category, itemKey).First(&item).Error
+	if err == nil {
+		nextQty := item.Quantity + qty
+		if updateErr := DB.Model(&TgFarmCollection{}).Where("id = ?", item.Id).Update("quantity", nextQty).Error; updateErr != nil {
+			return false, 0, 0, updateErr
+		}
+		return false, nextQty, item.FirstAt, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, 0, 0, err
+	}
+	firstAt := time.Now().Unix()
+	createItem := &TgFarmCollection{TelegramId: telegramId, Category: category, ItemKey: itemKey, Quantity: qty, FirstAt: firstAt}
+	if createErr := DB.Create(createItem).Error; createErr == nil {
+		return true, qty, firstAt, nil
+	}
+	if retryErr := DB.Where("telegram_id = ? AND category = ? AND item_key = ?", telegramId, category, itemKey).First(&item).Error; retryErr != nil {
+		return false, 0, 0, retryErr
+	}
+	nextQty := item.Quantity + qty
+	if updateErr := DB.Model(&TgFarmCollection{}).Where("id = ?", item.Id).Update("quantity", nextQty).Error; updateErr != nil {
+		return false, 0, 0, updateErr
+	}
+	return false, nextQty, item.FirstAt, nil
+}
+
 func GetCollections(telegramId string) ([]*TgFarmCollection, error) {
 	var items []*TgFarmCollection
 	err := DB.Where("telegram_id = ?", telegramId).Find(&items).Error

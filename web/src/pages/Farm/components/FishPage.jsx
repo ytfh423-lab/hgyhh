@@ -43,13 +43,14 @@ const GoldenDragonEffect = ({ show, onDone }) => {
   );
 };
 
-const FishPage = ({ loadFarm, t }) => {
+const FishPage = ({ loadFarm, onMedalDrop, t }) => {
   const [fishData, setFishData] = useState(null);
   const [fishLoading, setFishLoading] = useState(false);
   const [lastCatch, setLastCatch] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   const tickRef = useRef(null);
   const [showGoldenDragon, setShowGoldenDragon] = useState(false);
+  const [pendingMedalDrop, setPendingMedalDrop] = useState(null);
 
   const loadFish = useCallback(async () => {
     setFishLoading(true);
@@ -89,6 +90,14 @@ const FishPage = ({ loadFarm, t }) => {
     };
   }, [cooldown > 0]);
 
+  const handleGoldenDragonDone = useCallback(() => {
+    setShowGoldenDragon(false);
+    if (pendingMedalDrop) {
+      onMedalDrop?.(pendingMedalDrop);
+      setPendingMedalDrop(null);
+    }
+  }, [onMedalDrop, pendingMedalDrop]);
+
   const doFish = async () => {
     setFishLoading(true);
     try {
@@ -96,7 +105,11 @@ const FishPage = ({ loadFarm, t }) => {
       if (res.success) {
         setLastCatch(res.data);
         if (res.data.special_effect === 'golden_dragon') {
+          setPendingMedalDrop(res.medal_drop ? res : null);
           setShowGoldenDragon(true);
+        } else {
+          setPendingMedalDrop(null);
+          onMedalDrop?.(res);
         }
         showSuccess(res.message);
         loadFish();
@@ -199,7 +212,7 @@ const FishPage = ({ loadFarm, t }) => {
 
   return (
     <div>
-      <GoldenDragonEffect show={showGoldenDragon} onDone={() => setShowGoldenDragon(false)} />
+      <GoldenDragonEffect show={showGoldenDragon} onDone={handleGoldenDragonDone} />
       {capEnabled && (
         <div className='farm-card' style={{ marginBottom: 14, padding: '12px 16px' }}>
           <div

@@ -14,6 +14,7 @@ import FarmOverview from './components/FarmOverview';
 import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
+import FarmMedalDropOverlay from './components/FarmMedalDropOverlay';
 import { FEATURE_LEVEL_MAP } from './constants';
 const PlantPage = lazy(() => import('./components/PlantPage'));
 const RanchPage = lazy(() => import('./components/RanchPage'));
@@ -216,6 +217,8 @@ const Farm = () => {
   const [betaMessage, setBetaMessage] = useState('');
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [agreementChecked, setAgreementChecked] = useState(false);
+  const [activeMedalDrop, setActiveMedalDrop] = useState(null);
+  const [medalDropQueue, setMedalDropQueue] = useState([]);
   const farmDataRef = useRef(farmData);
   const silentLoadFarmPromiseRef = useRef(null);
   const queuedSilentLoadFarmOptionsRef = useRef(null);
@@ -299,6 +302,62 @@ const Farm = () => {
       ...(nextOptions?.patchData || {}),
     },
   }), []);
+
+  const upsertFarmMedals = useCallback((items, drop) => {
+    const nextItems = Array.isArray(items) ? [...items] : [];
+    const index = nextItems.findIndex((item) => item?.key === drop.key);
+    const nextItem = {
+      ...(index >= 0 ? nextItems[index] : {}),
+      ...drop,
+      first_at: drop.first_at ?? nextItems[index]?.first_at ?? Math.floor(Date.now() / 1000),
+      quantity: drop.quantity ?? nextItems[index]?.quantity ?? 1,
+      is_new: false,
+    };
+    if (index >= 0) {
+      nextItems[index] = nextItem;
+    } else {
+      nextItems.unshift(nextItem);
+    }
+    nextItems.sort((left, right) => {
+      const leftTime = left?.first_at || 0;
+      const rightTime = right?.first_at || 0;
+      if (leftTime === rightTime) {
+        return (right?.quantity || 0) - (left?.quantity || 0);
+      }
+      return rightTime - leftTime;
+    });
+    return nextItems;
+  }, []);
+
+  const handleMedalDrop = useCallback((payload) => {
+    const drop = payload?.medal_drop || payload?.data?.medal_drop;
+    if (!drop?.key) {
+      return;
+    }
+    setMedalDropQueue((prev) => ([
+      ...prev,
+      {
+        ...drop,
+        _queueId: `${drop.key}-${drop.quantity || 1}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      },
+    ]));
+    const currentMedals = Array.isArray(farmDataRef.current?.medals) ? farmDataRef.current.medals : [];
+    const nextMedals = upsertFarmMedals(currentMedals, drop);
+    mergeFarmData({ medals: nextMedals, medal_count: nextMedals.length });
+  }, [mergeFarmData, upsertFarmMedals]);
+
+  useEffect(() => {
+    if (activeMedalDrop || medalDropQueue.length === 0) {
+      return;
+    }
+    const [nextDrop, ...restDrops] = medalDropQueue;
+    setActiveMedalDrop(nextDrop);
+    setMedalDropQueue(restDrops);
+  }, [activeMedalDrop, medalDropQueue]);
+
+  const closeMedalDrop = useCallback(() => {
+    setActiveMedalDrop(null);
+  }, []);
 
   const loadFarmDynamic = useCallback(async () => {
     try {
@@ -431,6 +490,7 @@ const Farm = () => {
     try {
       const { data: res } = await API.post(url, body);
       if (res.success) {
+        handleMedalDrop(res);
         showSuccess(res.message || t('操作成功'));
         loadFarm({ silent: true });
         if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: res });
@@ -610,7 +670,7 @@ const Farm = () => {
   }
 
   const currentSeason = farmData.weather?.season ?? 0;
-  const commonProps = { farmData, loadFarm, actionLoading, doAction, t };
+  const commonProps = { farmData, loadFarm, actionLoading, doAction, t, onMedalDrop: handleMedalDrop };
   const userLevel = farmData.user_level || 1;
 
   const renderPage = () => {
@@ -668,7 +728,7 @@ const Farm = () => {
       case 'steal':
         return <StealPage {...commonProps} />;
       case 'games':
-        return <GamesPage loadFarm={loadFarm} t={t} />;
+        return <GamesPage loadFarm={loadFarm} t={t} onMedalDrop={handleMedalDrop} />;
       case 'dog':
         return <DogPage {...commonProps} />;
       case 'automation':
@@ -728,6 +788,7 @@ const Farm = () => {
             userLevel={userLevel}
           />
         )}
+        <FarmMedalDropOverlay drop={activeMedalDrop} onClose={closeMedalDrop} t={t} />
       </div>
     </TutorialProvider>
   );

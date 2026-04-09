@@ -662,10 +662,10 @@ func WebFarmGameWheel(c *gin.Context) {
 	prizeLabel := win.Label
 	model.CreateGameLog(tgId, "wheel", price, actualWin)
 	model.AddFarmLog(tgId, "game", net, "🎡 转盘: "+prizeLabel)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+	respondFarmSuccessWithMedal(c, tgId, "game", "转盘完成！", gin.H{
 		"sector_index": winIdx, "prize_label": prizeLabel,
 		"prize_amount": webFarmQuotaFloat(actualWin), "net": webFarmQuotaFloat(net),
-	}})
+	})
 }
 
 func WebFarmGameScratch(c *gin.Context) {
@@ -731,16 +731,16 @@ func WebFarmGameScratch(c *gin.Context) {
 	model.CreateGameLog(tgId, "scratch", price, actualWin)
 	if actualWin > 0 {
 		model.AddFarmLog(tgId, "game", net, "🎰 刮刮卡: "+win.Label)
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		respondFarmSuccessWithMedal(c, tgId, "game", "刮刮卡完成！", gin.H{
 			"grid": grid, "win_symbol": win.Symbol, "prize_label": win.Label,
 			"prize_amount": webFarmQuotaFloat(actualWin), "net": webFarmQuotaFloat(net),
-		}})
+		})
 	} else {
 		model.AddFarmLog(tgId, "game", net, "🎰 刮刮卡: 未中奖")
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		respondFarmSuccessWithMedal(c, tgId, "game", "刮刮卡完成！", gin.H{
 			"grid": grid, "win_symbol": "😢", "prize_label": "未中奖",
 			"prize_amount": 0, "net": webFarmQuotaFloat(net),
-		}})
+		})
 	}
 }
 
@@ -895,18 +895,15 @@ func WebFarmGamePlay(c *gin.Context) {
 	model.CreateGameLog(tgId, req.GameKey, price, actualWin)
 	model.AddFarmLog(tgId, "game", net, fmt.Sprintf("%s %s", g.Emoji, g.Name))
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"game_key":    req.GameKey,
-			"game_name":   g.Name,
-			"game_emoji":  g.Emoji,
-			"result_text": resultText,
-			"bet":         webFarmQuotaFloat(price),
-			"win":         webFarmQuotaFloat(actualWin),
-			"net":         webFarmQuotaFloat(net),
-			"multi":       multi,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "game", fmt.Sprintf("%s %s", g.Emoji, g.Name), gin.H{
+		"game_key":    req.GameKey,
+		"game_name":   g.Name,
+		"game_emoji":  g.Emoji,
+		"result_text": resultText,
+		"bet":         webFarmQuotaFloat(price),
+		"win":         webFarmQuotaFloat(actualWin),
+		"net":         webFarmQuotaFloat(net),
+		"multi":       multi,
 	})
 }
 

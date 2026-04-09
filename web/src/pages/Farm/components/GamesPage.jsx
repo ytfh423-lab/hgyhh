@@ -27,7 +27,7 @@ const WHEEL_PRIZES = [
   { symbol: '🌟', label: '$10', color: '#4a7c3f' },
 ];
 
-const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
+const SpinningWheel = ({ onSpin, spinning, result, gameLoading, onMedalDrop, t }) => {
   const wheelRef = useRef(null);
   const [rotation, setRotation] = useState(0);
   const [showResult, setShowResult] = useState(false);
@@ -40,7 +40,8 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
   const handleSpin = async () => {
     if (spinning || gameLoading) return;
     setShowResult(false);
-    const data = await onSpin();
+    const payload = await onSpin();
+    const data = payload?.data;
     if (!data) return;
     // Calculate target angle: prize_index tells us where to land
     const prizeIdx = data.sector_index ?? Math.floor(Math.random() * sectorCount);
@@ -56,7 +57,10 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
     const newRotation = rotation + extraSpins + delta;
     setRotation(newRotation);
     // Show result after spin animation
-    setTimeout(() => setShowResult(true), 4200);
+    setTimeout(() => {
+      setShowResult(true);
+      onMedalDrop?.(payload);
+    }, 4200);
   };
 
   // Draw sectors with conic-gradient
@@ -122,11 +126,12 @@ const SpinningWheel = ({ onSpin, spinning, result, gameLoading, t }) => {
 /* ═══════════════════════════════════════════════════════════════
    ScratchCard — Canvas 刮刮卡
    ═══════════════════════════════════════════════════════════════ */
-const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
+const ScratchCard = ({ onScratch, result, gameLoading, onMedalDrop, t }) => {
   const canvasRef = useRef(null);
   const [scratching, setScratching] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [started, setStarted] = useState(false);
+  const [scratchPayload, setScratchPayload] = useState(null);
   const isDrawing = useRef(false);
 
   const initCanvas = useCallback(() => {
@@ -156,6 +161,14 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
       setTimeout(() => initCanvas(), 50);
     }
   }, [result, revealed, initCanvas]);
+
+  useEffect(() => {
+    if (!revealed || !scratchPayload) {
+      return;
+    }
+    onMedalDrop?.(scratchPayload);
+    setScratchPayload(null);
+  }, [onMedalDrop, revealed, scratchPayload]);
 
   const getPos = (e) => {
     const canvas = canvasRef.current;
@@ -191,7 +204,11 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
   const handleBuy = async () => {
     setRevealed(false);
     setStarted(false);
-    await onScratch();
+    setScratchPayload(null);
+    const payload = await onScratch();
+    if (payload) {
+      setScratchPayload(payload);
+    }
   };
 
   return (
@@ -248,7 +265,7 @@ const ScratchCard = ({ onScratch, result, gameLoading, t }) => {
 /* ═══════════════════════════════════════════════════════════════
    GamesPage — 农场游乐场主组件
    ═══════════════════════════════════════════════════════════════ */
-const GamesPage = ({ loadFarm, t }) => {
+const GamesPage = ({ loadFarm, onMedalDrop, t }) => {
   const [gameLoading, setGameLoading] = useState(false);
   const [wheelResult, setWheelResult] = useState(null);
   const [scratchResult, setScratchResult] = useState(null);
@@ -277,7 +294,7 @@ const GamesPage = ({ loadFarm, t }) => {
     setWheelResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/wheel');
-      if (res.success) { setWheelResult(res.data); loadHistory(); loadFarm({ silent: true }); return res.data; }
+      if (res.success) { setWheelResult(res.data); loadHistory(); loadFarm({ silent: true }); return res; }
       else { showError(res.message); return null; }
     } catch (err) { showError(t('操作失败')); return null; }
     finally { setGameLoading(false); }
@@ -288,9 +305,9 @@ const GamesPage = ({ loadFarm, t }) => {
     setScratchResult(null);
     try {
       const { data: res } = await API.post('/api/farm/game/scratch');
-      if (res.success) { setScratchResult(res.data); loadHistory(); loadFarm({ silent: true }); }
-      else showError(res.message);
-    } catch (err) { showError(t('操作失败')); }
+      if (res.success) { setScratchResult(res.data); loadHistory(); loadFarm({ silent: true }); return res; }
+      else { showError(res.message); return null; }
+    } catch (err) { showError(t('操作失败')); return null; }
     finally { setGameLoading(false); }
   };
 
@@ -299,7 +316,7 @@ const GamesPage = ({ loadFarm, t }) => {
     setGameLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/game/play', { game_key: gameKey, score: score ?? 0 });
-      if (res.success) { loadHistory(); loadFarm({ silent: true }); return res.data; }
+      if (res.success) { onMedalDrop?.(res); loadHistory(); loadFarm({ silent: true }); return res.data; }
       else { showError(res.message); return null; }
     } catch (err) { showError(t('操作失败')); return null; }
     finally { setGameLoading(false); }
@@ -325,7 +342,7 @@ const GamesPage = ({ loadFarm, t }) => {
         <div className='farm-card farm-games-col'>
           <div className='farm-section-title'>🎡 {t('幸运转盘')}</div>
           <SpinningWheel onSpin={spinWheel} spinning={gameLoading}
-            result={wheelResult} gameLoading={gameLoading} t={t} />
+            result={wheelResult} gameLoading={gameLoading} onMedalDrop={onMedalDrop} t={t} />
         </div>
 
         {/* Col 2: 奖池一览 */}
@@ -346,7 +363,7 @@ const GamesPage = ({ loadFarm, t }) => {
         <div className='farm-card farm-games-col'>
           <div className='farm-section-title'>🎰 {t('刮刮卡')}</div>
           <ScratchCard onScratch={doScratch} result={scratchResult}
-            gameLoading={gameLoading} t={t} />
+            gameLoading={gameLoading} onMedalDrop={onMedalDrop} t={t} />
         </div>
       </div>
 

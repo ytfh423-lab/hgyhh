@@ -3889,6 +3889,351 @@
   50% { opacity: 1; transform: scale(1.2); }
 }
 
+.farm-medal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 6, 12, 0.78);
+  backdrop-filter: blur(8px);
+  animation: farm-medal-overlay-in 0.3s ease;
+}
+.farm-medal-card {
+  position: relative;
+  width: min(560px, calc(100vw - 32px));
+  padding: 34px 28px 26px;
+  border-radius: 28px;
+  overflow: hidden;
+  text-align: center;
+  color: #fff;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 30%, transparent 58%),
+    linear-gradient(155deg, rgba(14, 18, 28, 0.96), rgba(8, 12, 20, 0.94));
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.48), 0 0 50px var(--farm-medal-glow);
+  animation: farm-medal-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  isolation: isolate;
+}
+.farm-medal-backlight {
+  position: absolute;
+  inset: -18%;
+  background: radial-gradient(circle, var(--farm-medal-glow) 0%, rgba(255,255,255,0.08) 28%, transparent 64%);
+  filter: blur(12px);
+  opacity: 0.9;
+  animation: farm-medal-backlight 2.4s ease-in-out infinite;
+}
+.farm-medal-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,255,255,0.16);
+  pointer-events: none;
+}
+.farm-medal-ring-outer {
+  width: 340px;
+  height: 340px;
+  opacity: 0.34;
+}
+.farm-medal-ring-inner {
+  width: 248px;
+  height: 248px;
+  opacity: 0.2;
+}
+.farm-medal-chip {
+  position: relative;
+  z-index: 1;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 18px;
+  border-radius: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--farm-medal-from), var(--farm-medal-to));
+  box-shadow: 0 12px 42px var(--farm-medal-glow), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+.farm-medal-chip-emoji {
+  font-size: 68px;
+  line-height: 1;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.24));
+}
+.farm-medal-kicker {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 10px;
+}
+.farm-medal-title {
+  position: relative;
+  z-index: 1;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  text-shadow: 0 0 16px var(--farm-medal-glow);
+}
+.farm-medal-description {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  margin: 0 auto 16px;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.7;
+  font-size: 14px;
+}
+.farm-medal-meta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.farm-medal-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 12px;
+  color: rgba(255,255,255,0.88);
+}
+.farm-medal-footer {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  color: rgba(255,255,255,0.72);
+}
+.farm-medal-sparkles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.farm-medal-sparkle {
+  position: absolute;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 0 14px var(--farm-medal-glow);
+  animation: farm-medal-sparkle 2.2s ease-in-out infinite;
+}
+
+.farm-medal-overlay--bloom .farm-medal-chip {
+  animation: farm-medal-bloom 0.82s cubic-bezier(0.2, 0.9, 0.2, 1.12);
+}
+.farm-medal-overlay--ripple .farm-medal-ring-outer {
+  animation: farm-medal-ripple 1.4s ease-out;
+}
+.farm-medal-overlay--flare .farm-medal-backlight {
+  animation: farm-medal-flare 1.15s ease-out, farm-medal-backlight 2.4s ease-in-out infinite 1.15s;
+}
+.farm-medal-overlay--forge .farm-medal-card {
+  animation: farm-medal-forge-card 0.88s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+.farm-medal-overlay--forge .farm-medal-chip {
+  animation: farm-medal-forge-chip 0.88s ease-out;
+}
+.farm-medal-overlay--orbit .farm-medal-ring-outer {
+  animation: farm-medal-orbit 4.2s linear infinite;
+}
+.farm-medal-overlay--comet .farm-medal-chip {
+  animation: farm-medal-comet 0.88s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.farm-medal-overlay--leaf .farm-medal-chip {
+  animation: farm-medal-leaf 1s ease-out;
+}
+.farm-medal-overlay--shadow .farm-medal-card {
+  animation: farm-medal-shadow-card 0.7s ease-out;
+}
+.farm-medal-overlay--shadow .farm-medal-backlight {
+  background: radial-gradient(circle, rgba(20, 18, 38, 0.9) 0%, var(--farm-medal-glow) 24%, transparent 62%);
+}
+.farm-medal-overlay--pulse .farm-medal-backlight {
+  animation: farm-medal-pulse 1.12s ease-out, farm-medal-backlight 2.4s ease-in-out infinite 1.12s;
+}
+
+.farm-profile-medal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.farm-profile-medal-card {
+  position: relative;
+  min-height: 192px;
+  padding: 16px 16px 14px;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, var(--farm-medal-glow) 0%, rgba(255,255,255,0.04) 26%, transparent 48%),
+    linear-gradient(155deg, rgba(17,24,39,0.9), rgba(8,12,20,0.96));
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 28px rgba(0,0,0,0.22);
+}
+.farm-profile-medal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--farm-medal-from), var(--farm-medal-to));
+}
+.farm-profile-medal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.farm-profile-medal-emoji {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.2));
+}
+.farm-profile-medal-count {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.88);
+}
+.farm-profile-medal-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.farm-profile-medal-desc {
+  font-size: 12px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.74);
+  min-height: 60px;
+}
+.farm-profile-medal-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.farm-profile-medal-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.86);
+}
+.farm-profile-medal-footer {
+  margin-top: 12px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.62);
+}
+
+@keyframes farm-medal-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes farm-medal-card-in {
+  from { transform: translateY(20px) scale(0.92); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes farm-medal-backlight {
+  0%, 100% { transform: scale(0.96); opacity: 0.78; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@keyframes farm-medal-sparkle {
+  0%, 100% { opacity: 0; transform: translateY(10px) scale(0.7); }
+  50% { opacity: 1; transform: translateY(-8px) scale(1.1); }
+}
+@keyframes farm-medal-bloom {
+  0% { transform: scale(0.2) rotate(-18deg); opacity: 0; }
+  72% { transform: scale(1.08) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes farm-medal-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  30% { opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(1.22); opacity: 0; }
+}
+@keyframes farm-medal-flare {
+  0% { transform: scale(0.8); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: scale(1.22); opacity: 0.92; }
+}
+@keyframes farm-medal-forge-card {
+  0% { transform: scale(0.86) translateY(18px); opacity: 0; }
+  56% { transform: scale(1.02) translateY(0); opacity: 1; }
+  68% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  100% { transform: scale(1) translateX(0); opacity: 1; }
+}
+@keyframes farm-medal-forge-chip {
+  0% { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+  65% { transform: scale(1.16) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes farm-medal-orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes farm-medal-comet {
+  0% { transform: translateX(220px) scale(0.5) rotate(18deg); opacity: 0; }
+  70% { transform: translateX(-10px) scale(1.08) rotate(-4deg); opacity: 1; }
+  100% { transform: translateX(0) scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes farm-medal-leaf {
+  0% { transform: translateY(-26px) rotate(-22deg) scale(0.64); opacity: 0; }
+  55% { transform: translateY(6px) rotate(8deg) scale(1.05); opacity: 1; }
+  75% { transform: rotate(-6deg); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+}
+@keyframes farm-medal-shadow-card {
+  0% { transform: translateY(26px) scale(0.96); opacity: 0; filter: blur(12px); }
+  100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+}
+@keyframes farm-medal-pulse {
+  0% { transform: scale(0.68); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.92; }
+}
+
+@media (max-width: 640px) {
+  .farm-medal-card {
+    padding: 28px 18px 22px;
+    border-radius: 22px;
+  }
+  .farm-medal-chip {
+    width: 112px;
+    height: 112px;
+    border-radius: 30px;
+  }
+  .farm-medal-chip-emoji {
+    font-size: 56px;
+  }
+  .farm-medal-title {
+    font-size: 26px;
+  }
+  .farm-medal-description {
+    font-size: 13px;
+  }
+  .farm-medal-ring-outer {
+    width: 280px;
+    height: 280px;
+  }
+  .farm-medal-ring-inner {
+    width: 210px;
+    height: 210px;
+  }
+}
+
 /* ====== 通知弹窗 ====== */
 .farm-notif-container {
   position: fixed;

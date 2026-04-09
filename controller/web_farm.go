@@ -333,6 +333,7 @@ func buildFarmViewLiteData(user *model.User, tgId string, nowTime time.Time) (gi
 		}
 	}
 	weather := GetCurrentWeather()
+	medals := buildFarmMedalCollectionData(tgId)
 	weatherData := gin.H{
 		"type":     weather.Type,
 		"type_key": weather.TypeKey,
@@ -360,6 +361,8 @@ func buildFarmViewLiteData(user *model.User, tgId string, nowTime time.Time) (gi
 		},
 		"user_level":     userLevel,
 		"weather":        weatherData,
+		"medals":         medals,
+		"medal_count":    len(medals),
 		"prestige_level": prestigeLevel,
 		"prestige_bonus": prestigeLevel * common.TgBotFarmPrestigeBonusPerLevel,
 		"beta_enabled":   common.FarmBetaEnabled,
@@ -864,7 +867,7 @@ func WebFarmPlant(c *gin.Context) {
 	_ = model.UpdateFarmPlot(targetPlot)
 	common.SysLog(fmt.Sprintf("Web Farm: user %s planted %s on plot %d", tgId, crop.Key, req.PlotIndex))
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("种植 %s%s 成功！", crop.Emoji, crop.Name)})
+	respondFarmSuccessWithMedal(c, tgId, "plant", fmt.Sprintf("种植 %s%s 成功！", crop.Emoji, crop.Name), nil)
 }
 
 // WebFarmHarvest harvests all mature crops
@@ -943,14 +946,10 @@ func WebFarmHarvest(c *gin.Context) {
 	model.AddFarmLog(tgId, "harvest", sellResult.FinalValue, fmt.Sprintf("收获出售%d种作物", harvestedCount))
 	common.SysLog(fmt.Sprintf("Web Farm: user %s harvested %d crops, total %d quota (prestige+%d)", tgId, harvestedCount, sellResult.FinalValue, sellResult.PrestigeBonus))
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("收获 %d 块作物，获得 $%.2f", harvestedCount, webFarmQuotaFloat(sellResult.FinalValue)),
-		"data": gin.H{
-			"count":   harvestedCount,
-			"total":   webFarmQuotaFloat(totalQuota),
-			"details": details,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "harvest", fmt.Sprintf("收获 %d 块作物，获得 $%.2f", harvestedCount, webFarmQuotaFloat(sellResult.FinalValue)), gin.H{
+		"count":   harvestedCount,
+		"total":   webFarmQuotaFloat(totalQuota),
+		"details": details,
 	})
 }
 
@@ -1212,16 +1211,12 @@ func WebFarmSteal(c *gin.Context) {
 
 	common.SysLog(fmt.Sprintf("Web Farm: user %s stole %s from %s, +%d quota", tgId, cropName, req.VictimId, stealValue))
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("偷取了 %d个%s%s，获得 $%.2f", stealUnits, cropEmoji, cropName, webFarmQuotaFloat(stealValue)),
-		"data": gin.H{
-			"victim":     maskTgId(req.VictimId),
-			"crop_name":  cropName,
-			"crop_emoji": cropEmoji,
-			"units":      stealUnits,
-			"value":      webFarmQuotaFloat(stealValue),
-		},
+	respondFarmSuccessWithMedal(c, tgId, "steal", fmt.Sprintf("偷取了 %d个%s%s，获得 $%.2f", stealUnits, cropEmoji, cropName, webFarmQuotaFloat(stealValue)), gin.H{
+		"victim":     maskTgId(req.VictimId),
+		"crop_name":  cropName,
+		"crop_emoji": cropEmoji,
+		"units":      stealUnits,
+		"value":      webFarmQuotaFloat(stealValue),
 	})
 }
 
@@ -1282,7 +1277,7 @@ func WebFarmTreat(c *gin.Context) {
 	targetPlot.EventAt = 0
 	_ = model.UpdateFarmPlot(targetPlot)
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("使用 %s%s 治疗成功！", cureItem.Emoji, cureItem.Name)})
+	respondFarmSuccessWithMedal(c, tgId, "treat", fmt.Sprintf("使用 %s%s 治疗成功！", cureItem.Emoji, cureItem.Name), nil)
 }
 
 // WebFarmTreatAll treats all event plots (status=3, non-drought)
@@ -1338,7 +1333,7 @@ func WebFarmTreatAll(c *gin.Context) {
 	if failed > 0 {
 		msg += fmt.Sprintf("（%d 块因药品不足跳过）", failed)
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+	respondFarmSuccessWithMedal(c, tgId, "treat", msg, nil)
 }
 
 // WebFarmPlantAll plants all empty plots with the specified crop
@@ -1430,7 +1425,7 @@ func WebFarmPlantAll(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有空地，或余额/种子不足"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功种植 %s%s × %d 块！", crop.Emoji, crop.Name, planted)})
+	respondFarmSuccessWithMedal(c, tgId, "plant", fmt.Sprintf("成功种植 %s%s × %d 块！", crop.Emoji, crop.Name, planted), nil)
 }
 
 // WebFarmFertilize fertilizes a plot
@@ -1473,7 +1468,7 @@ func WebFarmFertilize(c *gin.Context) {
 	target.Fertilized = 1
 	_ = model.UpdateFarmPlot(target)
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("%d号地施肥成功！收获时产量+50%%", req.PlotIndex+1)})
+	respondFarmSuccessWithMedal(c, tgId, "fertilize", fmt.Sprintf("%d号地施肥成功！收获时产量+50%%", req.PlotIndex+1), nil)
 }
 
 // WebFarmBuyLand buys a new plot
@@ -1675,7 +1670,7 @@ func WebFarmWater(c *gin.Context) {
 	} else if wasWilting {
 		msg = "已从枯萎中恢复生长！"
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+	respondFarmSuccessWithMedal(c, tgId, "water", msg, nil)
 }
 
 // WebFarmWaterAll waters all plots that need watering
@@ -1724,7 +1719,7 @@ func WebFarmWaterAll(c *gin.Context) {
 	}
 	model.AddFarmLog(tgId, "water", 0, fmt.Sprintf("一键浇水%d块地", watered))
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功浇水 %d 块地！", watered)})
+	respondFarmSuccessWithMedal(c, tgId, "water", fmt.Sprintf("成功浇水 %d 块地！", watered), nil)
 }
 
 // WebFarmFertilizeAll fertilizes all growing plots
@@ -1754,7 +1749,7 @@ func WebFarmFertilizeAll(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可施肥的地块（或化肥不足）"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("成功施肥 %d 块地！", fertilized)})
+	respondFarmSuccessWithMedal(c, tgId, "fertilize", fmt.Sprintf("成功施肥 %d 块地！", fertilized), nil)
 }
 
 // WebFarmDog returns dog info
@@ -2658,10 +2653,7 @@ func WebFarmWorkshopCraft(c *gin.Context) {
 	_ = model.CreateFarmProcess(proc)
 	model.AddFarmLog(tgId, "craft", -r.Cost, fmt.Sprintf("加工%s%s", r.Emoji, r.Name))
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("开始加工 %s %s", r.Emoji, r.Name),
-	})
+	respondFarmSuccessWithMedal(c, tgId, "workshop", fmt.Sprintf("开始加工 %s %s", r.Emoji, r.Name), nil)
 }
 
 // WebFarmWorkshopCollect collects all finished products
@@ -2720,13 +2712,9 @@ func WebFarmWorkshopCollect(c *gin.Context) {
 		model.AddFarmLog(tgId, "craft_sell", finalValue, fmt.Sprintf("收取%d件加工品: $%.2f(加成+%d%%)", collected, webFarmQuotaFloat(finalValue), bonus))
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("收取 %d 件成品，收入 $%.2f（转生加成+%d%%）", collected, webFarmQuotaFloat(finalValue), bonus),
-		"data": gin.H{
-			"count": collected,
-			"total": webFarmQuotaFloat(finalValue),
-		},
+	respondFarmSuccessWithMedal(c, tgId, "workshop", fmt.Sprintf("收取 %d 件成品，收入 $%.2f（转生加成+%d%%）", collected, webFarmQuotaFloat(finalValue), bonus), gin.H{
+		"count": collected,
+		"total": webFarmQuotaFloat(finalValue),
 	})
 }
 
@@ -2970,13 +2958,9 @@ func WebFarmFishDo(c *gin.Context) {
 
 	if fish == nil {
 		model.AddFarmLog(tgId, "fish", -baitCost, fmt.Sprintf("钓鱼空军[%s]", baitLabel))
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": fmt.Sprintf("空军！什么都没钓到，消耗了1个%s", baitLabel),
-			"data": gin.H{
-				"caught":   false,
-				"over_cap": overCap,
-			},
+		respondFarmSuccessWithMedal(c, tgId, "fish", fmt.Sprintf("空军！什么都没钓到，消耗了1个%s", baitLabel), gin.H{
+			"caught":   false,
+			"over_cap": overCap,
 		})
 		return
 	}
@@ -3012,22 +2996,18 @@ func WebFarmFishDo(c *gin.Context) {
 		specialEffect = "legendary"
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": msg,
-		"data": gin.H{
-			"caught":          true,
-			"fish_key":        fish.Key,
-			"fish_name":       fish.Name,
-			"fish_emoji":      fish.Emoji,
-			"rarity":          fish.Rarity,
-			"special_effect":  specialEffect,
-			"sell_price":      webFarmQuotaFloat(fish.SellPrice),
-			"effective_price": webFarmQuotaFloat(effectiveValue),
-			"over_cap":        newOverCap,
-			"over_cap_catch":  capReachedAfterCatch,
-			"cap_reached_after_catch": capReachedAfterCatch,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "fish", msg, gin.H{
+		"caught":                  true,
+		"fish_key":                fish.Key,
+		"fish_name":               fish.Name,
+		"fish_emoji":              fish.Emoji,
+		"rarity":                  fish.Rarity,
+		"special_effect":          specialEffect,
+		"sell_price":              webFarmQuotaFloat(fish.SellPrice),
+		"effective_price":         webFarmQuotaFloat(effectiveValue),
+		"over_cap":                newOverCap,
+		"over_cap_catch":          capReachedAfterCatch,
+		"cap_reached_after_catch": capReachedAfterCatch,
 	})
 }
 
@@ -3676,11 +3656,7 @@ func WebFarmWorkshopCollectStore(c *gin.Context) {
 	}
 
 	model.AddFarmLog(tgId, "craft_store", 0, fmt.Sprintf("加工品存入仓库%d件", stored))
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("存入仓库成功！共%d件加工品（5天后发霉）", stored),
-		"data":    gin.H{"stored": details, "total": stored},
-	})
+	respondFarmSuccessWithMedal(c, tgId, "workshop", fmt.Sprintf("存入仓库成功！共%d件加工品（5天后发霉）", stored), gin.H{"stored": details, "total": stored})
 }
 
 // WebFarmHarvestStore 收获到仓库
@@ -3742,13 +3718,9 @@ func WebFarmHarvestStore(c *gin.Context) {
 
 	model.AddFarmLog(tgId, "harvest", 0, fmt.Sprintf("收获入仓%d种共%d个", harvestedCount, storedTotal))
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("收获入仓完成！存入%d个作物", storedTotal),
-		"data": gin.H{
-			"stored": stored,
-			"total":  storedTotal,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "harvest", fmt.Sprintf("收获入仓完成！存入%d个作物", storedTotal), gin.H{
+		"stored": stored,
+		"total":  storedTotal,
 	})
 }
 

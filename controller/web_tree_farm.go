@@ -438,10 +438,7 @@ func WebTreeFarmPlant(c *gin.Context) {
 	}
 
 	model.AddFarmLog(tgId, "tree_plant", -tree.SeedCost, fmt.Sprintf("种植%s%s", tree.Emoji, tree.Name))
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("成功种植 %s%s！", tree.Emoji, tree.Name),
-	})
+	respondFarmSuccessWithMedal(c, tgId, "tree", fmt.Sprintf("成功种植 %s%s！", tree.Emoji, tree.Name), nil)
 }
 
 // WebTreeFarmWater 浇水
@@ -485,10 +482,7 @@ func WebTreeFarmWater(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("浇水成功！生长速度提升 %d%%", common.TgBotTreeFarmWaterBonus),
-	})
+	respondFarmSuccessWithMedal(c, tgId, "tree", fmt.Sprintf("浇水成功！生长速度提升 %d%%", common.TgBotTreeFarmWaterBonus), nil)
 }
 
 // WebTreeFarmFertilize 施肥
@@ -538,10 +532,7 @@ func WebTreeFarmFertilize(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("施肥成功！生长速度提升 %d%%", common.TgBotTreeFarmFertilizerBonus),
-	})
+	respondFarmSuccessWithMedal(c, tgId, "tree", fmt.Sprintf("施肥成功！生长速度提升 %d%%", common.TgBotTreeFarmFertilizerBonus), nil)
 }
 
 // WebTreeFarmHarvest 采收果实（重复采集型树木），产物存入仓库
@@ -620,12 +611,8 @@ func WebTreeFarmHarvest(c *gin.Context) {
 	}
 	model.AddFarmLog(tgId, "tree_harvest", 0, msg)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("采收成功！产物已存入仓库"),
-		"data": gin.H{
-			"details": details,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "tree", fmt.Sprintf("采收成功！产物已存入仓库"), gin.H{
+		"details": details,
 	})
 }
 
@@ -712,14 +699,10 @@ func WebTreeFarmHarvestAll(c *gin.Context) {
 
 	model.AddFarmLog(tgId, "tree_harvest_all", 0, fmt.Sprintf("一键采收%d棵果树，共%d件产物", collected, totalItems))
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": fmt.Sprintf("一键采收 %d 棵果树，共 %d 件产物已存入仓库", collected, totalItems),
-		"data": gin.H{
-			"count":      collected,
-			"totalItems": totalItems,
-			"details":    allDetails,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "tree", fmt.Sprintf("一键采收 %d 棵果树，共 %d 件产物已存入仓库", collected, totalItems), gin.H{
+		"count":      collected,
+		"totalItems": totalItems,
+		"details":    allDetails,
 	})
 }
 
@@ -792,12 +775,8 @@ func WebTreeFarmChop(c *gin.Context) {
 	}
 	model.AddFarmLog(tgId, "tree_chop", 0, msg)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "伐木成功！产物已存入仓库",
-		"data": gin.H{
-			"details": details,
-		},
+	respondFarmSuccessWithMedal(c, tgId, "tree", "伐木成功！产物已存入仓库", gin.H{
+		"details": details,
 	})
 }
 

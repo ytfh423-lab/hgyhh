@@ -24,7 +24,7 @@ const ProfitBadge = ({ profit, multiplier, t }) => {
 /* ═══════════════════════════════════════════════════════════════
    WorkshopPage — 智能工厂控制台
    ═══════════════════════════════════════════════════════════════ */
-const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
+const WorkshopPage = ({ actionLoading, doAction, loadFarm, onMedalDrop, t }) => {
   const [wsData, setWsData] = useState(null);
   const [wsLoading, setWsLoading] = useState(false);
   const [tick, setTick] = useState(0);
@@ -60,6 +60,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     try {
       const { data: res } = await API.post('/api/farm/workshop/craft', { recipe_key: key });
       if (res.success) {
+        onMedalDrop?.(res);
         showSuccess(res.message);
         loadWorkshop();
         loadFarm({ silent: true });
@@ -78,7 +79,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     setWsLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/workshop/collect');
-      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm({ silent: true }); }
+      if (res.success) { onMedalDrop?.(res); showSuccess(res.message); loadWorkshop(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
     finally { setWsLoading(false); }
@@ -88,7 +89,7 @@ const WorkshopPage = ({ actionLoading, doAction, loadFarm, t }) => {
     setWsLoading(true);
     try {
       const { data: res } = await API.post('/api/farm/workshop/collect/store');
-      if (res.success) { showSuccess(res.message); loadWorkshop(); loadFarm({ silent: true }); }
+      if (res.success) { onMedalDrop?.(res); showSuccess(res.message); loadWorkshop(); loadFarm({ silent: true }); }
       else showError(res.message);
     } catch (err) { showError(t('操作失败')); }
     finally { setWsLoading(false); }
