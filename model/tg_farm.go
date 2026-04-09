@@ -1057,7 +1057,6 @@ func GetCreditScoreStats(telegramId string) (FarmCreditScoreStats, error) {
 		RepaidCount      int64
 	}
 	var loan loanResult
-	now := time.Now().Unix()
 	if err := DB.Model(&TgFarmLoan{}).
 		Select("COALESCE(SUM(CASE WHEN status = 0 AND due_at < ? THEN 1 ELSE 0 END),0) as overdue_loan_count, COALESCE(SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END),0) as repaid_count", now).
 		Where("telegram_id = ?", telegramId).
