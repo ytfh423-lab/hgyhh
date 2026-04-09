@@ -23,7 +23,7 @@ import SiderBar from './SiderBar';
 import App from '../../App';
 import FooterBar from './Footer';
 import { ToastContainer } from 'react-toastify';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useContext, useEffect, useState } from 'react';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useTranslation } from 'react-i18next';
@@ -37,16 +37,17 @@ import {
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useLocation } from 'react-router-dom';
-import SocialPanel from '../social/SocialPanel';
 import { FarmConfirmProvider } from '../../pages/Farm/components/farmConfirm';
 const { Sider, Content, Header } = Layout;
+const SocialPanel = lazy(() => import('../social/SocialPanel'));
 
 const PageLayout = () => {
-  const [, userDispatch] = useContext(UserContext);
+  const [userState, userDispatch] = useContext(UserContext);
   const [, statusDispatch] = useContext(StatusContext);
   const isMobile = useIsMobile();
   const [collapsed, , setCollapsed] = useSidebarCollapsed();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [shouldLoadSocialPanel, setShouldLoadSocialPanel] = useState(false);
   const { i18n } = useTranslation();
   const location = useLocation();
 
@@ -78,6 +79,31 @@ const PageLayout = () => {
       setCollapsed(false);
     }
   }, [isMobile, drawerOpen, collapsed, setCollapsed]);
+
+  useEffect(() => {
+    if (!userState?.user?.id) {
+      setShouldLoadSocialPanel(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const activate = () => {
+      if (!cancelled) {
+        setShouldLoadSocialPanel(true);
+      }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(activate, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+    const timer = window.setTimeout(activate, 600);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [userState?.user?.id]);
 
   const loadUser = () => {
     let user = localStorage.getItem('user');
@@ -212,7 +238,9 @@ const PageLayout = () => {
               position: 'relative',
             }}
           >
-            <App />
+            <div key={location.pathname + location.search} className='app-route-shell'>
+              <App />
+            </div>
           </Content>
           {!shouldHideFooter && (
             <Layout.Footer
@@ -227,7 +255,11 @@ const PageLayout = () => {
         </Layout>
       </Layout>
       <ToastContainer />
-      <SocialPanel />
+      {shouldLoadSocialPanel && (
+        <Suspense fallback={null}>
+          <SocialPanel />
+        </Suspense>
+      )}
       <FarmConfirmProvider />
     </Layout>
   );

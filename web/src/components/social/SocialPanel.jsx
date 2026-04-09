@@ -761,7 +761,17 @@ const SocialPanel = () => {
   useEffect(() => {
     if (!currentUserId) return;
     let alive = true;
-    const poll = async () => {
+    let timer = null;
+    const schedule = (delay) => {
+      if (!alive) return;
+      timer = window.setTimeout(run, delay);
+    };
+    const run = async () => {
+      if (!alive) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        schedule(12000);
+        return;
+      }
       try {
         const { data: res } = await API.get('/api/social/events/poll', { disableDuplicate: true });
         if (!alive || !res.success) return;
@@ -776,22 +786,49 @@ const SocialPanel = () => {
           } else { addNotif(ev); }
         }
       } catch { /* ignore */ }
+      finally {
+        schedule(3500);
+      }
     };
-    poll();
-    const t = setInterval(poll, 3000);
-    return () => { alive = false; clearInterval(t); };
+    run();
+    return () => {
+      alive = false;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [currentUserId, addNotif, chat]);
 
   // 申请数
   useEffect(() => {
     if (!currentUserId) return;
-    const poll = async () => {
+    let alive = true;
+    let timer = null;
+    const schedule = (delay) => {
+      if (!alive) return;
+      timer = window.setTimeout(run, delay);
+    };
+    const run = async () => {
+      if (!alive) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        schedule(30000);
+        return;
+      }
       try {
         const { data: res } = await API.get('/api/social/friends/requests', { disableDuplicate: true });
         if (res.success) setRequestCount((res.data || []).length);
       } catch { /* ignore */ }
+      finally {
+        schedule(15000);
+      }
     };
-    poll(); const t = setInterval(poll, 15000); return () => clearInterval(t);
+    run();
+    return () => {
+      alive = false;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [currentUserId]);
 
   if (!currentUserId) return null;

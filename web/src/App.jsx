@@ -20,50 +20,49 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { lazy, Suspense, useContext, useMemo } from 'react';
 import { Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
-import User from './pages/User';
 import { AuthRedirect, PrivateRoute, AdminRoute } from './helpers';
-import RegisterForm from './components/auth/RegisterForm';
-import LoginForm from './components/auth/LoginForm';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
-import Setting from './pages/Setting';
 import { StatusContext } from './context/Status';
-
-import PasswordResetForm from './components/auth/PasswordResetForm';
-import PasswordResetConfirm from './components/auth/PasswordResetConfirm';
-import Channel from './pages/Channel';
-import Token from './pages/Token';
-import Redemption from './pages/Redemption';
-import RegistrationCode from './pages/RegistrationCode';
-import TopUp from './pages/TopUp';
-import Log from './pages/Log';
-import Chat from './pages/Chat';
-import Chat2Link from './pages/Chat2Link';
-import Midjourney from './pages/Midjourney';
-import Pricing from './pages/Pricing';
-import Task from './pages/Task';
-import ModelPage from './pages/Model';
-import ModelDeploymentPage from './pages/ModelDeployment';
-import Playground from './pages/Playground';
-import Subscription from './pages/Subscription';
-import InvitationCode from './pages/InvitationCode';
-import PublicInviteCode from './pages/PublicInviteCode';
-import Farm from './pages/Farm';
-import BetaApplicationsAdmin from './pages/Farm/BetaApplicationsAdmin';
-import BetaAIConfigAdmin from './pages/Farm/BetaAIConfigAdmin';
-import StealConfigAdmin from './pages/Farm/StealConfigAdmin';
-import FeedbackPage from './pages/Feedback';
-import FeedbackAdminPage from './pages/FeedbackAdmin';
-import DeletionRequestPage from './pages/DeletionRequest';
-import CheckinLeaderboard from './pages/CheckinLeaderboard';
-import TgBotPage from './pages/TgBot';
-import OAuth2Callback from './components/auth/OAuth2Callback';
-import OAuthRegistrationForm from './components/auth/OAuthRegistrationForm';
-import PersonalSetting from './components/settings/PersonalSetting';
-import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 
 const Home = lazy(() => import('./pages/Home'));
+const Setup = lazy(() => import('./pages/Setup'));
+const User = lazy(() => import('./pages/User'));
+const Setting = lazy(() => import('./pages/Setting'));
+const RegisterForm = lazy(() => import('./components/auth/RegisterForm'));
+const LoginForm = lazy(() => import('./components/auth/LoginForm'));
+const PasswordResetForm = lazy(() => import('./components/auth/PasswordResetForm'));
+const PasswordResetConfirm = lazy(() => import('./components/auth/PasswordResetConfirm'));
+const Channel = lazy(() => import('./pages/Channel'));
+const Token = lazy(() => import('./pages/Token'));
+const Redemption = lazy(() => import('./pages/Redemption'));
+const RegistrationCode = lazy(() => import('./pages/RegistrationCode'));
+const TopUp = lazy(() => import('./pages/TopUp'));
+const Log = lazy(() => import('./pages/Log'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Chat2Link = lazy(() => import('./pages/Chat2Link'));
+const Midjourney = lazy(() => import('./pages/Midjourney'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const Task = lazy(() => import('./pages/Task'));
+const ModelPage = lazy(() => import('./pages/Model'));
+const ModelDeploymentPage = lazy(() => import('./pages/ModelDeployment'));
+const Playground = lazy(() => import('./pages/Playground'));
+const Subscription = lazy(() => import('./pages/Subscription'));
+const InvitationCode = lazy(() => import('./pages/InvitationCode'));
+const PublicInviteCode = lazy(() => import('./pages/PublicInviteCode'));
+const Farm = lazy(() => import('./pages/Farm'));
+const BetaApplicationsAdmin = lazy(() => import('./pages/Farm/BetaApplicationsAdmin'));
+const BetaAIConfigAdmin = lazy(() => import('./pages/Farm/BetaAIConfigAdmin'));
+const StealConfigAdmin = lazy(() => import('./pages/Farm/StealConfigAdmin'));
+const FeedbackPage = lazy(() => import('./pages/Feedback'));
+const FeedbackAdminPage = lazy(() => import('./pages/FeedbackAdmin'));
+const DeletionRequestPage = lazy(() => import('./pages/DeletionRequest'));
+const CheckinLeaderboard = lazy(() => import('./pages/CheckinLeaderboard'));
+const TgBotPage = lazy(() => import('./pages/TgBot'));
+const OAuth2Callback = lazy(() => import('./components/auth/OAuth2Callback'));
+const OAuthRegistrationForm = lazy(() => import('./components/auth/OAuthRegistrationForm'));
+const PersonalSetting = lazy(() => import('./components/settings/PersonalSetting'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
@@ -124,7 +123,9 @@ function App() {
           path='/console/models'
           element={
             <AdminRoute>
-              <ModelPage />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <ModelPage />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -132,7 +133,9 @@ function App() {
           path='/console/deployment'
           element={
             <AdminRoute>
-              <ModelDeploymentPage />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <ModelDeploymentPage />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -140,7 +143,9 @@ function App() {
           path='/console/subscription'
           element={
             <AdminRoute>
-              <Subscription />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Subscription />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -148,7 +153,9 @@ function App() {
           path='/console/channel'
           element={
             <AdminRoute>
-              <Channel />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Channel />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -156,7 +163,9 @@ function App() {
           path='/console/token'
           element={
             <PrivateRoute>
-              <Token />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Token />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -164,7 +173,9 @@ function App() {
           path='/console/playground'
           element={
             <PrivateRoute>
-              <Playground />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Playground />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -172,7 +183,9 @@ function App() {
           path='/console/redemption'
           element={
             <AdminRoute>
-              <Redemption />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Redemption />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -180,7 +193,9 @@ function App() {
           path='/console/registration-code'
           element={
             <AdminRoute>
-              <RegistrationCode />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <RegistrationCode />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -188,7 +203,9 @@ function App() {
           path='/console/invitation-code'
           element={
             <PrivateRoute>
-              <InvitationCode />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <InvitationCode />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -196,7 +213,9 @@ function App() {
           path='/console/user'
           element={
             <AdminRoute>
-              <User />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <User />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -204,7 +223,9 @@ function App() {
           path='/console/deletion-request'
           element={
             <AdminRoute>
-              <DeletionRequestPage />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <DeletionRequestPage />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -212,7 +233,9 @@ function App() {
           path='/console/checkin-leaderboard'
           element={
             <PrivateRoute>
-              <CheckinLeaderboard />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <CheckinLeaderboard />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -220,7 +243,9 @@ function App() {
           path='/console/tgbot'
           element={
             <AdminRoute>
-              <TgBotPage />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <TgBotPage />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -228,7 +253,9 @@ function App() {
           path='/console/farm-beta-apps'
           element={
             <AdminRoute>
-              <BetaApplicationsAdmin />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <BetaApplicationsAdmin />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -236,7 +263,9 @@ function App() {
           path='/console/farm-beta-ai-config'
           element={
             <AdminRoute>
-              <BetaAIConfigAdmin />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <BetaAIConfigAdmin />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -244,7 +273,9 @@ function App() {
           path='/console/farm-steal-config'
           element={
             <AdminRoute>
-              <StealConfigAdmin />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <StealConfigAdmin />
+              </Suspense>
             </AdminRoute>
           }
         />
@@ -366,7 +397,9 @@ function App() {
           path='/console/log'
           element={
             <PrivateRoute>
-              <Log />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Log />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -414,7 +447,9 @@ function App() {
           path='/console/feedback-admin'
           element={
             <AdminRoute>
-              <FeedbackAdminPage />
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <FeedbackAdminPage />
+              </Suspense>
             </AdminRoute>
           }
         />

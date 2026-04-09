@@ -1,10 +1,11 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Spin, Typography, Button } from '@douyinfe/semi-ui';
+import { Typography, Button } from '@douyinfe/semi-ui';
 import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
 import { API, showError, showSuccess } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { Link, useNavigate } from 'react-router-dom';
+import Loading from '../../components/common/ui/Loading';
 import './farm.css';
 
 import Sidebar, { navGroups } from './components/Sidebar';
@@ -450,9 +451,7 @@ const Farm = () => {
 
   if (loading && !farmData && !betaGate) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <Spin size='large' />
-      </div>
+      <Loading size='large' text={t('农场加载中')} />
     );
   }
 
@@ -703,9 +702,9 @@ const Farm = () => {
         <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
           <StatusBar farmData={farmData} t={t} />
           <div className='farm-content'>
-            <div className='farm-content-inner'>
+            <div key={activePage} className='farm-content-inner app-route-shell'>
               <FarmErrorBoundary resetKey={activePage}>
-                <Suspense fallback={<div style={{ textAlign: 'center', padding: 40 }}><Spin size='large' /></div>}>
+                <Suspense fallback={<Loading size='large' fullscreen={false} text={t('页面切换中')} />}>
                   {renderPage()}
                 </Suspense>
               </FarmErrorBoundary>

@@ -18,12 +18,31 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Spin } from '@douyinfe/semi-ui';
 
-const Loading = ({ size = 'small' }) => {
+const Loading = ({ size = 'small', fullscreen = true, text = '加载中' }) => {
+  const className = [
+    'app-loading',
+    fullscreen ? 'app-loading--fullscreen' : 'app-loading--inline',
+    size === 'large' ? 'app-loading--large' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className='fixed inset-0 w-screen h-screen flex items-center justify-center'>
-      <Spin size={size} spinning={true} />
+    <div className={className} role='status' aria-live='polite' aria-busy='true'>
+      <div className='app-loading-shell'>
+        <div className='app-loading-orbit'>
+          <span className='app-loading-orbit-dot' />
+          <span className='app-loading-orbit-dot app-loading-orbit-dot--delay' />
+          <span className='app-loading-ring' />
+        </div>
+        <div className='app-loading-text'>{text}</div>
+        <div className='app-loading-dots'>
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
     </div>
   );
 };
