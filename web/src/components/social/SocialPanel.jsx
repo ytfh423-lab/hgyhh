@@ -163,18 +163,18 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
     friend_accepted: { icon: '🤝', color: '#4a7c3f', bg: 'rgba(74,124,63,0.13)',   border: 'rgba(74,124,63,0.32)',   title: '好友通知',  body: `${notif.from_name} 接受了你的好友申请`,   actions: [] },
     farm_invite:     { icon: '🌾', color: '#c8921a', bg: 'rgba(200,146,42,0.12)',  border: 'rgba(200,146,42,0.32)',  title: '农场邀请',  body: `${notif.from_name} 邀请你一起来农场种菜`, actions: [{ label: '🚜 去农场', type: 'go_farm' }] },
     chat_message:    { icon: '💬', color: '#5a8fb4', bg: 'rgba(90,143,180,0.10)', border: 'rgba(90,143,180,0.26)',  title: '新消息',    body: `${notif.from_name}：${(notif.payload?.content ?? '').slice(0, 50)}`, actions: [{ label: '📖 查看', type: 'open_chat' }] },
-    farm_success:    { icon: '✅', color: '#4a7c3f', bg: 'rgba(74,124,63,0.13)',   border: 'rgba(74,124,63,0.32)',   title: notif.title || '操作成功', body: `${notif.payload?.message ?? ''}`, actions: [] },
+    farm_success:    { icon: '✅', color: '#3e8f58', bg: 'linear-gradient(135deg, rgba(248,255,246,0.76), rgba(241,250,239,0.62))', border: 'rgba(92,167,116,0.36)', title: notif.title || '操作成功', body: `${notif.payload?.message ?? ''}`, actions: [], className: 'sp-notif-card--farm-success', titleColor: '#16351f', bodyColor: '#314238', closeColor: '#5f7467' },
   }[notif.type] || null;
   if (!cfg) return null;
 
   return (
-    <div className={`sp-notif-card${out ? ' sp-notif-out' : ''}`}
+    <div className={`sp-notif-card${cfg.className ? ` ${cfg.className}` : ''}${out ? ' sp-notif-out' : ''}`}
       style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderLeft: `4px solid ${cfg.color}` }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1, marginTop: 1 }}>{cfg.icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sp-text-0)', marginBottom: 4 }}>{cfg.title}</div>
-          <div style={{ fontSize: 13, color: 'var(--sp-text-1)', wordBreak: 'break-word', lineHeight: 1.5 }}>{cfg.body}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: cfg.titleColor || 'var(--sp-text-0)', marginBottom: 4 }}>{cfg.title}</div>
+          <div style={{ fontSize: 13, color: cfg.bodyColor || 'var(--sp-text-1)', wordBreak: 'break-word', lineHeight: 1.5 }}>{cfg.body}</div>
           {cfg.actions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               {cfg.actions.map(a => (
@@ -187,7 +187,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
             </div>
           )}
         </div>
-        <button className='sp-close-btn' onClick={dismiss}><X size={15} /></button>
+        <button className='sp-close-btn' onClick={dismiss} style={{ color: cfg.closeColor || undefined }}><X size={15} /></button>
       </div>
     </div>
   );
@@ -789,7 +789,7 @@ const SocialPanel = () => {
         type: 'farm_success',
         title: typeof detail.title === 'string' && detail.title.trim() ? detail.title.trim() : '操作成功',
         payload: { message },
-        duration: typeof detail.duration === 'number' ? detail.duration : 10000,
+        duration: typeof detail.duration === 'number' ? detail.duration : 3200,
       });
     };
     window.addEventListener('farm:success-notify', handler);

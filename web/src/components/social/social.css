@@ -324,6 +324,10 @@
   box-shadow: 0 6px 24px rgba(0,0,0,0.28);
   animation: sp-notif-in 0.25s ease;
 }
+.sp-notif-card--farm-success {
+  backdrop-filter: blur(18px) saturate(1.12);
+  box-shadow: 0 12px 30px rgba(66, 122, 82, 0.12), 0 2px 12px rgba(18, 37, 23, 0.08), inset 0 1px 0 rgba(255,255,255,0.4);
+}
 .sp-notif-out { animation: sp-notif-out 0.28s ease forwards; }
 @keyframes sp-notif-in  { from { transform: translateX(60px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes sp-notif-out { from { transform: none; opacity: 1; } to { transform: translateX(60px); opacity: 0; } }
