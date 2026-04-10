@@ -372,9 +372,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             loading={actionLoading}
             theme='solid'
             style={{
-              background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : 'rgba(232,230,220,0.9)',
-              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.34)' : '1px solid var(--farm-border-strong)',
-              color: matureCount > 0 ? '#faf9f5' : 'var(--farm-text-2)',
+              background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : '#e8e6dc',
+              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.5)' : '1px solid #c8c5b9',
+              color: matureCount > 0 ? '#faf9f5' : '#6f6860',
               borderRadius: 6,
               width: '100%'
             }}
@@ -385,9 +385,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
             style={{
-              background: matureCount > 0 ? 'rgba(160,132,94,0.16)' : 'rgba(232,230,220,0.9)',
-              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.34)' : '1px solid var(--farm-border-strong)',
-              color: matureCount > 0 ? 'var(--farm-harvest)' : 'var(--farm-text-2)',
+              background: matureCount > 0 ? 'rgba(160,132,94,0.18)' : '#e8e6dc',
+              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.5)' : '1px solid #c8c5b9',
+              color: matureCount > 0 ? '#8a6d3b' : '#6f6860',
               borderRadius: 6,
               width: '100%'
             }}
@@ -398,9 +398,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             disabled={needsWaterCount === 0 || actionLoading}
             loading={actionLoading}
             style={{
-              background: needsWaterCount > 0 ? 'rgba(90,143,180,0.14)' : 'rgba(232,230,220,0.9)',
-              border: needsWaterCount > 0 ? '1px solid rgba(90,143,180,0.32)' : '1px solid var(--farm-border-strong)',
-              color: needsWaterCount > 0 ? 'var(--farm-sky)' : 'var(--farm-text-2)',
+              background: needsWaterCount > 0 ? 'rgba(90,143,180,0.16)' : '#e8e6dc',
+              border: needsWaterCount > 0 ? '1px solid rgba(90,143,180,0.45)' : '1px solid #c8c5b9',
+              color: needsWaterCount > 0 ? '#3d7a9e' : '#6f6860',
               borderRadius: 6,
               width: '100%'
             }}
@@ -411,9 +411,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             disabled={canFertilizeCount === 0 || actionLoading}
             loading={actionLoading}
             style={{
-              background: canFertilizeCount > 0 ? 'rgba(74,124,63,0.14)' : 'rgba(232,230,220,0.9)',
-              border: canFertilizeCount > 0 ? '1px solid rgba(74,124,63,0.32)' : '1px solid var(--farm-border-strong)',
-              color: canFertilizeCount > 0 ? 'var(--farm-leaf)' : 'var(--farm-text-2)',
+              background: canFertilizeCount > 0 ? 'rgba(74,124,63,0.16)' : '#e8e6dc',
+              border: canFertilizeCount > 0 ? '1px solid rgba(74,124,63,0.45)' : '1px solid #c8c5b9',
+              color: canFertilizeCount > 0 ? '#3d6e35' : '#6f6860',
               borderRadius: 6,
               width: '100%'
             }}
@@ -424,9 +424,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             disabled={eventCount === 0 || actionLoading}
             loading={actionLoading}
             style={{
-              background: eventCount > 0 ? 'rgba(184,66,51,0.13)' : 'rgba(232,230,220,0.9)',
-              border: eventCount > 0 ? '1px solid rgba(184,66,51,0.3)' : '1px solid var(--farm-border-strong)',
-              color: eventCount > 0 ? 'var(--farm-danger)' : 'var(--farm-text-2)',
+              background: eventCount > 0 ? 'rgba(184,66,51,0.14)' : '#e8e6dc',
+              border: eventCount > 0 ? '1px solid rgba(184,66,51,0.4)' : '1px solid #c8c5b9',
+              color: eventCount > 0 ? '#a83a2a' : '#6f6860',
               borderRadius: 6,
               width: '100%'
             }}
@@ -456,9 +456,9 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             loading={actionLoading}
             theme='solid'
             style={{
-              background: plantCrop && emptyCount > 0 ? 'linear-gradient(135deg,var(--farm-leaf),#2d6a2e)' : 'rgba(232,230,220,0.9)',
-              border: plantCrop && emptyCount > 0 ? '1px solid rgba(74,124,63,0.34)' : '1px solid var(--farm-border-strong)',
-              color: plantCrop && emptyCount > 0 ? '#f8f7f2' : 'var(--farm-text-2)',
+              background: plantCrop && emptyCount > 0 ? 'linear-gradient(135deg,var(--farm-leaf),#2d6a2e)' : '#e8e6dc',
+              border: plantCrop && emptyCount > 0 ? '1px solid rgba(74,124,63,0.5)' : '1px solid #c8c5b9',
+              color: plantCrop && emptyCount > 0 ? '#f8f7f2' : '#6f6860',
               borderRadius: 6
             }}
             onClick={() => doAction('/api/farm/plant/all', { crop_key: plantCrop })} className='farm-btn'>

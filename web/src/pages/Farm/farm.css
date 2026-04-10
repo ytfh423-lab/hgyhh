@@ -4886,6 +4886,24 @@
 }
 
 
+.farm-layout .semi-button.farm-btn,
+.farm-layout .semi-button.farm-btn[disabled],
+.farm-layout .semi-button.farm-btn.semi-button-disabled {
+  opacity: 1 !important;
+}
+
+.farm-layout .semi-button.farm-btn .semi-button-content,
+.farm-layout .semi-button.farm-btn .semi-button-content-left,
+.farm-layout .semi-button.farm-btn .semi-button-content-right,
+.farm-layout .semi-button.farm-btn[disabled] .semi-button-content,
+.farm-layout .semi-button.farm-btn[disabled] .semi-button-content-left,
+.farm-layout .semi-button.farm-btn[disabled] .semi-button-content-right,
+.farm-layout .semi-button.farm-btn svg,
+.farm-layout .semi-button.farm-btn[disabled] svg {
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
 .farm-layout .semi-button:not([disabled]):hover {
   transform: translateY(-1px);
 }
