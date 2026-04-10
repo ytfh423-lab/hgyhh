@@ -150,7 +150,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<Droplets size={12} />}
             onClick={e => { e.stopPropagation(); handleWater(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(90,143,180,0.12)', border: '1px solid rgba(90,143,180,0.3)', color: 'var(--farm-sky)' }}>
+            style={{ background: 'rgba(138, 128, 106, 0.18)', border: '1px solid rgba(138, 128, 106, 0.34)', color: 'var(--farm-text-0)' }}>
             {t('浇水')}
           </Button>
         )}
@@ -158,7 +158,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<FlaskConical size={12} />}
             onClick={e => { e.stopPropagation(); handleFertilize(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(74,124,63,0.12)', border: '1px solid rgba(74,124,63,0.3)', color: 'var(--farm-leaf)' }}>
+            style={{ background: 'rgba(111, 122, 99, 0.18)', border: '1px solid rgba(111, 122, 99, 0.34)', color: 'var(--farm-text-0)' }}>
             {t('施肥')}
           </Button>
         )}
@@ -166,7 +166,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<Pill size={12} />}
             onClick={e => { e.stopPropagation(); handleTreat(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(200,146,42,0.12)', border: '1px solid rgba(200,146,42,0.3)', color: 'var(--farm-harvest)' }}>
+            style={{ background: 'rgba(201, 100, 66, 0.16)', border: '1px solid rgba(201, 100, 66, 0.3)', color: 'var(--farm-text-0)' }}>
             {t('治疗')}
           </Button>
         )}
@@ -174,14 +174,14 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<ArrowUp size={12} />}
             onClick={e => { e.stopPropagation(); handleUpgradeSoil(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(138,108,176,0.12)', border: '1px solid rgba(138,108,176,0.3)', color: '#b094d0' }}>
+            style={{ background: 'rgba(119, 109, 117, 0.18)', border: '1px solid rgba(119, 109, 117, 0.32)', color: 'var(--farm-text-0)' }}>
             {t('升级')} Lv.{soilLv + 1}
           </Button>
         )}
         <Button size='small' icon={<Trash2 size={12} />}
           onClick={async e => { e.stopPropagation(); if (await farmConfirm(t('铲除作物'), t('确定要铲除这块地的作物吗？'), { icon: '🗑', confirmType: 'danger', confirmText: t('铲除') })) handleClearPlot(plot.plot_index); }}
           loading={actionLoading} className='farm-btn'
-          style={{ background: 'rgba(184,66,51,0.08)', border: '1px solid rgba(184,66,51,0.2)', color: 'var(--farm-danger)' }}>
+          style={{ background: 'rgba(181, 51, 51, 0.12)', border: '1px solid rgba(181, 51, 51, 0.24)', color: 'var(--farm-danger)' }}>
           {t('铲除')}
         </Button>
       </div>
