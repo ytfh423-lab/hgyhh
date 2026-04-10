@@ -503,32 +503,6 @@
   transform: scale(0.95);
 }
 
-.farm-layout .semi-button {
-  border-radius: 9999px !important;
-  font-family: var(--farm-font-body);
-  font-weight: 600 !important;
-  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease !important;
-}
-
-.farm-layout .semi-button:not(.semi-button-borderless) {
-  border-color: var(--farm-border) !important;
-  box-shadow: var(--farm-shadow-sm);
-}
-
-.farm-layout .semi-button.semi-button-primary,
-.farm-layout .semi-button.semi-button-primary:not(.semi-button-borderless) {
-  background: var(--farm-leaf) !important;
-  border-color: transparent !important;
-  color: #163300 !important;
-}
-
-.farm-layout .semi-button:not([disabled]):hover {
-  transform: scale(1.05);
-}
-
-.farm-layout .semi-button:not([disabled]):active {
-  transform: scale(0.95);
-}
 
 .farm-layout .semi-input-wrapper,
 .farm-layout .semi-input-number,
