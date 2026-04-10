@@ -39,26 +39,34 @@ const BetaCountdownBanner = ({ farmData, t }) => {
     padding: '10px 18px',
     borderRadius: 9999,
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 500,
     background: urgent
-      ? 'rgba(208,50,56,0.12)'
-      : 'rgba(255,209,26,0.18)',
+      ? 'rgba(181, 51, 51, 0.12)'
+      : 'rgba(232, 230, 220, 0.96)',
     border: urgent
-      ? '1px solid rgba(208,50,56,0.22)'
-      : '1px solid rgba(14,15,12,0.12)',
-    color: urgent ? '#8a1015' : '#5a4600',
+      ? '1px solid rgba(181, 51, 51, 0.18)'
+      : '1px solid var(--farm-border)',
+    color: urgent ? 'var(--farm-danger)' : 'var(--farm-text-1)',
     animation: urgent ? 'farm-beta-pulse 2s ease-in-out infinite' : 'none',
-    boxShadow: 'rgba(14,15,12,0.12) 0px 0px 0px 1px',
+    boxShadow: urgent
+      ? 'rgba(181, 51, 51, 0.08) 0px 0px 0px 1px'
+      : 'var(--farm-shadow-sm)',
   };
 
   const unitStyle = {
     display: 'inline-flex',
     flexDirection: 'column',
     alignItems: 'center',
-    minWidth: 32,
+    minWidth: 34,
   };
-  const numStyle = { fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' };
-  const labelStyle = { fontSize: 9, opacity: 0.7, fontWeight: 400 };
+  const numStyle = {
+    fontSize: 18,
+    fontWeight: 500,
+    fontFamily: 'var(--farm-font-display)',
+    lineHeight: 1.05,
+    fontVariantNumeric: 'tabular-nums',
+  };
+  const labelStyle = { fontSize: 9, opacity: 0.72, fontWeight: 500, letterSpacing: '0.08em' };
 
   return (
     <div style={bannerStyle}>

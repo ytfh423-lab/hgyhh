@@ -9,22 +9,22 @@ const { Text } = Typography;
    WHEEL_SECTORS — 转盘扇区颜色
    ═══════════════════════════════════════════════════════════════ */
 const WHEEL_COLORS = [
-  '#b84233', '#5a8fb4', '#4a7c3f', '#c8922a',
-  '#8a6cb0', '#5a8fb4', '#a0845e', '#6fa85e',
+  '#c96442', '#8a806a', '#6f7a63', '#d1b38d',
+  '#776d75', '#a8957a', '#4d4c48', '#d97757',
 ];
 
 /* ═══════════════════════════════════════════════════════════════
    SpinningWheel — 真实旋转转盘（CSS transform）
    ═══════════════════════════════════════════════════════════════ */
 const WHEEL_PRIZES = [
-  { symbol: '🎁', label: '$0', color: '#b84233' },
-  { symbol: '💰', label: '$0.50', color: '#5a8fb4' },
-  { symbol: '🍀', label: '$1', color: '#4a7c3f' },
-  { symbol: '⭐', label: '$1.50', color: '#c8922a' },
-  { symbol: '🎯', label: '$2', color: '#8a6cb0' },
-  { symbol: '🏆', label: '$3', color: '#5a8fb4' },
-  { symbol: '💎', label: '$5', color: '#a0845e' },
-  { symbol: '🌟', label: '$10', color: '#4a7c3f' },
+  { symbol: '🎁', label: '$0', color: '#c96442' },
+  { symbol: '💰', label: '$0.50', color: '#8a806a' },
+  { symbol: '🍀', label: '$1', color: '#6f7a63' },
+  { symbol: '⭐', label: '$1.50', color: '#d1b38d' },
+  { symbol: '🎯', label: '$2', color: '#776d75' },
+  { symbol: '🏆', label: '$3', color: '#8a806a' },
+  { symbol: '💎', label: '$5', color: '#a8957a' },
+  { symbol: '🌟', label: '$10', color: '#d97757' },
 ];
 
 const SpinningWheel = ({ onSpin, spinning, result, gameLoading, onMedalDrop, t }) => {
@@ -143,12 +143,12 @@ const ScratchCard = ({ onScratch, result, gameLoading, onMedalDrop, t }) => {
     canvas.height = rect.height;
     // Fill with scratch coating
     const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    grad.addColorStop(0, '#6b5d4f');
-    grad.addColorStop(1, '#8a7a6a');
+    grad.addColorStop(0, '#6f6758');
+    grad.addColorStop(1, '#9a8d79');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     // Add text hint
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillStyle = 'rgba(250,249,245,0.7)';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

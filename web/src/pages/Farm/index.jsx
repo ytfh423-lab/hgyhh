@@ -640,24 +640,24 @@ const Farm = () => {
     }
 
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0a0a0a' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--farm-bg)' }}>
         <div style={{
           textAlign: 'center', padding: '48px 32px', maxWidth: 440,
-          background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(251,191,36,0.12)',
-          borderRadius: 16,
+          background: 'var(--farm-surface)', border: '1px solid var(--farm-border)',
+          borderRadius: 24, boxShadow: 'var(--farm-shadow)',
         }}>
           <Clock size={44} style={{ color: 'var(--farm-harvest)', marginBottom: 16 }} />
-          <h2 style={{ color: '#fde68a', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+          <h2 style={{ color: 'var(--farm-text-0)', fontSize: 30, fontWeight: 500, marginBottom: 8, fontFamily: 'var(--farm-font-display)', lineHeight: 1.15 }}>
             {t('农场内测尚未开启')}
           </h2>
-          <p style={{ color: '#a8a29e', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+          <p style={{ color: 'var(--farm-text-1)', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
             {t('内测倒计时正在进行中，请返回首页查看倒计时并预约内测资格。')}
           </p>
           <Link to='/'>
             <button style={{
-              padding: '10px 28px', borderRadius: 8, border: '1px solid rgba(251,191,36,0.3)',
-              background: 'linear-gradient(135deg, var(--farm-harvest), var(--farm-soil))', color: '#fff',
-              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              padding: '10px 28px', borderRadius: 12, border: '1px solid var(--farm-harvest)',
+              background: 'var(--farm-harvest)', color: '#faf9f5',
+              fontWeight: 500, fontSize: 14, cursor: 'pointer', boxShadow: '0px 0px 0px 1px var(--farm-harvest)',
             }}>
               {t('返回首页')}
             </button>
@@ -688,33 +688,33 @@ const Farm = () => {
     : (pageMetaMap[activePage] || pageMetaMap.overview);
   const pageTitle = isVisitPage ? pageMeta.label : t(pageMeta.label);
   const pageDesc = {
-    overview: t('在一个更清爽、更大胆的视图里管理你的整座农场。'),
-    plant: t('快速安排播种、施肥、浇水和每一块土地的节奏。'),
-    ranch: t('照料你的动物、饲料与牧场收益。'),
-    fish: t('更专注地管理钓鱼、出售和收藏收获。'),
+    overview: t('看看地块、天气、余额和今天的进度。'),
+    plant: t('安排播种、浇水、施肥和收获。'),
+    ranch: t('照料动物，留意饲料、产出与状态。'),
+    fish: t('查看钓鱼收获、出售与收藏。'),
     workshop: t('把原料加工成更高价值的产物。'),
-    market: t('追踪价格波动，抓住买卖时机。'),
-    shop: t('补给种子、道具和成长资源。'),
+    market: t('看看市场价格与最近的波动。'),
+    shop: t('购买种子、道具和日常补给。'),
     warehouse: t('整理库存、材料和稀有收获。'),
-    trading: t('用更清晰的视图完成挂单与交易。'),
-    entrust: t('发布、接受并跟进农场委托。'),
-    bank: t('让余额、利息和存款信息更直观。'),
-    profile: t('查看你的个人农场身份、成就与成长轨迹。'),
-    level: t('在更明确的层级里查看升级与解锁。'),
-    tasks: t('把每日与阶段任务集中到一个高对比面板中。'),
-    achievements: t('清晰浏览已完成与待达成的成就。'),
-    encyclopedia: t('用更整洁的方式查看图鉴收集进度。'),
-    leaderboard: t('更突出地查看农场排名与荣誉。'),
-    steal: t('更轻松地处理目标、冷却与结果记录。'),
-    games: t('以更轻快的视觉体验进入小游戏。'),
-    dog: t('关注狗狗状态、培养与收益辅助。'),
-    automation: t('集中管理自动化开关和效率策略。'),
-    treefarm: t('管理树场生长、采集与扩张。'),
-    prestige: t('更直观地查看转生收益与条件。'),
-    logs: t('统一查看农场日志与消费记录。'),
-    friends: t('在同一套视觉里管理好友、申请与聊天入口。'),
-    visit: t('查看好友农场的状态并进行互动。'),
-  }[activePage] || t('在一个更清爽、更大胆的视图里管理你的整座农场。');
+    trading: t('完成挂单、买入和成交查看。'),
+    entrust: t('发布委托，或者接下别人的农场工作。'),
+    bank: t('查看余额、利息和存款。'),
+    profile: t('回看你的农场身份、勋章与成长。'),
+    level: t('查看等级、经验和功能解锁。'),
+    tasks: t('整理今天的任务与奖励。'),
+    achievements: t('看看已经达成和还没完成的成就。'),
+    encyclopedia: t('查看图鉴收集进度。'),
+    leaderboard: t('看看当前的排名与荣誉。'),
+    steal: t('寻找目标，处理冷却和结果记录。'),
+    games: t('进入农场里的小游戏。'),
+    dog: t('照看你的狗狗和辅助收益。'),
+    automation: t('管理自动化开关和日常策略。'),
+    treefarm: t('查看树场生长、采集与扩张。'),
+    prestige: t('查看转生条件与收益。'),
+    logs: t('翻看农场日志与消费记录。'),
+    friends: t('管理好友、申请和聊天入口。'),
+    visit: t('看看好友农场，顺手帮个忙。'),
+  }[activePage] || t('翻看你的农场近况。');
 
   const renderPage = () => {
     // 等级锁定检查
@@ -807,7 +807,7 @@ const Farm = () => {
           <div className='farm-content'>
             <div key={activePage} className='farm-content-inner app-route-shell'>
               <div className='farm-page-hero'>
-                <div className='farm-page-hero-kicker'>{t('农场中枢')}</div>
+                <div className='farm-page-hero-kicker'>{t('农场札记')}</div>
                 <div className='farm-page-hero-row'>
                   <div>
                     <h1 className='farm-page-hero-title'>
