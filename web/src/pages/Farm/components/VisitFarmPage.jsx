@@ -165,21 +165,21 @@ const VisitFarmPage = ({ friendId, friendName, onBack, t }) => {
 
           <Button size='small' icon={<Droplets size={13} />}
             disabled={needsWaterCount === 0 || actionLoading} loading={actionLoading}
-            style={{ background: 'rgba(138, 128, 106, 0.18)', border: '1px solid rgba(138, 128, 106, 0.34)', color: 'var(--farm-text-0)', borderRadius: 6 }}
+            style={{ background: 'rgba(90,143,180,0.1)', border: '1px solid rgba(90,143,180,0.25)', color: 'var(--farm-sky)', borderRadius: 6 }}
             onClick={() => doAction('/water')} className='farm-btn'>
             💧 帮助浇水{needsWaterCount > 0 ? ` (${needsWaterCount})` : ''} <span style={{ fontSize: 10, opacity: 0.7 }}>免费</span>
           </Button>
 
           <Button size='small' icon={<FlaskConical size={13} />}
             disabled={!canFertilize || actionLoading} loading={actionLoading}
-            style={{ background: 'rgba(111, 122, 99, 0.18)', border: '1px solid rgba(111, 122, 99, 0.34)', color: 'var(--farm-text-0)', borderRadius: 6 }}
+            style={{ background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.25)', color: 'var(--farm-leaf)', borderRadius: 6 }}
             onClick={() => doAction('/fertilize')} className='farm-btn'>
             🧴 帮助施肥 <span style={{ fontSize: 10, opacity: 0.7 }}>用我的化肥</span>
           </Button>
 
           <Button size='small' icon={<Pill size={13} />}
             disabled={eventCount === 0 || !inventory?.has_medicine || actionLoading} loading={actionLoading}
-            style={{ background: 'rgba(181, 51, 51, 0.12)', border: '1px solid rgba(181, 51, 51, 0.24)', color: 'var(--farm-danger)', borderRadius: 6 }}
+            style={{ background: 'rgba(184,66,51,0.1)', border: '1px solid rgba(184,66,51,0.25)', color: 'var(--farm-danger)', borderRadius: 6 }}
             onClick={() => doAction('/treat')} className='farm-btn'>
             💊 帮助治疗{eventCount > 0 ? ` (${eventCount})` : ''} <span style={{ fontSize: 10, opacity: 0.7 }}>用我的药</span>
           </Button>

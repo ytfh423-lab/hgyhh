@@ -4893,58 +4893,24 @@
 
 .farm-layout .semi-button:not(.semi-button-borderless):not(.farm-btn) {
   border-color: var(--farm-border-strong) !important;
-  background: var(--farm-surface-alt) !important;
-  color: var(--farm-text-1) !important;
-  box-shadow: var(--farm-shadow-sm) !important;
+  background: var(--farm-surface-alt);
+  color: var(--farm-text-1);
+  box-shadow: var(--farm-shadow-sm);
 }
 
-.farm-layout .semi-button.semi-button-primary:not(.farm-btn),
-.farm-layout .semi-button.semi-button-primary:not(.semi-button-borderless):not(.farm-btn) {
-  background: var(--farm-harvest) !important;
-  border-color: var(--farm-harvest) !important;
-  color: #faf9f5 !important;
-  box-shadow: 0px 0px 0px 1px var(--farm-harvest) !important;
+.farm-layout .semi-button.semi-button-primary,
+.farm-layout .semi-button.semi-button-primary:not(.semi-button-borderless) {
+  background: var(--farm-harvest);
+  border-color: var(--farm-harvest);
+  color: #faf9f5;
+  box-shadow: 0px 0px 0px 1px var(--farm-harvest);
 }
 
-.farm-layout .semi-button.semi-button-light:not(.semi-button-borderless):not(.farm-btn) {
-  background: #ffffff !important;
-  color: var(--farm-text-0) !important;
-}
-
-.farm-layout .semi-button.farm-btn:not(.semi-button-borderless) {
-  border-color: var(--farm-border-strong);
-  background: rgba(232, 230, 220, 0.92);
+.farm-layout .semi-button.semi-button-light:not(.semi-button-borderless) {
+  background: #ffffff;
   color: var(--farm-text-0);
-  box-shadow: var(--farm-shadow-sm) !important;
-  font-weight: 600 !important;
 }
 
-.farm-layout .semi-button.farm-btn,
-.farm-layout .semi-button.farm-btn .semi-button-content,
-.farm-layout .semi-button.farm-btn .semi-button-content-left,
-.farm-layout .semi-button.farm-btn .semi-button-content-right,
-.farm-layout .semi-button.farm-btn svg {
-  color: inherit !important;
-  opacity: 1 !important;
-}
-
-.farm-layout .semi-button.farm-btn:not([disabled]) {
-  filter: saturate(1.05);
-}
-
-.farm-layout .semi-button.farm-btn:hover:not([disabled]) {
-  box-shadow: var(--farm-shadow) !important;
-}
-
-.farm-layout .semi-button.farm-btn[disabled],
-.farm-layout .semi-button.farm-btn.semi-button-disabled {
-  opacity: 1 !important;
-  background: rgba(232, 230, 220, 0.82) !important;
-  border-color: var(--farm-border-strong) !important;
-  color: var(--farm-text-2) !important;
-  filter: saturate(0.58) !important;
-  box-shadow: none !important;
-}
 
 .farm-layout .semi-button:not([disabled]):hover {
   transform: translateY(-1px);

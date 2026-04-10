@@ -150,7 +150,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<Droplets size={12} />}
             onClick={e => { e.stopPropagation(); handleWater(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(138, 128, 106, 0.18)', border: '1px solid rgba(138, 128, 106, 0.34)', color: 'var(--farm-text-0)' }}>
+            style={{ background: 'rgba(90,143,180,0.12)', border: '1px solid rgba(90,143,180,0.3)', color: 'var(--farm-sky)' }}>
             {t('浇水')}
           </Button>
         )}
@@ -158,7 +158,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<FlaskConical size={12} />}
             onClick={e => { e.stopPropagation(); handleFertilize(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(111, 122, 99, 0.18)', border: '1px solid rgba(111, 122, 99, 0.34)', color: 'var(--farm-text-0)' }}>
+            style={{ background: 'rgba(74,124,63,0.12)', border: '1px solid rgba(74,124,63,0.3)', color: 'var(--farm-leaf)' }}>
             {t('施肥')}
           </Button>
         )}
@@ -166,7 +166,7 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<Pill size={12} />}
             onClick={e => { e.stopPropagation(); handleTreat(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(201, 100, 66, 0.16)', border: '1px solid rgba(201, 100, 66, 0.3)', color: 'var(--farm-text-0)' }}>
+            style={{ background: 'rgba(200,146,42,0.12)', border: '1px solid rgba(200,146,42,0.3)', color: 'var(--farm-harvest)' }}>
             {t('治疗')}
           </Button>
         )}
@@ -174,14 +174,14 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
           <Button size='small' icon={<ArrowUp size={12} />}
             onClick={e => { e.stopPropagation(); handleUpgradeSoil(plot.plot_index); }}
             loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(119, 109, 117, 0.18)', border: '1px solid rgba(119, 109, 117, 0.32)', color: 'var(--farm-text-0)' }}>
+            style={{ background: 'rgba(138,108,176,0.12)', border: '1px solid rgba(138,108,176,0.3)', color: '#b094d0' }}>
             {t('升级')} Lv.{soilLv + 1}
           </Button>
         )}
         <Button size='small' icon={<Trash2 size={12} />}
           onClick={async e => { e.stopPropagation(); if (await farmConfirm(t('铲除作物'), t('确定要铲除这块地的作物吗？'), { icon: '🗑', confirmType: 'danger', confirmText: t('铲除') })) handleClearPlot(plot.plot_index); }}
           loading={actionLoading} className='farm-btn'
-          style={{ background: 'rgba(181, 51, 51, 0.12)', border: '1px solid rgba(181, 51, 51, 0.24)', color: 'var(--farm-danger)' }}>
+          style={{ background: 'rgba(184,66,51,0.08)', border: '1px solid rgba(184,66,51,0.2)', color: 'var(--farm-danger)' }}>
           {t('铲除')}
         </Button>
       </div>
@@ -371,35 +371,65 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
             theme='solid'
-            style={{ background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : undefined, borderRadius: 6, width: '100%' }}
+            style={{
+              background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : 'rgba(232,230,220,0.9)',
+              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.34)' : '1px solid var(--farm-border-strong)',
+              color: matureCount > 0 ? '#faf9f5' : 'var(--farm-text-2)',
+              borderRadius: 6,
+              width: '100%'
+            }}
             onClick={handleHarvest} className='farm-btn'>
             🌾 {t('一键收获出售')}{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
           <Button size='small' icon={<Package size={13} />}
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(160,132,94,0.12)', border: '1px solid rgba(160,132,94,0.3)', color: 'var(--farm-harvest)', borderRadius: 6, width: '100%' }}
+            style={{
+              background: matureCount > 0 ? 'rgba(160,132,94,0.16)' : 'rgba(232,230,220,0.9)',
+              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.34)' : '1px solid var(--farm-border-strong)',
+              color: matureCount > 0 ? 'var(--farm-harvest)' : 'var(--farm-text-2)',
+              borderRadius: 6,
+              width: '100%'
+            }}
             onClick={handleHarvestStore} className='farm-btn'>
             📦 {t('一键收获入仓')}{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
           <Button size='small' icon={<Droplets size={13} />}
             disabled={needsWaterCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(90,143,180,0.1)', border: '1px solid rgba(90,143,180,0.25)', color: 'var(--farm-sky)', borderRadius: 6, width: '100%' }}
+            style={{
+              background: needsWaterCount > 0 ? 'rgba(90,143,180,0.14)' : 'rgba(232,230,220,0.9)',
+              border: needsWaterCount > 0 ? '1px solid rgba(90,143,180,0.32)' : '1px solid var(--farm-border-strong)',
+              color: needsWaterCount > 0 ? 'var(--farm-sky)' : 'var(--farm-text-2)',
+              borderRadius: 6,
+              width: '100%'
+            }}
             onClick={handleWaterAll} className='farm-btn'>
             💧 {t('一键浇水')}{needsWaterCount > 0 ? ` (${needsWaterCount})` : ''}
           </Button>
           <Button size='small' icon={<FlaskConical size={13} />}
             disabled={canFertilizeCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.25)', color: 'var(--farm-leaf)', borderRadius: 6, width: '100%' }}
+            style={{
+              background: canFertilizeCount > 0 ? 'rgba(74,124,63,0.14)' : 'rgba(232,230,220,0.9)',
+              border: canFertilizeCount > 0 ? '1px solid rgba(74,124,63,0.32)' : '1px solid var(--farm-border-strong)',
+              color: canFertilizeCount > 0 ? 'var(--farm-leaf)' : 'var(--farm-text-2)',
+              borderRadius: 6,
+              width: '100%'
+            }}
             onClick={handleFertilizeAll} className='farm-btn'>
             🧪 {t('一键施肥')}{canFertilizeCount > 0 ? ` (${canFertilizeCount})` : ''}
           </Button>
           <Button size='small' icon={<Pill size={13} />}
             disabled={eventCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{ background: 'rgba(184,66,51,0.1)', border: '1px solid rgba(184,66,51,0.25)', color: 'var(--farm-danger)', borderRadius: 6, width: '100%' }}
+            style={{
+              background: eventCount > 0 ? 'rgba(184,66,51,0.13)' : 'rgba(232,230,220,0.9)',
+              border: eventCount > 0 ? '1px solid rgba(184,66,51,0.3)' : '1px solid var(--farm-border-strong)',
+              color: eventCount > 0 ? 'var(--farm-danger)' : 'var(--farm-text-2)',
+              borderRadius: 6,
+              width: '100%'
+            }}
             onClick={() => doAction('/api/farm/treat/all', {})} className='farm-btn'>
             💊 {t('一键治疗')}{eventCount > 0 ? ` (${eventCount})` : ''}
           </Button>
@@ -425,7 +455,12 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
             disabled={emptyCount === 0 || !plantCrop || actionLoading}
             loading={actionLoading}
             theme='solid'
-            style={{ background: plantCrop && emptyCount > 0 ? 'linear-gradient(135deg,var(--farm-leaf),#2d6a2e)' : undefined, borderRadius: 6 }}
+            style={{
+              background: plantCrop && emptyCount > 0 ? 'linear-gradient(135deg,var(--farm-leaf),#2d6a2e)' : 'rgba(232,230,220,0.9)',
+              border: plantCrop && emptyCount > 0 ? '1px solid rgba(74,124,63,0.34)' : '1px solid var(--farm-border-strong)',
+              color: plantCrop && emptyCount > 0 ? '#f8f7f2' : 'var(--farm-text-2)',
+              borderRadius: 6
+            }}
             onClick={() => doAction('/api/farm/plant/all', { crop_key: plantCrop })} className='farm-btn'>
             🌱 {t('一键种植')}{emptyCount > 0 ? ` (${emptyCount}${t('块空地')})` : ''}
           </Button>
