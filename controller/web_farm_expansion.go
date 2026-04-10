@@ -833,6 +833,10 @@ func WebFarmGamePlay(c *gin.Context) {
 	engineGames := map[string]bool{
 		"horserace": true, "woodchop": true, "weed": true, "milking": true, "thresh": true,
 		"fishcomp": true, "harvest": true, "lasso": true, "pullcarrot": true, "seedling": true,
+		"egghunt": true, "bugcatch": true, "duckherd": true, "fruitpick": true, "foxhunt": true,
+		"sheepcount": true, "mushroom": true, "scarecrow": true, "pumpkin": true, "produce": true,
+		"cornrace": true, "pigchase": true, "grape": true, "beekeep": true, "hatchegg": true,
+		"rooster": true, "sunflower": true, "tame": true, "weather": true, "sheepdog": true,
 	}
 
 	if engineGames[req.GameKey] {

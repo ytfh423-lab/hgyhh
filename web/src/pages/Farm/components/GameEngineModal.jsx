@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { Button, Spin } from '@douyinfe/semi-ui';
 import { TugOfWarGame, ClickBlitzGame, RhythmKeysGame, CircleDrawGame } from './GamesMashing';
 import { FishingBarGame, PowerChopGame, LassoGame, AnglePowerGame, WaterCatchGame } from './GamesTiming';
+import { EggHuntGame, BugCatchGame, DuckHerdGame } from './GamesReactionA';
+import { FruitPickGame, FoxHuntGame } from './GamesReactionB';
+import { SheepCountGame, MushroomGame, ScarecrowGame } from './GamesPuzzleA';
+import { PumpkinGame, ProduceGame } from './GamesPuzzleB';
+import { CornRaceGame, PigChaseGame, GrapeGame } from './GamesBalanceA';
+import { BeekeepGame, HatchEggGame } from './GamesBalanceB';
+import { RoosterGame, SunflowerGame } from './GamesPhysicsA';
+import { TameGame, WeatherGame, SheepdogGame } from './GamesPhysicsB';
 
 /* ═══════════════════════════════════════════════════════════════
    PlaceholderGame — 尚未实现的游戏占位符
@@ -35,30 +43,30 @@ const GAME_REGISTRY = {
   lasso:      { get: () => LassoGame,        cat: 'cat2', catLabel: '🎯时机' },
   pullcarrot: { get: () => AnglePowerGame,   cat: 'cat2', catLabel: '🎯时机' },
   seedling:   { get: () => WaterCatchGame,   cat: 'cat2', catLabel: '🎯时机' },
-  // ═══ 第三类: 👀 动态反应与捕捉 (待实现) ═══
-  egghunt:    { get: () => null, cat: 'cat3', catLabel: '👀反应' },
-  bugcatch:   { get: () => null, cat: 'cat3', catLabel: '👀反应' },
-  duckherd:   { get: () => null, cat: 'cat3', catLabel: '👀反应' },
-  fruitpick:  { get: () => null, cat: 'cat3', catLabel: '👀反应' },
-  foxhunt:    { get: () => null, cat: 'cat3', catLabel: '👀反应' },
-  // ═══ 第四类: 🧠 记忆与益智 (待实现) ═══
-  sheepcount: { get: () => null, cat: 'cat4', catLabel: '🧠益智' },
-  mushroom:   { get: () => null, cat: 'cat4', catLabel: '🧠益智' },
-  scarecrow:  { get: () => null, cat: 'cat4', catLabel: '🧠益智' },
-  pumpkin:    { get: () => null, cat: 'cat4', catLabel: '🧠益智' },
-  produce:    { get: () => null, cat: 'cat4', catLabel: '🧠益智' },
-  // ═══ 第五类: ⚖️ 平衡与控制 (待实现) ═══
-  cornrace:   { get: () => null, cat: 'cat5', catLabel: '⚖️平衡' },
-  pigchase:   { get: () => null, cat: 'cat5', catLabel: '⚖️平衡' },
-  grape:      { get: () => null, cat: 'cat5', catLabel: '⚖️平衡' },
-  beekeep:    { get: () => null, cat: 'cat5', catLabel: '⚖️平衡' },
-  hatchegg:   { get: () => null, cat: 'cat5', catLabel: '⚖️平衡' },
-  // ═══ 第六类: 🎰 物理模拟 (待实现) ═══
-  rooster:    { get: () => null, cat: 'cat6', catLabel: '🎰物理' },
-  sunflower:  { get: () => null, cat: 'cat6', catLabel: '🎰物理' },
-  tame:       { get: () => null, cat: 'cat6', catLabel: '🎰物理' },
-  weather:    { get: () => null, cat: 'cat6', catLabel: '🎰物理' },
-  sheepdog:   { get: () => null, cat: 'cat6', catLabel: '🎰物理' },
+  // ═══ 第三类: 👀 动态反应与捕捉 ═══
+  egghunt:    { get: () => EggHuntGame,   cat: 'cat3', catLabel: '👀反应' },
+  bugcatch:   { get: () => BugCatchGame,  cat: 'cat3', catLabel: '👀反应' },
+  duckherd:   { get: () => DuckHerdGame,  cat: 'cat3', catLabel: '👀反应' },
+  fruitpick:  { get: () => FruitPickGame, cat: 'cat3', catLabel: '👀反应' },
+  foxhunt:    { get: () => FoxHuntGame,   cat: 'cat3', catLabel: '👀反应' },
+  // ═══ 第四类: 🧠 记忆与益智 ═══
+  sheepcount: { get: () => SheepCountGame, cat: 'cat4', catLabel: '🧠益智' },
+  mushroom:   { get: () => MushroomGame,   cat: 'cat4', catLabel: '🧠益智' },
+  scarecrow:  { get: () => ScarecrowGame,  cat: 'cat4', catLabel: '🧠益智' },
+  pumpkin:    { get: () => PumpkinGame,    cat: 'cat4', catLabel: '🧠益智' },
+  produce:    { get: () => ProduceGame,    cat: 'cat4', catLabel: '🧠益智' },
+  // ═══ 第五类: ⚖️ 平衡与控制 ═══
+  cornrace:   { get: () => CornRaceGame, cat: 'cat5', catLabel: '⚖️平衡' },
+  pigchase:   { get: () => PigChaseGame, cat: 'cat5', catLabel: '⚖️平衡' },
+  grape:      { get: () => GrapeGame,    cat: 'cat5', catLabel: '⚖️平衡' },
+  beekeep:    { get: () => BeekeepGame,  cat: 'cat5', catLabel: '⚖️平衡' },
+  hatchegg:   { get: () => HatchEggGame, cat: 'cat5', catLabel: '⚖️平衡' },
+  // ═══ 第六类: 🎰 物理模拟 ═══
+  rooster:    { get: () => RoosterGame,   cat: 'cat6', catLabel: '🎰物理' },
+  sunflower:  { get: () => SunflowerGame, cat: 'cat6', catLabel: '🎰物理' },
+  tame:       { get: () => TameGame,      cat: 'cat6', catLabel: '🎰物理' },
+  weather:    { get: () => WeatherGame,   cat: 'cat6', catLabel: '🎰物理' },
+  sheepdog:   { get: () => SheepdogGame,  cat: 'cat6', catLabel: '🎰物理' },
 };
 
 /* ═══════════════════════════════════════════════════════════════
