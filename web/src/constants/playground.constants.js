@@ -75,9 +75,9 @@ export const DEBUG_TABS = {
 
 // ========== API 相关常量 ==========
 export const API_ENDPOINTS = {
-  CHAT_COMPLETIONS: '/pg/chat/completions',
-  USER_MODELS: '/api/user/models',
-  USER_GROUPS: '/api/user/self/groups',
+  CHAT_COMPLETIONS: 'https://www.codex1.cn/pg/chat/completions',
+  USER_MODELS: 'https://www.codex1.cn/api/user/models',
+  USER_GROUPS: 'https://www.codex1.cn/api/user/self/groups',
 };
 
 // ========== 配置默认值 ==========

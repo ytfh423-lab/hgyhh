@@ -6,7 +6,7 @@ const PRELOAD_COUNT = 5;
 
 const fetchOne = async () => {
   try {
-    const res = await fetch(`/api/babygome?_t=${Date.now()}`);
+    const res = await fetch(`https://www.codex1.cn/api/babygome?_t=${Date.now()}`);
     const json = await res.json();
     if (json.code !== 200 || !json.data) return null;
     const d = json.data;
