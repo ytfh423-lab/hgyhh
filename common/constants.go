@@ -369,14 +369,14 @@ var (
 	CriticalRateLimitNum            = 20
 	CriticalRateLimitDuration int64 = 20 * 60
 
-	UploadRateLimitNum            = 10
+	UploadRateLimitNum            = 30
 	UploadRateLimitDuration int64 = 60
 
-	DownloadRateLimitNum            = 10
+	DownloadRateLimitNum            = 30
 	DownloadRateLimitDuration int64 = 60
 
 	// Per-user search rate limit (applies after authentication, keyed by user ID)
-	SearchRateLimitNum            = 10
+	SearchRateLimitNum            = 30
 	SearchRateLimitDuration int64 = 60
 )
 
