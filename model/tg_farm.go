@@ -1916,7 +1916,7 @@ func getFarmLeaderboardFriendUsers(userId int) ([]User, map[string]string, []str
 		ids = append(ids, friendId)
 	}
 	var users []User
-	if err := DB.Select("id, username, display_name, telegram_id, quota").Where("id IN ? AND status = ?", ids, 1).Find(&users).Error; err != nil {
+	if err := DB.Select("id, username, display_name, telegram_id, quota").Where("id IN ? AND status = ? AND role < ?", ids, 1, 10).Find(&users).Error; err != nil {
 		return nil, nil, nil, err
 	}
 	nameMap := make(map[string]string, len(users))
@@ -1971,33 +1971,33 @@ func getGlobalFarmLeaderboardEntries(boardType, period string) ([]FarmLeaderboar
 	switch boardType {
 	case "balance":
 		if period == farmLeaderboardPeriodWeekly {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
 		} else {
-			err = DB.Raw("SELECT telegram_id, " + labelExpr + " as username, quota as value FROM users WHERE telegram_id != '' AND status = 1 ORDER BY quota DESC, telegram_id ASC").Scan(&entries).Error
+			err = DB.Raw("SELECT telegram_id, " + labelExpr + " as username, quota as value FROM users WHERE telegram_id != '' AND status = 1 AND role < 10 ORDER BY quota DESC, telegram_id ASC").Scan(&entries).Error
 		}
 	case "level":
 		if period == farmLeaderboardPeriodWeekly {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'levelup' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'levelup' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
 		} else {
-			err = DB.Raw("SELECT fi.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' AND u.telegram_id != '' AND u.status = 1 ORDER BY fi.quantity DESC, fi.telegram_id ASC").Scan(&entries).Error
+			err = DB.Raw("SELECT fi.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_level' AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 ORDER BY fi.quantity DESC, fi.telegram_id ASC").Scan(&entries).Error
 		}
 	case "harvest":
 		if period == farmLeaderboardPeriodWeekly {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
 		} else {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC").Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'harvest' AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC").Scan(&entries).Error
 		}
 	case "prestige":
 		if period == farmLeaderboardPeriodWeekly {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'prestige' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COUNT(*) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'prestige' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
 		} else {
-			err = DB.Raw("SELECT fi.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 AND u.telegram_id != '' AND u.status = 1 ORDER BY fi.quantity DESC, fi.telegram_id ASC").Scan(&entries).Error
+			err = DB.Raw("SELECT fi.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, fi.quantity as value FROM tg_farm_items fi JOIN users u ON fi.telegram_id = u.telegram_id WHERE fi.item_type = '_prestige' AND fi.quantity > 0 AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 ORDER BY fi.quantity DESC, fi.telegram_id ASC").Scan(&entries).Error
 		}
 	case "steal":
 		if period == farmLeaderboardPeriodWeekly {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'steal' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'steal' AND fl.created_at >= ? AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC", since).Scan(&entries).Error
 		} else {
-			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'steal' AND u.telegram_id != '' AND u.status = 1 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC").Scan(&entries).Error
+			err = DB.Raw("SELECT fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) as username, COALESCE(SUM(fl.amount), 0) as value FROM tg_farm_logs fl JOIN users u ON fl.telegram_id = u.telegram_id WHERE fl.action = 'steal' AND u.telegram_id != '' AND u.status = 1 AND u.role < 10 GROUP BY fl.telegram_id, COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY value DESC, fl.telegram_id ASC").Scan(&entries).Error
 		}
 	default:
 		return []FarmLeaderboardEntry{}, nil
