@@ -36,6 +36,16 @@ export let API = axios.create({
   },
 });
 
+// 生成 32 字符随机 hex（用于农场防重放 Nonce）
+function generateFarmNonce() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 function patchAPIInstance(instance) {
   const originalGet = instance.get.bind(instance);
   const inFlightGetRequests = new Map();
@@ -62,6 +72,23 @@ function patchAPIInstance(instance) {
     inFlightGetRequests.set(key, reqPromise);
     return reqPromise;
   };
+
+  // 农场防脚本：对 /api/farm、/api/ranch、/api/tree 的写请求自动注入 Nonce
+  instance.interceptors.request.use((config) => {
+    const url = config.url || '';
+    const method = (config.method || 'get').toLowerCase();
+    if (
+      method !== 'get' &&
+      method !== 'head' &&
+      method !== 'options' &&
+      (url.startsWith('/api/farm') ||
+        url.startsWith('/api/ranch') ||
+        url.startsWith('/api/tree'))
+    ) {
+      config.headers['X-Farm-Nonce'] = generateFarmNonce();
+    }
+    return config;
+  });
 }
 
 patchAPIInstance(API);
