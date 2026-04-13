@@ -701,5 +701,24 @@ func SeedSeasonDefaults() {
 			}
 		}
 		common.SysLog("Season: seeded default anti-cheat rules")
+
+		var seasonCount int64
+		model.DB.Model(&model.TgFarmSeason{}).Count(&seasonCount)
+		if seasonCount == 0 {
+			now := time.Now().Unix()
+			defaultSeason := model.TgFarmSeason{
+				Code:             fmt.Sprintf("赛季-%s", time.Now().Format("200601")),
+				WeeksPerSeason:   4,
+				RushDays:         7,
+				RestDays:         1,
+				Status:           model.SeasonStatusRush,
+				StartAt:          now,
+				EndAt:            now + 28*86400,
+				PointsMultiplier: 100,
+			}
+			if err := model.CreateSeason(&defaultSeason); err == nil {
+				common.SysLog(fmt.Sprintf("Season: created default active season %d (%s)", defaultSeason.Id, defaultSeason.Code))
+			}
+		}
 	})
 }

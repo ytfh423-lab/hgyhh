@@ -60,6 +60,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     farm_beta_apps: true,
     farm_beta_ai_config: true,
     farm_steal_config: true,
+    farm_season_config: true,
     feedback_admin: true,
     subscription: true,
     setting: true,
