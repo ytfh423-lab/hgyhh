@@ -31,11 +31,12 @@ func FarmSessionOnly() gin.HandlerFunc {
 
 // ─────────────────────────────────────────────────────────
 // 2. FarmActionRateLimit — 按用户 ID 限速农场写操作
-//    每用户每 60 秒最多 30 次 POST，防止脚本高频自动化。
+//    每用户每 60 秒最多 10 次 POST，防止脚本高频自动化。
+//    GET 请求（页面自动刷新/轮询）不计入。
 // ─────────────────────────────────────────────────────────
 
 func FarmActionRateLimit() gin.HandlerFunc {
-	limiter := userRateLimitFactory(30, 60, "FARM")
+	limiter := userRateLimitFactory(10, 60, "FARM")
 	return func(c *gin.Context) {
 		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "DELETE" {
 			limiter(c)
