@@ -144,7 +144,7 @@ const NotifCard = ({ notif, onDismiss, onAction }) => {
   }, [notif.id, onDismiss]);
 
   useEffect(() => {
-    const duration = typeof notif.duration === 'number' ? notif.duration : 10000;
+    const duration = typeof notif.duration === 'number' ? notif.duration : 3000;
     dismissTimerRef.current = window.setTimeout(() => {
       dismiss();
     }, duration);
@@ -775,7 +775,11 @@ const SocialPanel = () => {
   // 通知
   const addNotif = useCallback((ev) => {
     const id = nextId.current++;
-    setNotifs(prev => [...prev, { ...ev, id }]);
+    const maxVisible = window.innerWidth <= 768 ? 2 : 3;
+    setNotifs(prev => {
+      const next = [...prev, { ...ev, id }];
+      return next.length > maxVisible ? next.slice(-maxVisible) : next;
+    });
   }, []);
 
   useEffect(() => {
@@ -789,7 +793,7 @@ const SocialPanel = () => {
         type: 'farm_success',
         title: typeof detail.title === 'string' && detail.title.trim() ? detail.title.trim() : '操作成功',
         payload: { message },
-        duration: typeof detail.duration === 'number' ? detail.duration : 3200,
+        duration: typeof detail.duration === 'number' ? detail.duration : 2000,
       });
     };
     window.addEventListener('farm:success-notify', handler);
