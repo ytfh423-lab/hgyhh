@@ -378,7 +378,6 @@ func SetApiRouter(router *gin.Engine) {
 		farmRoute.Use(middleware.UserAuth())
 		farmRoute.Use(middleware.FarmSessionOnly())
 		farmRoute.Use(middleware.FarmActionRateLimit())
-		farmRoute.Use(middleware.FarmDailyActionCap())
 		farmRoute.Use(middleware.FarmNonceGuard())
 		farmRoute.Use(controller.CheckFarmBetaAccess())
 		{
@@ -510,7 +509,6 @@ func SetApiRouter(router *gin.Engine) {
 		ranchRoute.Use(middleware.UserAuth())
 		ranchRoute.Use(middleware.FarmSessionOnly())
 		ranchRoute.Use(middleware.FarmActionRateLimit())
-		ranchRoute.Use(middleware.FarmDailyActionCap())
 		ranchRoute.Use(middleware.FarmNonceGuard())
 		ranchRoute.Use(controller.CheckFarmBetaAccess())
 		{
@@ -529,7 +527,6 @@ func SetApiRouter(router *gin.Engine) {
 		treeFarmRoute.Use(middleware.UserAuth())
 		treeFarmRoute.Use(middleware.FarmSessionOnly())
 		treeFarmRoute.Use(middleware.FarmActionRateLimit())
-		treeFarmRoute.Use(middleware.FarmDailyActionCap())
 		treeFarmRoute.Use(middleware.FarmNonceGuard())
 		treeFarmRoute.Use(controller.CheckFarmBetaAccess())
 		{

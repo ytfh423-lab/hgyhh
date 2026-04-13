@@ -1,12 +1,8 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
-	"sync"
-	"time"
 
-	"github.com/QuantumNous/new-api/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,70 +39,6 @@ func FarmActionRateLimit() gin.HandlerFunc {
 			if c.IsAborted() {
 				return
 			}
-		}
-		c.Next()
-	}
-}
-
-// ─────────────────────────────────────────────────────────
-// 3. FarmDailyActionCap — 每用户每天农场写操作总量上限
-//    超过上限直接拒绝，防止长时间低频脚本（如每 10 分钟一轮）
-//    正常玩家一天很难超过 500 次写操作。
-// ─────────────────────────────────────────────────────────
-
-const farmDailyActionCap = 500
-
-var (
-	farmDailyCounters   = make(map[string]*farmDayCounter)
-	farmDailyCountersMu sync.Mutex
-)
-
-type farmDayCounter struct {
-	Day   string
-	Count int
-}
-
-func FarmDailyActionCap() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if c.Request.Method != "POST" && c.Request.Method != "PUT" && c.Request.Method != "DELETE" {
-			c.Next()
-			return
-		}
-		userId := c.GetInt("id")
-		if userId == 0 {
-			c.Next()
-			return
-		}
-
-		today := time.Now().Format("2006-01-02")
-		key := fmt.Sprintf("%d", userId)
-
-		farmDailyCountersMu.Lock()
-		counter, ok := farmDailyCounters[key]
-		if !ok || counter.Day != today {
-			counter = &farmDayCounter{Day: today, Count: 0}
-			farmDailyCounters[key] = counter
-		}
-		counter.Count++
-		current := counter.Count
-		// 顺便清理过期条目（低频操作，不影响性能）
-		if len(farmDailyCounters) > 10000 {
-			for k, v := range farmDailyCounters {
-				if v.Day != today {
-					delete(farmDailyCounters, k)
-				}
-			}
-		}
-		farmDailyCountersMu.Unlock()
-
-		if current > farmDailyActionCap {
-			common.SysLog(fmt.Sprintf("Farm anti-script: user %d exceeded daily action cap (%d/%d)", userId, current, farmDailyActionCap))
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"success": false,
-				"message": "今日农场操作次数已达上限，请明天再来",
-			})
-			c.Abort()
-			return
 		}
 		c.Next()
 	}
