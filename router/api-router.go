@@ -376,6 +376,9 @@ func SetApiRouter(router *gin.Engine) {
 
 		farmRoute := apiRouter.Group("/farm")
 		farmRoute.Use(middleware.UserAuth())
+		farmRoute.Use(middleware.FarmSessionOnly())
+		farmRoute.Use(middleware.FarmActionRateLimit())
+		farmRoute.Use(middleware.FarmDailyActionCap())
 		farmRoute.Use(controller.CheckFarmBetaAccess())
 		{
 			farmRoute.GET("/online", controller.WebFarmOnlineCount)
@@ -504,6 +507,9 @@ func SetApiRouter(router *gin.Engine) {
 
 		ranchRoute := apiRouter.Group("/ranch")
 		ranchRoute.Use(middleware.UserAuth())
+		ranchRoute.Use(middleware.FarmSessionOnly())
+		ranchRoute.Use(middleware.FarmActionRateLimit())
+		ranchRoute.Use(middleware.FarmDailyActionCap())
 		ranchRoute.Use(controller.CheckFarmBetaAccess())
 		{
 			ranchRoute.GET("/view", controller.WebRanchView)
@@ -519,6 +525,9 @@ func SetApiRouter(router *gin.Engine) {
 
 		treeFarmRoute := apiRouter.Group("/tree")
 		treeFarmRoute.Use(middleware.UserAuth())
+		treeFarmRoute.Use(middleware.FarmSessionOnly())
+		treeFarmRoute.Use(middleware.FarmActionRateLimit())
+		treeFarmRoute.Use(middleware.FarmDailyActionCap())
 		treeFarmRoute.Use(controller.CheckFarmBetaAccess())
 		{
 			treeFarmRoute.GET("/view", controller.WebTreeFarmView)
