@@ -55,6 +55,7 @@ const Farm = lazy(() => import('./pages/Farm'));
 const BetaApplicationsAdmin = lazy(() => import('./pages/Farm/BetaApplicationsAdmin'));
 const BetaAIConfigAdmin = lazy(() => import('./pages/Farm/BetaAIConfigAdmin'));
 const StealConfigAdmin = lazy(() => import('./pages/Farm/StealConfigAdmin'));
+const SeasonAdmin = lazy(() => import('./pages/Farm/SeasonAdmin'));
 const FeedbackPage = lazy(() => import('./pages/Feedback'));
 const FeedbackAdminPage = lazy(() => import('./pages/FeedbackAdmin'));
 const DeletionRequestPage = lazy(() => import('./pages/DeletionRequest'));
@@ -275,6 +276,16 @@ function App() {
             <AdminRoute>
               <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <StealConfigAdmin />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/farm-season-config'
+          element={
+            <AdminRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <SeasonAdmin />
               </Suspense>
             </AdminRoute>
           }

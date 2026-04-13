@@ -42,6 +42,7 @@ const navGroups = [
       { key: 'achievements', label: '成就', emoji: '🏆' },
       { key: 'encyclopedia', label: '图鉴', emoji: '📖' },
       { key: 'leaderboard', label: '排行榜', emoji: '🏅' },
+      { key: 'season', label: '赛季', emoji: '🏟️' },
     ],
   },
   {

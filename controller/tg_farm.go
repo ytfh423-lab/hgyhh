@@ -245,6 +245,7 @@ func getCropTags(crop *farmCropDef) []string {
 var farmItems = []farmItemDef{
 	{"pesticide", "杀虫剂", "🧪", 150000, "bugs"},
 	{"fertilizer", "化肥", "🧴", 200000, ""},
+	{"fertilizer_adv", "高级化肥", "🧪", 500000, ""},
 	{"dogfood", "狗粮", "🦴", 500000, ""},
 	{"fishbait", "鱼饵", "🪱", common.TgBotFishBaitPrice, ""},
 	{"premiumfishbait", "高级鱼饵", "✨", common.TgBotFishPremiumBaitPrice, ""},
@@ -655,6 +656,13 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 	growSecs = growSecs * int64(seasonGrowthPct) / 100
 	if growSecs < 60 {
 		growSecs = 60
+	}
+	// 高级化肥：成熟时间缩短50%
+	if plot.Fertilized == 2 {
+		growSecs = growSecs * int64(100-AdvFertilizerGrowReduction) / 100
+		if growSecs < 60 {
+			growSecs = 60
+		}
 	}
 
 	matureAt := plot.PlantedAt + growSecs

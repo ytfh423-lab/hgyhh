@@ -57,6 +57,7 @@ const routerMap = {
   farm_beta_apps: '/console/farm-beta-apps',
   farm_beta_ai_config: '/console/farm-beta-ai-config',
   farm_steal_config: '/console/farm-steal-config',
+  farm_season_config: '/console/farm-season-config',
   feedback: '/feedback',
   feedback_admin: '/console/feedback-admin',
 };
@@ -242,6 +243,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('偷菜配置'),
         itemKey: 'farm_steal_config',
         to: '/console/farm-steal-config',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('赛季配置'),
+        itemKey: 'farm_season_config',
+        to: '/console/farm-season-config',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

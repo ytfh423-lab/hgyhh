@@ -319,6 +319,14 @@ func migrateDB() error {
 		&MessageBoardPost{},
 		&FarmFriend{},
 		&FarmMessage{},
+		&TgFarmSeason{},
+		&TgFarmSeasonTier{},
+		&TgFarmSeasonPlayer{},
+		&TgFarmSeasonPointsLog{},
+		&TgFarmSeasonHistory{},
+		&TgFarmSeasonAntiCheat{},
+		&TgFarmSeasonAntiCheatRule{},
+		&TgFarmSeasonPointsRule{},
 	)
 	if err != nil {
 		return err

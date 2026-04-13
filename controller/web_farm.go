@@ -169,6 +169,9 @@ func getWebFarmUser(c *gin.Context) (*model.User, string, bool) {
 	if farmId == "" {
 		farmId = fmt.Sprintf("u_%d", user.Id)
 	}
+	if season, err := model.GetActiveSeason(); err == nil && season != nil {
+		_ = model.EnsureSeasonInheritanceApplied(user.Id, farmId, season.Id)
+	}
 	return user, farmId, true
 }
 
@@ -867,6 +870,7 @@ func WebFarmPlant(c *gin.Context) {
 	_ = model.UpdateFarmPlot(targetPlot)
 	common.SysLog(fmt.Sprintf("Web Farm: user %s planted %s on plot %d", tgId, crop.Key, req.PlotIndex))
 
+	TryAwardSeasonPoints(tgId, "plant", fmt.Sprintf("种植%s", crop.Name))
 	respondFarmSuccessWithMedal(c, tgId, "plant", fmt.Sprintf("种植 %s%s 成功！", crop.Emoji, crop.Name), nil)
 }
 
@@ -905,7 +909,14 @@ func WebFarmHarvest(c *gin.Context) {
 			}
 			fertBonus := 0
 			if plot.Fertilized == 1 {
+				// 普通化肥：产量+50%
 				fertBonus = baseYield / 2
+				if fertBonus < 1 {
+					fertBonus = 1
+				}
+			} else if plot.Fertilized == 2 {
+				// 高级化肥：产量+30%（已在种植时缩短50%成熟时间）
+				fertBonus = baseYield * AdvFertilizerYieldBoost / 100
 				if fertBonus < 1 {
 					fertBonus = 1
 				}
@@ -946,6 +957,7 @@ func WebFarmHarvest(c *gin.Context) {
 	model.AddFarmLog(tgId, "harvest", sellResult.FinalValue, fmt.Sprintf("收获出售%d种作物", harvestedCount))
 	common.SysLog(fmt.Sprintf("Web Farm: user %s harvested %d crops, total %d quota (prestige+%d)", tgId, harvestedCount, sellResult.FinalValue, sellResult.PrestigeBonus))
 
+	TryAwardSeasonPoints(tgId, "harvest", fmt.Sprintf("收获%d种作物", harvestedCount))
 	respondFarmSuccessWithMedal(c, tgId, "harvest", fmt.Sprintf("收获 %d 块作物，获得 $%.2f", harvestedCount, webFarmQuotaFloat(sellResult.FinalValue)), gin.H{
 		"count":   harvestedCount,
 		"total":   webFarmQuotaFloat(totalQuota),
@@ -1211,6 +1223,7 @@ func WebFarmSteal(c *gin.Context) {
 
 	common.SysLog(fmt.Sprintf("Web Farm: user %s stole %s from %s, +%d quota", tgId, cropName, req.VictimId, stealValue))
 
+	TryAwardSeasonPoints(tgId, "steal", fmt.Sprintf("偷取%s", cropName))
 	respondFarmSuccessWithMedal(c, tgId, "steal", fmt.Sprintf("偷取了 %d个%s%s，获得 $%.2f", stealUnits, cropEmoji, cropName, webFarmQuotaFloat(stealValue)), gin.H{
 		"victim":     maskTgId(req.VictimId),
 		"crop_name":  cropName,
@@ -1425,6 +1438,9 @@ func WebFarmPlantAll(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有空地，或余额/种子不足"})
 		return
 	}
+	for i := 0; i < planted; i++ {
+		TryAwardSeasonPoints(tgId, "plant", fmt.Sprintf("批量种植%s", crop.Name))
+	}
 	respondFarmSuccessWithMedal(c, tgId, "plant", fmt.Sprintf("成功种植 %s%s × %d 块！", crop.Emoji, crop.Name, planted), nil)
 }
 
@@ -1455,20 +1471,29 @@ func WebFarmFertilize(c *gin.Context) {
 			break
 		}
 	}
-	if target == nil || target.Status != 1 || target.Fertilized == 1 {
+	if target == nil || target.Status != 1 || target.Fertilized >= 1 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该地块不可施肥"})
 		return
 	}
 
-	if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
+	// 优先尝试使用高级化肥
+	ferType := 1 // 普通化肥
+	ferLabel := "化肥"
+	ferBonus := "50%"
+	if err := model.DecrementFarmItem(tgId, "fertilizer_adv"); err == nil {
+		ferType = 2
+		ferLabel = "高级化肥"
+		ferBonus = "30%产量+50%缩时"
+	} else if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "化肥不足！请先购买"})
 		return
 	}
 
-	target.Fertilized = 1
+	target.Fertilized = ferType
 	_ = model.UpdateFarmPlot(target)
 
-	respondFarmSuccessWithMedal(c, tgId, "fertilize", fmt.Sprintf("%d号地施肥成功！收获时产量+50%%", req.PlotIndex+1), nil)
+	TryAwardSeasonPoints(tgId, "fertilize", fmt.Sprintf("%d号地施肥", req.PlotIndex+1))
+	respondFarmSuccessWithMedal(c, tgId, "fertilize", fmt.Sprintf("%d号地使用%s成功！收获时加成%s", req.PlotIndex+1, ferLabel, ferBonus), nil)
 }
 
 // WebFarmBuyLand buys a new plot
@@ -1670,6 +1695,7 @@ func WebFarmWater(c *gin.Context) {
 	} else if wasWilting {
 		msg = "已从枯萎中恢复生长！"
 	}
+	TryAwardSeasonPoints(tgId, "water", "浇水")
 	respondFarmSuccessWithMedal(c, tgId, "water", msg, nil)
 }
 
@@ -1719,6 +1745,7 @@ func WebFarmWaterAll(c *gin.Context) {
 	}
 	model.AddFarmLog(tgId, "water", 0, fmt.Sprintf("一键浇水%d块地", watered))
 
+	TryAwardSeasonPoints(tgId, "water", fmt.Sprintf("一键浇水%d块", watered))
 	respondFarmSuccessWithMedal(c, tgId, "water", fmt.Sprintf("成功浇水 %d 块地！", watered), nil)
 }
 
@@ -1735,13 +1762,17 @@ func WebFarmFertilizeAll(c *gin.Context) {
 	}
 	fertilized := 0
 	for _, plot := range plots {
-		if plot.Status != 1 || plot.Fertilized == 1 {
+		if plot.Status != 1 || plot.Fertilized >= 1 {
 			continue
 		}
-		if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
+		// 优先使用高级化肥
+		if err := model.DecrementFarmItem(tgId, "fertilizer_adv"); err == nil {
+			plot.Fertilized = 2
+		} else if err := model.DecrementFarmItem(tgId, "fertilizer"); err != nil {
 			break
+		} else {
+			plot.Fertilized = 1
 		}
-		plot.Fertilized = 1
 		_ = model.UpdateFarmPlot(plot)
 		fertilized++
 	}
@@ -1749,6 +1780,7 @@ func WebFarmFertilizeAll(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "没有可施肥的地块（或化肥不足）"})
 		return
 	}
+	TryAwardSeasonPoints(tgId, "fertilize", fmt.Sprintf("批量施肥%d块", fertilized))
 	respondFarmSuccessWithMedal(c, tgId, "fertilize", fmt.Sprintf("成功施肥 %d 块地！", fertilized), nil)
 }
 
@@ -2256,6 +2288,7 @@ func WebFarmLevelUp(c *gin.Context) {
 		nextPrice = webFarmQuotaFloat(getLevelUpPrice(newLevel))
 	}
 
+	TryAwardSeasonPoints(tgId, "levelup", fmt.Sprintf("升级到Lv.%d", newLevel))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": msg,
@@ -2653,6 +2686,7 @@ func WebFarmWorkshopCraft(c *gin.Context) {
 	_ = model.CreateFarmProcess(proc)
 	model.AddFarmLog(tgId, "craft", -r.Cost, fmt.Sprintf("加工%s%s", r.Emoji, r.Name))
 
+	TryAwardSeasonPoints(tgId, "workshop", fmt.Sprintf("加工%s", r.Name))
 	respondFarmSuccessWithMedal(c, tgId, "workshop", fmt.Sprintf("开始加工 %s %s", r.Emoji, r.Name), nil)
 }
 
@@ -2996,6 +3030,7 @@ func WebFarmFishDo(c *gin.Context) {
 		specialEffect = "legendary"
 	}
 
+	TryAwardSeasonPoints(tgId, "fish", fmt.Sprintf("钓到%s", fish.Name))
 	respondFarmSuccessWithMedal(c, tgId, "fish", msg, gin.H{
 		"caught":                  true,
 		"fish_key":                fish.Key,

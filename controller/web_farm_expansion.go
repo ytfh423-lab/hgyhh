@@ -408,6 +408,7 @@ func WebFarmPrestige(c *gin.Context) {
 	model.SetPrestigeLevel(tgId, newPrestige)
 	model.CreatePrestigeRecord(tgId, newPrestige)
 	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s", newPrestige, farmQuotaStr(price)))
+	TryAwardSeasonPoints(tgId, "prestige", fmt.Sprintf("转生到第%d世", newPrestige))
 	newBonus := newPrestige * common.TgBotFarmPrestigeBonusPerLevel
 	nextBonus := (newPrestige + 1) * common.TgBotFarmPrestigeBonusPerLevel
 	nextPrice := model.GetPrestigePrice(newPrestige + 1)

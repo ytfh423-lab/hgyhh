@@ -503,6 +503,39 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.GET("/entrust/my-accepted", controller.WebEntrustMyAccepted)
 			farmRoute.GET("/entrust/work", controller.WebEntrustWorkView)
 			farmRoute.POST("/entrust/work/execute", controller.WebEntrustWorkExecute)
+
+			// 赛季系统 — 玩家接口
+			farmRoute.GET("/season/overview", controller.WebFarmSeasonOverview)
+			farmRoute.GET("/season/leaderboard", controller.WebFarmSeasonLeaderboard)
+			farmRoute.GET("/season/points-logs", controller.WebFarmSeasonPointsLogs)
+			farmRoute.GET("/season/tiers", controller.WebFarmSeasonTiers)
+			farmRoute.GET("/season/history", controller.WebFarmSeasonPlayerHistory)
+		}
+
+		// 赛季系统 — 管理员接口
+		seasonAdminRoute := apiRouter.Group("/farm/season/admin")
+		seasonAdminRoute.Use(middleware.AdminAuth())
+		{
+			seasonAdminRoute.GET("/seasons", controller.AdminGetAllSeasons)
+			seasonAdminRoute.POST("/seasons", controller.AdminCreateSeason)
+			seasonAdminRoute.PUT("/seasons", controller.AdminUpdateSeason)
+			seasonAdminRoute.DELETE("/seasons", controller.AdminDeleteSeason)
+			seasonAdminRoute.POST("/seasons/start", controller.AdminStartSeason)
+			seasonAdminRoute.POST("/seasons/end", controller.AdminEndSeason)
+
+			seasonAdminRoute.GET("/tiers", controller.AdminGetAllTiers)
+			seasonAdminRoute.POST("/tiers", controller.AdminCreateTier)
+			seasonAdminRoute.PUT("/tiers", controller.AdminUpdateTier)
+			seasonAdminRoute.DELETE("/tiers", controller.AdminDeleteTier)
+
+			seasonAdminRoute.GET("/points-rules", controller.AdminGetPointsRules)
+			seasonAdminRoute.POST("/points-rules", controller.AdminSavePointsRule)
+			seasonAdminRoute.DELETE("/points-rules", controller.AdminDeletePointsRule)
+
+			seasonAdminRoute.GET("/anti-cheat/rules", controller.AdminGetAntiCheatRules)
+			seasonAdminRoute.POST("/anti-cheat/rules", controller.AdminSaveAntiCheatRule)
+			seasonAdminRoute.DELETE("/anti-cheat/rules", controller.AdminDeleteAntiCheatRule)
+			seasonAdminRoute.GET("/anti-cheat/logs", controller.AdminGetAntiCheatLogs)
 		}
 
 		ranchRoute := apiRouter.Group("/ranch")

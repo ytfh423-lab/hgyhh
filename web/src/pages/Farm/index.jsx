@@ -42,6 +42,7 @@ const EntrustPage = lazy(() => import('./components/EntrustPage'));
 const EntrustWorkPage = lazy(() => import('./components/EntrustWorkPage'));
 const FriendListPage = lazy(() => import('./components/FriendListPage'));
 const VisitFarmPage = lazy(() => import('./components/VisitFarmPage'));
+const SeasonPage = lazy(() => import('./components/SeasonPage'));
 
 const { Text, Title } = Typography;
 
@@ -705,6 +706,7 @@ const Farm = () => {
     achievements: t('看看已经达成和还没完成的成就。'),
     encyclopedia: t('查看图鉴收集进度。'),
     leaderboard: t('看看当前的排名与荣誉。'),
+    season: t('查看赛季段位、积分和冲榜排名。'),
     steal: t('寻找目标，处理冷却和结果记录。'),
     games: t('进入农场里的小游戏。'),
     dog: t('照看你的狗狗和辅助收益。'),
@@ -768,6 +770,8 @@ const Farm = () => {
         return <EncyclopediaPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />;
       case 'leaderboard':
         return <LeaderboardPage t={t} />;
+      case 'season':
+        return <SeasonPage t={t} />;
       case 'steal':
         return <StealPage {...commonProps} />;
       case 'games':
