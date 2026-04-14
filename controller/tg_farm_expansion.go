@@ -274,15 +274,15 @@ func tgFarmLeaderboardLabel(boardType, period string) string {
 	if period == "weekly" {
 		switch boardType {
 		case "balance":
-			return "💸 净收益"
+			return "💸 新增资产"
 		case "level":
 			return "⬆️ 升级"
 		case "harvest":
-			return "🌾 收获"
+			return "🌾 最佳收获"
 		case "prestige":
 			return "🔄 转生"
 		case "steal":
-			return "🕵️ 偷菜"
+			return "🕵️ 最佳偷菜"
 		}
 	}
 	switch boardType {
@@ -291,18 +291,18 @@ func tgFarmLeaderboardLabel(boardType, period string) string {
 	case "level":
 		return "⭐ 等级"
 	case "harvest":
-		return "🌾 收获"
+		return "🌾 最佳收获"
 	case "prestige":
 		return "🔄 转生"
 	case "steal":
-		return "🕵️ 偷菜"
+		return "🕵️ 最佳偷菜"
 	default:
 		return "💰 资产"
 	}
 }
 
 func getTgFarmLeaderboardOptions(tgId, scope, period string) (model.FarmLeaderboardOptions, bool) {
-	options := model.FarmLeaderboardOptions{Scope: scope, Period: period}
+	options := model.FarmLeaderboardOptions{Scope: scope, Period: period, Group: model.ResolveFarmLeaderboardGroupByLevel(model.GetFarmLevel(tgId))}
 	if scope != "friends" {
 		return options, false
 	}
@@ -319,17 +319,12 @@ func farmRankCallbackData(boardType, scope, period string) string {
 	return fmt.Sprintf("farm_rank_%s_%s_%s", boardType, scope, period)
 }
 
-func tgFarmLeaderboardRewardLabel(rank int) string {
-	switch rank {
-	case 1:
-		return "👑 冠军勋章"
-	case 2:
-		return "🥈 亚军勋章"
-	case 3:
-		return "🥉 季军勋章"
-	default:
+func tgFarmLeaderboardRewardLabel(rank int, total int) string {
+	tier := model.GetFarmLeaderboardRewardTier(int64(rank), total)
+	if tier == nil {
 		return ""
 	}
+	return tier.Emoji + " " + tier.Title
 }
 
 func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType string, scope string, period string, from *TgUser) {
@@ -355,11 +350,24 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 		periodName = "📅 周榜"
 	}
 
-	entries, _ := model.GetFarmLeaderboardWithOptions(boardType, 10, options)
+	allEntries, _ := model.GetFarmLeaderboardWithOptions(boardType, 0, options)
+	totalPlayers := len(allEntries)
+	entries := allEntries
+	if len(entries) > 10 {
+		entries = entries[:10]
+	}
 	myRank := model.GetFarmRankWithOptions(tgId, boardType, options)
+	groupMeta := model.GetFarmLeaderboardGroupMeta(options.Group)
 
-	text := fmt.Sprintf("🏅 %s%s%s\n\n", scopeName, boardName, periodName)
-	text += "🎁 前三奖励：👑 冠军勋章 / 🥈 亚军勋章 / 🥉 季军勋章\n\n"
+	text := fmt.Sprintf("🏅 %s%s%s\n🏷️ %s（%s）\n\n", scopeName, boardName, periodName, groupMeta.Label, groupMeta.RangeLabel)
+	bands := model.GetFarmLeaderboardRewardBands(totalPlayers)
+	if len(bands) > 0 {
+		parts := make([]string, 0, len(bands))
+		for _, band := range bands {
+			parts = append(parts, fmt.Sprintf("%s%s #%d-#%d", band.Emoji, band.ShortTitle, band.StartRank, band.EndRank))
+		}
+		text += "🎁 段位奖励：" + strings.Join(parts, " / ") + "\n\n"
+	}
 	if fallbackToGlobal {
 		text += "ℹ️ 你尚未绑定站内账号，已自动切换为全服榜\n\n"
 	}
@@ -383,10 +391,10 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 			name = e.TelegramId
 		}
 		valStr := fmt.Sprintf("%d", e.Value)
-		if boardType == "balance" || boardType == "steal" {
+		if boardType == "balance" || boardType == "steal" || boardType == "harvest" {
 			valStr = farmQuotaStr(int(e.Value))
 		}
-		rewardLabel := tgFarmLeaderboardRewardLabel(rank)
+		rewardLabel := tgFarmLeaderboardRewardLabel(rank, totalPlayers)
 		if rewardLabel != "" {
 			text += fmt.Sprintf("%s %s: %s · %s%s\n", prefix, name, valStr, rewardLabel, me)
 			continue
@@ -396,7 +404,7 @@ func showFarmLeaderboard(chatId int64, editMsgId int, tgId string, boardType str
 
 	if myRank > 0 {
 		text += fmt.Sprintf("\n📊 我的排名: #%d\n", myRank)
-		if rewardLabel := tgFarmLeaderboardRewardLabel(int(myRank)); rewardLabel != "" {
+		if rewardLabel := tgFarmLeaderboardRewardLabel(int(myRank), totalPlayers); rewardLabel != "" {
 			text += fmt.Sprintf("🏅 当前荣誉: %s\n", rewardLabel)
 		}
 	}

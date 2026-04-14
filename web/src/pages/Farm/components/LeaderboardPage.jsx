@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Empty, Spin, Typography } from '@douyinfe/semi-ui';
 import { API } from './utils';
 import {
@@ -6,7 +6,6 @@ import {
   FARM_LEADERBOARD_SCOPES,
   FARM_LEADERBOARD_TYPES,
   formatFarmLeaderboardValue,
-  getFarmLeaderboardReward,
 } from './leaderboardUtils';
 
 const { Text } = Typography;
@@ -31,7 +30,6 @@ const LeaderboardPage = ({ t }) => {
   useEffect(() => { load(boardType, scope, period); }, [load, boardType, scope, period]);
 
   const medals = ['🥇', '🥈', '🥉'];
-  const myReward = useMemo(() => getFarmLeaderboardReward(data?.my_rank), [data?.my_rank]);
 
   return (
     <div>
@@ -66,34 +64,40 @@ const LeaderboardPage = ({ t }) => {
       </div>
 
       {data?.title && (
-        <div style={{ marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <div className='farm-pill farm-pill-blue'>{t('当前榜单')}: {data.title}</div>
+          {data?.group_label && (
+            <div className='farm-pill farm-pill-cyan'>🏷️ {data.group_label} {data.group_range_label ? `· ${data.group_range_label}` : ''}</div>
+          )}
+          {typeof data?.total_players === 'number' && (
+            <div className='farm-pill farm-pill-green'>👥 {t('上榜人数')}: {data.total_players}</div>
+          )}
         </div>
       )}
 
       <div className='farm-card' style={{ marginBottom: 14 }}>
         <div className='farm-section-title'>🎁 {t('榜单荣誉')}</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[1, 2, 3].map((rank) => {
-            const reward = getFarmLeaderboardReward(rank);
-            return (
-              <div key={`reward-${rank}`} className='farm-pill farm-pill-amber'>
-                {reward.emoji} #{rank} {t(reward.title)}
-              </div>
-            );
-          })}
+          {(data?.reward_bands || []).map((band) => (
+            <div key={`reward-${band.key}-${band.start_rank}`} className='farm-pill farm-pill-amber'>
+              {band.emoji} #{band.start_rank}-#{band.end_rank} {t(band.title)}
+            </div>
+          ))}
+          {(!data?.reward_bands || data.reward_bands.length === 0) && (
+            <div className='farm-pill'>{t('当前分组暂无奖励带数据')}</div>
+          )}
         </div>
       </div>
 
       {data?.my_rank && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <div className='farm-pill farm-pill-cyan'>📊 {t('我的排名')}: #{data.my_rank}</div>
-          <div className='farm-pill farm-pill-blue'>{t('我的')}{t(data?.label || '数值')}: {formatFarmLeaderboardValue(boardType, data.my_value)}</div>
-          {myReward && (
-            <div className='farm-pill farm-pill-amber'>{myReward.emoji} {t(myReward.title)}</div>
+          <div className='farm-pill farm-pill-blue'>{t('我的')}{t(data?.label || '数值')}: {formatFarmLeaderboardValue(boardType, data.my_value, data?.value_kind)}</div>
+          {data?.my_reward && (
+            <div className='farm-pill farm-pill-amber'>{data.my_reward.emoji} {t(data.my_reward.title)}</div>
           )}
           {data.gap_to_prev > 0 && (
-            <div className='farm-pill farm-pill-amber'>{t('距上一名还差')}: {formatFarmLeaderboardValue(boardType, data.gap_to_prev)}</div>
+            <div className='farm-pill farm-pill-amber'>{t('距上一名还差')}: {formatFarmLeaderboardValue(boardType, data.gap_to_prev, data?.value_kind)}</div>
           )}
           {data.gap_to_prev <= 0 && data.my_rank === 1 && (
             <div className='farm-pill farm-pill-green'>{t('你目前就是第一名')}</div>
@@ -108,7 +112,6 @@ const LeaderboardPage = ({ t }) => {
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {(data?.items || []).map(item => {
-              const reward = getFarmLeaderboardReward(item.rank);
               return (
                 <div key={item.rank} className='farm-row' style={{
                   marginBottom: 0,
@@ -121,13 +124,13 @@ const LeaderboardPage = ({ t }) => {
                   </span>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
                     <Text>{item.name}</Text>
-                    {reward && (
+                    {item.reward && (
                       <div className='farm-pill farm-pill-amber'>
-                        {reward.emoji} {t(reward.shortTitle)}
+                        {item.reward.emoji} {t(item.reward.short_title || item.reward.shortTitle || item.reward.title)}
                       </div>
                     )}
                   </div>
-                  <Text strong>{formatFarmLeaderboardValue(boardType, item.value)}</Text>
+                  <Text strong>{formatFarmLeaderboardValue(boardType, item.value, data?.value_kind)}</Text>
                 </div>
               );
             })}

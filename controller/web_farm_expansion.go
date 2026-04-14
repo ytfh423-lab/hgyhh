@@ -408,7 +408,6 @@ func WebFarmPrestige(c *gin.Context) {
 	model.SetPrestigeLevel(tgId, newPrestige)
 	model.CreatePrestigeRecord(tgId, newPrestige)
 	model.AddFarmLog(tgId, "prestige", -price, fmt.Sprintf("🔄 转生到第%d世，支付%s", newPrestige, farmQuotaStr(price)))
-	TryAwardSeasonPoints(tgId, "prestige", fmt.Sprintf("转生到第%d世", newPrestige))
 	newBonus := newPrestige * common.TgBotFarmPrestigeBonusPerLevel
 	nextBonus := (newPrestige + 1) * common.TgBotFarmPrestigeBonusPerLevel
 	nextPrice := model.GetPrestigePrice(newPrestige + 1)
@@ -509,15 +508,15 @@ func webFarmLeaderboardLabel(boardType, period string) string {
 	if period == "weekly" {
 		switch boardType {
 		case "balance":
-			return "净收益"
+			return "新增资产"
 		case "level":
 			return "升级"
 		case "harvest":
-			return "收获"
+			return "最佳收获"
 		case "prestige":
 			return "转生"
 		case "steal":
-			return "偷菜"
+			return "最佳偷菜"
 		}
 	}
 	switch boardType {
@@ -526,11 +525,11 @@ func webFarmLeaderboardLabel(boardType, period string) string {
 	case "level":
 		return "等级"
 	case "harvest":
-		return "收获"
+		return "最佳收获"
 	case "prestige":
 		return "转生"
 	case "steal":
-		return "偷菜"
+		return "最佳偷菜"
 	default:
 		return "资产"
 	}
@@ -550,8 +549,15 @@ func WebFarmLeaderboard(c *gin.Context) {
 	if boardType != "balance" && boardType != "level" && boardType != "harvest" && boardType != "prestige" && boardType != "steal" {
 		boardType = "balance"
 	}
-	options := model.FarmLeaderboardOptions{Scope: scope, Period: period, UserId: user.Id}
-	entries, err := model.GetFarmLeaderboardWithOptions(boardType, 20, options)
+	if scope != "friends" {
+		scope = "global"
+	}
+	if period != "weekly" {
+		period = "all"
+	}
+	group := model.ResolveFarmLeaderboardGroupByLevel(model.GetFarmLevel(tgId))
+	options := model.FarmLeaderboardOptions{Scope: scope, Period: period, Group: group, UserId: user.Id}
+	entries, err := model.GetFarmLeaderboardWithOptions(boardType, 0, options)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败"})
 		return
@@ -563,16 +569,29 @@ func WebFarmLeaderboard(c *gin.Context) {
 	}
 
 	type rankItem struct {
-		Rank  int     `json:"rank"`
-		Name  string  `json:"name"`
-		Value float64 `json:"value"`
-		IsMe  bool    `json:"is_me"`
+		Rank   int     `json:"rank"`
+		Name   string  `json:"name"`
+		Value  float64 `json:"value"`
+		IsMe   bool    `json:"is_me"`
+		Reward gin.H   `json:"reward,omitempty"`
+	}
+	totalPlayers := len(entries)
+	valueKind := "count"
+	if boardType == "balance" || boardType == "steal" || boardType == "harvest" {
+		valueKind = "quota"
 	}
 	convertValue := func(raw int64) float64 {
-		if boardType == "balance" || boardType == "steal" {
+		if valueKind == "quota" {
 			return float64(raw) / 500000.0
 		}
 		return float64(raw)
+	}
+	rewardData := func(rank int64) gin.H {
+		tier := model.GetFarmLeaderboardRewardTier(rank, totalPlayers)
+		if tier == nil {
+			return nil
+		}
+		return gin.H{"key": tier.Key, "label": tier.Label, "title": tier.Title, "short_title": tier.ShortTitle, "emoji": tier.Emoji}
 	}
 	buildName := func(username, telegramId string) string {
 		name := username
@@ -584,9 +603,12 @@ func WebFarmLeaderboard(c *gin.Context) {
 		}
 		return name
 	}
-	var items []rankItem
+	if len(entries) > 20 {
+		entries = entries[:20]
+	}
+	items := make([]rankItem, 0, len(entries))
 	for i, e := range entries {
-		items = append(items, rankItem{Rank: i + 1, Name: buildName(e.Username, e.TelegramId), Value: convertValue(e.Value), IsMe: e.TelegramId == tgId})
+		items = append(items, rankItem{Rank: i + 1, Name: buildName(e.Username, e.TelegramId), Value: convertValue(e.Value), IsMe: e.TelegramId == tgId, Reward: rewardData(int64(i + 1))})
 	}
 	myValue := 0.0
 	gapToPrev := 0.0
@@ -604,6 +626,7 @@ func WebFarmLeaderboard(c *gin.Context) {
 		break
 	}
 	label := webFarmLeaderboardLabel(boardType, period)
+	groupMeta := model.GetFarmLeaderboardGroupMeta(group)
 	scopeLabel := "全服"
 	if scope == "friends" {
 		scopeLabel = "好友"
@@ -612,7 +635,13 @@ func WebFarmLeaderboard(c *gin.Context) {
 	if period == "weekly" {
 		periodLabel = "周榜"
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "scope": scope, "period": period, "label": label, "scope_label": scopeLabel, "period_label": periodLabel, "title": scopeLabel + label + periodLabel, "items": items, "my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev}})
+	rewardBands := model.GetFarmLeaderboardRewardBands(totalPlayers)
+	bandItems := make([]gin.H, 0, len(rewardBands))
+	for _, band := range rewardBands {
+		bandItems = append(bandItems, gin.H{"key": band.Key, "label": band.Label, "title": band.Title, "short_title": band.ShortTitle, "emoji": band.Emoji, "start_rank": band.StartRank, "end_rank": band.EndRank, "count": band.Count})
+	}
+	title := groupMeta.Label + " · " + scopeLabel + label + periodLabel
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "scope": scope, "period": period, "label": label, "scope_label": scopeLabel, "period_label": periodLabel, "group": groupMeta.Key, "group_label": groupMeta.Label, "group_range_label": groupMeta.RangeLabel, "value_kind": valueKind, "title": title, "items": items, "total_players": totalPlayers, "reward_bands": bandItems, "my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev, "my_reward": rewardData(myRank)}})
 }
 
 // ========== Mini-Games ==========

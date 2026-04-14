@@ -6,7 +6,6 @@ import {
   FARM_LEADERBOARD_SCOPES,
   FARM_LEADERBOARD_TYPES,
   formatFarmLeaderboardValue,
-  getFarmLeaderboardReward,
 } from './leaderboardUtils';
 
 const { Text } = Typography;
@@ -58,10 +57,10 @@ const ProfilePage = ({ farmData, t }) => {
 
   const honorEntries = useMemo(() => {
     return rankSummaries
-      .filter((item) => item.my_rank > 0 && item.my_rank <= 3)
+      .filter((item) => item.my_rank > 0 && item.my_reward)
       .map((item) => ({
         ...item,
-        reward: getFarmLeaderboardReward(item.my_rank),
+        reward: item.my_reward,
       }));
   }, [rankSummaries]);
 
@@ -105,10 +104,13 @@ const ProfilePage = ({ farmData, t }) => {
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <div className='farm-pill farm-pill-cyan'>🏅 {t('当前最佳排名')}: #{bestRankEntry.my_rank}</div>
             <div className='farm-pill farm-pill-blue'>{bestRankEntry.boardIcon} {t(bestRankEntry.boardLabel)}</div>
-            {getFarmLeaderboardReward(bestRankEntry.my_rank) && (
+            {bestRankEntry.my_reward && (
               <div className='farm-pill farm-pill-amber'>
-                {getFarmLeaderboardReward(bestRankEntry.my_rank).emoji} {t(getFarmLeaderboardReward(bestRankEntry.my_rank).title)}
+                {bestRankEntry.my_reward.emoji} {t(bestRankEntry.my_reward.title)}
               </div>
+            )}
+            {bestRankEntry.group_label && (
+              <div className='farm-pill farm-pill-green'>🏷️ {bestRankEntry.group_label}</div>
             )}
           </div>
         )}
@@ -146,7 +148,7 @@ const ProfilePage = ({ farmData, t }) => {
           <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             {honorEntries.map((item) => (
               <div key={`honor-${item.boardType}`} className='farm-pill farm-pill-amber'>
-                {item.reward?.emoji || '🏅'} {item.boardIcon} #{item.my_rank}
+                {item.reward?.emoji || '🏅'} {item.boardIcon} {t(item.reward?.short_title || item.reward?.title || '榜单荣誉')} · #{item.my_rank}
               </div>
             ))}
           </div>
@@ -191,14 +193,17 @@ const ProfilePage = ({ farmData, t }) => {
           <div className='farm-section-title'>📊 {t('榜单成绩')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
             {rankSummaries.map((item) => {
-              const reward = getFarmLeaderboardReward(item.my_rank);
+              const reward = item.my_reward;
               return (
                 <div key={item.boardType} className='farm-row' style={{ marginBottom: 0, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <Text strong>{item.boardIcon} {t(item.boardLabel)}</Text>
+                    {item.group_label && (
+                      <div className='farm-pill'>{item.group_label}</div>
+                    )}
                     {reward && (
                       <div className='farm-pill farm-pill-amber' style={{ marginLeft: 'auto' }}>
-                        {reward.emoji} {t(reward.shortTitle)}
+                        {reward.emoji} {t(reward.short_title || reward.shortTitle || reward.title)}
                       </div>
                     )}
                   </div>
@@ -207,11 +212,11 @@ const ProfilePage = ({ farmData, t }) => {
                       {item.my_rank > 0 ? `#${item.my_rank}` : t('未上榜')}
                     </div>
                     <div className='farm-pill farm-pill-blue'>
-                      {t('我的数值')}: {formatFarmLeaderboardValue(item.boardType, item.my_value)}
+                      {t('我的数值')}: {formatFarmLeaderboardValue(item.boardType, item.my_value, item.value_kind)}
                     </div>
                     {item.gap_to_prev > 0 && (
                       <div className='farm-pill farm-pill-amber'>
-                        {t('距上一名')}: {formatFarmLeaderboardValue(item.boardType, item.gap_to_prev)}
+                        {t('距上一名')}: {formatFarmLeaderboardValue(item.boardType, item.gap_to_prev, item.value_kind)}
                       </div>
                     )}
                   </div>
