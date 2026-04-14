@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { Button, Typography, Select } from '@douyinfe/semi-ui';
-import { RefreshCw, Droplets, FlaskConical, Wheat, Package, ArrowUp, Pill, Plus, Sprout, Trash2, Zap, Users } from 'lucide-react';
+import { RefreshCw, Droplets, FlaskConical, ArrowUp, Pill, Plus, Sprout, Trash2, Zap, Users } from 'lucide-react';
 import { formatBalance, formatDuration, confirmAction } from './utils';
 import { farmConfirm } from './farmConfirm';
 import { useTutorial } from './TutorialProvider';
@@ -149,39 +149,34 @@ const PlotCard = memo(({ plot, farmData, handlers, actionLoading, expanded, onTo
         {needsWater && (
           <Button size='small' icon={<Droplets size={12} />}
             onClick={e => { e.stopPropagation(); handleWater(plot.plot_index); }}
-            loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(90,143,180,0.12)', border: '1px solid rgba(90,143,180,0.3)', color: 'var(--farm-sky)' }}>
+            loading={actionLoading} theme='solid' className='farm-btn'>
             {t('浇水')}
           </Button>
         )}
         {st === 1 && plot.fertilized === 0 && (
           <Button size='small' icon={<FlaskConical size={12} />}
             onClick={e => { e.stopPropagation(); handleFertilize(plot.plot_index); }}
-            loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(74,124,63,0.12)', border: '1px solid rgba(74,124,63,0.3)', color: 'var(--farm-leaf)' }}>
+            loading={actionLoading} theme='solid' className='farm-btn'>
             {t('施肥')}
           </Button>
         )}
         {st === 3 && plot.event_type !== 'drought' && (
           <Button size='small' icon={<Pill size={12} />}
             onClick={e => { e.stopPropagation(); handleTreat(plot.plot_index); }}
-            loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(200,146,42,0.12)', border: '1px solid rgba(200,146,42,0.3)', color: 'var(--farm-harvest)' }}>
+            loading={actionLoading} theme='solid' className='farm-btn'>
             {t('治疗')}
           </Button>
         )}
         {soilLv < soilMax && (
           <Button size='small' icon={<ArrowUp size={12} />}
             onClick={e => { e.stopPropagation(); handleUpgradeSoil(plot.plot_index); }}
-            loading={actionLoading} className='farm-btn'
-            style={{ background: 'rgba(138,108,176,0.12)', border: '1px solid rgba(138,108,176,0.3)', color: '#b094d0' }}>
+            loading={actionLoading} theme='solid' className='farm-btn'>
             {t('升级')} Lv.{soilLv + 1}
           </Button>
         )}
         <Button size='small' icon={<Trash2 size={12} />}
           onClick={async e => { e.stopPropagation(); if (await farmConfirm(t('铲除作物'), t('确定要铲除这块地的作物吗？'), { icon: '🗑', confirmType: 'danger', confirmText: t('铲除') })) handleClearPlot(plot.plot_index); }}
-          loading={actionLoading} className='farm-btn'
-          style={{ background: 'rgba(184,66,51,0.08)', border: '1px solid rgba(184,66,51,0.2)', color: 'var(--farm-danger)' }}>
+          loading={actionLoading} theme='light' type='danger' className='farm-btn'>
           {t('铲除')}
         </Button>
       </div>
@@ -367,69 +362,43 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 8 }}>
-          <Button size='small' icon={<Wheat size={13} />}
+          <Button size='small'
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
             theme='solid'
-            style={{
-              background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : '#e8e6dc',
-              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.5)' : '1px solid #c8c5b9',
-              color: matureCount > 0 ? '#faf9f5' : '#6f6860',
-              borderRadius: 6,
-              width: '100%'
-            }}
+            style={{ width: '100%' }}
             onClick={handleHarvest} className='farm-btn'>
             🌾 {t('一键收获出售')}{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
-          <Button size='small' icon={<Package size={13} />}
+          <Button size='small'
             disabled={matureCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{
-              background: matureCount > 0 ? 'rgba(160,132,94,0.18)' : '#e8e6dc',
-              border: matureCount > 0 ? '1px solid rgba(160,132,94,0.5)' : '1px solid #c8c5b9',
-              color: matureCount > 0 ? '#8a6d3b' : '#6f6860',
-              borderRadius: 6,
-              width: '100%'
-            }}
+            theme='solid'
+            style={{ width: '100%' }}
             onClick={handleHarvestStore} className='farm-btn'>
             📦 {t('一键收获入仓')}{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
-          <Button size='small' icon={<Droplets size={13} />}
+          <Button size='small'
             disabled={needsWaterCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{
-              background: needsWaterCount > 0 ? 'rgba(90,143,180,0.16)' : '#e8e6dc',
-              border: needsWaterCount > 0 ? '1px solid rgba(90,143,180,0.45)' : '1px solid #c8c5b9',
-              color: needsWaterCount > 0 ? '#3d7a9e' : '#6f6860',
-              borderRadius: 6,
-              width: '100%'
-            }}
+            theme='solid'
+            style={{ width: '100%' }}
             onClick={handleWaterAll} className='farm-btn'>
             💧 {t('一键浇水')}{needsWaterCount > 0 ? ` (${needsWaterCount})` : ''}
           </Button>
-          <Button size='small' icon={<FlaskConical size={13} />}
+          <Button size='small'
             disabled={canFertilizeCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{
-              background: canFertilizeCount > 0 ? 'rgba(74,124,63,0.16)' : '#e8e6dc',
-              border: canFertilizeCount > 0 ? '1px solid rgba(74,124,63,0.45)' : '1px solid #c8c5b9',
-              color: canFertilizeCount > 0 ? '#3d6e35' : '#6f6860',
-              borderRadius: 6,
-              width: '100%'
-            }}
+            theme='solid'
+            style={{ width: '100%' }}
             onClick={handleFertilizeAll} className='farm-btn'>
             🧪 {t('一键施肥')}{canFertilizeCount > 0 ? ` (${canFertilizeCount})` : ''}
           </Button>
-          <Button size='small' icon={<Pill size={13} />}
+          <Button size='small'
             disabled={eventCount === 0 || actionLoading}
             loading={actionLoading}
-            style={{
-              background: eventCount > 0 ? 'rgba(184,66,51,0.14)' : '#e8e6dc',
-              border: eventCount > 0 ? '1px solid rgba(184,66,51,0.4)' : '1px solid #c8c5b9',
-              color: eventCount > 0 ? '#a83a2a' : '#6f6860',
-              borderRadius: 6,
-              width: '100%'
-            }}
+            theme='solid'
+            style={{ width: '100%' }}
             onClick={() => doAction('/api/farm/treat/all', {})} className='farm-btn'>
             💊 {t('一键治疗')}{eventCount > 0 ? ` (${eventCount})` : ''}
           </Button>
@@ -451,16 +420,10 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
               </Select.Option>
             ))}
           </Select>
-          <Button size='small' icon={<Sprout size={13} />}
+          <Button size='small'
             disabled={emptyCount === 0 || !plantCrop || actionLoading}
             loading={actionLoading}
             theme='solid'
-            style={{
-              background: plantCrop && emptyCount > 0 ? 'linear-gradient(135deg,var(--farm-leaf),#2d6a2e)' : '#e8e6dc',
-              border: plantCrop && emptyCount > 0 ? '1px solid rgba(74,124,63,0.5)' : '1px solid #c8c5b9',
-              color: plantCrop && emptyCount > 0 ? '#f8f7f2' : '#6f6860',
-              borderRadius: 6
-            }}
             onClick={() => doAction('/api/farm/plant/all', { crop_key: plantCrop })} className='farm-btn'>
             🌱 {t('一键种植')}{emptyCount > 0 ? ` (${emptyCount}${t('块空地')})` : ''}
           </Button>
