@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Form } from '@douyinfe/semi-ui';
@@ -15,20 +15,33 @@ import {
   getSystemName,
 } from '../../helpers';
 import { UserContext } from '../../context/User';
+import { StatusContext } from '../../context/Status';
 
 const OAuthRegistrationForm = () => {
   const { provider } = useParams();
   const { t } = useTranslation();
   const [, userDispatch] = useContext(UserContext);
+  const [statusState] = useContext(StatusContext);
   const navigate = useNavigate();
   const [registrationCode, setRegistrationCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const logo = getLogo();
   const systemName = getSystemName();
+  const status = useMemo(() => {
+    if (statusState?.status) return statusState.status;
+    const savedStatus = localStorage.getItem('status');
+    if (!savedStatus) return {};
+    try {
+      return JSON.parse(savedStatus) || {};
+    } catch (err) {
+      return {};
+    }
+  }, [statusState?.status]);
+  const registrationCodeRequired = status?.registration_code_required !== false;
 
   const handleSubmit = async () => {
-    if (!registrationCode) {
+    if (registrationCodeRequired && !registrationCode) {
       showError(t('请输入管理员发放的注册码'));
       return;
     }
@@ -67,22 +80,26 @@ const OAuthRegistrationForm = () => {
         <Card className='border-0 !rounded-2xl overflow-hidden'>
           <div className='flex justify-center pt-6 pb-2'>
             <Title heading={3} className='text-gray-800 dark:text-gray-200'>
-              {t('输入注册码完成注册')}
+              {registrationCodeRequired ? t('输入注册码完成注册') : t('完成注册')}
             </Title>
           </div>
           <div className='px-2 py-8'>
             <Form>
-              <Form.Input
-                field='registration_code'
-                label={t('注册码')}
-                placeholder={t('请输入管理员发放的注册码')}
-                value={registrationCode}
-                onChange={(value) => setRegistrationCode(value)}
-                prefix={<IconKey />}
-              />
-              <Text type='secondary' size='small'>
-                {t('LinuxDO 授权成功后，首次注册需要管理员注册码。')}
-              </Text>
+              {registrationCodeRequired && (
+                <>
+                  <Form.Input
+                    field='registration_code'
+                    label={t('注册码')}
+                    placeholder={t('请输入管理员发放的注册码')}
+                    value={registrationCode}
+                    onChange={(value) => setRegistrationCode(value)}
+                    prefix={<IconKey />}
+                  />
+                  <Text type='secondary' size='small'>
+                    {t('LinuxDO 授权成功后，首次注册需要管理员注册码。')}
+                  </Text>
+                </>
+              )}
               <div className='pt-4'>
                 <Button
                   theme='solid'

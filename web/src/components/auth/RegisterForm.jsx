@@ -132,6 +132,7 @@ const RegisterForm = () => {
   }, [statusState?.status]);
   const hasCustomOAuthProviders =
     (status.custom_oauth_providers || []).length > 0;
+  const registrationCodeRequired = status?.registration_code_required !== false;
   const hasOAuthRegisterOptions = Boolean(
     status.github_oauth ||
       status.discord_oauth ||
@@ -669,14 +670,16 @@ const RegisterForm = () => {
                   </>
                 )}
 
-                <Form.Input
-                  field='registration_code'
-                  label={t('注册码')}
-                  placeholder={t('请输入管理员发放的注册码')}
-                  name='registration_code'
-                  onChange={(value) => handleChange('registration_code', value)}
-                  prefix={<IconKey />}
-                />
+                {registrationCodeRequired && (
+                  <Form.Input
+                    field='registration_code'
+                    label={t('注册码')}
+                    placeholder={t('请输入管理员发放的注册码')}
+                    name='registration_code'
+                    onChange={(value) => handleChange('registration_code', value)}
+                    prefix={<IconKey />}
+                  />
+                )}
 
                 {(hasUserAgreement || hasPrivacyPolicy) && (
                   <div className='pt-4'>

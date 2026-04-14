@@ -142,7 +142,7 @@ func HandleOAuth(c *gin.Context) {
 		return
 	}
 
-	if strings.EqualFold(providerName, "linuxdo") {
+	if strings.EqualFold(providerName, "linuxdo") && common.RegistrationCodeRequired {
 		setPendingOAuthRegistration(session, providerName, oauthUser)
 		if err := session.Save(); err != nil {
 			common.ApiError(c, err)
@@ -195,7 +195,7 @@ func CompleteOAuthRegistration(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	if req.RegistrationCode == "" {
+	if common.RegistrationCodeRequired && req.RegistrationCode == "" {
 		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeRequired)
 		return
 	}
@@ -361,7 +361,7 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, sessio
 		inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
 	}
 
-	if strings.EqualFold(provider.GetProviderPrefix(), "linuxdo_") && registrationCode == "" {
+	if strings.EqualFold(provider.GetProviderPrefix(), "linuxdo_") && common.RegistrationCodeRequired && registrationCode == "" {
 		return nil, errOAuthRegistrationCodeRequired
 	}
 

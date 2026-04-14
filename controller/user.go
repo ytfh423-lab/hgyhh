@@ -234,14 +234,15 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserExists)
 		return
 	}
-	if user.RegistrationCode == "" {
+	if common.RegistrationCodeRequired && user.RegistrationCode == "" {
 		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeRequired)
 		return
 	}
-	// 先验证注册码有效性，避免创建用户后再回滚导致幽灵账户
-	if err := model.ValidateRedemptionCodeForRegistration(user.RegistrationCode); err != nil {
-		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
-		return
+	if user.RegistrationCode != "" {
+		if err := model.ValidateRedemptionCodeForRegistration(user.RegistrationCode); err != nil {
+			common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
+			return
+		}
 	}
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
 	inviterId, _ := model.GetUserIdByAffCode(affCode)
@@ -266,19 +267,19 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserRegisterFailed)
 		return
 	}
-	usedCode, err := model.ConsumeRedemptionCodeForRegistration(user.RegistrationCode, insertedUser.Id)
-	if err != nil {
-		// 使用硬删除，避免留下软删除的幽灵账户
-		_ = model.HardDeleteUserById(insertedUser.Id)
-		common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
-		return
+	if user.RegistrationCode != "" {
+		usedCode, err := model.ConsumeRedemptionCodeForRegistration(user.RegistrationCode, insertedUser.Id)
+		if err != nil {
+			_ = model.HardDeleteUserById(insertedUser.Id)
+			common.ApiErrorI18n(c, i18n.MsgUserRegistrationCodeInvalid)
+			return
+		}
+		updates := map[string]interface{}{"invitation_code_id": usedCode.Id}
+		if insertedUser.InviterId == 0 && usedCode.UserId != 0 {
+			updates["inviter_id"] = usedCode.UserId
+		}
+		model.DB.Model(&model.User{}).Where("id = ?", insertedUser.Id).Updates(updates)
 	}
-	// 记录邀请码关联关系：哪个邀请码、谁邀请的
-	updates := map[string]interface{}{"invitation_code_id": usedCode.Id}
-	if insertedUser.InviterId == 0 && usedCode.UserId != 0 {
-		updates["inviter_id"] = usedCode.UserId
-	}
-	model.DB.Model(&model.User{}).Where("id = ?", insertedUser.Id).Updates(updates)
 	// 生成默认令牌
 	if constant.GenerateDefaultToken {
 		key, err := common.GenerateKey()

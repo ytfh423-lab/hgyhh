@@ -49,6 +49,7 @@ const SystemSetting = () => {
   let [inputs, setInputs] = useState({
     PasswordLoginEnabled: '',
     PasswordRegisterEnabled: '',
+    RegistrationCodeRequired: '',
     EmailVerificationEnabled: '',
     GitHubOAuthEnabled: '',
     GitHubClientId: '',
@@ -173,6 +174,7 @@ const SystemSetting = () => {
             break;
           case 'PasswordLoginEnabled':
           case 'PasswordRegisterEnabled':
+          case 'RegistrationCodeRequired':
           case 'EmailVerificationEnabled':
           case 'GitHubOAuthEnabled':
           case 'WeChatAuthEnabled':
@@ -1014,6 +1016,15 @@ const SystemSetting = () => {
                         }
                       >
                         {t('通过密码注册时需要进行邮箱验证')}
+                      </Form.Checkbox>
+                      <Form.Checkbox
+                        field='RegistrationCodeRequired'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('RegistrationCodeRequired', e)
+                        }
+                      >
+                        {t('注册时需要管理员注册码')}
                       </Form.Checkbox>
                       <Form.Checkbox
                         field='RegisterEnabled'

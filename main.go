@@ -115,8 +115,6 @@ func main() {
 	// Entrust expiration cleanup (every 5 minutes)
 	controller.StartEntrustCleanupTask()
 	controller.StartFarmAutomationTask()
-	controller.SeedSeasonDefaults()
-	controller.StartSeasonAutoTask()
 
 	// Wire task polling adaptor factory (breaks service -> relay import cycle)
 	service.GetTaskAdaptorFunc = func(platform constant.TaskPlatform) service.TaskPollingAdaptor {
@@ -180,7 +178,7 @@ func main() {
 		Secure:   false,
 		SameSite: http.SameSiteStrictMode,
 	})
-	server.Use(sessions.Sessions("session", store))
+	server.Use(sessions.Sessions(common.SessionCookieName, store))
 
 	InjectUmamiAnalytics()
 	InjectGoogleAnalytics()
