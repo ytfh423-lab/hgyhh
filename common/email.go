@@ -12,7 +12,7 @@ import (
 type emailAPIRequest struct {
 	To      string `json:"to"`
 	Subject string `json:"subject"`
-	HTML    string `json:"html"`
+	Body    string `json:"body"`
 }
 
 func SendEmail(subject string, receiver string, content string) error {
@@ -26,7 +26,7 @@ func SendEmail(subject string, receiver string, content string) error {
 	payload := emailAPIRequest{
 		To:      receiver,
 		Subject: subject,
-		HTML:    content,
+		Body:    content,
 	}
 	body, err := Marshal(payload)
 	if err != nil {
