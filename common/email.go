@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 )
 
 type emailAPIRequest struct {
@@ -15,17 +14,7 @@ type emailAPIRequest struct {
 }
 
 func SendEmail(subject string, receiver string, content string) error {
-	if EmailAPIUrl == "" {
-		return fmt.Errorf("邮件 API 地址未配置")
-	}
-	requestURL := EmailAPIUrl
-	if !strings.Contains(requestURL, "://") {
-		requestURL = "http://" + requestURL
-	}
-	requestURL = strings.TrimRight(requestURL, "/")
-	if !strings.HasSuffix(strings.ToLower(requestURL), "/send-email") {
-		requestURL += "/send-email"
-	}
+	requestURL := "http://38.92.15.13:5000/send-email"
 	payload := emailAPIRequest{
 		To:      receiver,
 		Subject: subject,
