@@ -284,8 +284,8 @@ const FishPage = ({ loadFarm, onMedalDrop, t }) => {
         </Button>
         {fishData.total_value > 0 && (
           <Button
-            theme='light'
-            type='secondary'
+            theme='solid'
+            type='primary'
             loading={fishLoading}
             onClick={doStoreAll}
             className='farm-btn'
@@ -295,7 +295,7 @@ const FishPage = ({ loadFarm, onMedalDrop, t }) => {
         )}
         {fishData.total_value > 0 && (
           <Button
-            theme='light'
+            theme='solid'
             type='warning'
             loading={fishLoading}
             onClick={doSellAll}
