@@ -80,13 +80,23 @@ func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data 
 }
 
 func sendEmailNotify(userEmail string, data dto.Notify) error {
-	// make email content
 	content := data.Content
-	// 处理占位符
 	for _, value := range data.Values {
 		content = strings.Replace(content, dto.ContentValueParam, fmt.Sprintf("%v", value), 1)
 	}
-	return common.SendEmail(data.Title, userEmail, content)
+	content = strings.TrimSpace(content)
+	if content == "" {
+		content = "请登录系统查看详情。"
+	}
+	footer := "此邮件由系统自动发送，请勿直接回复。"
+	htmlContent := common.RenderEmailTemplate(common.EmailTemplateData{
+		Eyebrow:  "系统通知",
+		Title:    data.Title,
+		Greeting: "您好，以下是系统为您生成的最新通知。",
+		Message:  content,
+		Footer:   footer,
+	})
+	return common.SendEmail(data.Title, userEmail, htmlContent)
 }
 
 func sendBarkNotify(barkURL string, data dto.Notify) error {
