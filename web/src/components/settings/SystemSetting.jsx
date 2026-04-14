@@ -286,6 +286,7 @@ const SystemSetting = () => {
         newInputs[opt.key] = opt.value;
       });
       setInputs(newInputs);
+      setOriginInputs((prev) => ({ ...prev, ...newInputs }));
     } catch (error) {
       showError(t('更新失败'));
     }
@@ -332,9 +333,12 @@ const SystemSetting = () => {
       options.push({ key: 'email.api_url', value: apiURL });
     }
 
-    if (options.length > 0) {
-      await updateOptions(options);
+    if (options.length === 0) {
+      showSuccess(t('更新成功'));
+      return;
     }
+
+    await updateOptions(options);
   };
 
   const submitEmailDomainWhitelist = async () => {
