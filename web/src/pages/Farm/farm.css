@@ -4958,8 +4958,34 @@
 }
 
 .farm-layout .semi-button.semi-button-light:not(.semi-button-borderless) {
-  background: #ffffff;
+  background: color-mix(in srgb, var(--farm-surface) 78%, #f0e1c3) !important;
+  border-color: color-mix(in srgb, var(--farm-border-strong) 72%, #b8883c) !important;
   color: var(--farm-text-0);
+  box-shadow: var(--farm-shadow-sm);
+}
+
+.farm-layout .semi-button.semi-button-light.semi-button-primary:not(.semi-button-borderless) {
+  background: rgba(74, 124, 63, 0.14) !important;
+  border-color: rgba(74, 124, 63, 0.42) !important;
+  color: var(--farm-leaf) !important;
+}
+
+.farm-layout .semi-button.semi-button-light.semi-button-secondary:not(.semi-button-borderless) {
+  background: rgba(109, 164, 200, 0.14) !important;
+  border-color: rgba(109, 164, 200, 0.38) !important;
+  color: var(--farm-sky) !important;
+}
+
+.farm-layout .semi-button.semi-button-light.semi-button-warning:not(.semi-button-borderless) {
+  background: rgba(200, 146, 42, 0.16) !important;
+  border-color: rgba(200, 146, 42, 0.42) !important;
+  color: #7a5200 !important;
+}
+
+.farm-layout .semi-button.semi-button-light.semi-button-danger:not(.semi-button-borderless) {
+  background: rgba(184, 66, 51, 0.12) !important;
+  border-color: rgba(184, 66, 51, 0.36) !important;
+  color: var(--farm-danger) !important;
 }
 
 
@@ -4979,6 +5005,14 @@
 .farm-layout .semi-button.farm-btn[disabled] svg {
   color: inherit !important;
   opacity: 1 !important;
+}
+
+.farm-layout .semi-button.semi-button-light[disabled]:not(.semi-button-borderless),
+.farm-layout .semi-button.semi-button-light.semi-button-disabled:not(.semi-button-borderless) {
+  background: rgba(236, 230, 216, 0.88) !important;
+  border-color: rgba(170, 157, 131, 0.28) !important;
+  color: var(--farm-text-3) !important;
+  box-shadow: none !important;
 }
 
 .farm-layout .semi-button:not([disabled]):hover {

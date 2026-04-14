@@ -78,18 +78,17 @@ const TreeFarmPage = ({ actionLoading, doAction, t }) => {
         <div style={{ flex: 1 }} />
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadTree} loading={loading} className='farm-btn' />
         {harvestableCount > 0 && (
-          <Button size='small' theme='solid' onClick={() => doTreeAction('/api/tree/harvest/all', {})}
-            loading={actionLoading} className='farm-btn'
-            style={{ background: 'linear-gradient(135deg, #52c41a, #389e0d)' }}>
+          <Button size='small' theme='solid' type='primary' onClick={() => doTreeAction('/api/tree/harvest/all', {})}
+            loading={actionLoading} className='farm-btn'>
             🍎 {t('一键采收')} ({harvestableCount})
           </Button>
         )}
         {slots.length < treeData.max_slots && (
-          <Button size='small' theme='light' onClick={async () => {
+          <Button size='small' theme='light' type='warning' onClick={async () => {
             if (await confirmAction(t('购买确认'), `${t('确认花费')} ${formatBalance(treeData.slot_price)} ${t('开垦一个新树位？')}`))
               doTreeAction('/api/tree/buyslot', {});
           }}
-            loading={actionLoading} className='farm-btn' style={{ color: 'var(--farm-soil)', borderColor: 'var(--farm-harvest)' }}>
+            loading={actionLoading} className='farm-btn'>
             <Plus size={12} /> {t('开垦树位')} ({formatBalance(treeData.slot_price)})
           </Button>
         )}
@@ -227,12 +226,12 @@ const TreeFarmPage = ({ actionLoading, doAction, t }) => {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {detailSlot.status === 1 && (
                   <>
-                    <Button size='small' theme='light' onClick={() => doTreeAction('/api/tree/water', { slot_index: detailSlot.slot_index })}
+                    <Button size='small' theme='light' type='secondary' onClick={() => doTreeAction('/api/tree/water', { slot_index: detailSlot.slot_index })}
                       loading={actionLoading} disabled={detailSlot.water_remain > 0} className='farm-btn'
                       icon={<Droplets size={13} />}>
                       {detailSlot.water_remain > 0 ? `💧 ${formatDuration(detailSlot.water_remain)}` : t('浇水')}
                     </Button>
-                    <Button size='small' theme='light' onClick={() => doTreeAction('/api/tree/fertilize', { slot_index: detailSlot.slot_index })}
+                    <Button size='small' theme='light' type='primary' onClick={() => doTreeAction('/api/tree/fertilize', { slot_index: detailSlot.slot_index })}
                       loading={actionLoading} disabled={detailSlot.fertilized === 1} className='farm-btn'>
                       {detailSlot.fertilized === 1 ? `🧪 ${t('已施肥')}` : `🧪 ${t('施肥')}`}
                     </Button>

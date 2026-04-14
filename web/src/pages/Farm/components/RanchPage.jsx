@@ -59,8 +59,8 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
         <div style={{ flex: 1 }} />
         <Button size='small' icon={<RefreshCw size={12} />} theme='borderless' onClick={loadRanch} loading={ranchLoading} className='farm-btn' />
         {dirtyAnimals.length > 0 && (
-          <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/clean', {})}
-            loading={actionLoading} className='farm-btn' style={{ color: 'var(--farm-soil)', borderColor: 'var(--farm-harvest)' }}>
+          <Button size='small' theme='light' type='warning' onClick={() => doRanchAction('/api/ranch/clean', {})}
+            loading={actionLoading} className='farm-btn'>
             🧹 {t('清理粪便')}({formatBalance(ranchData.manure_clean_price)})
           </Button>
         )}
@@ -117,9 +117,9 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {animal.status !== 5 && (
                     <>
-                      <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/feed', { animal_id: animal.id })}
+                      <Button size='small' theme='light' type='warning' onClick={() => doRanchAction('/api/ranch/feed', { animal_id: animal.id })}
                         loading={actionLoading} className='farm-btn' disabled={!animal.needs_feed}>🌾</Button>
-                      <Button size='small' theme='light' onClick={() => doRanchAction('/api/ranch/water', { animal_id: animal.id })}
+                      <Button size='small' theme='light' type='secondary' onClick={() => doRanchAction('/api/ranch/water', { animal_id: animal.id })}
                         loading={actionLoading} className='farm-btn' disabled={!animal.needs_water}>💧</Button>
                     </>
                   )}
@@ -130,9 +130,9 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
                         loading={actionLoading} className='farm-btn'>
                         💰 {t('出售')}
                       </Button>
-                      <Button size='small' theme='light'
+                      <Button size='small' theme='light' type='primary'
                         onClick={() => doRanchAction('/api/ranch/slaughter/store', { animal_id: animal.id })}
-                        loading={actionLoading} className='farm-btn' style={{ color: 'var(--farm-sky)', borderColor: 'var(--farm-sky)' }}>
+                        loading={actionLoading} className='farm-btn'>
                         📦 {t('存仓库')}
                       </Button>
                     </>

@@ -158,28 +158,27 @@ const VisitFarmPage = ({ friendId, friendName, onBack, t }) => {
           <Button size='small' icon={<Wheat size={13} />}
             disabled={matureCount === 0 || actionLoading} loading={actionLoading}
             theme='solid'
-            style={{ background: matureCount > 0 ? 'linear-gradient(135deg,var(--farm-harvest),var(--farm-soil))' : undefined, borderRadius: 6 }}
             onClick={() => doAction('/harvest')} className='farm-btn'>
             🌾 帮助收获{matureCount > 0 ? ` (${matureCount})` : ''}
           </Button>
 
           <Button size='small' icon={<Droplets size={13} />}
             disabled={needsWaterCount === 0 || actionLoading} loading={actionLoading}
-            style={{ background: 'rgba(90,143,180,0.1)', border: '1px solid rgba(90,143,180,0.25)', color: 'var(--farm-sky)', borderRadius: 6 }}
+            theme='solid'
             onClick={() => doAction('/water')} className='farm-btn'>
             💧 帮助浇水{needsWaterCount > 0 ? ` (${needsWaterCount})` : ''} <span style={{ fontSize: 10, opacity: 0.7 }}>免费</span>
           </Button>
 
           <Button size='small' icon={<FlaskConical size={13} />}
             disabled={!canFertilize || actionLoading} loading={actionLoading}
-            style={{ background: 'rgba(74,124,63,0.1)', border: '1px solid rgba(74,124,63,0.25)', color: 'var(--farm-leaf)', borderRadius: 6 }}
+            theme='solid'
             onClick={() => doAction('/fertilize')} className='farm-btn'>
             🧴 帮助施肥 <span style={{ fontSize: 10, opacity: 0.7 }}>用我的化肥</span>
           </Button>
 
           <Button size='small' icon={<Pill size={13} />}
             disabled={eventCount === 0 || !inventory?.has_medicine || actionLoading} loading={actionLoading}
-            style={{ background: 'rgba(184,66,51,0.1)', border: '1px solid rgba(184,66,51,0.25)', color: 'var(--farm-danger)', borderRadius: 6 }}
+            theme='solid'
             onClick={() => doAction('/treat')} className='farm-btn'>
             💊 帮助治疗{eventCount > 0 ? ` (${eventCount})` : ''} <span style={{ fontSize: 10, opacity: 0.7 }}>用我的药</span>
           </Button>
@@ -206,7 +205,6 @@ const VisitFarmPage = ({ friendId, friendName, onBack, t }) => {
             <Button size='small' icon={<Sprout size={13} />}
               disabled={!plantCrop || actionLoading} loading={actionLoading}
               theme='solid'
-              style={{ background: plantCrop ? 'linear-gradient(135deg,var(--farm-leaf),#2d6a2e)' : undefined, borderRadius: 6 }}
               onClick={() => doAction('/plant', { crop_key: plantCrop })} className='farm-btn'>
               🌱 帮种 ({emptyCount} 块空地)
             </Button>
