@@ -4639,33 +4639,110 @@
   color: var(--farm-sb-text-dim);
 }
 
+.farm-sidebar-nav {
+  padding: 14px 12px 18px;
+}
+
 .farm-nav-header {
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
   color: var(--farm-sb-text-dim);
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.farm-nav-group {
+  margin-bottom: 10px;
+}
+
+.farm-nav-header:hover {
+  background: var(--farm-nav-group-soft, var(--farm-sb-hover));
+  color: var(--farm-nav-group-accent, var(--farm-sb-text));
+}
+
+.farm-nav-header-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--farm-nav-group-soft, var(--farm-sb-hover));
+  color: var(--farm-nav-group-accent, var(--farm-sb-accent));
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.farm-nav-header-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farm-nav-items {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0 2px;
 }
 
 .farm-nav-item {
-  border-radius: 14px;
+  gap: 8px;
+  padding: 10px 12px 10px 14px;
+  margin-bottom: 0;
+  min-height: 0;
+  border-radius: 12px;
   color: var(--farm-sb-text);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
+.farm-nav-item-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--farm-nav-group-soft, rgba(250, 249, 245, 0.08));
+  color: var(--farm-nav-group-accent, var(--farm-sb-accent));
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.farm-nav-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .farm-nav-item:hover {
-  background: var(--farm-sb-hover);
-  color: #faf9f5;
+  background: var(--farm-nav-group-soft, var(--farm-sb-hover));
+  color: var(--farm-sb-text);
+  transform: translateX(0);
 }
 
 .farm-nav-item.active {
-  background: rgba(250, 249, 245, 0.08);
-  color: #faf9f5;
+  background: var(--farm-nav-group-soft, rgba(250, 249, 245, 0.08));
+  color: var(--farm-nav-group-accent, #faf9f5);
   box-shadow: inset 0px 0px 0px 1px rgba(250, 249, 245, 0.08);
 }
 
+.farm-nav-item.active::before {
+  left: 11px;
+  width: 6px;
+  height: 6px;
+  background: var(--farm-nav-group-accent, var(--farm-sb-accent));
+}
+
+.farm-nav-item.active .farm-nav-item-icon {
+  background: rgba(250, 249, 245, 0.08);
+}
+
 .farm-nav-item.locked,
+.farm-nav-item.locked .farm-nav-item-icon,
 .farm-nav-item .nav-lock {
   color: var(--farm-sb-text-dim);
 }
