@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -18,7 +19,8 @@ func SendEmail(subject string, receiver string, content string) error {
 	if EmailAPIUrl == "" {
 		return fmt.Errorf("邮件 API 地址未配置")
 	}
-	if !strings.HasPrefix(EmailAPIUrl, "http://") && !strings.HasPrefix(EmailAPIUrl, "https://") {
+	parsedURL, err := url.ParseRequestURI(EmailAPIUrl)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
 		return fmt.Errorf("邮件 API 地址格式无效")
 	}
 	payload := emailAPIRequest{
