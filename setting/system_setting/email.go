@@ -6,20 +6,16 @@ import (
 )
 
 type EmailSettings struct {
-	Mode   string `json:"mode"`
 	ApiUrl string `json:"api_url"`
 }
 
-var defaultEmailSettings = EmailSettings{
-	Mode: common.EmailMode,
-}
+var defaultEmailSettings = EmailSettings{}
 
 func init() {
 	config.GlobalConfig.Register("email", &defaultEmailSettings)
 }
 
 func GetEmailSettings() *EmailSettings {
-	common.EmailMode = defaultEmailSettings.Mode
 	common.EmailAPIUrl = defaultEmailSettings.ApiUrl
 	return &defaultEmailSettings
 }

@@ -65,12 +65,6 @@ const SystemSetting = () => {
     'oidc.token_endpoint': '',
     'oidc.user_info_endpoint': '',
     Notice: '',
-    SMTPServer: '',
-    SMTPPort: '',
-    SMTPAccount: '',
-    SMTPFrom: '',
-    SMTPToken: '',
-    'email.mode': 'smtp',
     'email.api_url': '',
     WorkerUrl: '',
     WorkerValidKey: '',
@@ -93,7 +87,6 @@ const SystemSetting = () => {
     'passkey.attachment_preference': '',
     EmailDomainRestrictionEnabled: '',
     EmailAliasRestrictionEnabled: '',
-    SMTPSSLEnabled: '',
     EmailDomainWhitelist: [],
     TelegramOAuthEnabled: '',
     TelegramBotToken: '',
@@ -174,9 +167,6 @@ const SystemSetting = () => {
               setAllowedPorts(['80', '443', '8080', '8443']);
             }
             break;
-          case 'email.mode':
-            item.value = item.value || 'smtp';
-            break;
           case 'email.api_url':
             item.value = item.value || '';
             break;
@@ -191,7 +181,6 @@ const SystemSetting = () => {
           case 'TurnstileCheckEnabled':
           case 'EmailDomainRestrictionEnabled':
           case 'EmailAliasRestrictionEnabled':
-          case 'SMTPSSLEnabled':
           case 'LinuxDOOAuthEnabled':
           case 'discord.enabled':
           case 'oidc.enabled':
@@ -331,50 +320,16 @@ const SystemSetting = () => {
     const apiURL = removeTrailingSlash(inputs['email.api_url']);
 
     if (
-      inputs['email.mode'] === 'http_api' &&
-      (!apiURL ||
-        (!apiURL.startsWith('http://') && !apiURL.startsWith('https://')))
+      !apiURL ||
+      (!apiURL.startsWith('http://') && !apiURL.startsWith('https://'))
     ) {
       showError(t('邮件 API 地址必须以 http:// 或 https:// 开头'));
       return;
     }
 
     const options = [];
-    if (originInputs['email.mode'] !== inputs['email.mode']) {
-      options.push({ key: 'email.mode', value: inputs['email.mode'] });
-    }
     if (originInputs['email.api_url'] !== apiURL) {
       options.push({ key: 'email.api_url', value: apiURL });
-    }
-
-    if (options.length > 0) {
-      await updateOptions(options);
-    }
-  };
-
-  const submitSMTP = async () => {
-    const options = [];
-
-    if (originInputs['SMTPServer'] !== inputs.SMTPServer) {
-      options.push({ key: 'SMTPServer', value: inputs.SMTPServer });
-    }
-    if (originInputs['SMTPAccount'] !== inputs.SMTPAccount) {
-      options.push({ key: 'SMTPAccount', value: inputs.SMTPAccount });
-    }
-    if (originInputs['SMTPFrom'] !== inputs.SMTPFrom) {
-      options.push({ key: 'SMTPFrom', value: inputs.SMTPFrom });
-    }
-    if (
-      originInputs['SMTPPort'] !== inputs.SMTPPort &&
-      inputs.SMTPPort !== ''
-    ) {
-      options.push({ key: 'SMTPPort', value: inputs.SMTPPort });
-    }
-    if (
-      originInputs['SMTPToken'] !== inputs.SMTPToken &&
-      inputs.SMTPToken !== ''
-    ) {
-      options.push({ key: 'SMTPToken', value: inputs.SMTPToken });
     }
 
     if (options.length > 0) {
@@ -1333,88 +1288,24 @@ const SystemSetting = () => {
                 </Form.Section>
               </Card>
               <Card>
-                <Form.Section text={t('配置邮件发送方式')}>
-                  <Text>{t('支持 SMTP 与外部邮件 API 两种发送模式')}</Text>
+                <Form.Section text={t('配置邮件 API')}>
+                  <Text>{t('系统邮件将通过外部邮件 API 发送')}</Text>
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
                     style={{ marginTop: 16 }}
                   >
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Select
-                        field="['email.mode']"
-                        label={t('邮件发送方式')}
-                        optionList={[
-                          { label: 'SMTP', value: 'smtp' },
-                          { label: t('邮件 API'), value: 'http_api' },
-                        ]}
-                      />
-                    </Col>
-                    <Col xs={24} sm={24} md={16} lg={16} xl={16}>
+                    <Col xs={24} sm={24} md={24} lg={24} xl={24}>
                       <Form.Input
                         field="['email.api_url']"
                         label={t('邮件 API 地址')}
                         placeholder='http://127.0.0.1:5000/send-email'
-                        extraText={t(
-                          '当选择邮件 API 模式时，系统会把下方 SMTP 配置透传给该接口',
-                        )}
+                        extraText={t('系统调用邮件 API 时仅发送 to、subject、html')}
                       />
                     </Col>
                   </Row>
                   <Button onClick={submitEmailProvider}>
-                    {t('保存邮件发送方式设置')}
+                    {t('保存邮件 API 设置')}
                   </Button>
-                </Form.Section>
-              </Card>
-              <Card>
-                <Form.Section text={t('配置 SMTP')}>
-                  <Text>{t('用以支持系统的邮件发送')}</Text>
-                  <Row
-                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
-                  >
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input
-                        field='SMTPServer'
-                        label={t('SMTP 服务器地址')}
-                      />
-                    </Col>
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input field='SMTPPort' label={t('SMTP 端口')} />
-                    </Col>
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input field='SMTPAccount' label={t('SMTP 账户')} />
-                    </Col>
-                  </Row>
-                  <Row
-                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
-                    style={{ marginTop: 16 }}
-                  >
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input
-                        field='SMTPFrom'
-                        label={t('SMTP 发送者邮箱')}
-                      />
-                    </Col>
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input
-                        field='SMTPToken'
-                        label={t('SMTP 访问凭证')}
-                        type='password'
-                        placeholder='敏感信息不会发送到前端显示'
-                      />
-                    </Col>
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Checkbox
-                        field='SMTPSSLEnabled'
-                        noLabel
-                        onChange={(e) =>
-                          handleCheckboxChange('SMTPSSLEnabled', e)
-                        }
-                      >
-                        {t('启用SMTP SSL')}
-                      </Form.Checkbox>
-                    </Col>
-                  </Row>
-                  <Button onClick={submitSMTP}>{t('保存 SMTP 设置')}</Button>
                 </Form.Section>
               </Card>
               <Card>

@@ -68,10 +68,6 @@ var EmailDomainWhitelist = []string{
 	"yahoo.com",
 	"foxmail.com",
 }
-var EmailLoginAuthServerList = []string{
-	"smtp.sendcloud.net",
-	"smtp.azurecomm.net",
-}
 
 var DebugEnabled bool
 var MemoryCacheEnabled bool
@@ -81,13 +77,6 @@ var LogConsumeEnabled = true
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
 
-var SMTPServer = ""
-var SMTPPort = 587
-var SMTPSSLEnabled = false
-var SMTPAccount = ""
-var SMTPFrom = ""
-var SMTPToken = ""
-var EmailMode = "smtp"
 var EmailAPIUrl = ""
 
 var GitHubClientId = ""

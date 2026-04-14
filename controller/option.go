@@ -68,35 +68,10 @@ func UpdateOption(c *gin.Context) {
 		option.Value = fmt.Sprintf("%v", option.Value)
 	}
 	emailSettings := system_setting.GetEmailSettings()
-	hasCompleteSMTPConfig := func() bool {
-		return common.SMTPServer != "" && common.SMTPAccount != "" && common.SMTPToken != "" && common.SMTPPort > 0
-	}
-	hasEmailDeliveryConfig := func(mode string, apiURL string) bool {
-		switch mode {
-		case "smtp":
-			return hasCompleteSMTPConfig()
-		case "http_api":
-			return apiURL != "" && hasCompleteSMTPConfig()
-		default:
-			return false
-		}
+	hasEmailDeliveryConfig := func(apiURL string) bool {
+		return apiURL != ""
 	}
 	switch option.Key {
-	case "email.mode":
-		if option.Value != "smtp" && option.Value != "http_api" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "邮件发送方式仅支持 smtp 或 http_api",
-			})
-			return
-		}
-		if option.Value == "http_api" && emailSettings.ApiUrl == "" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "无法启用邮件 API 模式，请先填写邮件 API 地址！",
-			})
-			return
-		}
 	case "email.api_url":
 		if option.Value != "" && !strings.HasPrefix(option.Value.(string), "http://") && !strings.HasPrefix(option.Value.(string), "https://") {
 			c.JSON(http.StatusOK, gin.H{
@@ -138,10 +113,10 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "EmailVerificationEnabled":
-		if option.Value == "true" && !hasEmailDeliveryConfig(emailSettings.Mode, emailSettings.ApiUrl) {
+		if option.Value == "true" && !hasEmailDeliveryConfig(emailSettings.ApiUrl) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用邮箱验证，请先完善当前邮件发送方式所需配置！",
+				"message": "无法启用邮箱验证，请先配置邮件 API 地址！",
 			})
 			return
 		}
