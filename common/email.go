@@ -11,8 +11,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/QuantumNous/new-api/setting/system_setting"
 )
 
 type emailAPIRequest struct {
@@ -46,13 +44,12 @@ func validateSMTPConfig() error {
 }
 
 func SendEmail(subject string, receiver string, content string) error {
-	emailSettings := system_setting.GetEmailSettings()
-	mode := emailSettings.Mode
+	mode := EmailMode
 	if mode == "" {
 		mode = "smtp"
 	}
 	if mode == "http_api" {
-		return sendEmailViaHTTPAPI(emailSettings.ApiUrl, subject, receiver, content)
+		return sendEmailViaHTTPAPI(EmailAPIUrl, subject, receiver, content)
 	}
 	return sendEmailViaSMTP(subject, receiver, content)
 }

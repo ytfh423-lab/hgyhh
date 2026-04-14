@@ -479,6 +479,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SMTPFrom = value
 	case "SMTPToken":
 		common.SMTPToken = value
+	case "email.mode":
+		common.EmailMode = value
+	case "email.api_url":
+		common.EmailAPIUrl = value
 	case "ServerAddress":
 		system_setting.ServerAddress = value
 	case "WorkerUrl":

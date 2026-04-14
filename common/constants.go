@@ -87,6 +87,8 @@ var SMTPSSLEnabled = false
 var SMTPAccount = ""
 var SMTPFrom = ""
 var SMTPToken = ""
+var EmailMode = "smtp"
+var EmailAPIUrl = ""
 
 var GitHubClientId = ""
 var GitHubClientSecret = ""

@@ -1,6 +1,9 @@
 package system_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import (
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/config"
+)
 
 type EmailSettings struct {
 	Mode   string `json:"mode"`
@@ -8,7 +11,7 @@ type EmailSettings struct {
 }
 
 var defaultEmailSettings = EmailSettings{
-	Mode: "smtp",
+	Mode: common.EmailMode,
 }
 
 func init() {
@@ -16,5 +19,7 @@ func init() {
 }
 
 func GetEmailSettings() *EmailSettings {
+	common.EmailMode = defaultEmailSettings.Mode
+	common.EmailAPIUrl = defaultEmailSettings.ApiUrl
 	return &defaultEmailSettings
 }
