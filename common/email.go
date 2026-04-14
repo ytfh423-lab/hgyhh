@@ -23,6 +23,10 @@ func SendEmail(subject string, receiver string, content string) error {
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
 		return fmt.Errorf("邮件 API 地址格式无效")
 	}
+	requestURL := EmailAPIUrl
+	if parsedURL.Path == "" || parsedURL.Path == "/" {
+		requestURL = strings.TrimRight(EmailAPIUrl, "/") + "/send-email"
+	}
 	payload := emailAPIRequest{
 		To:      receiver,
 		Subject: subject,
@@ -32,7 +36,7 @@ func SendEmail(subject string, receiver string, content string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := http.Post(EmailAPIUrl, "application/json", bytes.NewReader(body))
+	resp, err := http.Post(requestURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		SysError(fmt.Sprintf("failed to call email API for %s: %v", receiver, err))
 		return err
