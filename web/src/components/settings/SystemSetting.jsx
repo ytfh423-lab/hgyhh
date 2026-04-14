@@ -70,6 +70,8 @@ const SystemSetting = () => {
     SMTPAccount: '',
     SMTPFrom: '',
     SMTPToken: '',
+    'email.mode': 'smtp',
+    'email.api_url': '',
     WorkerUrl: '',
     WorkerValidKey: '',
     WorkerAllowHttpImageRequestEnabled: '',
@@ -171,6 +173,12 @@ const SystemSetting = () => {
             } catch (e) {
               setAllowedPorts(['80', '443', '8080', '8443']);
             }
+            break;
+          case 'email.mode':
+            item.value = item.value || 'smtp';
+            break;
+          case 'email.api_url':
+            item.value = item.value || '';
             break;
           case 'PasswordLoginEnabled':
           case 'PasswordRegisterEnabled':
@@ -317,6 +325,31 @@ const SystemSetting = () => {
   const submitServerAddress = async () => {
     let ServerAddress = removeTrailingSlash(inputs.ServerAddress);
     await updateOptions([{ key: 'ServerAddress', value: ServerAddress }]);
+  };
+
+  const submitEmailProvider = async () => {
+    const apiURL = removeTrailingSlash(inputs['email.api_url']);
+
+    if (
+      inputs['email.mode'] === 'http_api' &&
+      (!apiURL ||
+        (!apiURL.startsWith('http://') && !apiURL.startsWith('https://')))
+    ) {
+      showError(t('邮件 API 地址必须以 http:// 或 https:// 开头'));
+      return;
+    }
+
+    const options = [];
+    if (originInputs['email.mode'] !== inputs['email.mode']) {
+      options.push({ key: 'email.mode', value: inputs['email.mode'] });
+    }
+    if (originInputs['email.api_url'] !== apiURL) {
+      options.push({ key: 'email.api_url', value: apiURL });
+    }
+
+    if (options.length > 0) {
+      await updateOptions(options);
+    }
   };
 
   const submitSMTP = async () => {
@@ -1296,6 +1329,39 @@ const SystemSetting = () => {
                     style={{ marginTop: 10 }}
                   >
                     {t('保存邮箱域名白名单设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+              <Card>
+                <Form.Section text={t('配置邮件发送方式')}>
+                  <Text>{t('支持 SMTP 与外部邮件 API 两种发送模式')}</Text>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Select
+                        field="['email.mode']"
+                        label={t('邮件发送方式')}
+                        optionList={[
+                          { label: 'SMTP', value: 'smtp' },
+                          { label: t('邮件 API'), value: 'http_api' },
+                        ]}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={16} lg={16} xl={16}>
+                      <Form.Input
+                        field="['email.api_url']"
+                        label={t('邮件 API 地址')}
+                        placeholder='http://127.0.0.1:5000/send-email'
+                        extraText={t(
+                          '当选择邮件 API 模式时，系统会把下方 SMTP 配置透传给该接口',
+                        )}
+                      />
+                    </Col>
+                  </Row>
+                  <Button onClick={submitEmailProvider}>
+                    {t('保存邮件发送方式设置')}
                   </Button>
                 </Form.Section>
               </Card>

@@ -67,7 +67,44 @@ func UpdateOption(c *gin.Context) {
 	default:
 		option.Value = fmt.Sprintf("%v", option.Value)
 	}
+	emailSettings := system_setting.GetEmailSettings()
+	hasCompleteSMTPConfig := func() bool {
+		return common.SMTPServer != "" && common.SMTPAccount != "" && common.SMTPToken != "" && common.SMTPPort > 0
+	}
+	hasEmailDeliveryConfig := func(mode string, apiURL string) bool {
+		switch mode {
+		case "smtp":
+			return hasCompleteSMTPConfig()
+		case "http_api":
+			return apiURL != "" && hasCompleteSMTPConfig()
+		default:
+			return false
+		}
+	}
 	switch option.Key {
+	case "email.mode":
+		if option.Value != "smtp" && option.Value != "http_api" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邮件发送方式仅支持 smtp 或 http_api",
+			})
+			return
+		}
+		if option.Value == "http_api" && emailSettings.ApiUrl == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无法启用邮件 API 模式，请先填写邮件 API 地址！",
+			})
+			return
+		}
+	case "email.api_url":
+		if option.Value != "" && !strings.HasPrefix(option.Value.(string), "http://") && !strings.HasPrefix(option.Value.(string), "https://") {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邮件 API 地址必须以 http:// 或 https:// 开头",
+			})
+			return
+		}
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GitHubClientId == "" {
 			c.JSON(http.StatusOK, gin.H{
@@ -97,6 +134,14 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "无法启用 LinuxDO OAuth，请先填入 LinuxDO Client Id 以及 LinuxDO Client Secret！",
+			})
+			return
+		}
+	case "EmailVerificationEnabled":
+		if option.Value == "true" && !hasEmailDeliveryConfig(emailSettings.Mode, emailSettings.ApiUrl) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无法启用邮箱验证，请先完善当前邮件发送方式所需配置！",
 			})
 			return
 		}
