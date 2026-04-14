@@ -73,13 +73,6 @@ func UpdateOption(c *gin.Context) {
 	}
 	switch option.Key {
 	case "email.api_url":
-		if option.Value != "" && !strings.HasPrefix(option.Value.(string), "http://") && !strings.HasPrefix(option.Value.(string), "https://") {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "邮件 API 地址必须以 http:// 或 https:// 开头",
-			})
-			return
-		}
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GitHubClientId == "" {
 			c.JSON(http.StatusOK, gin.H{

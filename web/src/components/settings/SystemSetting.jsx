@@ -320,14 +320,6 @@ const SystemSetting = () => {
   const submitEmailProvider = async () => {
     const apiURL = removeTrailingSlash(inputs['email.api_url']);
 
-    if (
-      !apiURL ||
-      (!apiURL.startsWith('http://') && !apiURL.startsWith('https://'))
-    ) {
-      showError(t('邮件 API 地址必须以 http:// 或 https:// 开头'));
-      return;
-    }
-
     const options = [];
     if (originInputs['email.api_url'] !== apiURL) {
       options.push({ key: 'email.api_url', value: apiURL });
