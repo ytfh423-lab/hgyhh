@@ -2013,6 +2013,46 @@ func normalizeFarmLeaderboardPeriod(period string) string {
 	return farmLeaderboardPeriodAll
 }
 
+func getFarmLeaderboardWeekStart() int64 {
+	now := time.Now()
+	weekday := int(now.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	start = start.AddDate(0, 0, -(weekday - 1))
+	return start.Unix()
+}
+
+func sortFarmLeaderboardEntries(entries []FarmLeaderboardEntry) {
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].Value == entries[j].Value {
+			return entries[i].TelegramId < entries[j].TelegramId
+		}
+		return entries[i].Value > entries[j].Value
+	})
+}
+
+func resolveFarmLeaderboardUserName(user User) string {
+	if user.DisplayName != "" {
+		return user.DisplayName
+	}
+	if user.Username != "" {
+		return user.Username
+	}
+	if user.TelegramId != "" {
+		return user.TelegramId
+	}
+	return strconv.Itoa(user.Id)
+}
+
+func resolveFarmLeaderboardFarmId(user User) string {
+	if user.TelegramId != "" {
+		return user.TelegramId
+	}
+	return strconv.Itoa(user.Id)
+}
+
 func copyFarmLeaderboardEntries(entries []FarmLeaderboardEntry) []FarmLeaderboardEntry {
 	copied := make([]FarmLeaderboardEntry, len(entries))
 	copy(copied, entries)
