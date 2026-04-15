@@ -1,11 +1,17 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Typography, Button } from '@douyinfe/semi-ui';
+import { Typography } from '@douyinfe/semi-ui';
+import {
+  CheckCircle,
+  Clock,
+  ScrollText,
+  Sprout,
+  TimerOff,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { API, showError, showSuccess } from './components/utils';
-import { showInfo, setUserData } from '../../helpers';
 import { StatusContext } from '../../context/Status';
 import { UserContext } from '../../context/User';
-import { useNavigate } from 'react-router-dom';
 import Loading from '../../components/common/ui/Loading';
 import './farm.css';
 
@@ -232,8 +238,6 @@ const Farm = () => {
   const [agreementChecked, setAgreementChecked] = useState(false);
   const [activeMedalDrop, setActiveMedalDrop] = useState(null);
   const [medalDropQueue, setMedalDropQueue] = useState([]);
-  const hasBoundEmail = !!userState?.user?.email?.trim();
-  const showEmailHint = !hasBoundEmail;
   const farmDataRef = useRef(farmData);
   const silentLoadFarmPromiseRef = useRef(null);
   const queuedSilentLoadFarmOptionsRef = useRef(null);
@@ -241,19 +245,6 @@ const Farm = () => {
   useEffect(() => {
     farmDataRef.current = farmData;
   }, [farmData]);
-
-  useEffect(() => {
-    let countdownInterval = null;
-    if (emailCodeDisabled && emailCodeCountdown > 0) {
-      countdownInterval = setInterval(() => {
-        setEmailCodeCountdown((prev) => prev - 1);
-      }, 1000);
-    } else if (emailCodeCountdown === 0) {
-      setEmailCodeDisabled(false);
-      setEmailCodeCountdown(30);
-    }
-    return () => clearInterval(countdownInterval);
-  }, [emailCodeDisabled, emailCodeCountdown]);
 
   // 好友请求数（从 SocialPanel 事件同步，用于侧边栏角标）
 

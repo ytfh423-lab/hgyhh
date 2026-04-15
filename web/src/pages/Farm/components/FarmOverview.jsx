@@ -282,7 +282,8 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
   const handleHarvest = useCallback(() => doAction('/api/farm/harvest', {}), [doAction]);
   const handleHarvestStore = useCallback(() => doAction('/api/farm/harvest/store', {}), [doAction]);
   const handleBuyLand = useCallback(async () => {
-    const price = farmData?.plot_price != null ? `$${farmData.plot_price.toFixed(2)}` : '';
+    const plotPrice = Number(farmData?.plot_price);
+    const price = Number.isFinite(plotPrice) ? `$${plotPrice.toFixed(2)}` : '$0.00';
     if (await confirmAction(t('购买农田'), t('确认花费') + ` ${price} ` + t('购买一块新农田？')))
       doAction('/api/farm/buyland', {});
   }, [doAction, farmData, t]);
@@ -290,7 +291,8 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
     const plot = (farmData?.plots || [])[idx];
     const nextLv = (plot?.soil_level || 1) + 1;
     const prices = farmData?.soil_upgrade_prices || {};
-    const price = prices[String(nextLv)] != null ? `$${prices[String(nextLv)].toFixed(2)}` : '';
+    const rawPrice = Number(prices[String(nextLv)]);
+    const price = Number.isFinite(rawPrice) ? `$${rawPrice.toFixed(2)}` : '$0.00';
     if (await confirmAction(t('升级农田'), t('确认花费') + ` ${price} ` + t('升级农田土壤？升级后该地块上的作物收获速度将加快。')))
       doAction('/api/farm/upgrade-soil', { plot_index: idx });
   }, [doAction, farmData, t]);

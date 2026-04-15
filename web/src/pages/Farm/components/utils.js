@@ -28,12 +28,13 @@ export const formatDuration = (secs) => {
 };
 
 export const formatBalance = (val) => {
-  if (val == null) return '$0.00';
-  if (val >= 1e12) return `$${(val / 1e12).toFixed(2)}T`;
-  if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
-  if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
-  if (val >= 1e4) return `$${(val / 1e3).toFixed(2)}K`;
-  return `$${val.toFixed(2)}`;
+  const num = Number(val);
+  if (!Number.isFinite(num)) return '$0.00';
+  if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e4) return `$${(num / 1e3).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
 };
 
 export const seasonNames = ['春', '夏', '秋', '冬'];
