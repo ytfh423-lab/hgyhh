@@ -2,17 +2,22 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 )
+
+var farmNotifyWindowMemory sync.Map
 
 func NotifyRootUser(t string, subject string, content string) {
 	user := model.GetRootUser().ToBaseUser()
@@ -77,6 +82,69 @@ func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data 
 		return sendGotifyNotify(gotifyUrl, gotifyToken, userSetting.GotifyPriority, data)
 	}
 	return nil
+}
+
+func NotifyUserBoundEmail(user *model.User, data dto.Notify) error {
+	if user == nil {
+		return nil
+	}
+	userEmail := strings.TrimSpace(user.Email)
+	if userEmail == "" {
+		common.SysLog(fmt.Sprintf("user %d has no bound profile email, skip sending email", user.Id))
+		return nil
+	}
+	canSend, err := CheckNotificationLimit(user.Id, data.Type)
+	if err != nil {
+		common.SysLog(fmt.Sprintf("failed to check notification limit: %s", err.Error()))
+		return err
+	}
+	if !canSend {
+		return fmt.Errorf("notification limit exceeded for user %d with type %s", user.Id, data.Type)
+	}
+	return sendEmailNotify(userEmail, data)
+}
+
+func TryNotifyUserBoundEmailWithWindow(user *model.User, data dto.Notify, dedupeKey string, window time.Duration) error {
+	if user == nil {
+		return nil
+	}
+	if strings.TrimSpace(user.Email) == "" {
+		return nil
+	}
+	if dedupeKey != "" && window > 0 {
+		allowed, err := allowBoundEmailNotificationWindow(user.Id, dedupeKey, window)
+		if err != nil {
+			common.SysLog(fmt.Sprintf("failed to check farm notification dedupe: %s", err.Error()))
+			return err
+		}
+		if !allowed {
+			return nil
+		}
+	}
+	return NotifyUserBoundEmail(user, data)
+}
+
+func allowBoundEmailNotificationWindow(userId int, dedupeKey string, window time.Duration) (bool, error) {
+	if window <= 0 || dedupeKey == "" {
+		return true, nil
+	}
+	cacheKey := fmt.Sprintf("farm_notify:%d:%s", userId, dedupeKey)
+	if common.RedisEnabled {
+		created, err := common.RDB.SetNX(context.Background(), cacheKey, "1", window).Result()
+		if err != nil {
+			return false, err
+		}
+		return created, nil
+	}
+	now := time.Now().Unix()
+	until := now + int64(window.Seconds())
+	if val, ok := farmNotifyWindowMemory.Load(cacheKey); ok {
+		if expiresAt, ok := val.(int64); ok && expiresAt > now {
+			return false, nil
+		}
+	}
+	farmNotifyWindowMemory.Store(cacheKey, until)
+	return true, nil
 }
 
 func sendEmailNotify(userEmail string, data dto.Notify) error {

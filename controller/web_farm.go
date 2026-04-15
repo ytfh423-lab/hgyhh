@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 )
@@ -404,6 +406,109 @@ func runFarmAutomationTick() {
 	}
 	processFarmAutoWaterTick(autoOwners["irrigation"], GetCurrentWeather().Type == 1, now)
 	processRanchAutoFeederTick(autoOwners["auto_feeder"], now)
+	processFarmUrgentNotifyTick(now)
+}
+
+func processFarmUrgentNotifyTick(now int64) {
+	pageInfo := &common.PageInfo{Page: 1, PageSize: 100}
+	for {
+		users, total, err := model.GetAllUsers(pageInfo)
+		if err != nil {
+			return
+		}
+		for _, user := range users {
+			if user == nil || user.TelegramId == "" || strings.TrimSpace(user.Email) == "" {
+				continue
+			}
+			processUserFarmUrgentNotify(user, now)
+			processUserRanchUrgentNotify(user, now)
+		}
+		if len(users) == 0 || pageInfo.Page*pageInfo.PageSize >= int(total) {
+			break
+		}
+		pageInfo.Page++
+	}
+}
+
+func processUserFarmUrgentNotify(user *model.User, now int64) {
+	plots, err := model.GetOrCreateFarmPlots(user.TelegramId)
+	if err != nil || len(plots) == 0 {
+		return
+	}
+	waterCount := 0
+	nearDeathCount := 0
+	for _, plot := range plots {
+		info := buildPlotInfo(plot)
+		switch {
+		case info.Status == 1 && plot.CropType != "" && info.WaterRemain <= 0:
+			waterCount++
+		case (info.Status == 3 || info.Status == 4) && info.DeathRemain > 0 && info.DeathRemain <= 3600:
+			nearDeathCount++
+		}
+	}
+	if waterCount > 0 {
+		_ = service.TryNotifyUserBoundEmailWithWindow(user, dto.NewNotify(
+			dto.NotifyTypeFarmCropNeedsWater,
+			"农场提醒：作物需要浇水",
+			"你的农场有 {{value}} 块作物已经需要浇水了，请尽快处理。",
+			[]interface{}{waterCount},
+		), "crop_needs_water", 8*time.Hour)
+	}
+	if nearDeathCount > 0 {
+		_ = service.TryNotifyUserBoundEmailWithWindow(user, dto.NewNotify(
+			dto.NotifyTypeFarmCropNearDeath,
+			"农场提醒：作物快死了",
+			"你的农场有 {{value}} 块作物已进入高危状态，若不尽快处理可能死亡。",
+			[]interface{}{nearDeathCount},
+		), "crop_near_death", 3*time.Hour)
+	}
+}
+
+func processUserRanchUrgentNotify(user *model.User, now int64) {
+	animals, err := model.GetRanchAnimals(user.TelegramId)
+	if err != nil || len(animals) == 0 {
+		return
+	}
+	dirtyCount := 0
+	nearDeathCount := 0
+	for _, animal := range animals {
+		updateRanchAnimalStatus(animal)
+		if animal.Status == 5 {
+			continue
+		}
+		if isAnimalDirty(animal, now) {
+			dirtyCount++
+		}
+		if isRanchAnimalNearDeath(animal, now) {
+			nearDeathCount++
+		}
+	}
+	if dirtyCount > 0 {
+		_ = service.TryNotifyUserBoundEmailWithWindow(user, dto.NewNotify(
+			dto.NotifyTypeRanchAnimalCleanup,
+			"牧场提醒：动物需要清理",
+			"你的牧场有 {{value}} 只动物需要清理粪便，请尽快处理。",
+			[]interface{}{dirtyCount},
+		), "ranch_cleanup", 8*time.Hour)
+	}
+	if nearDeathCount > 0 {
+		_ = service.TryNotifyUserBoundEmailWithWindow(user, dto.NewNotify(
+			dto.NotifyTypeRanchAnimalNearDeath,
+			"牧场提醒：动物快死了",
+			"你的牧场有 {{value}} 只动物已接近死亡，请尽快喂食或喂水。",
+			[]interface{}{nearDeathCount},
+		), "ranch_near_death", 3*time.Hour)
+	}
+}
+
+func isRanchAnimalNearDeath(animal *model.TgRanchAnimal, now int64) bool {
+	if animal == nil || animal.Status == 5 {
+		return false
+	}
+	feedDeadline := animal.LastFedAt + int64(common.TgBotRanchFeedInterval) + int64(common.TgBotRanchHungerDeathHours)*3600
+	waterDeadline := animal.LastWateredAt + int64(common.TgBotRanchWaterInterval) + int64(common.TgBotRanchThirstDeathHours)*3600
+	return (animal.Status == 3 && feedDeadline-now > 0 && feedDeadline-now <= 3600) ||
+		(animal.Status == 4 && waterDeadline-now > 0 && waterDeadline-now <= 3600)
 }
 
 func processFarmAutoWaterTick(irrigationOwners []string, weatherAutoWater bool, now int64) {
@@ -1217,6 +1322,31 @@ func WebFarmSteal(c *gin.Context) {
 			PlotId:   target.Id,
 			Amount:   stealValue,
 		})
+	}
+	pageInfo := &common.PageInfo{Page: 1, PageSize: 100}
+	for {
+		users, total, listErr := model.GetAllUsers(pageInfo)
+		if listErr != nil {
+			break
+		}
+		found := false
+		for _, candidate := range users {
+			if candidate == nil || candidate.TelegramId != req.VictimId {
+				continue
+			}
+			found = true
+			_ = service.TryNotifyUserBoundEmailWithWindow(candidate, dto.NewNotify(
+				dto.NotifyTypeFarmCropStolen,
+				"农场提醒：你的菜被偷了",
+				"你的成熟作物 {{value}}{{value}} 被偷走了 {{value}} 份，请及时查看农场状态。",
+				[]interface{}{cropEmoji, cropName, stealUnits},
+			), fmt.Sprintf("crop_stolen_%s", req.VictimId), 90*time.Minute)
+			break
+		}
+		if found || len(users) == 0 || pageInfo.Page*pageInfo.PageSize >= int(total) {
+			break
+		}
+		pageInfo.Page++
 	}
 	_ = model.IncreaseUserQuota(user.Id, stealValue, true)
 	model.AddFarmLog(tgId, "steal", stealValue, fmt.Sprintf("偷取%s%s×%d", cropEmoji, cropName, stealUnits))

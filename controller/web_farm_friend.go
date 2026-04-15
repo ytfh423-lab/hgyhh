@@ -13,7 +13,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	redisv8 "github.com/go-redis/redis/v8"
 )
@@ -673,6 +675,22 @@ func WebFarmChatSend(c *gin.Context) {
 			"created_at": msg.CreatedAt,
 		},
 	})
+	if !isSiteOnline(friendId) {
+		friendUser, friendErr := model.GetUserById(friendId, false)
+		if friendErr == nil && friendUser != nil {
+			preview := content
+			if utf8.RuneCountInString(preview) > 60 {
+				runes := []rune(preview)
+				preview = string(runes[:60]) + "..."
+			}
+			_ = service.TryNotifyUserBoundEmailWithWindow(friendUser, dto.NewNotify(
+				dto.NotifyTypeSocialOfflineMessage,
+				"好友消息提醒",
+				"你的好友 {{value}} 给你发来一条新消息：\n{{value}}",
+				[]interface{}{nameOf(me), preview},
+			), fmt.Sprintf("offline_message_%d", userId), 90*time.Minute)
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": msg})
 }
 
