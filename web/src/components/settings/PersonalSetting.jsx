@@ -46,6 +46,9 @@ import WeChatBindModal from './personal/modals/WeChatBindModal';
 import AccountDeleteModal from './personal/modals/AccountDeleteModal';
 import ChangePasswordModal from './personal/modals/ChangePasswordModal';
 
+const buildCaptchaQuery = (token) =>
+  token ? `&captcha=${encodeURIComponent(token)}` : '';
+
 const PersonalSetting = () => {
   const [userState, userDispatch] = useContext(UserContext);
   let navigate = useNavigate();
@@ -65,9 +68,12 @@ const PersonalSetting = () => {
   const [showWeChatBindModal, setShowWeChatBindModal] = useState(false);
   const [showEmailBindModal, setShowEmailBindModal] = useState(false);
   const [showAccountDeleteModal, setShowAccountDeleteModal] = useState(false);
-  const [turnstileEnabled, setTurnstileEnabled] = useState(false);
-  const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [humanVerificationEnabled, setHumanVerificationEnabled] =
+    useState(false);
+  const [humanVerificationProvider, setHumanVerificationProvider] =
+    useState('turnstile');
+  const [humanVerificationSiteKey, setHumanVerificationSiteKey] = useState('');
+  const [humanVerificationToken, setHumanVerificationToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [disableButton, setDisableButton] = useState(false);
   const [countdown, setCountdown] = useState(30);
@@ -89,19 +95,23 @@ const PersonalSetting = () => {
     acceptUnsetModelRatioModel: false,
     recordIpLog: false,
   });
+  const humanVerificationName =
+    humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
 
   useEffect(() => {
     let saved = localStorage.getItem('status');
     if (saved) {
       const parsed = JSON.parse(saved);
       setStatus(parsed);
-      if (parsed.turnstile_check) {
-        setTurnstileEnabled(true);
-        setTurnstileSiteKey(parsed.turnstile_site_key);
-      } else {
-        setTurnstileEnabled(false);
-        setTurnstileSiteKey('');
-      }
+      const provider = parsed?.human_verification_provider || 'turnstile';
+      const enabled =
+        parsed?.human_verification_enabled ?? parsed?.turnstile_check ?? false;
+      const siteKey =
+        parsed?.human_verification_site_key || parsed?.turnstile_site_key || '';
+      setHumanVerificationProvider(provider);
+      setHumanVerificationEnabled(enabled);
+      setHumanVerificationSiteKey(enabled ? siteKey : '');
+      setHumanVerificationToken('');
     }
     // Always refresh status from server to avoid stale flags (e.g., admin just enabled OAuth)
     (async () => {
@@ -111,13 +121,15 @@ const PersonalSetting = () => {
         if (success && data) {
           setStatus(data);
           setStatusData(data);
-          if (data.turnstile_check) {
-            setTurnstileEnabled(true);
-            setTurnstileSiteKey(data.turnstile_site_key);
-          } else {
-            setTurnstileEnabled(false);
-            setTurnstileSiteKey('');
-          }
+          const provider = data?.human_verification_provider || 'turnstile';
+          const enabled =
+            data?.human_verification_enabled ?? data?.turnstile_check ?? false;
+          const siteKey =
+            data?.human_verification_site_key || data?.turnstile_site_key || '';
+          setHumanVerificationProvider(provider);
+          setHumanVerificationEnabled(enabled);
+          setHumanVerificationSiteKey(enabled ? siteKey : '');
+          setHumanVerificationToken('');
         }
       } catch (e) {
         // ignore and keep local status
@@ -352,13 +364,13 @@ const PersonalSetting = () => {
       return;
     }
     setDisableButton(true);
-    if (turnstileEnabled && turnstileToken === '') {
-      showInfo(t('请稍后几秒重试，Turnstile 正在检查用户环境！'));
+    if (humanVerificationEnabled && humanVerificationToken === '') {
+      showInfo(t(`请稍后几秒重试，${humanVerificationName} 正在检查用户环境！`));
       return;
     }
     setLoading(true);
     const res = await API.get(
-      `/api/verification?email=${inputs.email}&turnstile=${turnstileToken}`,
+      `/api/verification?email=${inputs.email}${buildCaptchaQuery(humanVerificationToken)}`,
     );
     const { success, message } = res.data;
     if (success) {
@@ -455,8 +467,9 @@ const PersonalSetting = () => {
               <CheckinCalendar
                 t={t}
                 status={status}
-                turnstileEnabled={turnstileEnabled}
-                turnstileSiteKey={turnstileSiteKey}
+                humanVerificationEnabled={humanVerificationEnabled}
+                humanVerificationProvider={humanVerificationProvider}
+                humanVerificationSiteKey={humanVerificationSiteKey}
               />
             </div>
           )}
@@ -511,9 +524,10 @@ const PersonalSetting = () => {
         disableButton={disableButton}
         loading={loading}
         countdown={countdown}
-        turnstileEnabled={turnstileEnabled}
-        turnstileSiteKey={turnstileSiteKey}
-        setTurnstileToken={setTurnstileToken}
+        humanVerificationEnabled={humanVerificationEnabled}
+        humanVerificationProvider={humanVerificationProvider}
+        humanVerificationSiteKey={humanVerificationSiteKey}
+        setHumanVerificationToken={setHumanVerificationToken}
       />
 
       <WeChatBindModal
@@ -539,9 +553,10 @@ const PersonalSetting = () => {
         inputs={inputs}
         handleInputChange={handleInputChange}
         changePassword={changePassword}
-        turnstileEnabled={turnstileEnabled}
-        turnstileSiteKey={turnstileSiteKey}
-        setTurnstileToken={setTurnstileToken}
+        humanVerificationEnabled={humanVerificationEnabled}
+        humanVerificationProvider={humanVerificationProvider}
+        humanVerificationSiteKey={humanVerificationSiteKey}
+        setHumanVerificationToken={setHumanVerificationToken}
       />
     </div>
   );

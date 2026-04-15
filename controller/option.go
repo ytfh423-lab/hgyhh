@@ -130,12 +130,37 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "TurnstileCheckEnabled":
-		if option.Value == "true" && common.TurnstileSiteKey == "" {
+		if option.Value == "true" {
+			provider := common.HumanVerificationProvider
+			siteKey := common.TurnstileSiteKey
+			secretKey := common.TurnstileSecretKey
+			displayName := "Turnstile"
+			if provider == "recaptcha" {
+				siteKey = common.RecaptchaSiteKey
+				secretKey = common.RecaptchaSecretKey
+				displayName = "reCAPTCHA"
+			}
+			if provider != "turnstile" && provider != "recaptcha" {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "无法启用人机校验，请先选择有效的验证码提供方！",
+				})
+				return
+			}
+			if siteKey == "" || secretKey == "" {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "无法启用" + displayName + "校验，请先填入完整配置信息！",
+				})
+				return
+			}
+		}
+	case "HumanVerificationProvider":
+		if option.Value != "turnstile" && option.Value != "recaptcha" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法启用 Turnstile 校验，请先填入 Turnstile 校验相关配置信息！",
+				"message": "验证码提供方仅支持 turnstile 或 recaptcha",
 			})
-
 			return
 		}
 	case "TelegramOAuthEnabled":

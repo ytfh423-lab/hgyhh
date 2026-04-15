@@ -20,7 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React from 'react';
 import { Button, Input, Modal } from '@douyinfe/semi-ui';
 import { IconMail, IconKey } from '@douyinfe/semi-icons';
-import Turnstile from 'react-turnstile';
+import HumanVerification from '../../../common/HumanVerification';
 
 const EmailBindModal = ({
   t,
@@ -33,9 +33,10 @@ const EmailBindModal = ({
   disableButton,
   loading,
   countdown,
-  turnstileEnabled,
-  turnstileSiteKey,
-  setTurnstileToken,
+  humanVerificationEnabled,
+  humanVerificationProvider,
+  humanVerificationSiteKey,
+  setHumanVerificationToken,
 }) => {
   return (
     <Modal
@@ -90,13 +91,13 @@ const EmailBindModal = ({
           prefix={<IconKey />}
         />
 
-        {turnstileEnabled && (
+        {humanVerificationEnabled && (
           <div className='flex justify-center'>
-            <Turnstile
-              sitekey={turnstileSiteKey}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-              }}
+            <HumanVerification
+              provider={humanVerificationProvider}
+              enabled={humanVerificationEnabled}
+              siteKey={humanVerificationSiteKey}
+              onVerify={setHumanVerificationToken}
             />
           </div>
         )}

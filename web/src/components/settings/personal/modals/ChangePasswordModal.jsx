@@ -20,7 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React from 'react';
 import { Input, Modal, Typography } from '@douyinfe/semi-ui';
 import { IconLock } from '@douyinfe/semi-icons';
-import Turnstile from 'react-turnstile';
+import HumanVerification from '../../../common/HumanVerification';
 
 const ChangePasswordModal = ({
   t,
@@ -29,9 +29,10 @@ const ChangePasswordModal = ({
   inputs,
   handleInputChange,
   changePassword,
-  turnstileEnabled,
-  turnstileSiteKey,
-  setTurnstileToken,
+  humanVerificationEnabled,
+  humanVerificationProvider,
+  humanVerificationSiteKey,
+  setHumanVerificationToken,
 }) => {
   return (
     <Modal
@@ -99,13 +100,13 @@ const ChangePasswordModal = ({
           />
         </div>
 
-        {turnstileEnabled && (
+        {humanVerificationEnabled && (
           <div className='flex justify-center'>
-            <Turnstile
-              sitekey={turnstileSiteKey}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-              }}
+            <HumanVerification
+              provider={humanVerificationProvider}
+              enabled={humanVerificationEnabled}
+              siteKey={humanVerificationSiteKey}
+              onVerify={setHumanVerificationToken}
             />
           </div>
         )}

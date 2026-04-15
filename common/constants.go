@@ -51,6 +51,7 @@ var GitHubOAuthEnabled = false
 var LinuxDOOAuthEnabled = false
 var WeChatAuthEnabled = false
 var TelegramOAuthEnabled = false
+var HumanVerificationProvider = "turnstile"
 var TurnstileCheckEnabled = false
 var RegisterEnabled = true
 var RegistrationCodeRequired = false
@@ -91,6 +92,17 @@ var WeChatAccountQRCodeImageURL = ""
 
 var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
+var RecaptchaSiteKey = ""
+var RecaptchaSecretKey = ""
+
+func GetHumanVerificationSiteKey() string {
+	switch HumanVerificationProvider {
+	case "recaptcha":
+		return RecaptchaSiteKey
+	default:
+		return TurnstileSiteKey
+	}
+}
 
 var TelegramBotToken = ""
 var TelegramBotName = ""

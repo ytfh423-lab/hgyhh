@@ -1,16 +1,18 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Typography, Button } from '@douyinfe/semi-ui';
-import { Sprout, Lock, Clock, ShieldAlert, ScrollText, CheckCircle, TimerOff } from 'lucide-react';
 import { API, showError, showSuccess } from './components/utils';
+import { showInfo, setUserData } from '../../helpers';
 import { StatusContext } from '../../context/Status';
-import { Link, useNavigate } from 'react-router-dom';
+import { UserContext } from '../../context/User';
+import { useNavigate } from 'react-router-dom';
 import Loading from '../../components/common/ui/Loading';
 import './farm.css';
 
 import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import FarmOverview from './components/FarmOverview';
+import FarmEmailBindModal from './components/FarmEmailBindModal';
 import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
@@ -42,7 +44,6 @@ const EntrustPage = lazy(() => import('./components/EntrustPage'));
 const EntrustWorkPage = lazy(() => import('./components/EntrustWorkPage'));
 const FriendListPage = lazy(() => import('./components/FriendListPage'));
 const VisitFarmPage = lazy(() => import('./components/VisitFarmPage'));
-const SeasonPage = lazy(() => import('./components/SeasonPage'));
 
 const { Text, Title } = Typography;
 
@@ -206,11 +207,13 @@ const MobileSheet = ({ activeKey, onNavigate, onClose, navigate, t, userLevel = 
 let _cropsCache = null;
 let _groupConfigCache = undefined; // undefined = not fetched yet, null = fetched but disabled
 const FARM_CACHE_KEY = 'farm_view_v2';
+const buildCaptchaQuery = (token) =>
+  token ? `&captcha=${encodeURIComponent(token)}` : '';
 
 const Farm = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [statusState] = useContext(StatusContext);
+  const [userState, userDispatch] = useContext(UserContext);
   const [loading, setLoading] = useState(true);
   const [farmData, setFarmData] = useState(() => {
     // Stale-while-revalidate: show cached data immediately so there's no blank spinner
@@ -230,6 +233,24 @@ const Farm = () => {
   const [agreementChecked, setAgreementChecked] = useState(false);
   const [activeMedalDrop, setActiveMedalDrop] = useState(null);
   const [medalDropQueue, setMedalDropQueue] = useState([]);
+  const [showEmailBindModal, setShowEmailBindModal] = useState(false);
+  const [emailBindInputs, setEmailBindInputs] = useState({
+    email: '',
+    email_verification_code: '',
+  });
+  const [humanVerificationEnabled, setHumanVerificationEnabled] =
+    useState(false);
+  const [humanVerificationProvider, setHumanVerificationProvider] =
+    useState('turnstile');
+  const [humanVerificationSiteKey, setHumanVerificationSiteKey] = useState('');
+  const [humanVerificationToken, setHumanVerificationToken] = useState('');
+  const [emailBindLoading, setEmailBindLoading] = useState(false);
+  const [emailCodeDisabled, setEmailCodeDisabled] = useState(false);
+  const [emailCodeCountdown, setEmailCodeCountdown] = useState(30);
+  const humanVerificationName =
+    humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
+  const hasBoundEmail = !!userState?.user?.email?.trim();
+  const showEmailHint = !hasBoundEmail;
   const farmDataRef = useRef(farmData);
   const silentLoadFarmPromiseRef = useRef(null);
   const queuedSilentLoadFarmOptionsRef = useRef(null);
@@ -237,6 +258,137 @@ const Farm = () => {
   useEffect(() => {
     farmDataRef.current = farmData;
   }, [farmData]);
+
+  useEffect(() => {
+    let countdownInterval = null;
+    if (emailCodeDisabled && emailCodeCountdown > 0) {
+      countdownInterval = setInterval(() => {
+        setEmailCodeCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (emailCodeCountdown === 0) {
+      setEmailCodeDisabled(false);
+      setEmailCodeCountdown(30);
+    }
+    return () => clearInterval(countdownInterval);
+  }, [emailCodeDisabled, emailCodeCountdown]);
+
+  useEffect(() => {
+    let saved = localStorage.getItem('status');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const provider = parsed?.human_verification_provider || 'turnstile';
+      const enabled =
+        parsed?.human_verification_enabled ?? parsed?.turnstile_check ?? false;
+      const siteKey =
+        parsed?.human_verification_site_key || parsed?.turnstile_site_key || '';
+      setHumanVerificationProvider(provider);
+      setHumanVerificationEnabled(enabled);
+      setHumanVerificationSiteKey(enabled ? siteKey : '');
+      setHumanVerificationToken('');
+    }
+    (async () => {
+      try {
+        const res = await API.get('/api/status');
+        const { success, data } = res.data;
+        if (success && data) {
+          const provider = data?.human_verification_provider || 'turnstile';
+          const enabled =
+            data?.human_verification_enabled ?? data?.turnstile_check ?? false;
+          const siteKey =
+            data?.human_verification_site_key || data?.turnstile_site_key || '';
+          setHumanVerificationProvider(provider);
+          setHumanVerificationEnabled(enabled);
+          setHumanVerificationSiteKey(enabled ? siteKey : '');
+          setHumanVerificationToken('');
+        }
+      } catch (e) {
+        // ignore and keep local status
+      }
+    })();
+  }, []);
+
+  const handleEmailBindInputChange = useCallback((name, value) => {
+    setEmailBindInputs((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const resetEmailBindState = useCallback(({ keepEmail = false } = {}) => {
+    setEmailBindInputs((prev) => ({
+      email: keepEmail ? prev.email : '',
+      email_verification_code: '',
+    }));
+    setHumanVerificationToken('');
+    setEmailBindLoading(false);
+    setEmailCodeDisabled(false);
+    setEmailCodeCountdown(30);
+  }, []);
+
+  const closeEmailBindModal = useCallback(() => {
+    setShowEmailBindModal(false);
+    resetEmailBindState({ keepEmail: true });
+  }, [resetEmailBindState]);
+
+  const openEmailBindModal = useCallback(() => {
+    setEmailBindInputs((prev) => ({
+      ...prev,
+      email: prev.email || userState?.user?.email || '',
+    }));
+    setShowEmailBindModal(true);
+  }, [userState?.user?.email]);
+
+  const sendEmailVerificationCode = useCallback(async () => {
+    if (emailBindInputs.email === '') {
+      showError(t('请输入邮箱！'));
+      return;
+    }
+    setEmailCodeDisabled(true);
+    if (humanVerificationEnabled && humanVerificationToken === '') {
+      showInfo(t(`请稍后几秒重试，${humanVerificationName} 正在检查用户环境！`));
+      return;
+    }
+    setEmailBindLoading(true);
+    try {
+      const res = await API.get(
+        `/api/verification?email=${emailBindInputs.email}${buildCaptchaQuery(humanVerificationToken)}`,
+      );
+      const { success, message } = res.data;
+      if (success) {
+        showSuccess(t('验证码发送成功，请检查邮箱！'));
+      } else {
+        showError(message);
+      }
+    } finally {
+      setEmailBindLoading(false);
+    }
+  }, [emailBindInputs.email, humanVerificationEnabled, humanVerificationName, humanVerificationToken, t]);
+
+  const bindEmailFromFarm = useCallback(async () => {
+    if (emailBindInputs.email_verification_code === '') {
+      showError(t('请输入邮箱验证码！'));
+      return;
+    }
+    setEmailBindLoading(true);
+    try {
+      const res = await API.get(
+        `/api/oauth/email/bind?email=${emailBindInputs.email}&code=${emailBindInputs.email_verification_code}`,
+      );
+      const { success, message } = res.data;
+      if (success) {
+        showSuccess(t('邮箱账户绑定成功！'));
+        const nextUser = {
+          ...(userState?.user || {}),
+          email: emailBindInputs.email,
+        };
+        userDispatch({ type: 'login', payload: nextUser });
+        setUserData(nextUser);
+        setShowEmailBindModal(false);
+        resetEmailBindState();
+      } else {
+        showError(message);
+      }
+    } finally {
+      setEmailBindLoading(false);
+    }
+  }, [emailBindInputs.email, emailBindInputs.email_verification_code, resetEmailBindState, t, userDispatch, userState?.user]);
 
   // 好友请求数（从 SocialPanel 事件同步，用于侧边栏角标）
   const [friendRequestCount, setFriendRequestCount] = useState(0);
@@ -706,7 +858,6 @@ const Farm = () => {
     achievements: t('看看已经达成和还没完成的成就。'),
     encyclopedia: t('查看图鉴收集进度。'),
     leaderboard: t('看看当前的排名与荣誉。'),
-    season: t('查看赛季段位、积分和冲榜排名。'),
     steal: t('寻找目标，处理冷却和结果记录。'),
     games: t('进入农场里的小游戏。'),
     dog: t('照看你的狗狗和辅助收益。'),
@@ -770,8 +921,6 @@ const Farm = () => {
         return <EncyclopediaPage actionLoading={actionLoading} loadFarm={loadFarm} t={t} />;
       case 'leaderboard':
         return <LeaderboardPage t={t} />;
-      case 'season':
-        return <SeasonPage t={t} />;
       case 'steal':
         return <StealPage {...commonProps} />;
       case 'games':
@@ -827,6 +976,21 @@ const Farm = () => {
                   </div>
                 </div>
               </div>
+              {showEmailHint && (
+                <div className='farm-email-hint'>
+                  <div className='farm-email-hint-content'>
+                    <div>
+                      <div className='farm-email-hint-title'>{t('绑定邮箱后可接收农场活动邮件通知')}</div>
+                      <div className='farm-email-hint-text'>
+                        {t('包括作物缺水、快枯死、被偷菜、牧场清理提醒和离线好友消息。')}
+                      </div>
+                    </div>
+                    <Button theme='solid' className='farm-btn' onClick={openEmailBindModal}>
+                      {t('立即绑定邮箱')}
+                    </Button>
+                  </div>
+                </div>
+              )}
               <FarmErrorBoundary resetKey={activePage}>
                 <Suspense fallback={<Loading size='large' fullscreen={false} text={t('页面切换中')} />}>
                   {renderPage()}
@@ -852,6 +1016,22 @@ const Farm = () => {
             userLevel={userLevel}
           />
         )}
+        <FarmEmailBindModal
+          t={t}
+          visible={showEmailBindModal}
+          onClose={closeEmailBindModal}
+          inputs={emailBindInputs}
+          onInputChange={handleEmailBindInputChange}
+          onSendCode={sendEmailVerificationCode}
+          onSubmit={bindEmailFromFarm}
+          disableButton={emailCodeDisabled}
+          loading={emailBindLoading}
+          countdown={emailCodeCountdown}
+          humanVerificationEnabled={humanVerificationEnabled}
+          humanVerificationProvider={humanVerificationProvider}
+          humanVerificationSiteKey={humanVerificationSiteKey}
+          setHumanVerificationToken={setHumanVerificationToken}
+        />
         <FarmMedalDropOverlay drop={activeMedalDrop} onClose={closeMedalDrop} t={t} />
       </div>
     </TutorialProvider>

@@ -74,9 +74,12 @@ const SystemSetting = () => {
     WeChatServerAddress: '',
     WeChatServerToken: '',
     WeChatAccountQRCodeImageURL: '',
+    HumanVerificationProvider: 'turnstile',
     TurnstileCheckEnabled: '',
     TurnstileSiteKey: '',
     TurnstileSecretKey: '',
+    RecaptchaSiteKey: '',
+    RecaptchaSecretKey: '',
     RegisterEnabled: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
@@ -169,6 +172,9 @@ const SystemSetting = () => {
             break;
           case 'email.api_url':
             item.value = item.value || '';
+            break;
+          case 'HumanVerificationProvider':
+            item.value = item.value || 'turnstile';
             break;
           case 'PasswordLoginEnabled':
           case 'PasswordRegisterEnabled':
@@ -575,6 +581,15 @@ const SystemSetting = () => {
   const submitTurnstile = async () => {
     const options = [];
 
+    if (
+      originInputs['HumanVerificationProvider'] !==
+      inputs.HumanVerificationProvider
+    ) {
+      options.push({
+        key: 'HumanVerificationProvider',
+        value: inputs.HumanVerificationProvider,
+      });
+    }
     if (originInputs['TurnstileSiteKey'] !== inputs.TurnstileSiteKey) {
       options.push({ key: 'TurnstileSiteKey', value: inputs.TurnstileSiteKey });
     }
@@ -585,6 +600,18 @@ const SystemSetting = () => {
       options.push({
         key: 'TurnstileSecretKey',
         value: inputs.TurnstileSecretKey,
+      });
+    }
+    if (originInputs['RecaptchaSiteKey'] !== inputs.RecaptchaSiteKey) {
+      options.push({ key: 'RecaptchaSiteKey', value: inputs.RecaptchaSiteKey });
+    }
+    if (
+      originInputs['RecaptchaSecretKey'] !== inputs.RecaptchaSecretKey &&
+      inputs.RecaptchaSecretKey !== ''
+    ) {
+      options.push({
+        key: 'RecaptchaSecretKey',
+        value: inputs.RecaptchaSecretKey,
       });
     }
 
@@ -1026,7 +1053,7 @@ const SystemSetting = () => {
                           handleCheckboxChange('TurnstileCheckEnabled', e)
                         }
                       >
-                        {t('允许 Turnstile 用户校验')}
+                        {t('启用人机校验')}
                       </Form.Checkbox>
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
@@ -1562,18 +1589,28 @@ const SystemSetting = () => {
               </Card>
 
               <Card>
-                <Form.Section text={t('配置 Turnstile')}>
-                  <Text>{t('用以支持用户校验')}</Text>
+                <Form.Section text={t('配置人机校验')}>
+                  <Text>{t('用以支持 Turnstile 或 reCAPTCHA 用户校验')}</Text>
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
                   >
-                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Select
+                        field='HumanVerificationProvider'
+                        label={t('验证码提供方')}
+                        optionList={[
+                          { label: 'Turnstile', value: 'turnstile' },
+                          { label: 'reCAPTCHA', value: 'recaptcha' },
+                        ]}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
                       <Form.Input
                         field='TurnstileSiteKey'
                         label={t('Turnstile Site Key')}
                       />
                     </Col>
-                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
                       <Form.Input
                         field='TurnstileSecretKey'
                         label={t('Turnstile Secret Key')}
@@ -1581,9 +1618,23 @@ const SystemSetting = () => {
                         placeholder={t('敏感信息不会发送到前端显示')}
                       />
                     </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='RecaptchaSiteKey'
+                        label={t('reCAPTCHA Site Key')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='RecaptchaSecretKey'
+                        label={t('reCAPTCHA Secret Key')}
+                        type='password'
+                        placeholder={t('敏感信息不会发送到前端显示')}
+                      />
+                    </Col>
                   </Row>
                   <Button onClick={submitTurnstile}>
-                    {t('保存 Turnstile 设置')}
+                    {t('保存人机校验设置')}
                   </Button>
                 </Form.Section>
               </Card>

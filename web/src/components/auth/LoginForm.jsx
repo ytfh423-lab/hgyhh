@@ -40,7 +40,7 @@ import {
   buildAssertionResult,
   isPasskeySupported,
 } from '../../helpers';
-import Turnstile from 'react-turnstile';
+import HumanVerification from '../common/HumanVerification';
 import {
   Button,
   Card,
@@ -85,9 +85,12 @@ const LoginForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [userState, userDispatch] = useContext(UserContext);
   const [statusState] = useContext(StatusContext);
-  const [turnstileEnabled, setTurnstileEnabled] = useState(false);
-  const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [humanVerificationEnabled, setHumanVerificationEnabled] =
+    useState(false);
+  const [humanVerificationProvider, setHumanVerificationProvider] =
+    useState('turnstile');
+  const [humanVerificationSiteKey, setHumanVerificationSiteKey] = useState('');
+  const [humanVerificationToken, setHumanVerificationToken] = useState('');
   const [showWeChatLoginModal, setShowWeChatLoginModal] = useState(false);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
@@ -131,8 +134,12 @@ const LoginForm = () => {
       return {};
     }
   }, [statusState?.status]);
-  const hasCustomOAuthProviders =
-    (status.custom_oauth_providers || []).length > 0;
+  const humanVerificationName =
+    humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
+  const humanVerificationQuery = humanVerificationToken
+    ? `?captcha=${encodeURIComponent(humanVerificationToken)}`
+    : '';
+
   const hasOAuthLoginOptions = Boolean(
     status.github_oauth ||
       status.discord_oauth ||
@@ -144,10 +151,15 @@ const LoginForm = () => {
   );
 
   useEffect(() => {
-    if (status?.turnstile_check) {
-      setTurnstileEnabled(true);
-      setTurnstileSiteKey(status.turnstile_site_key);
-    }
+    const provider = status?.human_verification_provider || 'turnstile';
+    const enabled =
+      status?.human_verification_enabled ?? status?.turnstile_check ?? false;
+    const siteKey =
+      status?.human_verification_site_key || status?.turnstile_site_key || '';
+    setHumanVerificationProvider(provider);
+    setHumanVerificationEnabled(enabled);
+    setHumanVerificationSiteKey(enabled ? siteKey : '');
+    setHumanVerificationToken('');
 
     // 从 status 获取用户协议和隐私政策的启用状态
     setHasUserAgreement(status?.user_agreement_enabled || false);
@@ -183,8 +195,8 @@ const LoginForm = () => {
   };
 
   const onSubmitWeChatVerificationCode = async () => {
-    if (turnstileEnabled && turnstileToken === '') {
-      showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
+    if (humanVerificationEnabled && humanVerificationToken === '') {
+      showInfo(`请稍后几秒重试，${humanVerificationName} 正在检查用户环境！`);
       return;
     }
     setWechatCodeSubmitLoading(true);
@@ -220,8 +232,8 @@ const LoginForm = () => {
       showInfo(t('请先阅读并同意用户协议和隐私政策'));
       return;
     }
-    if (turnstileEnabled && turnstileToken === '') {
-      showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
+    if (humanVerificationEnabled && humanVerificationToken === '') {
+      showInfo(`请稍后几秒重试，${humanVerificationName} 正在检查用户环境！`);
       return;
     }
     setSubmitted(true);
@@ -229,7 +241,7 @@ const LoginForm = () => {
     try {
       if (username && password) {
         const res = await API.post(
-          `/api/user/login?turnstile=${turnstileToken}`,
+          `/api/user/login${humanVerificationQuery}`,
           {
             username,
             password,
@@ -993,13 +1005,13 @@ const LoginForm = () => {
         {renderWeChatLoginModal()}
         {render2FAModal()}
 
-        {turnstileEnabled && (
+        {humanVerificationEnabled && (
           <div className='flex justify-center mt-6'>
-            <Turnstile
-              sitekey={turnstileSiteKey}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-              }}
+            <HumanVerification
+              provider={humanVerificationProvider}
+              enabled={humanVerificationEnabled}
+              siteKey={humanVerificationSiteKey}
+              onVerify={setHumanVerificationToken}
             />
           </div>
         )}

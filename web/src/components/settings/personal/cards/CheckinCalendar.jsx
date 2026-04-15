@@ -36,14 +36,21 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import Turnstile from 'react-turnstile';
+import HumanVerification from '../../../common/HumanVerification';
 import { API, showError, showSuccess, renderQuota } from '../../../../helpers';
 
-const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
+const CheckinCalendar = ({
+  t,
+  status,
+  humanVerificationEnabled,
+  humanVerificationProvider,
+  humanVerificationSiteKey,
+}) => {
   const [loading, setLoading] = useState(false);
   const [checkinLoading, setCheckinLoading] = useState(false);
-  const [turnstileModalVisible, setTurnstileModalVisible] = useState(false);
-  const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0);
+  const [humanVerificationModalVisible, setHumanVerificationModalVisible] =
+    useState(false);
+  const [humanVerificationWidgetKey, setHumanVerificationWidgetKey] = useState(0);
   const [checkinData, setCheckinData] = useState({
     enabled: false,
     stats: {
@@ -115,15 +122,19 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
 
   const postCheckin = async (token) => {
     const url = token
-      ? `/api/user/checkin?turnstile=${encodeURIComponent(token)}`
+      ? `/api/user/checkin?captcha=${encodeURIComponent(token)}`
       : '/api/user/checkin';
     return API.post(url);
   };
 
-  const shouldTriggerTurnstile = (message) => {
-    if (!turnstileEnabled) return false;
+  const shouldTriggerHumanVerification = (message) => {
+    if (!humanVerificationEnabled) return false;
     if (typeof message !== 'string') return true;
-    return message.includes('Turnstile');
+    return (
+      message.includes('Turnstile') ||
+      message.includes('reCAPTCHA') ||
+      message.includes('token 为空')
+    );
   };
 
   const doCheckin = async (token) => {
@@ -137,18 +148,18 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
         );
         // 刷新签到状态
         fetchCheckinStatus(currentMonth);
-        setTurnstileModalVisible(false);
+        setHumanVerificationModalVisible(false);
       } else {
-        if (!token && shouldTriggerTurnstile(message)) {
-          if (!turnstileSiteKey) {
-            showError('Turnstile is enabled but site key is empty.');
+        if (!token && shouldTriggerHumanVerification(message)) {
+          if (!humanVerificationSiteKey) {
+            showError('Human verification is enabled but site key is empty.');
             return;
           }
-          setTurnstileModalVisible(true);
+          setHumanVerificationModalVisible(true);
           return;
         }
-        if (token && shouldTriggerTurnstile(message)) {
-          setTurnstileWidgetKey((v) => v + 1);
+        if (token && shouldTriggerHumanVerification(message)) {
+          setHumanVerificationWidgetKey((v) => v + 1);
         }
         showError(message || t('签到失败'));
       }
@@ -216,23 +227,26 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
     <Card className='!rounded-2xl'>
       <Modal
         title='Security Check'
-        visible={turnstileModalVisible}
+        visible={humanVerificationModalVisible}
         footer={null}
         centered
         onCancel={() => {
-          setTurnstileModalVisible(false);
-          setTurnstileWidgetKey((v) => v + 1);
+          setHumanVerificationModalVisible(false);
+          setHumanVerificationWidgetKey((v) => v + 1);
         }}
       >
         <div className='flex justify-center py-2'>
-          <Turnstile
-            key={turnstileWidgetKey}
-            sitekey={turnstileSiteKey}
+          <HumanVerification
+            key={humanVerificationWidgetKey}
+            widgetKey={humanVerificationWidgetKey}
+            provider={humanVerificationProvider}
+            enabled={humanVerificationEnabled}
+            siteKey={humanVerificationSiteKey}
             onVerify={(token) => {
               doCheckin(token);
             }}
             onExpire={() => {
-              setTurnstileWidgetKey((v) => v + 1);
+              setHumanVerificationWidgetKey((v) => v + 1);
             }}
           />
         </div>
