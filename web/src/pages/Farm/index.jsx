@@ -22,6 +22,7 @@ import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
 import FarmMedalDropOverlay from './components/FarmMedalDropOverlay';
+import { farmVerificationConfirm } from './components/farmConfirm';
 import { FEATURE_LEVEL_MAP } from './constants';
 const PlantPage = lazy(() => import('./components/PlantPage'));
 const RanchPage = lazy(() => import('./components/RanchPage'));
@@ -518,11 +519,46 @@ const Farm = () => {
         loadFarm({ silent: true });
         if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: res });
         return res;
-      } else {
-        showError(res.message);
-        if (eventName) tutorialEvents.emitFail(eventName, { ...body, message: res.message });
+      }
+      // 人机验证 step-up
+      if (res.code === 'FARM_STEP_UP_REQUIRED' || res.code === 'FARM_VERIFICATION_FAILED') {
+        const d = res.data || {};
+        const result = await farmVerificationConfirm({
+          title: t('安全验证'),
+          message: res.code === 'FARM_VERIFICATION_FAILED'
+            ? t('验证未通过，请重新完成人机验证')
+            : t('当前操作需要完成人机验证'),
+          icon: '🛡️',
+          confirmText: t('验证并继续'),
+          verification: {
+            enabled: true,
+            provider: d.provider || 'turnstile',
+            siteKey: d.site_key || '',
+            mode: d.provider === 'recaptcha' ? 'score' : 'checkbox',
+            action: d.action || '',
+          },
+        });
+        if (result && result.token) {
+          const retryBody = { ...body, human_verification_token: result.token, human_verification_action: d.action || '' };
+          const { data: retryRes } = await API.post(url, retryBody);
+          if (retryRes.success) {
+            handleMedalDrop(retryRes);
+            showSuccess(retryRes.message || t('操作成功'));
+            loadFarm({ silent: true });
+            if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: retryRes });
+            return retryRes;
+          }
+          showError(retryRes.message);
+          if (eventName) tutorialEvents.emitFail(eventName, { ...body, message: retryRes.message });
+          return null;
+        }
+        // 用户取消验证
         return null;
       }
+      // 锁定或其他错误
+      showError(res.message);
+      if (eventName) tutorialEvents.emitFail(eventName, { ...body, message: res.message });
+      return null;
     } catch (err) {
       showError(t('操作失败'));
       if (eventName) tutorialEvents.emitFail(eventName, { ...body, error: err.message });
