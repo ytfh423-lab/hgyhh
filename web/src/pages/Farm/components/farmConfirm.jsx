@@ -11,10 +11,20 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@douyinfe/semi-ui';
 import { AlertTriangle } from 'lucide-react';
+import HumanVerification from '../../../components/common/HumanVerification';
 
 /* ── 模块级单例状态 ── */
 let _resolve = null;
-let _state = { visible: false, title: '', message: '', icon: null, confirmText: '确定', cancelText: '取消', confirmType: 'warning' };
+let _state = {
+  visible: false,
+  title: '',
+  message: '',
+  icon: null,
+  confirmText: '确定',
+  cancelText: '取消',
+  confirmType: 'warning',
+  verification: null,
+};
 const _listeners = new Set();
 
 function _notify() {
@@ -36,15 +46,41 @@ export function farmConfirm(title, message, opts = {}) {
       message,
       icon: opts.icon ?? null,
       confirmText: opts.confirmText ?? '确定',
-      cancelText:  opts.cancelText  ?? '取消',
+      cancelText: opts.cancelText ?? '取消',
       confirmType: opts.confirmType ?? 'warning',
+      verification: null,
+    };
+    _notify();
+  });
+}
+
+export function farmVerificationConfirm({
+  title,
+  message,
+  icon = '🛡️',
+  confirmText = '验证并继续',
+  cancelText = '取消',
+  confirmType = 'warning',
+  verification,
+}) {
+  return new Promise(resolve => {
+    _resolve = resolve;
+    _state = {
+      visible: true,
+      title,
+      message,
+      icon,
+      confirmText,
+      cancelText,
+      confirmType,
+      verification,
     };
     _notify();
   });
 }
 
 function _close(result) {
-  _state = { ..._state, visible: false };
+  _state = { ..._state, visible: false, verification: null };
   _notify();
   if (_resolve) { _resolve(result); _resolve = null; }
 }
@@ -52,20 +88,29 @@ function _close(result) {
 /* ── Provider（挂载一次即可） ── */
 export const FarmConfirmProvider = () => {
   const [s, setS] = useState({ ..._state });
+  const [verificationToken, setVerificationToken] = useState('');
+  const [widgetKey, setWidgetKey] = useState(0);
 
   useEffect(() => {
     _listeners.add(setS);
     return () => _listeners.delete(setS);
   }, []);
 
+  useEffect(() => {
+    setVerificationToken('');
+    setWidgetKey((prev) => prev + 1);
+  }, [s.visible, s.verification?.action, s.verification?.provider, s.verification?.mode]);
+
   if (!s.visible) return null;
 
   const colorMap = {
-    danger:  'var(--farm-danger)',
+    danger: 'var(--farm-danger)',
     warning: 'var(--farm-harvest)',
     primary: 'var(--farm-leaf)',
   };
   const accentColor = colorMap[s.confirmType] || colorMap.warning;
+  const verification = s.verification;
+  const verificationReady = !verification || verificationToken;
 
   return (
     <div className='farm-modal-overlay' onClick={() => _close(false)}>
@@ -79,6 +124,26 @@ export const FarmConfirmProvider = () => {
         </div>
         {s.title && <div className='farm-modal-title'>{s.title}</div>}
         <div className='farm-modal-message'>{s.message}</div>
+        {verification && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12, marginBottom: 8 }}>
+            <HumanVerification
+              key={widgetKey}
+              widgetKey={widgetKey}
+              enabled={verification.enabled}
+              provider={verification.provider}
+              siteKey={verification.siteKey}
+              mode={verification.mode}
+              action={verification.action}
+              onVerify={(token) => {
+                setVerificationToken(token || '');
+              }}
+              onExpire={() => {
+                setVerificationToken('');
+                setWidgetKey((prev) => prev + 1);
+              }}
+            />
+          </div>
+        )}
         <div className='farm-modal-buttons'>
           <Button className='farm-btn farm-modal-btn-cancel' theme='borderless' onClick={() => _close(false)}>
             {s.cancelText}
@@ -87,7 +152,8 @@ export const FarmConfirmProvider = () => {
             className='farm-btn farm-modal-btn-confirm'
             theme='solid'
             type={s.confirmType}
-            onClick={() => _close(true)}
+            disabled={!verificationReady}
+            onClick={() => _close(verification ? { token: verificationToken } : true)}
           >
             {s.confirmText}
           </Button>
