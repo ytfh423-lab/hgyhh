@@ -407,6 +407,63 @@ func runFarmAutomationTick() {
 	processFarmAutoWaterTick(autoOwners["irrigation"], GetCurrentWeather().Type == 1, now)
 	processRanchAutoFeederTick(autoOwners["auto_feeder"], now)
 	processFarmUrgentNotifyTick(now)
+	processFarmSoilFallowTick(now)
+	processRandomEventTick(now)
+}
+
+// lastRandomEventTickHour 每小时只扫一次在线玩家，避免每 30s 遍历
+var lastRandomEventTickHour int64
+
+// processRandomEventTick 遍历近期活跃玩家，按节流尝试给他们推突发事件（A-3）
+func processRandomEventTick(now int64) {
+	curHour := now / 3600
+	if curHour == lastRandomEventTickHour {
+		return
+	}
+	lastRandomEventTickHour = curHour
+	// 拉最近 7 天活跃过 farm 的玩家（GROUP BY 取 distinct telegram_id，跨 MySQL/PG/SQLite 兼容）
+	var tgIds []string
+	since := now - 7*24*3600
+	if err := model.DB.Model(&model.TgFarmLog{}).
+		Where("created_at >= ?", since).
+		Group("telegram_id").
+		Limit(200).
+		Pluck("telegram_id", &tgIds).Error; err != nil {
+		return
+	}
+	for _, tgId := range tgIds {
+		if tgId == "" {
+			continue
+		}
+		// 随机 15% 概率触发（小时评估 => 平均 6~7 小时推一次，再由 12h 节流兜底）
+		if rand.Intn(100) < 15 {
+			TriggerRandomEventIfEligible(tgId)
+		}
+	}
+}
+
+// lastFallowTickHour 记录上一次休耕回补所在的整点小时戳，防止同一小时内重复跑
+var lastFallowTickHour int64
+
+// processFarmSoilFallowTick 每小时恢复一次休耕地块地力；到期自动清零 fallow_until
+func processFarmSoilFallowTick(now int64) {
+	curHour := now / 3600
+	if curHour == lastFallowTickHour {
+		return
+	}
+	lastFallowTickHour = curHour
+	var plots []*model.TgFarmPlot
+	if err := model.DB.Where("fallow_until > 0").Find(&plots).Error; err != nil {
+		return
+	}
+	for _, p := range plots {
+		if p.FallowUntil <= now {
+			// 到期：自动解除
+			_ = model.SetFallowUntil(p.Id, 0)
+			continue
+		}
+		_ = model.SoilFallowTick(p)
+	}
 }
 
 func processFarmUrgentNotifyTick(now int64) {
@@ -905,6 +962,23 @@ func WebFarmPlant(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该地块不可用"})
 		return
 	}
+	// 休耕期内禁止种植；到期自动解除
+	if targetPlot.FallowUntil > 0 {
+		nowTs := time.Now().Unix()
+		if targetPlot.FallowUntil > nowTs {
+			remainSecs := targetPlot.FallowUntil - nowTs
+			hours := remainSecs / 3600
+			mins := (remainSecs % 3600) / 60
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": fmt.Sprintf("该地块休耕中，剩余 %d小时%d分", hours, mins),
+			})
+			return
+		}
+		// 休耕已到期，清零标记（纯副作用，失败不影响种植主流程）
+		_ = model.SetFallowUntil(targetPlot.Id, 0)
+		targetPlot.FallowUntil = 0
+	}
 
 	// 优先消耗库存种子，库存不足则从余额扣费
 	seedKey := "seed_" + crop.Key
@@ -973,6 +1047,8 @@ func WebFarmPlant(c *gin.Context) {
 	}
 
 	_ = model.UpdateFarmPlot(targetPlot)
+	// 土壤肥力系统 hook：扣减 N/P/K、累加连作疲劳（失败不影响主流程）
+	_ = model.SoilConsumeOnPlant(targetPlot, crop.Key, cropSoilPreset(crop.Key))
 	common.SysLog(fmt.Sprintf("Web Farm: user %s planted %s on plot %d", tgId, crop.Key, req.PlotIndex))
 
 	TryAwardSeasonPoints(tgId, "plant", fmt.Sprintf("种植%s", crop.Name))
@@ -1026,7 +1102,15 @@ func WebFarmHarvest(c *gin.Context) {
 					fertBonus = 1
 				}
 			}
+			// 土壤肥力乘数（0.7 ~ 1.3）
+			soilMult := model.SoilYieldFactor(plot)
 			realYield, stolenLoss := calcHarvestYield(baseYield, fertBonus, plot.StolenCount)
+			if soilMult != 1.0 {
+				realYield = int(float64(realYield) * soilMult)
+				if realYield < 0 {
+					realYield = 0
+				}
+			}
 			marketPrice := applyMarket(crop.UnitPrice, "crop_"+crop.Key)
 			seasonPrice := applySeasonPrice(marketPrice, crop)
 			value := realYield * seasonPrice
@@ -1048,6 +1132,8 @@ func WebFarmHarvest(c *gin.Context) {
 			})
 
 			_ = model.ClearFarmPlot(plot.Id)
+			// 土壤肥力回补（根系残留腐解）
+			_ = model.SoilRecoverOnHarvest(plot)
 			model.RecordCollection(tgId, "crop", crop.Key, realYield)
 		}
 	}
@@ -1504,9 +1590,18 @@ func WebFarmPlantAll(c *gin.Context) {
 	}
 	inTutorial := model.IsFarmTutorialActive(tgId)
 	planted := 0
+	nowTsAll := time.Now().Unix()
 	for _, plot := range plots {
 		if plot.Status != 0 {
 			continue
+		}
+		// 跳过仍在休耕期的地块
+		if plot.FallowUntil > nowTsAll {
+			continue
+		}
+		if plot.FallowUntil > 0 && plot.FallowUntil <= nowTsAll {
+			_ = model.SetFallowUntil(plot.Id, 0)
+			plot.FallowUntil = 0
 		}
 		// Try inventory seed first, then deduct balance
 		seedKey := "seed_" + crop.Key
@@ -1561,6 +1656,8 @@ func WebFarmPlantAll(c *gin.Context) {
 			plot.EventAt = now + offset
 		}
 		_ = model.UpdateFarmPlot(plot)
+		// 土壤肥力 hook
+		_ = model.SoilConsumeOnPlant(plot, crop.Key, cropSoilPreset(crop.Key))
 		model.AddFarmLog(tgId, "plant", -crop.SeedCost, fmt.Sprintf("一键种植%s%s", crop.Emoji, crop.Name))
 		planted++
 	}

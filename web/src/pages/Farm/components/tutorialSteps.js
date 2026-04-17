@@ -83,19 +83,47 @@ const farmBasicSteps = [
   // ── 8. 核心流程说明 ──
   {
     id: 'fb-8', page: 'overview',
-    title: '� 核心流程',
+    title: '🔁 核心流程',
     content: '农场的核心流程是：种植 → 浇水 → 等待成熟 → 收获 → 出售赚钱。作物成熟后点击「🌾 收获出售」即可卖出！',
     targetSelector: null, placement: 'center',
     actionType: 'info',
   },
 
-  // ── 9. 完成 ──
+  // ── 9. 土壤肥力介绍（A-1） ──
   {
     id: 'fb-9', page: 'overview',
+    title: '🟫 土壤肥力',
+    content: '每块地都有独立的土壤：氮磷钾、PH、有机质、连作疲劳六维。土壤评分越高，产量越高。左侧「🟫 土壤」可以施肥或休耕。',
+    targetSelector: '[data-tutorial="nav-soil"]', placement: 'right',
+    actionType: 'info',
+  },
+
+  // ── 10. 天气与事件（A-2） ──
+  {
+    id: 'fb-10', page: 'overview',
+    title: '🌦️ 天气与事件',
+    content: '顶部横幅会显示当前天气；偶尔还会出现"霜降"、"彩虹日"等稀有天气事件，临时改变土壤状态。留意横幅提示！',
+    targetSelector: null, placement: 'center',
+    actionType: 'info',
+  },
+
+  // ── 11. 突发事件剧情（A-3） ──
+  {
+    id: 'fb-11', page: 'overview',
+    title: '🎭 突发事件',
+    content: '偶尔会有路人或商人找上门，每次都是三选一的小剧情。选择不同结局不同——下次出现时就去体验一下吧！',
+    targetSelector: null, placement: 'center',
+    actionType: 'info',
+  },
+
+  // ── 12. 完成 ──
+  {
+    id: 'fb-12', page: 'overview',
     title: '教程完成！🎉',
     content: '恭喜！你已了解农场的基本操作。现在就去种下你的第一颗作物吧！随着等级提升会解锁更多功能。点击右上角「📖」可随时回顾教程。',
     targetSelector: null, placement: 'center',
     actionType: 'info',
+    finalStep: true,  // A-3: 基础教程完成时强制触发一次突发事件，让新手看到玩法
   },
 ];
 

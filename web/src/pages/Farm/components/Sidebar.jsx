@@ -14,6 +14,7 @@ const navGroups = [
     items: [
       { key: 'overview', label: '总览', emoji: '🏠' },
       { key: 'plant', label: '种植', emoji: '🌱' },
+      { key: 'soil', label: '土壤', emoji: '🟫' },
       { key: 'ranch', label: '牧场', emoji: '🐄' },
       { key: 'fish', label: '钓鱼', emoji: '🎣' },
       { key: 'workshop', label: '加工坊', emoji: '🏭' },

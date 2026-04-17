@@ -115,6 +115,7 @@ func main() {
 	// Entrust expiration cleanup (every 5 minutes)
 	controller.StartEntrustCleanupTask()
 	controller.StartFarmAutomationTask()
+	controller.StartWeatherEventTask()
 
 	// Wire task polling adaptor factory (breaks service -> relay import cycle)
 	service.GetTaskAdaptorFunc = func(platform constant.TaskPlatform) service.TaskPollingAdaptor {

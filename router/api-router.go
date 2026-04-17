@@ -205,6 +205,9 @@ func SetApiRouter(router *gin.Engine) {
 			tgBotRoute.POST("/farm/steal-config", controller.AdminUpdateStealConfig)
 			tgBotRoute.GET("/farm/steal-config/logs", controller.AdminGetStealConfigLogs)
 			tgBotRoute.POST("/farm/steal-config/reset", controller.AdminResetStealConfig)
+			// 事件后端日志面板（A-4）
+			tgBotRoute.GET("/farm/events", controller.AdminGetFarmEvents)
+			tgBotRoute.POST("/farm/events/trigger-random", controller.AdminTriggerRandomEvent)
 			tgBotRoute.GET("/market/events", controller.WebMarketAdminGetEvents)
 			tgBotRoute.POST("/market/events", controller.WebMarketAdminCreateEvent)
 			tgBotRoute.PUT("/market/events", controller.WebMarketAdminUpdateEvent)
@@ -401,6 +404,17 @@ func SetApiRouter(router *gin.Engine) {
 			farmRoute.POST("/fertilize/all", controller.WebFarmFertilizeAll)
 			farmRoute.POST("/buyland", controller.WebFarmBuyLand)
 			farmRoute.POST("/upgrade-soil", controller.WebFarmUpgradeSoil)
+			// 土壤肥力系统（A-1）
+			farmRoute.GET("/soil/view", controller.WebFarmSoilView)
+			farmRoute.POST("/soil/fertilize", controller.WebFarmSoilFertilize)
+			farmRoute.POST("/soil/fallow", controller.WebFarmSoilFallow)
+			farmRoute.POST("/soil/fallow/cancel", controller.WebFarmSoilFallowCancel)
+			// 天气事件层（A-2）
+			farmRoute.GET("/weather/event", controller.WebFarmWeatherEvent)
+			// 突发事件中心（A-3）
+			farmRoute.GET("/event/view", controller.WebFarmRandomEventView)
+			farmRoute.POST("/event/choose", controller.WebFarmRandomEventChoose)
+			farmRoute.POST("/event/trigger", controller.WebFarmRandomEventTrigger)
 			farmRoute.POST("/water", controller.WebFarmWater)
 			farmRoute.POST("/water/all", controller.WebFarmWaterAll)
 			farmRoute.POST("/clear-plot", controller.WebFarmClearPlot)

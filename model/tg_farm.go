@@ -152,6 +152,16 @@ type TgFarmPlot struct {
 	Fertilized    int    `json:"fertilized" gorm:"default:0"`    // 0=未施肥 1=已施肥
 	LastWateredAt int64  `json:"last_watered_at" gorm:"default:0"` // 上次浇水时间
 	SoilLevel     int    `json:"soil_level" gorm:"default:1"`     // 泥土等级 1-5
+
+	// ===== 土壤肥力系统（A-1）=====
+	SoilN        int   `json:"soil_n" gorm:"default:60"`          // 氮 0-100
+	SoilP        int   `json:"soil_p" gorm:"default:60"`          // 磷 0-100
+	SoilK        int   `json:"soil_k" gorm:"default:60"`          // 钾 0-100
+	SoilPH       int   `json:"soil_ph" gorm:"default:65"`         // PH x10，范围 45-85，65=中性
+	SoilOM       int   `json:"soil_om" gorm:"default:40"`         // 有机质 0-100
+	SoilFatigue  int   `json:"soil_fatigue" gorm:"default:0"`     // 连作疲劳 0-100，值越高越差
+	LastCropType string `json:"last_crop_type" gorm:"type:varchar(32);default:''"` // 上一轮作物，用于判定连作
+	FallowUntil  int64 `json:"fallow_until" gorm:"default:0"`     // 休耕截止时间（0=未休耕）
 }
 
 // TgFarmItem 农场道具背包

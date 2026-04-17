@@ -106,6 +106,17 @@ const TutorialProvider = ({ userLevel, activePage, onNavigate, farmData, loadFar
 
     if (onNavigate) onNavigate('overview');
 
+    // A-3 教程融合：基础教程完成时，强制给玩家推一条突发事件让 Modal 能立刻出现
+    if (flowKey === 'farm_basic') {
+      try {
+        const { data: r } = await API.post('/api/farm/event/trigger');
+        if (r && r.success) {
+          // 通知 Modal 立即刷新（否则要等最多 60s）
+          window.dispatchEvent(new CustomEvent('farm-random-event-refresh'));
+        }
+      } catch (e) { /* 静默：失败只是首次事件延迟，不影响体验 */ }
+    }
+
     // 检查是否有下一个待完成教程
     const state = await loadState();
     if (state?.pending_forced) {

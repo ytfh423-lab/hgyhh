@@ -42,6 +42,7 @@ const StealPage = lazy(() => import('./components/StealPage'));
 const GamesPage = lazy(() => import('./components/GamesPage'));
 const DogPage = lazy(() => import('./components/DogPage'));
 const AutomationPage = lazy(() => import('./components/AutomationPage'));
+const SoilPage = lazy(() => import('./components/SoilPage'));
 const TreeFarmPage = lazy(() => import('./components/TreeFarmPage'));
 const PrestigePage = lazy(() => import('./components/PrestigePage'));
 const LogsPage = lazy(() => import('./components/LogsPage'));
@@ -720,6 +721,7 @@ const Farm = () => {
     games: t('进入农场里的小游戏。'),
     dog: t('照看你的狗狗和辅助收益。'),
     automation: t('管理自动化开关和日常策略。'),
+    soil: t('查看土壤六维参数，施肥、轮作和休耕。'),
     treefarm: t('查看树场生长、采集与扩张。'),
     prestige: t('查看转生条件与收益。'),
     logs: t('翻看农场日志与消费记录。'),
@@ -746,6 +748,8 @@ const Farm = () => {
         return <FarmOverview {...commonProps} crops={crops} loading={loading} />;
       case 'plant':
         return <PlantPage {...commonProps} crops={crops} />;
+      case 'soil':
+        return <SoilPage loadFarm={loadFarm} t={t} />;
       case 'ranch':
         return <RanchPage {...commonProps} />;
       case 'fish':

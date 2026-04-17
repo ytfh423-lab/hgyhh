@@ -5,6 +5,8 @@ import { formatBalance, formatDuration, confirmAction } from './utils';
 import { farmConfirm } from './farmConfirm';
 import { useTutorial } from './TutorialProvider';
 import FarmAnnouncementBar from './FarmAnnouncementBar';
+import WeatherEventBanner from './WeatherEventBanner';
+import RandomEventModal from './RandomEventModal';
 import { API } from '../../../helpers';
 
 const { Text } = Typography;
@@ -336,6 +338,12 @@ const FarmOverview = ({ farmData, crops, loading, loadFarm, actionLoading, doAct
           )}
         </div>
       )}
+
+      {/* ═══ Weather Event Banner (A-2) ═══ */}
+      <WeatherEventBanner t={t} />
+
+      {/* ═══ Random Event Modal (A-3) ═══ */}
+      <RandomEventModal t={t} loadFarm={loadFarm} />
 
       {/* ═══ Dashboard Stats ═══ */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>

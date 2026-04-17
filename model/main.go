@@ -327,6 +327,8 @@ func migrateDB() error {
 		&TgFarmSeasonAntiCheat{},
 		&TgFarmSeasonAntiCheatRule{},
 		&TgFarmSeasonPointsRule{},
+		&TgFarmWeatherEvent{},
+		&TgFarmRandomEvent{},
 	)
 	if err != nil {
 		return err
