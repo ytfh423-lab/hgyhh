@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API, showError, showSuccess } from './components/utils';
-import { farmVerificationConfirm } from './components/farmConfirm';
 import { StatusContext } from '../../context/Status';
 import { UserContext } from '../../context/User';
 import Loading from '../../components/common/ui/Loading';
@@ -218,20 +217,9 @@ const FARM_CACHE_KEY = 'farm_view_v2';
 const buildCaptchaQuery = (token) =>
   token ? `&captcha=${encodeURIComponent(token)}` : '';
 
-const buildFarmRiskAction = (url) => {
-  if (!url) return 'farm_action';
-  return url
-    .replace(/^\/api\//, '')
-    .replace(/\/visit\/[^/]+\//, '/visit_')
-    .replace(/\/chat\/[^/]+/, '/chat')
-    .replace(/\/friends\/[^/]+/, '/friends_remove')
-    .replace(/\//g, '_');
-};
-
 const Farm = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [statusState] = useContext(StatusContext);
   const [userState, userDispatch] = useContext(UserContext);
   const [loading, setLoading] = useState(true);
   const [farmData, setFarmData] = useState(() => {
@@ -252,13 +240,6 @@ const Farm = () => {
   const [agreementChecked, setAgreementChecked] = useState(false);
   const [activeMedalDrop, setActiveMedalDrop] = useState(null);
   const [medalDropQueue, setMedalDropQueue] = useState([]);
-  const status = statusState?.status || {};
-  const humanVerificationEnabled =
-    status?.human_verification_enabled ?? status?.turnstile_check ?? false;
-  const humanVerificationProvider =
-    status?.human_verification_provider || 'turnstile';
-  const humanVerificationSiteKey =
-    status?.human_verification_site_key || status?.turnstile_site_key || '';
   const farmDataRef = useRef(farmData);
   const silentLoadFarmPromiseRef = useRef(null);
   const queuedSilentLoadFarmOptionsRef = useRef(null);
@@ -529,47 +510,19 @@ const Farm = () => {
   const doAction = async (url, body) => {
     setActionLoading(true);
     const eventName = urlToEvent(url);
-    const actionKey = buildFarmRiskAction(url);
-    const executeAction = async (payload) => API.post(url, payload);
     try {
-      let { data: res } = await executeAction(body);
-      if (!res.success && res.code === 'FARM_STEP_UP_REQUIRED') {
-        const verificationResult = await farmVerificationConfirm({
-          title: t('该操作需要额外验证'),
-          message: res.message || t('检测到当前操作存在风险，请完成人机验证后继续。'),
-          confirmText: t('验证并继续'),
-          cancelText: t('取消'),
-          verification: {
-            enabled: humanVerificationEnabled,
-            provider: humanVerificationProvider,
-            siteKey: humanVerificationSiteKey,
-            mode:
-              humanVerificationProvider === 'recaptcha' ? 'score' : 'checkbox',
-            action: res?.data?.action || actionKey,
-          },
-        });
-        if (!verificationResult?.token) {
-          if (eventName) {
-            tutorialEvents.emitFail(eventName, { ...body, message: 'verification_cancelled' });
-          }
-          return null;
-        }
-        ({ data: res } = await executeAction({
-          ...body,
-          human_verification_token: verificationResult.token,
-          human_verification_action: res?.data?.action || actionKey,
-        }));
-      }
+      const { data: res } = await API.post(url, body);
       if (res.success) {
         handleMedalDrop(res);
         showSuccess(res.message || t('操作成功'));
         loadFarm({ silent: true });
         if (eventName) tutorialEvents.emitSuccess(eventName, { ...body, response: res });
         return res;
+      } else {
+        showError(res.message);
+        if (eventName) tutorialEvents.emitFail(eventName, { ...body, message: res.message });
+        return null;
       }
-      showError(res.message);
-      if (eventName) tutorialEvents.emitFail(eventName, { ...body, message: res.message });
-      return null;
     } catch (err) {
       showError(t('操作失败'));
       if (eventName) tutorialEvents.emitFail(eventName, { ...body, error: err.message });
