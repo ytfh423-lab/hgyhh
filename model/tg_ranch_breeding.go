@@ -50,7 +50,3 @@ func CreateRanchBreeding(breeding *TgRanchBreeding) error {
 func UpdateRanchBreeding(breeding *TgRanchBreeding) error {
 	return DB.Save(breeding).Error
 }
-
-func IsRecordNotFound(err error) bool {
-	return err != nil && err == gorm.ErrRecordNotFound
-}
