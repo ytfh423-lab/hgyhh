@@ -516,6 +516,11 @@ type TgRanchAnimal struct {
 	LastFedAt     int64  `json:"last_fed_at"`
 	LastWateredAt int64  `json:"last_watered_at"`
 	LastCleanedAt int64  `json:"last_cleaned_at"`
+	Quality       int    `json:"quality" gorm:"default:1"`
+	Generation    int    `json:"generation" gorm:"default:0"`
+	ParentAId     int    `json:"parent_a_id" gorm:"default:0"`
+	ParentBId     int    `json:"parent_b_id" gorm:"default:0"`
+	BreedCooldownAt int64 `json:"breed_cooldown_at" gorm:"default:0"`
 }
 
 const RanchMaxAnimals = 6

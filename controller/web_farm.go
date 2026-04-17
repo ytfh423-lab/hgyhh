@@ -4108,6 +4108,10 @@ func WebRanchRelease(c *gin.Context) {
 			} else {
 				animalName = a.AnimalType
 			}
+			if a.Status == 6 {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": "育种中的动物暂时不能放生"})
+				return
+			}
 			break
 		}
 	}

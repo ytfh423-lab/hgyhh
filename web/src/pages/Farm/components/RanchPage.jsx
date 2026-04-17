@@ -45,8 +45,8 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
   const aliveAnimals = animals.filter(a => a.status !== 5);
   const dirtyAnimals = aliveAnimals.filter(a => a.is_dirty);
 
-  const statusLabels = { 1: '生长中', 2: '已成熟', 3: '饥饿', 4: '口渴', 5: '已死亡' };
-  const statusTagColors = { 1: 'blue', 2: 'green', 3: 'orange', 4: 'red', 5: 'grey' };
+  const statusLabels = { 1: '生长中', 2: '已成熟', 3: '饥饿', 4: '口渴', 5: '已死亡', 6: '育种中' };
+  const statusTagColors = { 1: 'blue', 2: 'green', 3: 'orange', 4: 'red', 5: 'grey', 6: 'purple' };
 
   return (
     <div>
@@ -88,6 +88,8 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                     <Text strong style={{ fontSize: 15 }}>{animal.animal_name}</Text>
+                    <Tag size='small' color={animal.quality_color || 'grey'}>{animal.quality_label}</Tag>
+                    <Tag size='small' color='grey'>G{animal.generation}</Tag>
                     <Tag size='small' color={statusTagColors[animal.status] || 'grey'}>
                       {statusLabels[animal.status] || animal.status_label}
                     </Tag>
@@ -105,6 +107,12 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
                   )}
                   {animal.status === 2 && (
                     <Text type='success' size='small'>🥩 {t('肉价')} {formatBalance(animal.meat_price)}</Text>
+                  )}
+                  {animal.status === 6 && (
+                    <Text type='tertiary' size='small'>🧬 {t('育种进行中')}</Text>
+                  )}
+                  {animal.breed_cooldown_remaining > 0 && animal.status !== 6 && (
+                    <Text type='tertiary' size='small'>🕰️ {t('育种冷却')} {formatDuration(animal.breed_cooldown_remaining)}</Text>
                   )}
                   {(animal.status === 1 || animal.status === 2) && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
@@ -140,7 +148,7 @@ const RanchPage = ({ actionLoading, doAction, t }) => {
                   {animal.status !== 5 && (
                     <Button size='small' theme='light' type='danger'
                       onClick={async () => { if (await farmConfirm(t('放生动物'), t('确定要放生这只动物吗？不会退款。'), { icon: '🐾', confirmType: 'danger', confirmText: t('放生') })) doRanchAction('/api/ranch/release', { animal_id: animal.id }); }}
-                      loading={actionLoading} className='farm-btn'>
+                      loading={actionLoading} className='farm-btn' disabled={animal.status === 6}>
                       🔓 {t('放生')}
                     </Button>
                   )}

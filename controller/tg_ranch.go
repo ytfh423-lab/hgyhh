@@ -52,7 +52,7 @@ func init() {
 
 // updateRanchAnimalStatus 懒更新动物状态
 func updateRanchAnimalStatus(animal *model.TgRanchAnimal) {
-	if animal.Status == 5 { // 已死亡
+	if animal.Status == 5 || animal.Status == 6 {
 		return
 	}
 
@@ -299,6 +299,7 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 	}
 
 	now := time.Now().Unix()
+	qualityTag := fmt.Sprintf("[%s]", getRanchQualityLabel(animal.Quality))
 
 	switch animal.Status {
 	case 1: // growing
@@ -318,15 +319,15 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 		if remaining < 0 {
 			remaining = 0
 		}
-		return fmt.Sprintf("%s %s%s - 生长中 %d%% 剩余%s", def.Emoji, def.Name, dirtyTag, pct, formatDuration(remaining))
+		return fmt.Sprintf("%s %s%s%s - 生长中 %d%% 剩余%s", def.Emoji, def.Name, qualityTag, dirtyTag, pct, formatDuration(remaining))
 	case 2: // mature
 		dirtyTag := ""
 		if isAnimalDirty(animal, now) {
 			dirtyTag = "💩"
 		}
-		mPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
+		mPrice := getRanchQualityPrice(applyMarket(*def.MeatPrice, "meat_"+def.Key), animal.Quality)
 		mPct := getMarketMultiplier("meat_" + def.Key)
-		return fmt.Sprintf("✅ %s %s%s - 已成熟！可出售 %s(%d%%)", def.Emoji, def.Name, dirtyTag, farmQuotaStr(mPrice), mPct)
+		return fmt.Sprintf("✅ %s %s%s%s - 已成熟！可出售 %s(%d%%)", def.Emoji, def.Name, qualityTag, dirtyTag, farmQuotaStr(mPrice), mPct)
 	case 3: // hungry
 		feedInterval := int64(common.TgBotRanchFeedInterval)
 		hungerStart := animal.LastFedAt + feedInterval
@@ -335,7 +336,7 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 		if remaining < 0 {
 			remaining = 0
 		}
-		return fmt.Sprintf("😫 %s %s - 饥饿！🌾快喂食！%s后死亡", def.Emoji, def.Name, formatDuration(remaining))
+		return fmt.Sprintf("😫 %s %s%s - 饥饿！🌾快喂食！%s后死亡", def.Emoji, def.Name, qualityTag, formatDuration(remaining))
 	case 4: // thirsty
 		waterInterval := int64(common.TgBotRanchWaterInterval)
 		thirstStart := animal.LastWateredAt + waterInterval
@@ -344,11 +345,13 @@ func ranchAnimalLine(animal *model.TgRanchAnimal) string {
 		if remaining < 0 {
 			remaining = 0
 		}
-		return fmt.Sprintf("🥵 %s %s - 口渴！💧快喂水！%s后死亡", def.Emoji, def.Name, formatDuration(remaining))
+		return fmt.Sprintf("🥵 %s %s%s - 口渴！💧快喂水！%s后死亡", def.Emoji, def.Name, qualityTag, formatDuration(remaining))
 	case 5: // dead
-		return fmt.Sprintf("💀 %s %s - 已死亡", def.Emoji, def.Name)
+		return fmt.Sprintf("💀 %s %s%s - 已死亡", def.Emoji, def.Name, qualityTag)
+	case 6:
+		return fmt.Sprintf("🧬 %s %s%s - 育种中", def.Emoji, def.Name, qualityTag)
 	}
-	return fmt.Sprintf("%s %s", def.Emoji, def.Name)
+	return fmt.Sprintf("%s %s%s", def.Emoji, def.Name, qualityTag)
 }
 
 // ========== 购买动物 ==========
@@ -457,6 +460,8 @@ func doRanchBuyAnimal(chatId int64, editMsgId int, tgId string, animalShort stri
 		LastFedAt:     now,
 		LastWateredAt: now,
 		LastCleanedAt: now,
+		Quality:       1,
+		Generation:    0,
 	}
 	err = model.CreateRanchAnimal(animal)
 	if err != nil {
@@ -491,7 +496,7 @@ func showRanchFeedSelection(chatId int64, editMsgId int, tgId string, from *TgUs
 	hasTarget := false
 	for _, a := range animals {
 		updateRanchAnimalStatus(a)
-		if a.Status == 5 {
+		if a.Status == 5 || a.Status == 6 {
 			continue
 		}
 		def := ranchAnimalMap[a.AnimalType]
@@ -544,6 +549,15 @@ func doRanchFeed(chatId int64, editMsgId int, tgId string, animalId int, from *T
 	}
 	if target == nil || target.Status == 5 {
 		farmSend(chatId, editMsgId, "❌ 该动物不存在或已死亡。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	if target.Status == 6 {
+		farmSend(chatId, editMsgId, "❌ 育种中的动物暂时不能喂食。", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
 			},
@@ -620,7 +634,7 @@ func showRanchWaterSelection(chatId int64, editMsgId int, tgId string, from *TgU
 	hasTarget := false
 	for _, a := range animals {
 		updateRanchAnimalStatus(a)
-		if a.Status == 5 {
+		if a.Status == 5 || a.Status == 6 {
 			continue
 		}
 		def := ranchAnimalMap[a.AnimalType]
@@ -672,6 +686,15 @@ func doRanchWater(chatId int64, editMsgId int, tgId string, animalId int, from *
 	}
 	if target == nil || target.Status == 5 {
 		farmSend(chatId, editMsgId, "❌ 该动物不存在或已死亡。", &TgInlineKeyboardMarkup{
+			InlineKeyboard: [][]TgInlineKeyboardButton{
+				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
+			},
+		}, from)
+		return
+	}
+
+	if target.Status == 6 {
+		farmSend(chatId, editMsgId, "❌ 育种中的动物暂时不能喂水。", &TgInlineKeyboardMarkup{
 			InlineKeyboard: [][]TgInlineKeyboardButton{
 				{{Text: "🔙 返回牧场", CallbackData: "ranch"}},
 			},

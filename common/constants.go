@@ -185,6 +185,10 @@ var TgBotRanchDeerMeatPrice = 40000000        // 鹿肉 $80
 var TgBotRanchManureInterval = 21600          // 粪便清理间隔秒数（默认6小时）
 var TgBotRanchManureCleanPrice = 150000       // 清理费用（quota单位，默认$0.3）
 var TgBotRanchManureGrowPenalty = 30          // 脏污时生长减速百分比（默认30%）
+var TgBotRanchBreedCostRate = 30              // 配种费用占购买价格百分比
+var TgBotRanchBreedDueRate = 50               // 孕育时长占生长时长百分比
+var TgBotRanchBreedCooldownRate = 25          // 配种冷却占生长时长百分比
+var TgBotRanchBreedMaxActive = 2              // 同时存在的未领取育种记录上限
 
 // 钓鱼相关
 var TgBotFishBaitPrice = 250000                   // 鱼饵价格（quota单位，默认$0.5）
@@ -307,6 +311,7 @@ var TgBotFarmUnlockTrading = 5
 var TgBotFarmUnlockGames = 4
 var TgBotFarmUnlockEncyclopedia = 2
 var TgBotFarmUnlockAutomation = 6
+var TgBotFarmUnlockBreeding = 4
 
 // 农场内测系统
 var FarmBetaEnabled = false    // 内测开关（开启后农场受内测控制）

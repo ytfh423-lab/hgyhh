@@ -32,6 +32,12 @@ type webAnimalInfo struct {
 	NeedsWater     bool    `json:"needs_water"`
 	IsDirty        bool    `json:"is_dirty"`
 	CleanRemaining int64   `json:"clean_remaining"`
+	Quality        int     `json:"quality"`
+	QualityLabel   string  `json:"quality_label"`
+	QualityColor   string  `json:"quality_color"`
+	Generation     int     `json:"generation"`
+	BreedCooldownAt int64  `json:"breed_cooldown_at"`
+	BreedCooldownRemaining int64 `json:"breed_cooldown_remaining"`
 }
 
 func buildAnimalInfo(animal *model.TgRanchAnimal) webAnimalInfo {
@@ -43,16 +49,24 @@ func buildAnimalInfo(animal *model.TgRanchAnimal) webAnimalInfo {
 		PurchasedAt:   animal.PurchasedAt,
 		LastFedAt:     animal.LastFedAt,
 		LastWateredAt: animal.LastWateredAt,
+		Quality:       normalizeRanchQuality(animal.Quality),
+		QualityLabel:  getRanchQualityLabel(animal.Quality),
+		QualityColor:  getRanchQualityTagColor(animal.Quality),
+		Generation:    animal.Generation,
+		BreedCooldownAt: animal.BreedCooldownAt,
 	}
 
 	if def != nil {
 		info.AnimalName = def.Name
 		info.AnimalEmoji = def.Emoji
 		info.GrowSecs = *def.GrowSecs
-		info.MeatPrice = webFarmQuotaFloat(applyMarket(*def.MeatPrice, "meat_"+def.Key))
+		info.MeatPrice = webFarmQuotaFloat(getRanchQualityPrice(applyMarket(*def.MeatPrice, "meat_"+def.Key), animal.Quality))
 	}
 
 	now := time.Now().Unix()
+	if animal.BreedCooldownAt > now {
+		info.BreedCooldownRemaining = animal.BreedCooldownAt - now
+	}
 
 	switch animal.Status {
 	case 1:
@@ -80,36 +94,39 @@ func buildAnimalInfo(animal *model.TgRanchAnimal) webAnimalInfo {
 		info.StatusLabel = "口渴"
 	case 5:
 		info.StatusLabel = "已死亡"
+	case 6:
+		info.StatusLabel = "育种中"
 	}
 
 	// 计算喂食/喂水剩余时间
-	feedInterval := int64(common.TgBotRanchFeedInterval)
-	nextFeed := animal.LastFedAt + feedInterval
-	if now >= nextFeed {
-		info.NeedsFeed = true
-		info.FeedRemaining = 0
-	} else {
-		info.FeedRemaining = nextFeed - now
-	}
-
-	waterInterval := int64(common.TgBotRanchWaterInterval)
-	nextWater := animal.LastWateredAt + waterInterval
-	if now >= nextWater {
-		info.NeedsWater = true
-		info.WaterRemaining = 0
-	} else {
-		info.WaterRemaining = nextWater - now
-	}
-
-	// 粪便清理
-	manureInterval := int64(common.TgBotRanchManureInterval)
-	if animal.LastCleanedAt > 0 {
-		nextClean := animal.LastCleanedAt + manureInterval
-		if now >= nextClean {
-			info.IsDirty = true
-			info.CleanRemaining = 0
+	if animal.Status != 6 {
+		feedInterval := int64(common.TgBotRanchFeedInterval)
+		nextFeed := animal.LastFedAt + feedInterval
+		if now >= nextFeed {
+			info.NeedsFeed = true
+			info.FeedRemaining = 0
 		} else {
-			info.CleanRemaining = nextClean - now
+			info.FeedRemaining = nextFeed - now
+		}
+
+		waterInterval := int64(common.TgBotRanchWaterInterval)
+		nextWater := animal.LastWateredAt + waterInterval
+		if now >= nextWater {
+			info.NeedsWater = true
+			info.WaterRemaining = 0
+		} else {
+			info.WaterRemaining = nextWater - now
+		}
+
+		manureInterval := int64(common.TgBotRanchManureInterval)
+		if animal.LastCleanedAt > 0 {
+			nextClean := animal.LastCleanedAt + manureInterval
+			if now >= nextClean {
+				info.IsDirty = true
+				info.CleanRemaining = 0
+			} else {
+				info.CleanRemaining = nextClean - now
+			}
 		}
 	}
 
@@ -236,6 +253,8 @@ func WebRanchBuy(c *gin.Context) {
 		LastFedAt:     now,
 		LastWateredAt: now,
 		LastCleanedAt: now,
+		Quality:       1,
+		Generation:    0,
 	}
 	err = model.CreateRanchAnimal(animal)
 	if err != nil {
@@ -277,6 +296,10 @@ func WebRanchFeed(c *gin.Context) {
 	}
 	if target == nil || target.Status == 5 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该动物不存在或已死亡"})
+		return
+	}
+	if target.Status == 6 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "育种中的动物暂时不能喂食"})
 		return
 	}
 
@@ -356,6 +379,10 @@ func WebRanchWater(c *gin.Context) {
 	}
 	if target == nil || target.Status == 5 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该动物不存在或已死亡"})
+		return
+	}
+	if target.Status == 6 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "育种中的动物暂时不能喂水"})
 		return
 	}
 
@@ -450,7 +477,7 @@ func WebRanchSlaughter(c *gin.Context) {
 		return
 	}
 
-	meatPrice := applyMarket(*def.MeatPrice, "meat_"+def.Key)
+	meatPrice := getRanchQualityPrice(applyMarket(*def.MeatPrice, "meat_"+def.Key), target.Quality)
 
 	err := model.DeleteRanchAnimal(target.Id)
 	if err != nil {
@@ -465,10 +492,10 @@ func WebRanchSlaughter(c *gin.Context) {
 		return
 	}
 
-	model.AddFarmLog(tgId, "ranch_sell", meatPrice, fmt.Sprintf("出售%s%s", def.Emoji, def.Name))
+	model.AddFarmLog(tgId, "ranch_sell", meatPrice, fmt.Sprintf("出售%s%s[%s]", def.Emoji, def.Name, getRanchQualityLabel(target.Quality)))
 	model.RecordCollection(tgId, "animal", def.Key, 1)
 	common.SysLog(fmt.Sprintf("Web Ranch: user %s slaughtered %s for %d quota", tgId, def.Key, meatPrice))
-	respondFarmSuccessWithMedal(c, tgId, "ranch", fmt.Sprintf("出售 %s%s 成功！收入 $%.2f", def.Emoji, def.Name, webFarmQuotaFloat(meatPrice)), nil)
+	respondFarmSuccessWithMedal(c, tgId, "ranch", fmt.Sprintf("出售 %s%s[%s] 成功！收入 $%.2f", def.Emoji, def.Name, getRanchQualityLabel(target.Quality), webFarmQuotaFloat(meatPrice)), nil)
 }
 
 // WebRanchSlaughterStore slaughters a mature animal and stores meat in warehouse

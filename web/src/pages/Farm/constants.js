@@ -5,6 +5,7 @@ export const FEATURE_LEVEL_MAP = {
   market: { level: 2, name: '市场', emoji: '📈' },
   encyclopedia: { level: 2, name: '图鉴', emoji: '📖' },
   ranch: { level: 3, name: '牧场', emoji: '🐄' },
+  breeding: { level: 4, name: '育种', emoji: '🧬' },
   fish: { level: 3, name: '钓鱼', emoji: '🎣' },
   bank: { level: 3, name: '银行', emoji: '🏦' },
   leaderboard: { level: 3, name: '排行榜', emoji: '🏅' },
