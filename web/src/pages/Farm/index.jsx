@@ -148,12 +148,13 @@ const seasonCssVar = { 0: 'var(--farm-spring)', 1: 'var(--farm-summer)', 2: 'var
 
 // 移动端底部 Tab：主页（Dashboard）/ 农田 / 市场 / 任务 / 更多
 // home 是新的 Dashboard 首页，overview 继续保留（农田管理）
+// 用 \u{...} 码点转义避免多字节 emoji 在保存/传输中被截断为 U+FFFD
 const mobileQuickTabs = [
-  { key: 'home', emoji: '🏠', label: '主页' },
-  { key: 'overview', emoji: '�', label: '农田' },
-  { key: 'market', emoji: '�', label: '市场' },
-  { key: 'tasks', emoji: '�', label: '任务' },
-  { key: 'more', emoji: '☰', label: '更多' },
+  { key: 'home', emoji: '\u{1F3E0}', label: '主页' },      // 🏠
+  { key: 'overview', emoji: '\u{1F33E}', label: '农田' },  // 🌾
+  { key: 'market', emoji: '\u{1F4C8}', label: '市场' },    // 📈
+  { key: 'tasks', emoji: '\u{1F4DD}', label: '任务' },     // 📝
+  { key: 'more', emoji: '\u2630', label: '更多' },          // ☰
 ];
 
 const pageMetaMap = navGroups.reduce((acc, group) => {
@@ -162,9 +163,9 @@ const pageMetaMap = navGroups.reduce((acc, group) => {
   });
   return acc;
 }, {
-  home: { key: 'home', emoji: '🏠', label: '主页' },
-  overview: { key: 'overview', emoji: '�', label: '我的农田' },
-  visit: { key: 'visit', emoji: '🚜', label: '好友农场' },
+  home: { key: 'home', emoji: '\u{1F3E0}', label: '主页' },         // 🏠
+  overview: { key: 'overview', emoji: '\u{1F33E}', label: '我的农田' }, // 🌾
+  visit: { key: 'visit', emoji: '\u{1F69C}', label: '好友农场' },   // 🚜
 });
 
 const MobileBottomNav = ({ activeKey, onNavigate, showSheet, t }) => {
