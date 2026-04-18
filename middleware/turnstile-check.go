@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	json "github.com/QuantumNous/new-api/common"
@@ -19,8 +22,30 @@ const (
 	recaptchaVerifyURL            = "https://www.google.com/recaptcha/api/siteverify"
 )
 
+type HumanVerificationResult struct {
+	Provider       string
+	Success        bool
+	Score          float64
+	Action         string
+	Hostname       string
+	ChallengeTS    string `json:"challenge_ts"`
+	ErrorCodes     []string `json:"error-codes"`
+	ExpectedAction string
+	MinScore       float64
+}
+
+type HumanVerificationOptions struct {
+	ExpectedAction string
+	MinScore       float64
+}
+
 type humanVerificationResponse struct {
-	Success bool `json:"success"`
+	Success     bool     `json:"success"`
+	Score       float64  `json:"score"`
+	Action      string   `json:"action"`
+	Hostname    string   `json:"hostname"`
+	ChallengeTS string   `json:"challenge_ts"`
+	ErrorCodes  []string `json:"error-codes"`
 }
 
 func TurnstileCheck() gin.HandlerFunc {
@@ -49,7 +74,7 @@ func TurnstileCheck() gin.HandlerFunc {
 			return
 		}
 
-		if err := verifyHumanVerification(c.ClientIP(), response); err != nil {
+		if _, err := VerifyHumanVerification(c.ClientIP(), response, HumanVerificationOptions{}); err != nil {
 			common.SysLog(err.Error())
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -87,12 +112,16 @@ func getHumanVerificationFailedMessage() string {
 	return "Turnstile 校验失败，请刷新重试！"
 }
 
-func verifyHumanVerification(remoteIP, response string) error {
+func VerifyHumanVerification(remoteIP, response string, options HumanVerificationOptions) (*HumanVerificationResult, error) {
 	verifyURL := turnstileVerifyURL
 	secretKey := common.TurnstileSecretKey
-	if common.HumanVerificationProvider == "recaptcha" {
+	provider := common.HumanVerificationProvider
+	if provider == "recaptcha" {
 		verifyURL = recaptchaVerifyURL
 		secretKey = common.RecaptchaSecretKey
+	}
+	if provider == "" {
+		provider = "turnstile"
 	}
 
 	rawRes, err := http.PostForm(verifyURL, url.Values{
@@ -101,18 +130,52 @@ func verifyHumanVerification(remoteIP, response string) error {
 		"remoteip": {remoteIP},
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rawRes.Body.Close()
 
 	var res humanVerificationResponse
 	if err = json.DecodeJson(rawRes.Body, &res); err != nil {
-		return err
+		return nil, err
 	}
+
+	result := &HumanVerificationResult{
+		Provider:       provider,
+		Success:        res.Success,
+		Score:          res.Score,
+		Action:         res.Action,
+		Hostname:       res.Hostname,
+		ChallengeTS:    res.ChallengeTS,
+		ErrorCodes:     res.ErrorCodes,
+		ExpectedAction: options.ExpectedAction,
+		MinScore:       options.MinScore,
+	}
+
 	if !res.Success {
-		return &humanVerificationError{message: getHumanVerificationFailedMessage()}
+		return result, &humanVerificationError{message: getHumanVerificationFailedMessage()}
 	}
-	return nil
+	if provider != "recaptcha" {
+		return result, nil
+	}
+	if options.ExpectedAction != "" && res.Action != options.ExpectedAction {
+		return result, &humanVerificationError{message: fmt.Sprintf("reCAPTCHA action 不匹配: expected=%s actual=%s", options.ExpectedAction, res.Action)}
+	}
+	if options.MinScore > 0 && res.Score < options.MinScore {
+		return result, &humanVerificationError{message: fmt.Sprintf("reCAPTCHA score 过低: %.2f < %.2f", res.Score, options.MinScore)}
+	}
+	return result, nil
+}
+
+func ParseHumanVerificationFloat(value string, fallback float64) float64 {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 type humanVerificationError struct {
