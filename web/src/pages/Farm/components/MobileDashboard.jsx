@@ -75,6 +75,10 @@ const MobileDashboard = ({ farmData, userLevel = 1, onNavigate, friendRequestCou
       badge: matureCount > 0 ? matureCount : null,
     },
     {
+      key: 'plant', emoji: '🌱', title: t('种植'),
+      subtitle: t('播种收获'), accent: '#7bc46f',
+    },
+    {
       key: 'ranch', emoji: '🐄', title: t('牧场'),
       subtitle: ranchSubtitle, accent: '#d1a03a',
     },
