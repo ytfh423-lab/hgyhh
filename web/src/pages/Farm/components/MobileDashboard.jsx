@@ -49,13 +49,15 @@ const MobileDashboard = ({ farmData, userLevel = 1, onNavigate, friendRequestCou
     return t('{{a}}/{{b}} 地块', { a: farmData?.plot_count || 0, b: farmData?.max_plots || 0 });
   }, [matureCount, eventCount, growingCount, plots.length, farmData, t]);
 
-  const taskSummary = farmData?.task_summary || { done: 0, total: 0 };
+  const taskSummary = farmData?.task_summary || { done: 0, total: 0, claimed: 0 };
   const taskSubtitle = taskSummary.total > 0
     ? t('{{a}}/{{b}} 完成', { a: taskSummary.done, b: taskSummary.total })
     : t('暂无任务');
-  const taskBadge = (taskSummary.total - taskSummary.done) > 0
-    ? (taskSummary.total - taskSummary.done)
-    : null;
+  // 红点只在「已完成但还没领取」的任务存在时显示；
+  // 用户完成并领取后 done==claimed，红点自动消失。
+  // 未开始的任务不会生成红点（红点只代表"有事等你操作"）。
+  const claimable = Math.max(0, (taskSummary.done || 0) - (taskSummary.claimed || 0));
+  const taskBadge = claimable > 0 ? claimable : null;
 
   // 牧场详情（alive_count/max_animals）走 /api/ranch 独立 API，Dashboard 为避免额外请求
   // 只展示提示文案；等级≥10 后按钮仍会进入牧场页查看
