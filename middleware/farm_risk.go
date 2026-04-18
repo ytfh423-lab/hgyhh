@@ -155,7 +155,14 @@ func FarmRiskGuard() gin.HandlerFunc {
 			requestAction = strings.TrimSpace(c.PostForm("human_verification_action"))
 		}
 
-		// v2 fallback token：直接走 v2 校验分支（不要求 score/action）
+		// ═══════════════════════════════════════════════════════════
+		// 新设计：v3 只做评分风控，所有验证都用 v2 复选框
+		//   1) 带 v2 token  → v2 校验 → 通过则放行
+		//   2) 带 v3 token  → v3 评分 → 分数够放行、分数不够弹 v2
+		//   3) 没带 token   → 走 burst / sensitive 检测 → 触发则弹 v2
+		// ═══════════════════════════════════════════════════════════
+
+		// 1) v2 token：用户刚勾完 v2 复选框的重试请求
 		if version == "v2" && provider == "recaptcha" && token != "" {
 			result, err := VerifyHumanVerification(c.ClientIP(), token, HumanVerificationOptions{
 				Version: "v2",
@@ -175,13 +182,8 @@ func FarmRiskGuard() gin.HandlerFunc {
 			return
 		}
 
-		if needVerify {
-			if token == "" {
-				// 要求前端弹出验证
-				respondFarmRiskStepUp(c, action, sensitive, provider)
-				return
-			}
-			// v3 校验（默认路径）
+		// 2) v3 token：前端请求拦截器自动带上，后端评分
+		if provider == "recaptcha" && token != "" {
 			minScore := farmRiskMinScore(provider, sensitive)
 			result, err := VerifyHumanVerification(c.ClientIP(), token, HumanVerificationOptions{
 				ExpectedAction: farmRiskExpectedAction(provider, action, requestAction),
@@ -189,27 +191,39 @@ func FarmRiskGuard() gin.HandlerFunc {
 				Version:        "v3",
 			})
 			if err != nil {
-				farmRiskRecordFail(userId)
-				common.SysLog(fmt.Sprintf("[FarmRisk] v3 verify failed: user=%d action=%s provider=%s err=%s score=%.2f",
-					userId, action, provider, err.Error(), farmRiskResultScore(result)))
-				// v3 失败时，如果配置了 v2 fallback 就要求弹 v2 checkbox
-				if provider == "recaptcha" && common.IsRecaptchaV2Configured() {
+				// v3 评分未通过（分数过低 / 验证失败 / action 不匹配）→ 弹 v2 checkbox
+				common.SysLog(fmt.Sprintf("[FarmRisk] v3 score fail → step-up v2: user=%d action=%s err=%s score=%.2f",
+					userId, action, err.Error(), farmRiskResultScore(result)))
+				if common.IsRecaptchaV2Configured() {
 					respondFarmRiskStepUpV2(c, action, err.Error())
 					return
 				}
+				// 没配 v2：视为失败（保守处理）
+				farmRiskRecordFail(userId)
 				respondFarmRiskVerifyFail(c, action, provider, err.Error())
 				return
 			}
-			// 验证通过
+			// v3 评分通过 → 直接放行
 			farmRiskGrantPass(userId)
 			farmRiskClearFail(userId)
-			common.SysLog(fmt.Sprintf("[FarmRisk] v3 verify passed: user=%d action=%s provider=%s score=%.2f",
-				userId, action, provider, farmRiskResultScore(result)))
+			common.SysLog(fmt.Sprintf("[FarmRisk] v3 score pass: user=%d action=%s score=%.2f",
+				userId, action, farmRiskResultScore(result)))
 			c.Next()
 			return
 		}
 
-		// 不需要验证，放行
+		// 3) 没带 token：走 burst / sensitive 兜底
+		//    非 sensitive + 持有 pass → 放行（降低正常用户的 burst 误伤）
+		if !sensitive && farmRiskHasPass(userId) {
+			c.Next()
+			return
+		}
+		if needVerify {
+			// sensitive 或 burst 超阈值 → 弹验证（v2 优先）
+			respondFarmRiskStepUp(c, action, sensitive, provider)
+			return
+		}
+		// 其他情况：v3 脚本未加载 / 用户未启用 recaptcha → 直接放行
 		c.Next()
 	}
 }

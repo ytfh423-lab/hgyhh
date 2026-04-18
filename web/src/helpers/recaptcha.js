@@ -68,9 +68,12 @@ export async function getRecaptchaV3Token(siteKey, action) {
 
 /**
  * 从 localStorage 读 status，如果启用了 recaptcha v3 则拿 token；否则返回空
- * 不抛错，失败时返回空字符串
+ * 不抛错，失败/超时返回空字符串（请求继续，后端走 burst 兜底）
+ *
+ * @param {string} action - reCAPTCHA v3 action 名，用于 action 校验
+ * @param {number} timeoutMs - 超时毫秒数，默认 800ms，避免阻塞请求过久
  */
-export async function getFarmRecaptchaV3Token(action) {
+export async function getFarmRecaptchaV3Token(action, timeoutMs = 800) {
   try {
     if (typeof window === 'undefined') return '';
     const raw = localStorage.getItem('status');
@@ -87,7 +90,11 @@ export async function getFarmRecaptchaV3Token(action) {
     const siteKey =
       status?.human_verification_site_key || status?.turnstile_site_key || '';
     if (!enabled || provider !== 'recaptcha' || !siteKey) return '';
-    return await getRecaptchaV3Token(siteKey, action);
+    const tokenPromise = getRecaptchaV3Token(siteKey, action);
+    const timeoutPromise = new Promise((resolve) =>
+      setTimeout(() => resolve(''), timeoutMs),
+    );
+    return await Promise.race([tokenPromise, timeoutPromise]);
   } catch (_) {
     return '';
   }
