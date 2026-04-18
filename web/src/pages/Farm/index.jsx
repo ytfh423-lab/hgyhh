@@ -244,12 +244,9 @@ const Farm = () => {
   });
   const [crops, setCrops] = useState(_cropsCache || []);
   const [actionLoading, setActionLoading] = useState(false);
-  // 移动端默认进 Dashboard 主页（home），桌面端仍进农田（overview）
-  const [activePage, setActivePage] = useState(() => (
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
-      ? 'home'
-      : 'overview'
-  ));
+  // 移动端和桌面端都默认进 Dashboard 主页（home）
+  // 农田管理页（overview）改为主动从 home 卡片点进
+  const [activePage, setActivePage] = useState('home');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [entrustWorkTaskId, setEntrustWorkTaskId] = useState(null);

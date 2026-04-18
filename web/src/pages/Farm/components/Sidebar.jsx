@@ -99,12 +99,16 @@ const defaultCollapsedState = navGroups.reduce((acc, group) => {
 export { navGroups };
 
 // 读取侧边栏模式偏好（compact=窄图标 / full=完整列表）
+// 默认 compact，想看完整列表点 logo 旁的展开按钮
 const readSidebarMode = () => {
-  if (typeof window === 'undefined') return 'full';
+  if (typeof window === 'undefined') return 'compact';
   try {
-    return window.localStorage.getItem(SIDEBAR_MODE_KEY) === 'compact' ? 'compact' : 'full';
+    const stored = window.localStorage.getItem(SIDEBAR_MODE_KEY);
+    if (stored === 'full') return 'full';
+    if (stored === 'compact') return 'compact';
+    return 'compact'; // 未设置时默认 compact
   } catch (_) {
-    return 'full';
+    return 'compact';
   }
 };
 
