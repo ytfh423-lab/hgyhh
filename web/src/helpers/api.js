@@ -25,7 +25,6 @@ import {
 } from './utils';
 import axios from 'axios';
 import { MESSAGE_ROLES } from '../constants/playground.constants';
-import { getFarmRecaptchaV3Token } from './recaptcha';
 
 export let API = axios.create({
   baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL
@@ -75,36 +74,20 @@ function patchAPIInstance(instance) {
   };
 
   // 农场防脚本：对 /api/farm、/api/ranch、/api/tree 的写请求自动注入 Nonce
-  // 并在启用 reCAPTCHA v3 时异步拿 token 注入 Header，实现"无感风控"
-  instance.interceptors.request.use(async (config) => {
+  // 不再在请求拦截器里同步等 v3 token，避免每次请求都 +300ms 延迟
+  // v3 token 改为 step-up 弹窗时按需获取；v3 脚本由 App 启动时预加载
+  instance.interceptors.request.use((config) => {
     const url = config.url || '';
     const method = (config.method || 'get').toLowerCase();
-    const isFarmWrite =
+    if (
       method !== 'get' &&
       method !== 'head' &&
       method !== 'options' &&
       (url.startsWith('/api/farm') ||
         url.startsWith('/api/ranch') ||
-        url.startsWith('/api/tree'));
-    if (!isFarmWrite) return config;
-
-    config.headers['X-Farm-Nonce'] = generateFarmNonce();
-
-    // 若请求已显式带上 v2/其他 token（来自 step-up 重试），不再覆盖
-    const hasExistingToken = !!config.headers['X-Farm-Captcha-Token'];
-    if (hasExistingToken) return config;
-
-    // 异步尝试拿 v3 token（失败返回空字符串，不阻塞请求）
-    try {
-      const action = url.replace(/^\/api\//, '').replace(/\//g, '_');
-      const token = await getFarmRecaptchaV3Token(action);
-      if (token) {
-        config.headers['X-Farm-Captcha-Token'] = token;
-        config.headers['X-Farm-Captcha-Action'] = action;
-        config.headers['X-Farm-Captcha-Version'] = 'v3';
-      }
-    } catch (_) {
-      // 静默失败：后端会用 burst 逻辑决定是否 step-up
+        url.startsWith('/api/tree'))
+    ) {
+      config.headers['X-Farm-Nonce'] = generateFarmNonce();
     }
     return config;
   });

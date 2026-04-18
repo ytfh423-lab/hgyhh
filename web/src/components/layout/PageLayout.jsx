@@ -34,6 +34,7 @@ import {
   showError,
   setStatusData,
 } from '../../helpers';
+import { loadRecaptchaV3Script } from '../../helpers/recaptcha';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useLocation } from 'react-router-dom';
@@ -120,6 +121,14 @@ const PageLayout = () => {
       if (success) {
         statusDispatch({ type: 'set', payload: data });
         setStatusData(data);
+        // 启用了 reCAPTCHA v3 时预加载脚本，让徽章提前出现 + 后续 step-up 秒开
+        const enabled =
+          data?.human_verification_enabled ?? data?.turnstile_check ?? false;
+        const provider = data?.human_verification_provider || 'turnstile';
+        const siteKey = data?.human_verification_site_key || '';
+        if (enabled && provider === 'recaptcha' && siteKey) {
+          loadRecaptchaV3Script(siteKey).catch(() => {});
+        }
       } else {
         showError('Unable to connect to server');
       }
