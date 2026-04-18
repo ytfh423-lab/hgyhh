@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, ArrowLeft, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLogo } from '../../../helpers';
 import { FEATURE_LEVEL_MAP } from '../constants';
-
-const SIDEBAR_MODE_KEY = 'farm_sidebar_mode'; // 'compact' | 'full'
 
 const navGroups = [
   {
@@ -91,26 +89,7 @@ const navGroups = [
   },
 ];
 
-const defaultCollapsedState = navGroups.reduce((acc, group) => {
-  acc[group.key] = !['agri', 'economy'].includes(group.key);
-  return acc;
-}, {});
-
 export { navGroups };
-
-// 读取侧边栏模式偏好（compact=窄图标 / full=完整列表）
-// 默认 compact，想看完整列表点 logo 旁的展开按钮
-const readSidebarMode = () => {
-  if (typeof window === 'undefined') return 'compact';
-  try {
-    const stored = window.localStorage.getItem(SIDEBAR_MODE_KEY);
-    if (stored === 'full') return 'full';
-    if (stored === 'compact') return 'compact';
-    return 'compact'; // 未设置时默认 compact
-  } catch (_) {
-    return 'compact';
-  }
-};
 
 // compact 模式渲染：只显示分组图标条，hover 时浮出子菜单；
 // 点击分组图标 = 直接跳到该组第一个未锁定子项；
@@ -218,78 +197,29 @@ const CompactNav = ({ activeKey, onNavigate, t, userLevel, friendRequestCount, f
   );
 };
 
+// 新样式：始终 compact 图标侧边栏，无切换入口。
+// 完整的页面列表通过 Ctrl+K 命令面板或 hover 图标浮层访问。
 const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequestCount = 0, onOpenCommand }) => {
-  const [collapsed, setCollapsed] = useState(defaultCollapsedState);
-  const [mode, setMode] = useState(readSidebarMode);
   const navigate = useNavigate();
 
-  const toggle = (groupKey) => {
-    setCollapsed(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
-  };
-
-  const toggleMode = useCallback(() => {
-    setMode((prev) => {
-      const next = prev === 'compact' ? 'full' : 'compact';
-      try { window.localStorage.setItem(SIDEBAR_MODE_KEY, next); } catch (_) {}
-      return next;
-    });
+  // 同步 body class 让 CSS 变量 --farm-sidebar-w 生效（60px）
+  useEffect(() => {
+    document.body.classList.add('farm-sidebar-compact');
+    return () => document.body.classList.remove('farm-sidebar-compact');
   }, []);
 
-  // 同步 body class 给 CSS 用（控制 --farm-sidebar-w 变量）
-  useEffect(() => {
-    const cls = 'farm-sidebar-compact';
-    if (mode === 'compact') document.body.classList.add(cls);
-    else document.body.classList.remove(cls);
-    return () => document.body.classList.remove(cls);
-  }, [mode]);
-
-  // 切换页面时自动展开当前页所在组（即使之前被用户折叠）
-  // 只在 full 模式下生效（compact 不展示分组）
-  useEffect(() => {
-    if (mode !== 'full') return;
-    const group = navGroups.find((g) => g.items.some((item) => item.key === activeKey));
-    if (!group) return;
-    setCollapsed((prev) => (prev[group.key] ? { ...prev, [group.key]: false } : prev));
-  }, [activeKey, mode]);
-
-  const isCompact = mode === 'compact';
-
   return (
-    <nav className={`farm-sidebar ${isCompact ? 'is-compact' : ''}`}>
+    <nav className='farm-sidebar is-compact'>
       <div className='farm-sidebar-header'>
-        <div className='farm-sidebar-brand' onClick={() => onNavigate(isCompact ? 'home' : 'overview')}>
-          <img src={getLogo()} alt='logo' className='farm-sidebar-logo' style={{ objectFit: 'contain' }} />
-          {!isCompact && (
-            <div className='farm-sidebar-brand-copy'>
-              <div className='farm-sidebar-title-row'>
-                <div className='farm-sidebar-badge'>NPC</div>
-                <div className='farm-sidebar-title'>{t('农场')}</div>
-              </div>
-              <div className='farm-sidebar-subtitle'>
-                {farmData ? `Lv.${farmData.user_level || 1}` : ''}
-                {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
-              </div>
-            </div>
-          )}
-        </div>
-        {onOpenCommand && !isCompact && (
-          <div
-            className='farm-sidebar-search-trigger'
-            onClick={(e) => { e.stopPropagation(); onOpenCommand(); }}
-            title={`${t('搜索页面')} (Ctrl+K)`}
-          >
-            <Search size={14} />
-          </div>
-        )}
         <div
-          className='farm-sidebar-mode-toggle'
-          onClick={(e) => { e.stopPropagation(); toggleMode(); }}
-          title={isCompact ? t('展开侧边栏') : t('收起侧边栏')}
+          className='farm-sidebar-brand'
+          onClick={() => onNavigate('home')}
+          title={t('主页')}
         >
-          {isCompact ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+          <img src={getLogo()} alt='logo' className='farm-sidebar-logo' style={{ objectFit: 'contain' }} />
         </div>
       </div>
-      {onOpenCommand && isCompact && (
+      {onOpenCommand && (
         <div
           className='farm-sidebar-search-trigger'
           onClick={(e) => { e.stopPropagation(); onOpenCommand(); }}
@@ -298,88 +228,23 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequ
           <Search size={18} />
         </div>
       )}
-      {isCompact ? (
-        <CompactNav
-          activeKey={activeKey}
-          onNavigate={onNavigate}
-          t={t}
-          userLevel={userLevel}
-          friendRequestCount={friendRequestCount}
-          farmData={farmData}
-          navigate={navigate}
-        />
-      ) : (
-        <div className='farm-sidebar-nav'>
-          {navGroups.map((group) => (
-            <div
-              key={group.key}
-              className='farm-nav-group'
-              style={{
-                '--farm-nav-group-accent': group.accent,
-                '--farm-nav-group-soft': group.soft,
-              }}
-            >
-              <div className='farm-nav-header' onClick={() => toggle(group.key)}>
-                <span className='farm-nav-header-icon'>{group.emoji}</span>
-                <span className='farm-nav-header-label'>{t(group.label)}</span>
-                <ChevronRight size={12} className={`chevron ${collapsed[group.key] ? '' : 'open'}`} />
-              </div>
-              {!collapsed[group.key] && (
-                <div className='farm-nav-items'>
-                  {group.items.map((item) => {
-                    const req = FEATURE_LEVEL_MAP[item.key];
-                    const locked = req && userLevel < req.level;
-                    return (
-                      <div
-                        key={item.key}
-                        data-tutorial={`nav-${item.key}`}
-                        className={`farm-nav-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
-                        onClick={locked ? undefined : () => item.href ? navigate(item.href) : onNavigate(item.key)}
-                        title={locked ? `${t('需要')} Lv.${req.level} ${t('解锁')}` : ''}
-                      >
-                        <span className='farm-nav-item-icon'>{locked ? '🔒' : item.emoji}</span>
-                        <span className='farm-nav-item-label'>{t(item.label)}</span>
-                        {item.key === 'friends' && friendRequestCount > 0 && (
-                          <span className='farm-pill' style={{
-                            marginLeft: 'auto', fontSize: 10, padding: '1px 6px',
-                            background: 'var(--farm-danger)', color: '#fff',
-                            borderRadius: 8, fontWeight: 700, lineHeight: '16px',
-                          }}>{friendRequestCount}</span>
-                        )}
-                        {item.key === 'tasks' && !locked && farmData?.task_summary && (
-                          <span className='farm-pill' style={{
-                            marginLeft: 'auto',
-                            fontSize: 10,
-                            padding: '1px 6px',
-                            background: farmData.task_summary.done >= farmData.task_summary.total
-                              ? 'var(--farm-leaf)' : 'var(--farm-sky)',
-                            color: '#fff',
-                            borderRadius: 8,
-                            fontWeight: 700,
-                            lineHeight: '16px',
-                          }}>
-                            {farmData.task_summary.done}/{farmData.task_summary.total}
-                          </span>
-                        )}
-                        {locked && <span className='nav-lock'>Lv.{req.level}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <CompactNav
+        activeKey={activeKey}
+        onNavigate={onNavigate}
+        t={t}
+        userLevel={userLevel}
+        friendRequestCount={friendRequestCount}
+        farmData={farmData}
+        navigate={navigate}
+      />
       <div className='farm-sidebar-footer'>
         <div
           className='farm-nav-item'
           onClick={() => navigate('/')}
-          style={{ paddingLeft: isCompact ? 0 : 14, justifyContent: isCompact ? 'center' : 'flex-start' }}
-          title={isCompact ? t('返回控制台') : ''}
+          style={{ paddingLeft: 0, justifyContent: 'center' }}
+          title={t('返回控制台')}
         >
           <ArrowLeft size={14} style={{ color: 'var(--farm-sb-text-dim)' }} />
-          {!isCompact && <span>{t('返回控制台')}</span>}
         </div>
       </div>
     </nav>
