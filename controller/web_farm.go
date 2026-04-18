@@ -3247,7 +3247,7 @@ func WebFarmFishDo(c *gin.Context) {
 		msg = fmt.Sprintf("钓到了 %s %s！本次完整计入收益，今日钓鱼收益已满", fish.Emoji, fish.Name)
 	}
 	if baitKey == "premiumfishbait" {
-		msg += " 使用了高级鱼饵，史诗/传说额外概率+5%"
+		msg += "（高级鱼饵：15% 保底史诗/传说，空军率减半，稀有以上 ×1.5，豁免疲劳）"
 	}
 
 	specialEffect := ""

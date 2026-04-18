@@ -261,7 +261,7 @@ const FishPage = ({ loadFarm, onMedalDrop, t }) => {
           <div className='farm-pill farm-pill-green'>😊 {dailyCount}/{fatigueThreshold}</div>
         )}
         {(fishData.premium_bait_count || 0) > 0 && (
-          <div className='farm-pill farm-pill-purple'>✨ {t('优先消耗，史诗/传说额外概率+5%')}</div>
+          <div className='farm-pill farm-pill-purple'>✨ {t('高级鱼饵：15% 保底史诗/传说 · 空军率减半 · 稀有以上 ×1.5 · 豁免疲劳')}</div>
         )}
         {fishData.total_value > 0 && (
           <div className='farm-pill farm-pill-cyan'>

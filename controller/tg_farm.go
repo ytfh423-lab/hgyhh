@@ -245,7 +245,6 @@ func getCropTags(crop *farmCropDef) []string {
 var farmItems = []farmItemDef{
 	{"pesticide", "杀虫剂", "🧪", 150000, "bugs"},
 	{"fertilizer", "化肥", "🧴", 200000, ""},
-	{"fertilizer_adv", "高级化肥", "🧪", 500000, ""},
 	{"dogfood", "狗粮", "🦴", 500000, ""},
 	{"fishbait", "鱼饵", "🪱", common.TgBotFishBaitPrice, ""},
 	{"premiumfishbait", "高级鱼饵", "✨", common.TgBotFishPremiumBaitPrice, ""},
@@ -656,13 +655,6 @@ func updateFarmPlotStatus(plot *model.TgFarmPlot) {
 	growSecs = growSecs * int64(seasonGrowthPct) / 100
 	if growSecs < 60 {
 		growSecs = 60
-	}
-	// 高级化肥：成熟时间缩短50%
-	if plot.Fertilized == 2 {
-		growSecs = growSecs * int64(100-AdvFertilizerGrowReduction) / 100
-		if growSecs < 60 {
-			growSecs = 60
-		}
 	}
 
 	matureAt := plot.PlantedAt + growSecs
@@ -3059,24 +3051,42 @@ func randomFishWithFatigue(tgId string, premiumBait bool) *fishDef {
 	dailyCount := model.GetFishDailyCount(tgId)
 	fatigueActive := common.TgBotFishFatigueEnabled && dailyCount >= common.TgBotFishFatigueThreshold
 
-	adjustedTotal := common.TgBotFishNothingWeight
 	type aw struct {
 		fish   *fishDef
 		weight int
 	}
-	if premiumBait && rand.Intn(100) < 5 {
+
+	// 高级鱼饵保底：15%（原 5%）概率必出史诗/传说，让每 ~7 次就有一次大奖而非 20 次
+	if premiumBait && rand.Intn(100) < 15 {
 		if rareFish := randomFishFromRarityPool(tgId, map[string]bool{"史诗": true, "传说": true}); rareFish != nil {
 			return rareFish
 		}
 	}
+
+	// 空军权重：高级鱼饵减半（从 20 → 10，空军率 3.8% → 1.9%）
+	nothingWeight := common.TgBotFishNothingWeight
+	if premiumBait {
+		nothingWeight = nothingWeight / 2
+		if nothingWeight < 1 {
+			nothingWeight = 1
+		}
+	}
+
+	adjustedTotal := nothingWeight
 	var adjusted []aw
 	for i := range fishTypes {
 		w := getFishWeight(i)
-		if fatigueActive && (fishTypes[i].Rarity == "稀有" || fishTypes[i].Rarity == "史诗" || fishTypes[i].Rarity == "传说") {
+		isRareOrAbove := fishTypes[i].Rarity == "稀有" || fishTypes[i].Rarity == "史诗" || fishTypes[i].Rarity == "传说"
+		// 疲劳衰减：高级鱼饵豁免，普通鱼饵正常砍
+		if fatigueActive && isRareOrAbove && !premiumBait {
 			w = w * (100 - common.TgBotFishFatigueDecay) / 100
 			if w < 0 {
 				w = 0
 			}
+		}
+		// 高级鱼饵：优良及以上权重 × 1.5，提升高品质鱼的实际占比
+		if premiumBait && fishTypes[i].Rarity != "普通" {
+			w = w * 3 / 2
 		}
 		adjusted = append(adjusted, aw{&fishTypes[i], w})
 		adjustedTotal += w
@@ -3085,7 +3095,7 @@ func randomFishWithFatigue(tgId string, premiumBait bool) *fishDef {
 		return nil
 	}
 	r := rand.Intn(adjustedTotal)
-	cumulative := common.TgBotFishNothingWeight
+	cumulative := nothingWeight
 	if r < cumulative {
 		return nil
 	}
