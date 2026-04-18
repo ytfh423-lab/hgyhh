@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronRight, ArrowLeft, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLogo } from '../../../helpers';
 import { FEATURE_LEVEL_MAP } from '../constants';
@@ -131,6 +131,22 @@ const CompactNav = ({ activeKey, onNavigate, t, userLevel, friendRequestCount, f
   const groupContainsActive = (group) =>
     group.items.some((item) => item.key === activeKey);
 
+  // 鼠标进入图标时，根据图标在视口的位置决定浮层向上 / 向下对齐
+  // 防止在屏幕底部浮层被截断看不到
+  const handleIconEnter = (e) => {
+    const icon = e.currentTarget;
+    const popover = icon.querySelector('.farm-compact-popover');
+    if (!popover) return;
+    const iconRect = icon.getBoundingClientRect();
+    // 先清除类好测真实高度
+    popover.classList.remove('align-bottom');
+    const popoverHeight = popover.offsetHeight || 240;
+    const spaceBelow = window.innerHeight - iconRect.top;
+    if (spaceBelow < popoverHeight + 20) {
+      popover.classList.add('align-bottom');
+    }
+  };
+
   return (
     <div className='farm-sidebar-nav farm-sidebar-nav-compact'>
       <div
@@ -151,6 +167,7 @@ const CompactNav = ({ activeKey, onNavigate, t, userLevel, friendRequestCount, f
               '--farm-nav-group-soft': group.soft,
             }}
             onClick={() => handleGroupClick(group)}
+            onMouseEnter={handleIconEnter}
             title={t(group.label)}
           >
             <span className='farm-compact-icon-emoji'>{group.emoji}</span>
@@ -197,7 +214,7 @@ const CompactNav = ({ activeKey, onNavigate, t, userLevel, friendRequestCount, f
   );
 };
 
-const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequestCount = 0 }) => {
+const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequestCount = 0, onOpenCommand }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsedState);
   const [mode, setMode] = useState(readSidebarMode);
   const navigate = useNavigate();
@@ -222,6 +239,15 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequ
     return () => document.body.classList.remove(cls);
   }, [mode]);
 
+  // 切换页面时自动展开当前页所在组（即使之前被用户折叠）
+  // 只在 full 模式下生效（compact 不展示分组）
+  useEffect(() => {
+    if (mode !== 'full') return;
+    const group = navGroups.find((g) => g.items.some((item) => item.key === activeKey));
+    if (!group) return;
+    setCollapsed((prev) => (prev[group.key] ? { ...prev, [group.key]: false } : prev));
+  }, [activeKey, mode]);
+
   const isCompact = mode === 'compact';
 
   return (
@@ -242,6 +268,15 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequ
             </div>
           )}
         </div>
+        {onOpenCommand && !isCompact && (
+          <div
+            className='farm-sidebar-search-trigger'
+            onClick={(e) => { e.stopPropagation(); onOpenCommand(); }}
+            title={`${t('搜索页面')} (Ctrl+K)`}
+          >
+            <Search size={14} />
+          </div>
+        )}
         <div
           className='farm-sidebar-mode-toggle'
           onClick={(e) => { e.stopPropagation(); toggleMode(); }}
@@ -250,6 +285,15 @@ const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequ
           {isCompact ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
         </div>
       </div>
+      {onOpenCommand && isCompact && (
+        <div
+          className='farm-sidebar-search-trigger'
+          onClick={(e) => { e.stopPropagation(); onOpenCommand(); }}
+          title={`${t('搜索页面')} (Ctrl+K)`}
+        >
+          <Search size={18} />
+        </div>
+      )}
       {isCompact ? (
         <CompactNav
           activeKey={activeKey}

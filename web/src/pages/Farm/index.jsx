@@ -19,6 +19,7 @@ import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import FarmOverview from './components/FarmOverview';
 import MobileDashboard from './components/MobileDashboard';
+import CommandPalette from './components/CommandPalette';
 import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
@@ -250,6 +251,7 @@ const Farm = () => {
       : 'overview'
   ));
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [entrustWorkTaskId, setEntrustWorkTaskId] = useState(null);
   const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS' | 'BETA_AGREEMENT_REQUIRED' | 'BETA_EXPIRED'
   const [betaMessage, setBetaMessage] = useState('');
@@ -264,6 +266,18 @@ const Farm = () => {
   useEffect(() => {
     farmDataRef.current = farmData;
   }, [farmData]);
+
+  // Ctrl+K / Cmd+K 唤出命令面板（全局快捷键）
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setCommandPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // 好友请求数（从 SocialPanel 事件同步，用于侧边栏角标）
 
@@ -882,7 +896,7 @@ const Farm = () => {
   return (
     <TutorialProvider userLevel={userLevel} activePage={activePage} onNavigate={navigateTo} farmData={farmData} loadFarm={loadFarm} t={t}>
       <div className='farm-layout'>
-        <Sidebar activeKey={activePage} onNavigate={navigateTo} t={t} farmData={farmData} userLevel={userLevel} friendRequestCount={friendRequestCount} />
+        <Sidebar activeKey={activePage} onNavigate={navigateTo} t={t} farmData={farmData} userLevel={userLevel} friendRequestCount={friendRequestCount} onOpenCommand={() => setCommandPaletteOpen(true)} />
         <div className='farm-main' style={{ background: seasonCssVar[currentSeason] || seasonCssVar[0] }}>
           <StatusBar farmData={farmData} t={t} />
           <div className='farm-content'>
@@ -931,6 +945,13 @@ const Farm = () => {
             userLevel={userLevel}
           />
         )}
+        <CommandPalette
+          open={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+          userLevel={userLevel}
+          onNavigate={navigateTo}
+          t={t}
+        />
         <FarmMedalDropOverlay drop={activeMedalDrop} onClose={closeMedalDrop} t={t} />
       </div>
     </TutorialProvider>
