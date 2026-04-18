@@ -20,6 +20,14 @@
   --sidebar-current-width: var(--sidebar-width);
 }
 
+/* reCAPTCHA v3 徽章：默认折叠到屏幕外，避免挡住通知；
+   合规要求的"由 reCAPTCHA 提供保护"文字已在页脚显式展示。 */
+.grecaptcha-badge {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 body.sidebar-collapsed {
   --sidebar-current-width: var(--sidebar-width-collapsed);
 }

@@ -30,6 +30,46 @@ const FooterBar = () => {
   const logo = getLogo();
   const [statusState] = useContext(StatusContext);
   const isDemoSiteMode = statusState?.status?.demo_site_enabled || false;
+  // reCAPTCHA 合规声明：启用 recaptcha 时必须在页面可见处展示（因已通过 CSS 隐藏右下角徽章）
+  const showRecaptchaNotice = useMemo(() => {
+    const st = statusState?.status;
+    if (!st) return false;
+    const enabled = st.human_verification_enabled ?? st.turnstile_check ?? false;
+    const provider = st.human_verification_provider || 'turnstile';
+    return enabled && provider === 'recaptcha';
+  }, [statusState?.status]);
+  const recaptchaNotice = (
+    <div className='text-xs !text-semi-color-text-2 opacity-70 mt-2 text-center'>
+      {t('本站受')}{' '}
+      <a
+        href='https://policies.google.com/privacy'
+        target='_blank'
+        rel='noopener noreferrer'
+        className='!text-semi-color-text-2 underline'
+      >
+        reCAPTCHA
+      </a>{' '}
+      {t('保护，适用 Google')}{' '}
+      <a
+        href='https://policies.google.com/privacy'
+        target='_blank'
+        rel='noopener noreferrer'
+        className='!text-semi-color-text-2 underline'
+      >
+        {t('隐私政策')}
+      </a>{' '}
+      {t('与')}{' '}
+      <a
+        href='https://policies.google.com/terms'
+        target='_blank'
+        rel='noopener noreferrer'
+        className='!text-semi-color-text-2 underline'
+      >
+        {t('服务条款')}
+      </a>
+      。
+    </div>
+  );
 
   const loadFooter = () => {
     let footer_html = localStorage.getItem('footer_html');
@@ -237,9 +277,17 @@ const FooterBar = () => {
               New API
             </a>
           </div>
+          {showRecaptchaNotice && (
+            <div className='py-2 px-4'>{recaptchaNotice}</div>
+          )}
         </div>
       ) : (
-        customFooter
+        <>
+          {customFooter}
+          {showRecaptchaNotice && (
+            <div className='pb-4 px-6 md:px-24'>{recaptchaNotice}</div>
+          )}
+        </>
       )}
     </div>
   );
