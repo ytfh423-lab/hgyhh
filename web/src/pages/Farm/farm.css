@@ -118,11 +118,17 @@
 
 /* -- Sidebar -- */
 
+/* compact 模式下侧边栏宽度为 60px（只放图标） */
+body.farm-sidebar-compact {
+  --farm-sidebar-w: 60px;
+}
+
 .farm-sidebar {
   width: var(--farm-sidebar-w);
   flex-shrink: 0;
   background: var(--farm-sb-bg);
   overflow: hidden;
+  transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   position: sticky;
   top: 0;
   height: 100vh;
@@ -138,6 +144,188 @@
   padding: 28px 24px 22px;
   border-bottom: 1px solid var(--farm-sb-border);
   flex-shrink: 0;
+  position: relative;
+}
+
+/* 侧边栏模式切换按钮（compact <-> full） */
+.farm-sidebar-mode-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--farm-sb-text-dim);
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+  z-index: 2;
+}
+.farm-sidebar-mode-toggle:hover {
+  background: var(--farm-sb-hover);
+  color: var(--farm-sb-text);
+}
+
+/* compact 模式：header 缩为居中 logo */
+.farm-sidebar.is-compact .farm-sidebar-header {
+  padding: 14px 8px 12px;
+}
+.farm-sidebar.is-compact .farm-sidebar-brand {
+  justify-content: center;
+}
+.farm-sidebar.is-compact .farm-sidebar-logo {
+  width: 36px;
+  height: 36px;
+}
+.farm-sidebar.is-compact .farm-sidebar-mode-toggle {
+  top: auto;
+  bottom: -10px;
+  right: 50%;
+  transform: translateX(50%);
+  background: var(--farm-surface);
+  border: 1px solid var(--farm-sb-border);
+  box-shadow: var(--farm-shadow-sm);
+}
+
+/* compact nav：窄图标条 */
+.farm-sidebar-nav-compact {
+  padding: 10px 6px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
+.farm-compact-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  color: var(--farm-sb-text-dim);
+}
+.farm-compact-icon:hover {
+  background: var(--farm-nav-group-soft, var(--farm-sb-hover));
+  transform: scale(1.04);
+}
+.farm-compact-icon.active {
+  background: var(--farm-nav-group-soft, var(--farm-sb-hover));
+  box-shadow: inset 0 0 0 1.5px var(--farm-nav-group-accent, var(--farm-sb-accent));
+}
+.farm-compact-icon.active::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--farm-nav-group-accent, var(--farm-sb-accent));
+}
+.farm-compact-icon-emoji {
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
+}
+.farm-compact-icon-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--farm-danger);
+  box-shadow: 0 0 0 2px var(--farm-sb-bg);
+}
+
+/* hover 时的浮层 */
+.farm-compact-popover {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 10px);
+  min-width: 180px;
+  padding: 8px;
+  background: var(--farm-surface);
+  border: 1px solid var(--farm-border);
+  border-radius: 12px;
+  box-shadow: var(--farm-shadow-xl);
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 100;
+}
+.farm-compact-icon:hover .farm-compact-popover,
+.farm-compact-popover:hover {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+.farm-compact-popover-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--farm-text-3);
+  letter-spacing: 0.3px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--farm-border);
+  margin-bottom: 4px;
+}
+.farm-compact-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--farm-text-1);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  white-space: nowrap;
+}
+.farm-compact-popover-item:hover {
+  background: var(--farm-surface-alt);
+}
+.farm-compact-popover-item.active {
+  background: var(--farm-nav-group-soft, var(--farm-sb-hover));
+  color: var(--farm-nav-group-accent, var(--farm-text-0));
+  font-weight: 700;
+}
+.farm-compact-popover-item.locked {
+  opacity: 0.42;
+  pointer-events: none;
+}
+.farm-compact-popover-emoji {
+  font-size: 16px;
+  line-height: 1;
+}
+.farm-compact-popover-lock {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--farm-text-3);
+  font-weight: 600;
+}
+.farm-compact-popover-badge {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--farm-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
 }
 
 .farm-sidebar-brand {

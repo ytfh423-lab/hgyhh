@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { ChevronRight, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronRight, ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLogo } from '../../../helpers';
 import { FEATURE_LEVEL_MAP } from '../constants';
+
+const SIDEBAR_MODE_KEY = 'farm_sidebar_mode'; // 'compact' | 'full'
 
 const navGroups = [
   {
@@ -96,96 +98,240 @@ const defaultCollapsedState = navGroups.reduce((acc, group) => {
 
 export { navGroups };
 
+// 读取侧边栏模式偏好（compact=窄图标 / full=完整列表）
+const readSidebarMode = () => {
+  if (typeof window === 'undefined') return 'full';
+  try {
+    return window.localStorage.getItem(SIDEBAR_MODE_KEY) === 'compact' ? 'compact' : 'full';
+  } catch (_) {
+    return 'full';
+  }
+};
+
+// compact 模式渲染：只显示分组图标条，hover 时浮出子菜单；
+// 点击分组图标 = 直接跳到该组第一个未锁定子项；
+// 单独的「主页」图标在最顶部常驻。
+const CompactNav = ({ activeKey, onNavigate, t, userLevel, friendRequestCount, farmData, navigate }) => {
+  const firstUnlocked = (group) => {
+    for (const item of group.items) {
+      const req = FEATURE_LEVEL_MAP[item.key];
+      if (!(req && userLevel < req.level)) return item;
+    }
+    return group.items[0];
+  };
+
+  const handleGroupClick = (group) => {
+    const item = firstUnlocked(group);
+    if (item) {
+      if (item.href) navigate(item.href);
+      else onNavigate(item.key);
+    }
+  };
+
+  const groupContainsActive = (group) =>
+    group.items.some((item) => item.key === activeKey);
+
+  return (
+    <div className='farm-sidebar-nav farm-sidebar-nav-compact'>
+      <div
+        className={`farm-compact-icon ${activeKey === 'home' ? 'active' : ''}`}
+        onClick={() => onNavigate('home')}
+        title={t('主页')}
+      >
+        <span className='farm-compact-icon-emoji'>🏠</span>
+      </div>
+      {navGroups.map((group) => {
+        const unread = group.key === 'social' ? friendRequestCount : 0;
+        return (
+          <div
+            key={group.key}
+            className={`farm-compact-icon ${groupContainsActive(group) ? 'active' : ''}`}
+            style={{
+              '--farm-nav-group-accent': group.accent,
+              '--farm-nav-group-soft': group.soft,
+            }}
+            onClick={() => handleGroupClick(group)}
+            title={t(group.label)}
+          >
+            <span className='farm-compact-icon-emoji'>{group.emoji}</span>
+            {unread > 0 && <span className='farm-compact-icon-dot' />}
+            {/* Hover 浮层：展示该组所有子项 */}
+            <div className='farm-compact-popover'>
+              <div className='farm-compact-popover-title'>{group.emoji} {t(group.label)}</div>
+              {group.items.map((item) => {
+                const req = FEATURE_LEVEL_MAP[item.key];
+                const locked = req && userLevel < req.level;
+                return (
+                  <div
+                    key={item.key}
+                    className={`farm-compact-popover-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (locked) return;
+                      if (item.href) navigate(item.href);
+                      else onNavigate(item.key);
+                    }}
+                  >
+                    <span className='farm-compact-popover-emoji'>{locked ? '🔒' : item.emoji}</span>
+                    <span>{t(item.label)}</span>
+                    {locked && <span className='farm-compact-popover-lock'>Lv.{req.level}</span>}
+                    {item.key === 'friends' && friendRequestCount > 0 && (
+                      <span className='farm-compact-popover-badge'>{friendRequestCount}</span>
+                    )}
+                    {item.key === 'tasks' && !locked && farmData?.task_summary && (
+                      <span className='farm-compact-popover-badge' style={{
+                        background: farmData.task_summary.done >= farmData.task_summary.total
+                          ? 'var(--farm-leaf)' : 'var(--farm-sky)',
+                      }}>
+                        {farmData.task_summary.done}/{farmData.task_summary.total}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const Sidebar = ({ activeKey, onNavigate, t, farmData, userLevel = 1, friendRequestCount = 0 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsedState);
+  const [mode, setMode] = useState(readSidebarMode);
   const navigate = useNavigate();
 
   const toggle = (groupKey) => {
     setCollapsed(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
+  const toggleMode = useCallback(() => {
+    setMode((prev) => {
+      const next = prev === 'compact' ? 'full' : 'compact';
+      try { window.localStorage.setItem(SIDEBAR_MODE_KEY, next); } catch (_) {}
+      return next;
+    });
+  }, []);
+
+  // 同步 body class 给 CSS 用（控制 --farm-sidebar-w 变量）
+  useEffect(() => {
+    const cls = 'farm-sidebar-compact';
+    if (mode === 'compact') document.body.classList.add(cls);
+    else document.body.classList.remove(cls);
+    return () => document.body.classList.remove(cls);
+  }, [mode]);
+
+  const isCompact = mode === 'compact';
+
   return (
-    <nav className='farm-sidebar'>
+    <nav className={`farm-sidebar ${isCompact ? 'is-compact' : ''}`}>
       <div className='farm-sidebar-header'>
-        <div className='farm-sidebar-brand' onClick={() => onNavigate('overview')}>
+        <div className='farm-sidebar-brand' onClick={() => onNavigate(isCompact ? 'home' : 'overview')}>
           <img src={getLogo()} alt='logo' className='farm-sidebar-logo' style={{ objectFit: 'contain' }} />
-          <div className='farm-sidebar-brand-copy'>
-            <div className='farm-sidebar-title-row'>
-              <div className='farm-sidebar-badge'>NPC</div>
-              <div className='farm-sidebar-title'>{t('农场')}</div>
+          {!isCompact && (
+            <div className='farm-sidebar-brand-copy'>
+              <div className='farm-sidebar-title-row'>
+                <div className='farm-sidebar-badge'>NPC</div>
+                <div className='farm-sidebar-title'>{t('农场')}</div>
+              </div>
+              <div className='farm-sidebar-subtitle'>
+                {farmData ? `Lv.${farmData.user_level || 1}` : ''}
+                {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
+              </div>
             </div>
-            <div className='farm-sidebar-subtitle'>
-              {farmData ? `Lv.${farmData.user_level || 1}` : ''}
-              {farmData?.prestige_level > 0 ? ` · P${farmData.prestige_level}` : ''}
-            </div>
-          </div>
+          )}
+        </div>
+        <div
+          className='farm-sidebar-mode-toggle'
+          onClick={(e) => { e.stopPropagation(); toggleMode(); }}
+          title={isCompact ? t('展开侧边栏') : t('收起侧边栏')}
+        >
+          {isCompact ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
         </div>
       </div>
-      <div className='farm-sidebar-nav'>
-        {navGroups.map((group) => (
-          <div
-            key={group.key}
-            className='farm-nav-group'
-            style={{
-              '--farm-nav-group-accent': group.accent,
-              '--farm-nav-group-soft': group.soft,
-            }}
-          >
-            <div className='farm-nav-header' onClick={() => toggle(group.key)}>
-              <span className='farm-nav-header-icon'>{group.emoji}</span>
-              <span className='farm-nav-header-label'>{t(group.label)}</span>
-              <ChevronRight size={12} className={`chevron ${collapsed[group.key] ? '' : 'open'}`} />
-            </div>
-            {!collapsed[group.key] && (
-              <div className='farm-nav-items'>
-                {group.items.map((item) => {
-                  const req = FEATURE_LEVEL_MAP[item.key];
-                  const locked = req && userLevel < req.level;
-                  return (
-                    <div
-                      key={item.key}
-                      data-tutorial={`nav-${item.key}`}
-                      className={`farm-nav-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
-                      onClick={locked ? undefined : () => item.href ? navigate(item.href) : onNavigate(item.key)}
-                      title={locked ? `${t('需要')} Lv.${req.level} ${t('解锁')}` : ''}
-                    >
-                      <span className='farm-nav-item-icon'>{locked ? '🔒' : item.emoji}</span>
-                      <span className='farm-nav-item-label'>{t(item.label)}</span>
-                      {item.key === 'friends' && friendRequestCount > 0 && (
-                        <span className='farm-pill' style={{
-                          marginLeft: 'auto', fontSize: 10, padding: '1px 6px',
-                          background: 'var(--farm-danger)', color: '#fff',
-                          borderRadius: 8, fontWeight: 700, lineHeight: '16px',
-                        }}>{friendRequestCount}</span>
-                      )}
-                      {item.key === 'tasks' && !locked && farmData?.task_summary && (
-                        <span className='farm-pill' style={{
-                          marginLeft: 'auto',
-                          fontSize: 10,
-                          padding: '1px 6px',
-                          background: farmData.task_summary.done >= farmData.task_summary.total
-                            ? 'var(--farm-leaf)' : 'var(--farm-sky)',
-                          color: '#fff',
-                          borderRadius: 8,
-                          fontWeight: 700,
-                          lineHeight: '16px',
-                        }}>
-                          {farmData.task_summary.done}/{farmData.task_summary.total}
-                        </span>
-                      )}
-                      {locked && <span className='nav-lock'>Lv.{req.level}</span>}
-                    </div>
-                  );
-                })}
+      {isCompact ? (
+        <CompactNav
+          activeKey={activeKey}
+          onNavigate={onNavigate}
+          t={t}
+          userLevel={userLevel}
+          friendRequestCount={friendRequestCount}
+          farmData={farmData}
+          navigate={navigate}
+        />
+      ) : (
+        <div className='farm-sidebar-nav'>
+          {navGroups.map((group) => (
+            <div
+              key={group.key}
+              className='farm-nav-group'
+              style={{
+                '--farm-nav-group-accent': group.accent,
+                '--farm-nav-group-soft': group.soft,
+              }}
+            >
+              <div className='farm-nav-header' onClick={() => toggle(group.key)}>
+                <span className='farm-nav-header-icon'>{group.emoji}</span>
+                <span className='farm-nav-header-label'>{t(group.label)}</span>
+                <ChevronRight size={12} className={`chevron ${collapsed[group.key] ? '' : 'open'}`} />
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+              {!collapsed[group.key] && (
+                <div className='farm-nav-items'>
+                  {group.items.map((item) => {
+                    const req = FEATURE_LEVEL_MAP[item.key];
+                    const locked = req && userLevel < req.level;
+                    return (
+                      <div
+                        key={item.key}
+                        data-tutorial={`nav-${item.key}`}
+                        className={`farm-nav-item ${activeKey === item.key ? 'active' : ''} ${locked ? 'locked' : ''}`}
+                        onClick={locked ? undefined : () => item.href ? navigate(item.href) : onNavigate(item.key)}
+                        title={locked ? `${t('需要')} Lv.${req.level} ${t('解锁')}` : ''}
+                      >
+                        <span className='farm-nav-item-icon'>{locked ? '🔒' : item.emoji}</span>
+                        <span className='farm-nav-item-label'>{t(item.label)}</span>
+                        {item.key === 'friends' && friendRequestCount > 0 && (
+                          <span className='farm-pill' style={{
+                            marginLeft: 'auto', fontSize: 10, padding: '1px 6px',
+                            background: 'var(--farm-danger)', color: '#fff',
+                            borderRadius: 8, fontWeight: 700, lineHeight: '16px',
+                          }}>{friendRequestCount}</span>
+                        )}
+                        {item.key === 'tasks' && !locked && farmData?.task_summary && (
+                          <span className='farm-pill' style={{
+                            marginLeft: 'auto',
+                            fontSize: 10,
+                            padding: '1px 6px',
+                            background: farmData.task_summary.done >= farmData.task_summary.total
+                              ? 'var(--farm-leaf)' : 'var(--farm-sky)',
+                            color: '#fff',
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            lineHeight: '16px',
+                          }}>
+                            {farmData.task_summary.done}/{farmData.task_summary.total}
+                          </span>
+                        )}
+                        {locked && <span className='nav-lock'>Lv.{req.level}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       <div className='farm-sidebar-footer'>
-        <div className='farm-nav-item' onClick={() => navigate('/')} style={{ paddingLeft: 14 }}>
+        <div
+          className='farm-nav-item'
+          onClick={() => navigate('/')}
+          style={{ paddingLeft: isCompact ? 0 : 14, justifyContent: isCompact ? 'center' : 'flex-start' }}
+          title={isCompact ? t('返回控制台') : ''}
+        >
           <ArrowLeft size={14} style={{ color: 'var(--farm-sb-text-dim)' }} />
-          <span>{t('返回控制台')}</span>
+          {!isCompact && <span>{t('返回控制台')}</span>}
         </div>
       </div>
     </nav>
