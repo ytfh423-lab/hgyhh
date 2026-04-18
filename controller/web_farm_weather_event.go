@@ -84,7 +84,27 @@ var weatherEventSeasonWeight = map[int]map[string]int{
 	0: {"frost": 1, "rainbow": 3, "heatwave": 0, "thunderstorm": 2, "spring_fog": 5},
 	1: {"frost": 0, "rainbow": 2, "heatwave": 5, "thunderstorm": 4, "spring_fog": 0},
 	2: {"frost": 2, "rainbow": 2, "heatwave": 1, "thunderstorm": 2, "spring_fog": 1},
-	3: {"frost": 5, "rainbow": 1, "heatwave": 0, "thunderstorm": 0, "spring_fog": 0},
+	3: {"frost": 5, "rainbow": 0, "heatwave": 0, "thunderstorm": 0, "spring_fog": 0},
+}
+
+// 基础天气兼容性：key 是基础天气 Type，value 是该天气下**禁止**触发的事件 keys。
+// 用于避免"寒潮 + 彩虹日""大雪 + 干热风"等语义冲突的组合同屏出现。
+// 基础天气类型参考 web_farm_expansion.go：
+//   0=sunny 1=rainy 2=stormy 3=foggy 4=大雪 5=windy 6=hot 7=小雪 8=cold(寒潮)
+var weatherEventBaseBlacklist = map[int]map[string]bool{
+	4: {"rainbow": true, "heatwave": true, "spring_fog": true, "thunderstorm": true},
+	7: {"rainbow": true, "heatwave": true, "spring_fog": true, "thunderstorm": true},
+	8: {"rainbow": true, "heatwave": true, "thunderstorm": true, "spring_fog": true},
+	6: {"frost": true, "spring_fog": true, "rainbow": true},
+}
+
+// isWeatherEventCompatible 返回 true 表示可以在当前基础天气下触发此事件
+func isWeatherEventCompatible(baseType int, eventKey string) bool {
+	blk, ok := weatherEventBaseBlacklist[baseType]
+	if !ok {
+		return true
+	}
+	return !blk[eventKey]
 }
 
 func findWeatherEventDef(key string) *weatherEventDef {
@@ -127,15 +147,22 @@ func runWeatherEventTick(now int64) {
 	// 1. 对当前活跃事件推进 tick
 	active, err := model.GetActiveWeatherEvent()
 	if err == nil && active != nil {
-		// 每小时 tick 一次
-		if active.LastTickAt == 0 || now-active.LastTickAt >= 3600 {
-			applyWeatherEventTick(active)
-			_ = model.UpdateWeatherEventTickAt(active.Id, now)
-		}
-		// 到期清理
-		if active.EndsAt <= now {
+		// 基础天气与活跃事件冲突（如寒潮遇彩虹日）则立即终止事件
+		if !isWeatherEventCompatible(GetCurrentWeather().Type, active.EventKey) {
+			common.SysLog(fmt.Sprintf("Weather event %s ended early due to incompatible base weather", active.EventKey))
 			_ = model.MarkWeatherEventEnded(active.Id)
 			active = nil
+		} else {
+			// 每小时 tick 一次
+			if active.LastTickAt == 0 || now-active.LastTickAt >= 3600 {
+				applyWeatherEventTick(active)
+				_ = model.UpdateWeatherEventTickAt(active.Id, now)
+			}
+			// 到期清理
+			if active.EndsAt <= now {
+				_ = model.MarkWeatherEventEnded(active.Id)
+				active = nil
+			}
 		}
 	}
 	// 2. 无活跃事件时评估是否触发新事件
@@ -168,24 +195,34 @@ func shouldFireWeatherEvent(now int64) bool {
 // fireRandomWeatherEvent 按季节权重摇一个事件
 func fireRandomWeatherEvent(now int64) {
 	season := getCurrentSeasonIndex()
-	weights := weatherEventSeasonWeight[season]
-	if len(weights) == 0 {
+	rawWeights := weatherEventSeasonWeight[season]
+	if len(rawWeights) == 0 {
 		return
+	}
+	// 按当前基础天气过滤语义冲突的事件（如寒潮 + 彩虹日）
+	baseType := GetCurrentWeather().Type
+	weights := make(map[string]int, len(rawWeights))
+	for key, w := range rawWeights {
+		if w <= 0 {
+			continue
+		}
+		if !isWeatherEventCompatible(baseType, key) {
+			continue
+		}
+		weights[key] = w
 	}
 	total := 0
 	for _, w := range weights {
 		total += w
 	}
 	if total <= 0 {
+		// 当前基础天气下没有合适的事件可触发，本轮跳过
 		return
 	}
 	r := rand.Intn(total)
 	cursor := 0
 	picked := ""
 	for key, w := range weights {
-		if w <= 0 {
-			continue
-		}
 		cursor += w
 		if r < cursor {
 			picked = key
