@@ -89,6 +89,71 @@ function patchAPIInstance(instance) {
     }
     return config;
   });
+
+  // 农场 step-up 人机验证拦截：后端返回 FARM_STEP_UP_REQUIRED / FARM_VERIFICATION_FAILED 时
+  // 自动弹出验证窗口，验证通过后通过 Header 把 token 附加到原请求并重试
+  instance.interceptors.response.use(async (response) => {
+    try {
+      const data = response?.data;
+      const config = response?.config;
+      if (!data || typeof data !== 'object' || !config) return response;
+      const url = config.url || '';
+      const isFarmUrl =
+        url.startsWith('/api/farm') ||
+        url.startsWith('/api/ranch') ||
+        url.startsWith('/api/tree');
+      if (!isFarmUrl) return response;
+      if (data.success) return response;
+      const code = data.code;
+      if (code !== 'FARM_STEP_UP_REQUIRED' && code !== 'FARM_VERIFICATION_FAILED') {
+        return response;
+      }
+      if (config._farmStepUpRetried) return response;
+
+      const d = data.data || {};
+      const mod = await import('../pages/Farm/components/farmConfirm');
+      const result = await mod.farmVerificationConfirm({
+        title: '安全验证',
+        message:
+          code === 'FARM_VERIFICATION_FAILED'
+            ? '验证未通过，请重新完成人机验证'
+            : '当前操作需要完成人机验证',
+        icon: '🛡️',
+        confirmText: '验证并继续',
+        verification: {
+          enabled: true,
+          provider: d.provider || 'turnstile',
+          siteKey: d.site_key || '',
+          mode: d.provider === 'recaptcha' ? 'score' : 'checkbox',
+          action: d.action || '',
+        },
+      });
+      if (!result || !result.token) {
+        // 用户取消：修改 code 避免调用方再次触发 step-up 分支
+        try {
+          response.data = {
+            ...response.data,
+            code: 'FARM_STEP_UP_CANCELLED',
+            message: response.data?.message || '已取消验证',
+          };
+        } catch (_) {}
+        return response;
+      }
+
+      const retryConfig = {
+        ...config,
+        _farmStepUpRetried: true,
+        headers: {
+          ...(config.headers || {}),
+          'X-Farm-Captcha-Token': result.token,
+          'X-Farm-Captcha-Action': d.action || '',
+        },
+      };
+      return instance.request(retryConfig);
+    } catch (_) {
+      return response;
+    }
+  });
 }
 
 patchAPIInstance(API);

@@ -134,8 +134,14 @@ func FarmRiskGuard() gin.HandlerFunc {
 			provider = "turnstile"
 		}
 
-		// 读取请求中携带的 token
-		token := strings.TrimSpace(c.PostForm("human_verification_token"))
+		// 读取请求中携带的 token，优先 Header，再 Query，最后 PostForm
+		token := strings.TrimSpace(c.GetHeader("X-Farm-Captcha-Token"))
+		if token == "" {
+			token = strings.TrimSpace(c.Query("human_verification_token"))
+		}
+		if token == "" {
+			token = strings.TrimSpace(c.PostForm("human_verification_token"))
+		}
 
 		if needVerify {
 			if token == "" {
@@ -144,7 +150,13 @@ func FarmRiskGuard() gin.HandlerFunc {
 				return
 			}
 			// 校验 token
-			requestAction := strings.TrimSpace(c.PostForm("human_verification_action"))
+			requestAction := strings.TrimSpace(c.GetHeader("X-Farm-Captcha-Action"))
+			if requestAction == "" {
+				requestAction = strings.TrimSpace(c.Query("human_verification_action"))
+			}
+			if requestAction == "" {
+				requestAction = strings.TrimSpace(c.PostForm("human_verification_action"))
+			}
 			minScore := farmRiskMinScore(provider, sensitive)
 			result, err := VerifyHumanVerification(c.ClientIP(), token, HumanVerificationOptions{
 				ExpectedAction: farmRiskExpectedAction(provider, action, requestAction),
