@@ -20,17 +20,23 @@
   --sidebar-current-width: var(--sidebar-width);
 }
 
-/* reCAPTCHA v3 徽章：彻底移到屏幕外，避免加载瞬间闪现挡住通知；
-   合规要求的"由 reCAPTCHA 提供保护"文字由 PageLayout 渲染的固定合规条显式展示。 */
-.grecaptcha-badge {
+/* reCAPTCHA v3 徽章：彻底不可见不可交互。
+   Google 脚本 hover/touch 时会改 inline style 的 right/bottom 让 badge 滑出来，
+   因此必须用 transform + clip-path（Google 不会覆盖这两个属性）+ pointer-events:none
+   来阻止任何显示和触摸响应。合规文字由 PageLayout 的 .recaptcha-compliance-bar 展示。 */
+.grecaptcha-badge,
+.grecaptcha-badge * {
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  right: -9999px !important;
-  bottom: -9999px !important;
+}
+.grecaptcha-badge {
+  transform: translate(300vw, 300vh) !important;
+  clip-path: inset(100%) !important;
   width: 0 !important;
   height: 0 !important;
   overflow: hidden !important;
+  z-index: -2147483648 !important;
 }
 
 /* reCAPTCHA 合规声明条：固定在右下角，小字 + 半透明，不遮挡 toast */
