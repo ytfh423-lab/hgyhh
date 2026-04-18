@@ -814,6 +814,7 @@ const Farm = () => {
           <MobileDashboard
             farmData={farmData}
             userLevel={userLevel}
+            username={userState?.user?.username || ''}
             onNavigate={navigateTo}
             friendRequestCount={friendRequestCount}
             t={t}

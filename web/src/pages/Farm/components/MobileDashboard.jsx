@@ -36,7 +36,18 @@ const MiniRow = ({ emoji, label, locked, lockLevel, onClick }) => (
   </div>
 );
 
-const MobileDashboard = ({ farmData, userLevel = 1, onNavigate, friendRequestCount = 0, t }) => {
+// 根据当前小时数返回问候语，规则与 hooks/dashboard/useDashboardData.js 一致，
+// 保持全站统一口吻（早上好/中午好/下午好/晚上好）
+const getHourlyGreeting = (t) => {
+  const hours = new Date().getHours();
+  if (hours >= 5 && hours < 12) return t('早上好');
+  if (hours >= 12 && hours < 14) return t('中午好');
+  if (hours >= 14 && hours < 18) return t('下午好');
+  return t('晚上好');
+};
+
+const MobileDashboard = ({ farmData, userLevel = 1, username = '', onNavigate, friendRequestCount = 0, t }) => {
+  const greeting = useMemo(() => getHourlyGreeting(t), [t]);
   const plots = farmData?.plots || [];
   const matureCount = plots.filter((p) => p.status === 2).length;
   const growingCount = plots.filter((p) => p.status === 1).length;
@@ -136,6 +147,13 @@ const MobileDashboard = ({ farmData, userLevel = 1, onNavigate, friendRequestCou
   return (
     <div className='farm-home-dashboard'>
       <div className='farm-home-greeting'>
+        <div className='farm-home-greeting-hello'>
+          <span className='farm-home-greeting-hello-wave'>👋</span>
+          <span>
+            {greeting}
+            {username ? `，${username}` : ''}
+          </span>
+        </div>
         <div className='farm-home-greeting-kicker'>{t('欢迎回来')}</div>
         <div className='farm-home-greeting-title'>
           ⭐ Lv.{userLevel}
