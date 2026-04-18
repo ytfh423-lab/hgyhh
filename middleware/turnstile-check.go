@@ -77,11 +77,12 @@ func TurnstileCheck() gin.HandlerFunc {
 			return
 		}
 
-		if _, err := VerifyHumanVerification(c.ClientIP(), response, HumanVerificationOptions{}); err != nil {
-			common.SysLog(err.Error())
+		verifyErr := verifyHumanVerificationWithV2Fallback(c.ClientIP(), response)
+		if verifyErr != nil {
+			common.SysLog(verifyErr.Error())
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": verifyErr.Error(),
 			})
 			c.Abort()
 			return
@@ -177,6 +178,28 @@ func VerifyHumanVerification(remoteIP, response string, options HumanVerificatio
 		return result, &humanVerificationError{message: fmt.Sprintf("reCAPTCHA score 过低: %.2f < %.2f", res.Score, options.MinScore)}
 	}
 	return result, nil
+}
+
+// verifyHumanVerificationWithV2Fallback 在默认 provider 校验失败时，若 provider=recaptcha
+// 且后端同时配置了 v2 siteKey/secretKey，自动用 v2 secret 再校验一次。
+//
+// 场景：前端 HumanVerification 组件在后端同时配置 v2/v3 时会切到 v2 checkbox 模式，
+// 拿到的是 v2 token。如果这里不 fallback，v2 token 会被 v3 secret 拒绝，用户
+// 看到"校验失败"而不理解——因为他刚刚明明勾选了那个 checkbox。
+//
+// 性能：成功路径零影响（首次就过）；失败路径最多多一次 Google siteverify 请求。
+func verifyHumanVerificationWithV2Fallback(remoteIP, response string) error {
+	_, err := VerifyHumanVerification(remoteIP, response, HumanVerificationOptions{})
+	if err == nil {
+		return nil
+	}
+	if common.HumanVerificationProvider != "recaptcha" || !common.IsRecaptchaV2Configured() {
+		return err
+	}
+	if _, err2 := VerifyHumanVerification(remoteIP, response, HumanVerificationOptions{Version: "v2"}); err2 == nil {
+		return nil
+	}
+	return err
 }
 
 func ParseHumanVerificationFloat(value string, fallback float64) float64 {
