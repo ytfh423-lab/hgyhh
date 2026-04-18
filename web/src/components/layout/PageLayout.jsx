@@ -44,13 +44,22 @@ const SocialPanel = lazy(() => import('../social/SocialPanel'));
 
 const PageLayout = () => {
   const [userState, userDispatch] = useContext(UserContext);
-  const [, statusDispatch] = useContext(StatusContext);
+  const [statusState, statusDispatch] = useContext(StatusContext);
   const isMobile = useIsMobile();
   const [collapsed, , setCollapsed] = useSidebarCollapsed();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shouldLoadSocialPanel, setShouldLoadSocialPanel] = useState(false);
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const location = useLocation();
+
+  // reCAPTCHA 合规声明：启用 recaptcha 时固定在右下角显示（badge 已被 CSS 隐藏）
+  const showRecaptchaNotice = (() => {
+    const st = statusState?.status;
+    if (!st) return false;
+    const enabled = st.human_verification_enabled ?? st.turnstile_check ?? false;
+    const provider = st.human_verification_provider || 'turnstile';
+    return enabled && provider === 'recaptcha';
+  })();
 
   const cardProPages = [
     '/console/channel',
@@ -270,6 +279,35 @@ const PageLayout = () => {
         </Suspense>
       )}
       <FarmConfirmProvider />
+      {showRecaptchaNotice && (
+        <div className='recaptcha-compliance-bar'>
+          {t('本站受')}{' '}
+          <a
+            href='https://policies.google.com/privacy'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            reCAPTCHA
+          </a>{' '}
+          {t('保护')}（
+          <a
+            href='https://policies.google.com/privacy'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            {t('隐私政策')}
+          </a>
+          {' · '}
+          <a
+            href='https://policies.google.com/terms'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            {t('服务条款')}
+          </a>
+          ）
+        </div>
+      )}
     </Layout>
   );
 };

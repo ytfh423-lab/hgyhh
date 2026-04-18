@@ -20,12 +20,45 @@
   --sidebar-current-width: var(--sidebar-width);
 }
 
-/* reCAPTCHA v3 徽章：默认折叠到屏幕外，避免挡住通知；
-   合规要求的"由 reCAPTCHA 提供保护"文字已在页脚显式展示。 */
+/* reCAPTCHA v3 徽章：彻底移到屏幕外，避免加载瞬间闪现挡住通知；
+   合规要求的"由 reCAPTCHA 提供保护"文字由 PageLayout 渲染的固定合规条显式展示。 */
 .grecaptcha-badge {
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  right: -9999px !important;
+  bottom: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* reCAPTCHA 合规声明条：固定在右下角，小字 + 半透明，不遮挡 toast */
+.recaptcha-compliance-bar {
+  position: fixed;
+  right: 8px;
+  bottom: 4px;
+  z-index: 1;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--semi-color-text-2);
+  opacity: 0.55;
+  pointer-events: auto;
+  max-width: 260px;
+  text-align: right;
+  user-select: none;
+}
+.recaptcha-compliance-bar a {
+  color: inherit;
+  text-decoration: underline;
+}
+.recaptcha-compliance-bar:hover {
+  opacity: 0.9;
+}
+@media (max-width: 640px) {
+  .recaptcha-compliance-bar {
+    display: none;
+  }
 }
 
 body.sidebar-collapsed {
