@@ -18,6 +18,7 @@ import './farm.css';
 import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import FarmOverview from './components/FarmOverview';
+import MobileDashboard from './components/MobileDashboard';
 import BetaApplicationGate from './components/BetaApplicationGate';
 import TutorialProvider from './components/TutorialProvider';
 import tutorialEvents from './components/tutorialEvents';
@@ -145,11 +146,13 @@ class FarmErrorBoundary extends React.Component {
 
 const seasonCssVar = { 0: 'var(--farm-spring)', 1: 'var(--farm-summer)', 2: 'var(--farm-autumn)', 3: 'var(--farm-winter)' };
 
+// 移动端底部 Tab：主页（Dashboard）/ 农田 / 市场 / 任务 / 更多
+// home 是新的 Dashboard 首页，overview 继续保留（农田管理）
 const mobileQuickTabs = [
-  { key: 'overview', emoji: '🏠', label: '总览' },
-  { key: 'plant', emoji: '🌱', label: '种植' },
-  { key: 'ranch', emoji: '🐄', label: '牧场' },
-  { key: 'market', emoji: '📈', label: '市场' },
+  { key: 'home', emoji: '🏠', label: '主页' },
+  { key: 'overview', emoji: '�', label: '农田' },
+  { key: 'market', emoji: '�', label: '市场' },
+  { key: 'tasks', emoji: '�', label: '任务' },
   { key: 'more', emoji: '☰', label: '更多' },
 ];
 
@@ -159,23 +162,30 @@ const pageMetaMap = navGroups.reduce((acc, group) => {
   });
   return acc;
 }, {
-  overview: { key: 'overview', emoji: '🏠', label: '总览' },
+  home: { key: 'home', emoji: '🏠', label: '主页' },
+  overview: { key: 'overview', emoji: '�', label: '我的农田' },
   visit: { key: 'visit', emoji: '🚜', label: '好友农场' },
 });
 
 const MobileBottomNav = ({ activeKey, onNavigate, showSheet, t }) => {
+  // 激活判定：当前 tab 直接命中；都没命中时「更多」高亮
+  const quickKeys = mobileQuickTabs.map((q) => q.key).filter((k) => k !== 'more');
+  const activeIsQuick = quickKeys.includes(activeKey);
   return (
     <div className='farm-mobile-nav'>
-      {mobileQuickTabs.map((tab) => (
-        <div
-          key={tab.key}
-          className={`farm-mobile-nav-item ${activeKey === tab.key || (tab.key === 'more' && !mobileQuickTabs.slice(0, 4).some(q => q.key === activeKey)) ? 'active' : ''}`}
-          onClick={() => tab.key === 'more' ? showSheet() : onNavigate(tab.key)}
-        >
-          <span className='nav-emoji'>{tab.emoji}</span>
-          <span className='nav-label'>{t(tab.label)}</span>
-        </div>
-      ))}
+      {mobileQuickTabs.map((tab) => {
+        const isActive = tab.key === 'more' ? !activeIsQuick : activeKey === tab.key;
+        return (
+          <div
+            key={tab.key}
+            className={`farm-mobile-nav-item ${isActive ? 'active' : ''}`}
+            onClick={() => tab.key === 'more' ? showSheet() : onNavigate(tab.key)}
+          >
+            <span className='nav-emoji'>{tab.emoji}</span>
+            <span className='nav-label'>{t(tab.label)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -232,7 +242,12 @@ const Farm = () => {
   });
   const [crops, setCrops] = useState(_cropsCache || []);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activePage, setActivePage] = useState('overview');
+  // 移动端默认进 Dashboard 主页（home），桌面端仍进农田（overview）
+  const [activePage, setActivePage] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+      ? 'home'
+      : 'overview'
+  ));
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [entrustWorkTaskId, setEntrustWorkTaskId] = useState(null);
   const [betaGate, setBetaGate] = useState(null); // null | 'BETA_NOT_STARTED' | 'BETA_NO_ACCESS' | 'BETA_AGREEMENT_REQUIRED' | 'BETA_EXPIRED'
@@ -782,6 +797,16 @@ const Farm = () => {
     }
 
     switch (activePage) {
+      case 'home':
+        return (
+          <MobileDashboard
+            farmData={farmData}
+            userLevel={userLevel}
+            onNavigate={navigateTo}
+            friendRequestCount={friendRequestCount}
+            t={t}
+          />
+        );
       case 'overview':
         return <FarmOverview {...commonProps} crops={crops} loading={loading} />;
       case 'plant':
@@ -861,6 +886,7 @@ const Farm = () => {
           <StatusBar farmData={farmData} t={t} />
           <div className='farm-content'>
             <div key={activePage} className='farm-content-inner app-route-shell'>
+              {activePage !== 'home' && (
               <div className='farm-page-hero'>
                 <div className='farm-page-hero-kicker'>{t('农场札记')}</div>
                 <div className='farm-page-hero-row'>
@@ -878,6 +904,7 @@ const Farm = () => {
                   </div>
                 </div>
               </div>
+              )}
               <FarmErrorBoundary resetKey={activePage}>
                 <Suspense fallback={<Loading size='large' fullscreen={false} text={t('页面切换中')} />}>
                   {renderPage()}
