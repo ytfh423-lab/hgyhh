@@ -77,7 +77,20 @@ func TurnstileCheck() gin.HandlerFunc {
 			return
 		}
 
-		verifyErr := verifyHumanVerificationWithV2Fallback(c.ClientIP(), response)
+		// 前端（HumanVerification 组件）会把当前 token 的版本（v2/v3/空）通过
+		// human_verification_version 参数发过来。已迁移的页面（如 LoginForm）
+		// 传 v2 时，这里直接用 v2 secret 校验，一次请求搞定；
+		// 未迁移的页面不传 version，走 verifyHumanVerificationWithV2Fallback 兜底。
+		version := strings.TrimSpace(c.Query("human_verification_version"))
+		if version == "" {
+			version = strings.TrimSpace(c.PostForm("human_verification_version"))
+		}
+		var verifyErr error
+		if version == "v2" {
+			_, verifyErr = VerifyHumanVerification(c.ClientIP(), response, HumanVerificationOptions{Version: "v2"})
+		} else {
+			verifyErr = verifyHumanVerificationWithV2Fallback(c.ClientIP(), response)
+		}
 		if verifyErr != nil {
 			common.SysLog(verifyErr.Error())
 			c.JSON(http.StatusOK, gin.H{

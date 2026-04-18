@@ -61,13 +61,13 @@ const HumanVerification = ({
       .then((token) => {
         if (cancelled) return;
         setV3Running(false);
-        onVerify(token || '');
+        onVerify(token || '', 'v3');
       })
       .catch((err) => {
         if (cancelled) return;
         setV3Running(false);
         setV3Error(err?.message || 'reCAPTCHA v3 执行失败');
-        onVerify('');
+        onVerify('', 'v3');
       });
     return () => {
       cancelled = true;
@@ -93,6 +93,8 @@ const HumanVerification = ({
         </div>
       );
     }
+    // v2 checkbox：明确告诉消费方 version='v2'，消费方可把该值拼到 URL
+    // 作为 human_verification_version 参数，让后端直接用 v2 secret 校验
     return (
       <ReCAPTCHA
         key={widgetKey}
@@ -100,11 +102,11 @@ const HumanVerification = ({
         sitekey={effectiveSiteKey}
         size='normal'
         onChange={(token) => {
-          onVerify(token || '');
+          onVerify(token || '', 'v2');
         }}
         onExpired={() => {
           onExpire?.();
-          onVerify('');
+          onVerify('', 'v2');
         }}
       />
     );
@@ -115,11 +117,11 @@ const HumanVerification = ({
       key={widgetKey}
       sitekey={effectiveSiteKey}
       onVerify={(token) => {
-        onVerify(token);
+        onVerify(token, '');
       }}
       onExpire={() => {
         onExpire?.();
-        onVerify('');
+        onVerify('', '');
       }}
     />
   );

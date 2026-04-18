@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
@@ -91,6 +91,9 @@ const LoginForm = () => {
     useState('turnstile');
   const [humanVerificationSiteKey, setHumanVerificationSiteKey] = useState('');
   const [humanVerificationToken, setHumanVerificationToken] = useState('');
+  // 'v2' | 'v3' | 'turnstile' | ''：由 HumanVerification 组件回传，
+  // 拼到 URL 后让后端 TurnstileCheck 直接用对应 secret 校验，不必靠 fallback
+  const [humanVerificationVersion, setHumanVerificationVersion] = useState('');
   const [showWeChatLoginModal, setShowWeChatLoginModal] = useState(false);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
@@ -137,8 +140,15 @@ const LoginForm = () => {
   const humanVerificationName =
     humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
   const humanVerificationQuery = humanVerificationToken
-    ? `?captcha=${encodeURIComponent(humanVerificationToken)}`
+    ? `?captcha=${encodeURIComponent(humanVerificationToken)}${humanVerificationVersion ? `&human_verification_version=${encodeURIComponent(humanVerificationVersion)}` : ''}`
     : '';
+
+  // useCallback 保持引用稳定，避免 HumanVerification 内部 useEffect 因
+  // onVerify 引用变化而重复执行（尤其是 v3 score 模式会重复拿 token）
+  const handleHumanVerify = useCallback((token, version) => {
+    setHumanVerificationToken(token || '');
+    setHumanVerificationVersion(version || '');
+  }, []);
 
   const hasOAuthLoginOptions = Boolean(
     status.github_oauth ||
@@ -160,6 +170,7 @@ const LoginForm = () => {
     setHumanVerificationEnabled(enabled);
     setHumanVerificationSiteKey(enabled ? siteKey : '');
     setHumanVerificationToken('');
+    setHumanVerificationVersion('');
 
     // 从 status 获取用户协议和隐私政策的启用状态
     setHasUserAgreement(status?.user_agreement_enabled || false);
@@ -1011,7 +1022,7 @@ const LoginForm = () => {
               provider={humanVerificationProvider}
               enabled={humanVerificationEnabled}
               siteKey={humanVerificationSiteKey}
-              onVerify={setHumanVerificationToken}
+              onVerify={handleHumanVerify}
             />
           </div>
         )}

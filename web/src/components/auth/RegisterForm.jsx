@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   API,
@@ -91,6 +91,7 @@ const RegisterForm = () => {
     useState('turnstile');
   const [humanVerificationSiteKey, setHumanVerificationSiteKey] = useState('');
   const [humanVerificationToken, setHumanVerificationToken] = useState('');
+  const [humanVerificationVersion, setHumanVerificationVersion] = useState('');
   const [showWeChatLoginModal, setShowWeChatLoginModal] = useState(false);
   const [showEmailRegister, setShowEmailRegister] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
@@ -138,8 +139,12 @@ const RegisterForm = () => {
   const humanVerificationName =
     humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
   const humanVerificationQuery = humanVerificationToken
-    ? `captcha=${encodeURIComponent(humanVerificationToken)}`
+    ? `captcha=${encodeURIComponent(humanVerificationToken)}${humanVerificationVersion ? `&human_verification_version=${encodeURIComponent(humanVerificationVersion)}` : ''}`
     : '';
+  const handleHumanVerify = useCallback((token, version) => {
+    setHumanVerificationToken(token || '');
+    setHumanVerificationVersion(version || '');
+  }, []);
   const registrationCodeRequired = status?.registration_code_required !== false;
   const hasOAuthRegisterOptions = Boolean(
     status.github_oauth ||
@@ -164,6 +169,7 @@ const RegisterForm = () => {
     setHumanVerificationEnabled(enabled);
     setHumanVerificationSiteKey(enabled ? siteKey : '');
     setHumanVerificationToken('');
+    setHumanVerificationVersion('');
 
     // 从 status 获取用户协议和隐私政策的启用状态
     setHasUserAgreement(status?.user_agreement_enabled || false);
@@ -856,7 +862,7 @@ const RegisterForm = () => {
               provider={humanVerificationProvider}
               enabled={humanVerificationEnabled}
               siteKey={humanVerificationSiteKey}
-              onVerify={setHumanVerificationToken}
+              onVerify={handleHumanVerify}
             />
           </div>
         )}

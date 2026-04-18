@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   API,
   getLogo,
@@ -48,14 +48,19 @@ const PasswordResetForm = () => {
     useState('turnstile');
   const [humanVerificationSiteKey, setHumanVerificationSiteKey] = useState('');
   const [humanVerificationToken, setHumanVerificationToken] = useState('');
+  const [humanVerificationVersion, setHumanVerificationVersion] = useState('');
   const [disableButton, setDisableButton] = useState(false);
   const [countdown, setCountdown] = useState(30);
 
   const humanVerificationName =
     humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
   const humanVerificationQuery = humanVerificationToken
-    ? `&captcha=${encodeURIComponent(humanVerificationToken)}`
+    ? `&captcha=${encodeURIComponent(humanVerificationToken)}${humanVerificationVersion ? `&human_verification_version=${encodeURIComponent(humanVerificationVersion)}` : ''}`
     : '';
+  const handleHumanVerify = useCallback((token, version) => {
+    setHumanVerificationToken(token || '');
+    setHumanVerificationVersion(version || '');
+  }, []);
 
   useEffect(() => {
     let status = localStorage.getItem('status');
@@ -70,6 +75,7 @@ const PasswordResetForm = () => {
       setHumanVerificationEnabled(enabled);
       setHumanVerificationSiteKey(enabled ? siteKey : '');
       setHumanVerificationToken('');
+      setHumanVerificationVersion('');
     }
   }, []);
 
@@ -190,7 +196,7 @@ const PasswordResetForm = () => {
                   provider={humanVerificationProvider}
                   enabled={humanVerificationEnabled}
                   siteKey={humanVerificationSiteKey}
-                  onVerify={setHumanVerificationToken}
+                  onVerify={handleHumanVerify}
                 />
               </div>
             )}
