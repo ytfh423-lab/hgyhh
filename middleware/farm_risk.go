@@ -407,7 +407,24 @@ func respondFarmRiskStepUp(c *gin.Context, action string, sensitive bool, provid
 	if sensitive {
 		reason = "sensitive_action"
 	}
-	// 默认走 v3（reCAPTCHA 时）
+	// reCAPTCHA：如果配置了 v2，step-up 直接发 v2 checkbox（用户体验更直观、更快）
+	// 只有在没配 v2 时才 fallback 到 v3 静默
+	if provider == "recaptcha" && common.IsRecaptchaV2Configured() {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"code":    farmRiskStepUpCode,
+			"message": "当前操作需要人机验证，请完成验证后重试",
+			"data": gin.H{
+				"action":   action,
+				"reason":   reason,
+				"provider": "recaptcha",
+				"version":  "v2",
+				"site_key": common.RecaptchaV2SiteKey,
+			},
+		})
+		c.Abort()
+		return
+	}
 	version := ""
 	siteKey := common.GetHumanVerificationSiteKey()
 	if provider == "recaptcha" {
@@ -447,6 +464,23 @@ func respondFarmRiskStepUpV2(c *gin.Context, action, v3Reason string) {
 }
 
 func respondFarmRiskVerifyFail(c *gin.Context, action, provider, reason string) {
+	// reCAPTCHA：如果配了 v2，失败重试也继续走 v2（用户体验一致）
+	if provider == "recaptcha" && common.IsRecaptchaV2Configured() {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"code":    farmRiskVerifyFailCode,
+			"message": "人机验证未通过，请重试",
+			"data": gin.H{
+				"action":   action,
+				"reason":   reason,
+				"provider": "recaptcha",
+				"version":  "v2",
+				"site_key": common.RecaptchaV2SiteKey,
+			},
+		})
+		c.Abort()
+		return
+	}
 	version := ""
 	siteKey := common.GetHumanVerificationSiteKey()
 	if provider == "recaptcha" {
