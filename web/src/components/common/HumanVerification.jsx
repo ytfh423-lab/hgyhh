@@ -10,16 +10,21 @@ const HumanVerification = ({
   onVerify,
   onExpire,
   widgetKey,
-  mode = 'checkbox',
+  mode,
   action,
 }) => {
   const recaptchaRef = useRef(null);
   const [v3Error, setV3Error] = useState('');
   const [v3Running, setV3Running] = useState(false);
 
+  // 默认模式：provider='recaptcha' 时默认走 v3(score) —— 项目主要配置 v3 siteKey；
+  // 其他 provider（Turnstile）继续走 checkbox；
+  // step-up 弹窗等需要显式 v2 checkbox 的场景由调用方传入 mode='checkbox'。
+  const effectiveMode = mode || (provider === 'recaptcha' ? 'score' : 'checkbox');
+
   // reCAPTCHA v3（score 模式）：手动加载脚本并执行，不使用 react-google-recaptcha
   useEffect(() => {
-    if (provider !== 'recaptcha' || mode !== 'score' || !enabled || !siteKey) {
+    if (provider !== 'recaptcha' || effectiveMode !== 'score' || !enabled || !siteKey) {
       return undefined;
     }
     let cancelled = false;
@@ -40,14 +45,14 @@ const HumanVerification = ({
     return () => {
       cancelled = true;
     };
-  }, [action, enabled, mode, onVerify, provider, siteKey, widgetKey]);
+  }, [action, enabled, effectiveMode, onVerify, provider, siteKey, widgetKey]);
 
   if (!enabled || !siteKey) {
     return null;
   }
 
   if (provider === 'recaptcha') {
-    if (mode === 'score') {
+    if (effectiveMode === 'score') {
       // v3：隐形验证，无可见 UI，仅在异常时提示
       return (
         <div style={{ fontSize: 12, color: '#888', textAlign: 'center', padding: '6px 0' }}>

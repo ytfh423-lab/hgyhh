@@ -41,26 +41,22 @@ const (
 )
 
 // ── 动作敏感度表 ──
-// sensitive=true 的动作每次都要求验证，不受 pass 豁免
+// sensitive=true 的动作每次都要求验证，不受 pass 豁免。
+// 只列入：与他人交互 / 经济决策 / 不可逆操作。
+// 一键类（种植/浇水/施肥/治疗/收获）属于正常玩法不列入，由 burst 阈值检测脚本滥用。
 var farmRiskSensitiveActions = map[string]bool{
-	"farm_steal":             true,
-	"farm_trade_create":      true,
+	"farm_steal":             true, // 偷菜：影响他人
+	"farm_trade_create":      true, // 交易：经济决策
 	"farm_trade_buy":         true,
 	"farm_trade_cancel":      true,
-	"farm_bank_loan":         true,
+	"farm_bank_loan":         true, // 银行：经济决策
 	"farm_bank_mortgage":     true,
 	"farm_bank_repay":        true,
-	"farm_warehouse_sellall": true,
-	"farm_prestige":          true,
-	"farm_harvest_all":       true,
-	"farm_water_all":         true,
-	"farm_fertilize_all":     true,
-	"farm_treat_all":         true,
-	"farm_plant_all":         true,
-	"ranch_slaughter":        true,
+	"farm_warehouse_sellall": true, // 一键卖仓：大额经济操作
+	"farm_prestige":          true, // 转生：不可逆
+	"ranch_slaughter":        true, // 屠宰：不可逆
 	"ranch_slaughter_store":  true,
-	"tree_chop":              true,
-	"tree_harvest_all":       true,
+	"tree_chop":              true, // 砍树：不可逆
 }
 
 // ── 内存兜底（Redis 不可用时） ──
