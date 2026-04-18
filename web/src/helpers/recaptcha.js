@@ -66,14 +66,20 @@ export async function getRecaptchaV3Token(siteKey, action) {
   });
 }
 
+// v3 token 缓存：同 action 在 90 秒内复用（Google 官方 2 分钟有效，留 30 秒安全窗口）
+// 这样同一个会话里农场连续操作不再每次都往返 Google 拿 token，请求延迟显著下降
+const v3TokenCache = new Map(); // action -> { token, expireAt }
+const V3_TOKEN_TTL_MS = 90 * 1000;
+
 /**
  * 从 localStorage 读 status，如果启用了 recaptcha v3 则拿 token；否则返回空
  * 不抛错，失败/超时返回空字符串（请求继续，后端走 burst 兜底）
  *
  * @param {string} action - reCAPTCHA v3 action 名，用于 action 校验
- * @param {number} timeoutMs - 超时毫秒数，默认 800ms，避免阻塞请求过久
+ * @param {number} timeoutMs - 超时毫秒数，默认 300ms（大多数农场操作可容忍，
+ *                              超时后 token 为空请求继续，后端走 burst 兜底）
  */
-export async function getFarmRecaptchaV3Token(action, timeoutMs = 800) {
+export async function getFarmRecaptchaV3Token(action, timeoutMs = 300) {
   try {
     if (typeof window === 'undefined') return '';
     const raw = localStorage.getItem('status');
@@ -90,7 +96,21 @@ export async function getFarmRecaptchaV3Token(action, timeoutMs = 800) {
     const siteKey =
       status?.human_verification_site_key || status?.turnstile_site_key || '';
     if (!enabled || provider !== 'recaptcha' || !siteKey) return '';
-    const tokenPromise = getRecaptchaV3Token(siteKey, action);
+
+    // 命中缓存：直接返回，零延迟
+    const cacheKey = `${siteKey}:${action || 'farm'}`;
+    const cached = v3TokenCache.get(cacheKey);
+    const now = Date.now();
+    if (cached && cached.expireAt > now) {
+      return cached.token;
+    }
+
+    const tokenPromise = getRecaptchaV3Token(siteKey, action).then((t) => {
+      if (t) {
+        v3TokenCache.set(cacheKey, { token: t, expireAt: Date.now() + V3_TOKEN_TTL_MS });
+      }
+      return t;
+    });
     const timeoutPromise = new Promise((resolve) =>
       setTimeout(() => resolve(''), timeoutMs),
     );

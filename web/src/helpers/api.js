@@ -75,9 +75,10 @@ function patchAPIInstance(instance) {
   };
 
   // 农场防脚本：对 /api/farm、/api/ranch、/api/tree 的写请求自动注入 Nonce
-  // 并异步拿 v3 token（800ms 超时保护）注入 Header，让后端用 v3 做评分风控；
+  // 并异步拿 v3 token（300ms 超时保护）注入 Header，让后端用 v3 做评分风控；
   // 分数不够时后端会返回 step-up 让前端弹 v2 复选框（由响应拦截器处理）。
-  instance.interceptors.request.use(async (config) => {
+  // 性能关键：**非农场写请求直接同步 return**，避免所有请求都额外吃一个 async 微任务。
+  instance.interceptors.request.use((config) => {
     const url = config.url || '';
     const method = (config.method || 'get').toLowerCase();
     const isFarmWrite =
@@ -87,48 +88,53 @@ function patchAPIInstance(instance) {
       (url.startsWith('/api/farm') ||
         url.startsWith('/api/ranch') ||
         url.startsWith('/api/tree'));
-    if (!isFarmWrite) return config;
+    if (!isFarmWrite) return config; // 同步快路径，零 Promise 开销
 
     config.headers['X-Farm-Nonce'] = generateFarmNonce();
 
     // 若已有 v2 token（step-up 重试），不覆盖
     if (config.headers['X-Farm-Captcha-Token']) return config;
 
-    // 异步拿 v3 token，超时/失败返回空（请求继续，后端走 burst 兜底）
-    try {
-      const action = url.replace(/^\/api\//, '').replace(/\//g, '_');
-      const token = await getFarmRecaptchaV3Token(action);
-      if (token) {
-        config.headers['X-Farm-Captcha-Token'] = token;
-        config.headers['X-Farm-Captcha-Action'] = action;
-        config.headers['X-Farm-Captcha-Version'] = 'v3';
+    // 只有农场写请求才进入 async 分支
+    return (async () => {
+      try {
+        const action = url.replace(/^\/api\//, '').replace(/\//g, '_');
+        const token = await getFarmRecaptchaV3Token(action);
+        if (token) {
+          config.headers['X-Farm-Captcha-Token'] = token;
+          config.headers['X-Farm-Captcha-Action'] = action;
+          config.headers['X-Farm-Captcha-Version'] = 'v3';
+        }
+      } catch (_) {
+        // 静默失败
       }
-    } catch (_) {
-      // 静默失败
-    }
-    return config;
+      return config;
+    })();
   });
 
   // 农场 step-up 人机验证拦截：后端返回 FARM_STEP_UP_REQUIRED / FARM_VERIFICATION_FAILED 时
   // 自动弹出验证窗口，验证通过后通过 Header 把 token 附加到原请求并重试
-  instance.interceptors.response.use(async (response) => {
-    try {
-      const data = response?.data;
-      const config = response?.config;
-      if (!data || typeof data !== 'object' || !config) return response;
-      const url = config.url || '';
-      const isFarmUrl =
-        url.startsWith('/api/farm') ||
-        url.startsWith('/api/ranch') ||
-        url.startsWith('/api/tree');
-      if (!isFarmUrl) return response;
-      if (data.success) return response;
-      const code = data.code;
-      if (code !== 'FARM_STEP_UP_REQUIRED' && code !== 'FARM_VERIFICATION_FAILED') {
-        return response;
-      }
-      if (config._farmStepUpRetried) return response;
+  // 性能关键：同步 fast-return 所有非 step-up 响应，只有真正触发验证时才进 async 分支
+  instance.interceptors.response.use((response) => {
+    const data = response?.data;
+    const config = response?.config;
+    if (!data || typeof data !== 'object' || !config) return response;
+    const url = config.url || '';
+    const isFarmUrl =
+      url.startsWith('/api/farm') ||
+      url.startsWith('/api/ranch') ||
+      url.startsWith('/api/tree');
+    if (!isFarmUrl) return response;
+    if (data.success) return response;
+    const code = data.code;
+    if (code !== 'FARM_STEP_UP_REQUIRED' && code !== 'FARM_VERIFICATION_FAILED') {
+      return response;
+    }
+    if (config._farmStepUpRetried) return response;
 
+    // 走 async 分支处理 step-up
+    return (async () => {
+      try {
       const d = data.data || {};
       const provider = d.provider || 'turnstile';
       const version = d.version || (provider === 'recaptcha' ? 'v3' : '');
@@ -184,9 +190,10 @@ function patchAPIInstance(instance) {
         },
       };
       return instance.request(retryConfig);
-    } catch (_) {
-      return response;
-    }
+      } catch (_) {
+        return response;
+      }
+    })();
   });
 }
 

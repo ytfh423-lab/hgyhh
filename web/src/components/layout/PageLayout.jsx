@@ -130,13 +130,19 @@ const PageLayout = () => {
       if (success) {
         statusDispatch({ type: 'set', payload: data });
         setStatusData(data);
-        // 启用了 reCAPTCHA v3 时预加载脚本，让徽章提前出现 + 后续 step-up 秒开
+        // 启用了 reCAPTCHA v3 时预加载脚本，但推迟到浏览器 idle 时进行，
+        // 避免抢占首屏带宽（Google 脚本 ~2MB），让首屏加载更快
         const enabled =
           data?.human_verification_enabled ?? data?.turnstile_check ?? false;
         const provider = data?.human_verification_provider || 'turnstile';
         const siteKey = data?.human_verification_site_key || '';
         if (enabled && provider === 'recaptcha' && siteKey) {
-          loadRecaptchaV3Script(siteKey).catch(() => {});
+          const preload = () => loadRecaptchaV3Script(siteKey).catch(() => {});
+          if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(preload, { timeout: 3000 });
+          } else {
+            setTimeout(preload, 1500);
+          }
         }
       } else {
         showError('Unable to connect to server');
