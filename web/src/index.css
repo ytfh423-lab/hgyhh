@@ -2841,3 +2841,28 @@ html.dark .semi-card:hover {
 .semi-datepicker-range-input {
   border-radius: 10px !important;
 }
+
+/* ==================== reCAPTCHA v3 徽章 ==================== */
+/* Google 要求 v3 徽章必须可见（否则违反 TOS）。
+ * Google 默认：徽章加载时展开 ~5 秒 → 自动收起为图标 → 悬停重新展开。
+ * 下方规则强制徽章保持完整展开状态（宽 256px），一直可见。
+ */
+.grecaptcha-badge {
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 2147483647 !important;
+  right: 14px !important;
+  bottom: 14px !important;
+  width: 256px !important;
+  height: 60px !important;
+  overflow: hidden !important;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 6px !important;
+}
+
+/* 让右下角的农场/社交悬浮元素避开 reCAPTCHA 徽章（约 256×60px） */
+.farm-notif-container,
+.farm-chat-widget,
+.social-notif-container {
+  bottom: 90px !important;
+}
