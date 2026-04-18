@@ -72,6 +72,9 @@ func GetStatus(c *gin.Context) {
 		"human_verification_enabled":  common.TurnstileCheckEnabled,
 		"human_verification_provider": common.HumanVerificationProvider,
 		"human_verification_site_key": common.GetHumanVerificationSiteKey(),
+		// reCAPTCHA v2 siteKey：前端"可见验证"场景（登录/注册/改密等）优先使用
+		// v3 只做后台评分风控，不直接展示给用户
+		"recaptcha_v2_site_key": common.RecaptchaV2SiteKey,
 		"top_up_link":                 common.TopUpLink,
 		"docs_link":                   operation_setting.GetGeneralSetting().DocsLink,
 		"quota_per_unit":              common.QuotaPerUnit,

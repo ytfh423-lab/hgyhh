@@ -3,6 +3,18 @@ import Turnstile from 'react-turnstile';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { getRecaptchaV3Token } from '../../helpers/recaptcha';
 
+// 从 localStorage.status 读取 recaptcha v2 siteKey（后端在 /api/status 返回）
+function readRecaptchaV2SiteKey() {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('status') : null;
+    if (!raw) return '';
+    const status = JSON.parse(raw);
+    return status?.recaptcha_v2_site_key || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 const HumanVerification = ({
   enabled,
   provider,
@@ -17,20 +29,35 @@ const HumanVerification = ({
   const [v3Error, setV3Error] = useState('');
   const [v3Running, setV3Running] = useState(false);
 
-  // 默认模式：provider='recaptcha' 时默认走 v3(score) —— 项目主要配置 v3 siteKey；
-  // 其他 provider（Turnstile）继续走 checkbox；
-  // step-up 弹窗等需要显式 v2 checkbox 的场景由调用方传入 mode='checkbox'。
-  const effectiveMode = mode || (provider === 'recaptcha' ? 'score' : 'checkbox');
+  // 智能模式判断（调用方未显式传 mode 时）：
+  //   provider='recaptcha' + 后端配了 v2 siteKey → v2 checkbox（可见验证，用户体验直观）
+  //   provider='recaptcha' 仅有 v3            → v3 score（静默）
+  //   provider='turnstile'                     → checkbox
+  // 显式传入 mode 的场景（step-up 弹窗等）不受影响。
+  let effectiveMode = mode;
+  let effectiveSiteKey = siteKey;
+  if (!effectiveMode && provider === 'recaptcha') {
+    const v2SiteKey = readRecaptchaV2SiteKey();
+    if (v2SiteKey) {
+      effectiveMode = 'checkbox';
+      effectiveSiteKey = v2SiteKey;
+    } else {
+      effectiveMode = 'score';
+    }
+  }
+  if (!effectiveMode) {
+    effectiveMode = 'checkbox';
+  }
 
   // reCAPTCHA v3（score 模式）：手动加载脚本并执行，不使用 react-google-recaptcha
   useEffect(() => {
-    if (provider !== 'recaptcha' || effectiveMode !== 'score' || !enabled || !siteKey) {
+    if (provider !== 'recaptcha' || effectiveMode !== 'score' || !enabled || !effectiveSiteKey) {
       return undefined;
     }
     let cancelled = false;
     setV3Error('');
     setV3Running(true);
-    getRecaptchaV3Token(siteKey, action || 'farm')
+    getRecaptchaV3Token(effectiveSiteKey, action || 'farm')
       .then((token) => {
         if (cancelled) return;
         setV3Running(false);
@@ -45,9 +72,9 @@ const HumanVerification = ({
     return () => {
       cancelled = true;
     };
-  }, [action, enabled, effectiveMode, onVerify, provider, siteKey, widgetKey]);
+  }, [action, enabled, effectiveMode, effectiveSiteKey, onVerify, provider, widgetKey]);
 
-  if (!enabled || !siteKey) {
+  if (!enabled || !effectiveSiteKey) {
     return null;
   }
 
@@ -70,7 +97,7 @@ const HumanVerification = ({
       <ReCAPTCHA
         key={widgetKey}
         ref={recaptchaRef}
-        sitekey={siteKey}
+        sitekey={effectiveSiteKey}
         size='normal'
         onChange={(token) => {
           onVerify(token || '');
@@ -86,7 +113,7 @@ const HumanVerification = ({
   return (
     <Turnstile
       key={widgetKey}
-      sitekey={siteKey}
+      sitekey={effectiveSiteKey}
       onVerify={(token) => {
         onVerify(token);
       }}
