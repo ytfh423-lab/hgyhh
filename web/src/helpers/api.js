@@ -25,6 +25,7 @@ import {
 } from './utils';
 import axios from 'axios';
 import { MESSAGE_ROLES } from '../constants/playground.constants';
+import { getFarmRecaptchaV3Token } from './recaptcha';
 
 export let API = axios.create({
   baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL
@@ -74,18 +75,36 @@ function patchAPIInstance(instance) {
   };
 
   // 农场防脚本：对 /api/farm、/api/ranch、/api/tree 的写请求自动注入 Nonce
-  instance.interceptors.request.use((config) => {
+  // 并在启用 reCAPTCHA v3 时异步拿 token 注入 Header，实现"无感风控"
+  instance.interceptors.request.use(async (config) => {
     const url = config.url || '';
     const method = (config.method || 'get').toLowerCase();
-    if (
+    const isFarmWrite =
       method !== 'get' &&
       method !== 'head' &&
       method !== 'options' &&
       (url.startsWith('/api/farm') ||
         url.startsWith('/api/ranch') ||
-        url.startsWith('/api/tree'))
-    ) {
-      config.headers['X-Farm-Nonce'] = generateFarmNonce();
+        url.startsWith('/api/tree'));
+    if (!isFarmWrite) return config;
+
+    config.headers['X-Farm-Nonce'] = generateFarmNonce();
+
+    // 若请求已显式带上 v2/其他 token（来自 step-up 重试），不再覆盖
+    const hasExistingToken = !!config.headers['X-Farm-Captcha-Token'];
+    if (hasExistingToken) return config;
+
+    // 异步尝试拿 v3 token（失败返回空字符串，不阻塞请求）
+    try {
+      const action = url.replace(/^\/api\//, '').replace(/\//g, '_');
+      const token = await getFarmRecaptchaV3Token(action);
+      if (token) {
+        config.headers['X-Farm-Captcha-Token'] = token;
+        config.headers['X-Farm-Captcha-Action'] = action;
+        config.headers['X-Farm-Captcha-Version'] = 'v3';
+      }
+    } catch (_) {
+      // 静默失败：后端会用 burst 逻辑决定是否 step-up
     }
     return config;
   });
@@ -111,21 +130,35 @@ function patchAPIInstance(instance) {
       if (config._farmStepUpRetried) return response;
 
       const d = data.data || {};
+      const provider = d.provider || 'turnstile';
+      const version = d.version || (provider === 'recaptcha' ? 'v3' : '');
+      // v2 用 checkbox，v3 用 score（invisible），Turnstile 用默认 checkbox
+      let mode = 'checkbox';
+      if (provider === 'recaptcha') {
+        mode = version === 'v2' ? 'checkbox' : 'score';
+      }
+      const isV2Fallback = provider === 'recaptcha' && version === 'v2';
+      const message = isV2Fallback
+        ? (d.v3_reason
+            ? `风险检测触发（${d.v3_reason}），请完成人机验证`
+            : '当前操作触发风控，请完成人机验证')
+        : code === 'FARM_VERIFICATION_FAILED'
+        ? '验证未通过，请重新完成人机验证'
+        : '当前操作需要完成人机验证';
+
       const mod = await import('../pages/Farm/components/farmConfirm');
       const result = await mod.farmVerificationConfirm({
-        title: '安全验证',
-        message:
-          code === 'FARM_VERIFICATION_FAILED'
-            ? '验证未通过，请重新完成人机验证'
-            : '当前操作需要完成人机验证',
+        title: isV2Fallback ? '安全验证（补充）' : '安全验证',
+        message,
         icon: '🛡️',
         confirmText: '验证并继续',
         verification: {
           enabled: true,
-          provider: d.provider || 'turnstile',
+          provider,
           siteKey: d.site_key || '',
-          mode: d.provider === 'recaptcha' ? 'score' : 'checkbox',
+          mode,
           action: d.action || '',
+          version,
         },
       });
       if (!result || !result.token) {
@@ -147,6 +180,7 @@ function patchAPIInstance(instance) {
           ...(config.headers || {}),
           'X-Farm-Captcha-Token': result.token,
           'X-Farm-Captcha-Action': d.action || '',
+          'X-Farm-Captcha-Version': version || '',
         },
       };
       return instance.request(retryConfig);

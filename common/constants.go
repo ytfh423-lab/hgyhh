@@ -94,6 +94,9 @@ var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
 var RecaptchaSiteKey = ""
 var RecaptchaSecretKey = ""
+// reCAPTCHA v2 备用配置：v3 score 不达标时弹 v2 checkbox 由用户主动验证
+var RecaptchaV2SiteKey = ""
+var RecaptchaV2SecretKey = ""
 
 func GetHumanVerificationSiteKey() string {
 	switch HumanVerificationProvider {
@@ -102,6 +105,11 @@ func GetHumanVerificationSiteKey() string {
 	default:
 		return TurnstileSiteKey
 	}
+}
+
+// IsRecaptchaV2Configured 返回 v2 备用配置是否齐全
+func IsRecaptchaV2Configured() bool {
+	return RecaptchaV2SiteKey != "" && RecaptchaV2SecretKey != ""
 }
 
 var TelegramBotToken = ""

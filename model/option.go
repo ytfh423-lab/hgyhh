@@ -246,6 +246,8 @@ func InitOptionMap() {
 	common.OptionMap["TurnstileSecretKey"] = ""
 	common.OptionMap["RecaptchaSiteKey"] = ""
 	common.OptionMap["RecaptchaSecretKey"] = ""
+	common.OptionMap["RecaptchaV2SiteKey"] = ""
+	common.OptionMap["RecaptchaV2SecretKey"] = ""
 	common.OptionMap["QuotaForNewUser"] = strconv.Itoa(common.QuotaForNewUser)
 	common.OptionMap["QuotaForInviter"] = strconv.Itoa(common.QuotaForInviter)
 	common.OptionMap["QuotaForInvitee"] = strconv.Itoa(common.QuotaForInvitee)
@@ -1014,6 +1016,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.RecaptchaSiteKey = value
 	case "RecaptchaSecretKey":
 		common.RecaptchaSecretKey = value
+	case "RecaptchaV2SiteKey":
+		common.RecaptchaV2SiteKey = value
+	case "RecaptchaV2SecretKey":
+		common.RecaptchaV2SecretKey = value
 	case "QuotaForNewUser":
 		common.QuotaForNewUser, _ = strconv.Atoi(value)
 	case "QuotaForInviter":

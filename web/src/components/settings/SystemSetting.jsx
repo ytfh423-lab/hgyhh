@@ -80,6 +80,8 @@ const SystemSetting = () => {
     TurnstileSecretKey: '',
     RecaptchaSiteKey: '',
     RecaptchaSecretKey: '',
+    RecaptchaV2SiteKey: '',
+    RecaptchaV2SecretKey: '',
     RegisterEnabled: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
@@ -612,6 +614,18 @@ const SystemSetting = () => {
       options.push({
         key: 'RecaptchaSecretKey',
         value: inputs.RecaptchaSecretKey,
+      });
+    }
+    if (originInputs['RecaptchaV2SiteKey'] !== inputs.RecaptchaV2SiteKey) {
+      options.push({ key: 'RecaptchaV2SiteKey', value: inputs.RecaptchaV2SiteKey });
+    }
+    if (
+      originInputs['RecaptchaV2SecretKey'] !== inputs.RecaptchaV2SecretKey &&
+      inputs.RecaptchaV2SecretKey !== ''
+    ) {
+      options.push({
+        key: 'RecaptchaV2SecretKey',
+        value: inputs.RecaptchaV2SecretKey,
       });
     }
 
@@ -1621,13 +1635,28 @@ const SystemSetting = () => {
                     <Col xs={24} sm={24} md={8} lg={8} xl={8}>
                       <Form.Input
                         field='RecaptchaSiteKey'
-                        label={t('reCAPTCHA Site Key')}
+                        label={t('reCAPTCHA v3 Site Key')}
                       />
                     </Col>
                     <Col xs={24} sm={24} md={8} lg={8} xl={8}>
                       <Form.Input
                         field='RecaptchaSecretKey'
-                        label={t('reCAPTCHA Secret Key')}
+                        label={t('reCAPTCHA v3 Secret Key')}
+                        type='password'
+                        placeholder={t('敏感信息不会发送到前端显示')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='RecaptchaV2SiteKey'
+                        label={t('reCAPTCHA v2 Site Key（兜底，可选）')}
+                        placeholder={t('v3 风险分过低时弹 v2 checkbox 让用户验证')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='RecaptchaV2SecretKey'
+                        label={t('reCAPTCHA v2 Secret Key（兜底，可选）')}
                         type='password'
                         placeholder={t('敏感信息不会发送到前端显示')}
                       />

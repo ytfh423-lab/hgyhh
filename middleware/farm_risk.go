@@ -142,6 +142,42 @@ func FarmRiskGuard() gin.HandlerFunc {
 		if token == "" {
 			token = strings.TrimSpace(c.PostForm("human_verification_token"))
 		}
+		version := strings.TrimSpace(c.GetHeader("X-Farm-Captcha-Version"))
+		if version == "" {
+			version = strings.TrimSpace(c.Query("human_verification_version"))
+		}
+		if version == "" {
+			version = strings.TrimSpace(c.PostForm("human_verification_version"))
+		}
+
+		// 读取 action（v3 校验需要）
+		requestAction := strings.TrimSpace(c.GetHeader("X-Farm-Captcha-Action"))
+		if requestAction == "" {
+			requestAction = strings.TrimSpace(c.Query("human_verification_action"))
+		}
+		if requestAction == "" {
+			requestAction = strings.TrimSpace(c.PostForm("human_verification_action"))
+		}
+
+		// v2 fallback token：直接走 v2 校验分支（不要求 score/action）
+		if version == "v2" && provider == "recaptcha" && token != "" {
+			result, err := VerifyHumanVerification(c.ClientIP(), token, HumanVerificationOptions{
+				Version: "v2",
+			})
+			if err != nil {
+				farmRiskRecordFail(userId)
+				common.SysLog(fmt.Sprintf("[FarmRisk] v2 verify failed: user=%d action=%s err=%s",
+					userId, action, err.Error()))
+				respondFarmRiskVerifyFail(c, action, provider, err.Error())
+				return
+			}
+			farmRiskGrantPass(userId)
+			farmRiskClearFail(userId)
+			common.SysLog(fmt.Sprintf("[FarmRisk] v2 verify passed: user=%d action=%s score=%.2f",
+				userId, action, farmRiskResultScore(result)))
+			c.Next()
+			return
+		}
 
 		if needVerify {
 			if token == "" {
@@ -149,30 +185,29 @@ func FarmRiskGuard() gin.HandlerFunc {
 				respondFarmRiskStepUp(c, action, sensitive, provider)
 				return
 			}
-			// 校验 token
-			requestAction := strings.TrimSpace(c.GetHeader("X-Farm-Captcha-Action"))
-			if requestAction == "" {
-				requestAction = strings.TrimSpace(c.Query("human_verification_action"))
-			}
-			if requestAction == "" {
-				requestAction = strings.TrimSpace(c.PostForm("human_verification_action"))
-			}
+			// v3 校验（默认路径）
 			minScore := farmRiskMinScore(provider, sensitive)
 			result, err := VerifyHumanVerification(c.ClientIP(), token, HumanVerificationOptions{
 				ExpectedAction: farmRiskExpectedAction(provider, action, requestAction),
 				MinScore:       minScore,
+				Version:        "v3",
 			})
 			if err != nil {
 				farmRiskRecordFail(userId)
-				common.SysLog(fmt.Sprintf("[FarmRisk] verify failed: user=%d action=%s provider=%s err=%s score=%.2f",
+				common.SysLog(fmt.Sprintf("[FarmRisk] v3 verify failed: user=%d action=%s provider=%s err=%s score=%.2f",
 					userId, action, provider, err.Error(), farmRiskResultScore(result)))
+				// v3 失败时，如果配置了 v2 fallback 就要求弹 v2 checkbox
+				if provider == "recaptcha" && common.IsRecaptchaV2Configured() {
+					respondFarmRiskStepUpV2(c, action, err.Error())
+					return
+				}
 				respondFarmRiskVerifyFail(c, action, provider, err.Error())
 				return
 			}
 			// 验证通过
 			farmRiskGrantPass(userId)
 			farmRiskClearFail(userId)
-			common.SysLog(fmt.Sprintf("[FarmRisk] verify passed: user=%d action=%s provider=%s score=%.2f",
+			common.SysLog(fmt.Sprintf("[FarmRisk] v3 verify passed: user=%d action=%s provider=%s score=%.2f",
 				userId, action, provider, farmRiskResultScore(result)))
 			c.Next()
 			return
@@ -376,6 +411,12 @@ func respondFarmRiskStepUp(c *gin.Context, action string, sensitive bool, provid
 	if sensitive {
 		reason = "sensitive_action"
 	}
+	// 默认走 v3（reCAPTCHA 时）
+	version := ""
+	siteKey := common.GetHumanVerificationSiteKey()
+	if provider == "recaptcha" {
+		version = "v3"
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": false,
 		"code":    farmRiskStepUpCode,
@@ -384,13 +425,37 @@ func respondFarmRiskStepUp(c *gin.Context, action string, sensitive bool, provid
 			"action":   action,
 			"reason":   reason,
 			"provider": provider,
-			"site_key": common.GetHumanVerificationSiteKey(),
+			"version":  version,
+			"site_key": siteKey,
+		},
+	})
+	c.Abort()
+}
+
+// respondFarmRiskStepUpV2：v3 风控失败后要求用户完成 v2 checkbox
+func respondFarmRiskStepUpV2(c *gin.Context, action, v3Reason string) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": false,
+		"code":    farmRiskStepUpCode,
+		"message": "当前操作触发风控，请完成人机验证后重试",
+		"data": gin.H{
+			"action":    action,
+			"reason":    "v3_fallback",
+			"v3_reason": v3Reason,
+			"provider":  "recaptcha",
+			"version":   "v2",
+			"site_key":  common.RecaptchaV2SiteKey,
 		},
 	})
 	c.Abort()
 }
 
 func respondFarmRiskVerifyFail(c *gin.Context, action, provider, reason string) {
+	version := ""
+	siteKey := common.GetHumanVerificationSiteKey()
+	if provider == "recaptcha" {
+		version = "v3"
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": false,
 		"code":    farmRiskVerifyFailCode,
@@ -399,7 +464,8 @@ func respondFarmRiskVerifyFail(c *gin.Context, action, provider, reason string) 
 			"action":   action,
 			"reason":   reason,
 			"provider": provider,
-			"site_key": common.GetHumanVerificationSiteKey(),
+			"version":  version,
+			"site_key": siteKey,
 		},
 	})
 	c.Abort()

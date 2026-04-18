@@ -37,6 +37,9 @@ type HumanVerificationResult struct {
 type HumanVerificationOptions struct {
 	ExpectedAction string
 	MinScore       float64
+	// Version 指定 reCAPTCHA 版本：""（默认按 provider 处理）/"v3"/"v2"
+	// v2 用于 v3 风控失败后的 fallback checkbox 验证，不做 score/action 校验
+	Version string
 }
 
 type humanVerificationResponse struct {
@@ -119,6 +122,12 @@ func VerifyHumanVerification(remoteIP, response string, options HumanVerificatio
 	if provider == "recaptcha" {
 		verifyURL = recaptchaVerifyURL
 		secretKey = common.RecaptchaSecretKey
+		// v2 fallback：用 v2 secret 校验
+		if options.Version == "v2" {
+			if common.RecaptchaV2SecretKey != "" {
+				secretKey = common.RecaptchaV2SecretKey
+			}
+		}
 	}
 	if provider == "" {
 		provider = "turnstile"
@@ -155,6 +164,10 @@ func VerifyHumanVerification(remoteIP, response string, options HumanVerificatio
 		return result, &humanVerificationError{message: getHumanVerificationFailedMessage()}
 	}
 	if provider != "recaptcha" {
+		return result, nil
+	}
+	// v2 fallback：只校验 Success，不做 score/action 校验（v2 没有 score）
+	if options.Version == "v2" {
 		return result, nil
 	}
 	if options.ExpectedAction != "" && res.Action != options.ExpectedAction {
