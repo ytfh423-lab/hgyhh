@@ -18,6 +18,14 @@ export const FARM_LEADERBOARD_PERIODS = [
   { key: 'weekly', icon: '📅', label: '周榜' },
 ];
 
+// 新老玩家分榜：普通玩家只能看自己所属的 cohort（后端强制），
+// 管理员可以切换 old/new/all 对比查看。
+export const FARM_LEADERBOARD_COHORTS = [
+  { key: 'all', icon: '👥', label: '全部玩家' },
+  { key: 'old', icon: '🪵', label: '老玩家榜' },
+  { key: 'new', icon: '🌱', label: '新玩家榜' },
+];
+
 export const formatFarmLeaderboardValue = (boardType, value, valueKind) => {
   if (value == null) {
     return valueKind === 'quota' || boardType === 'balance' || boardType === 'steal' || boardType === 'harvest'

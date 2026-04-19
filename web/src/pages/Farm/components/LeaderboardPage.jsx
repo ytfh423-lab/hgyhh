@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Empty, Spin, Typography } from '@douyinfe/semi-ui';
 import { API } from './utils';
 import {
+  FARM_LEADERBOARD_COHORTS,
   FARM_LEADERBOARD_PERIODS,
   FARM_LEADERBOARD_SCOPES,
   FARM_LEADERBOARD_TYPES,
@@ -15,19 +16,28 @@ const LeaderboardPage = ({ t }) => {
   const [boardType, setBoardType] = useState('balance');
   const [scope, setScope] = useState('global');
   const [period, setPeriod] = useState('all');
+  // cohort 初始为空串，首次请求让后端自动决定（普通玩家=自己所属，admin=all）。
+  // 后端响应里带 can_switch_cohort + cohort 字段，前端据此决定是否展示切换 pills。
+  const [cohort, setCohort] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async (type, boardScope, boardPeriod) => {
+  const load = useCallback(async (type, boardScope, boardPeriod, boardCohort) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ type, scope: boardScope, period: boardPeriod });
+      if (boardCohort) params.append('cohort', boardCohort);
       const { data: res } = await API.get(`/api/farm/leaderboard?${params.toString()}`);
       if (res.success) setData(res.data);
     } catch (err) { /* ignore */ }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(boardType, scope, period); }, [load, boardType, scope, period]);
+  useEffect(() => { load(boardType, scope, period, cohort); }, [load, boardType, scope, period, cohort]);
+
+  // 管理员专属 cohort 切换；普通玩家后端会无视 query 强制绑定到自己所属的 cohort，
+  // 所以即使前端误传也不会越权看到另一边。
+  const canSwitchCohort = !!data?.can_switch_cohort;
+  const effectiveCohort = data?.cohort || cohort || '';
 
   const medals = ['🥇', '🥈', '🥉'];
 
@@ -63,9 +73,29 @@ const LeaderboardPage = ({ t }) => {
         ))}
       </div>
 
+      {canSwitchCohort && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Text type='tertiary' size='small' style={{ marginRight: 4 }}>
+            {t('管理员视角')}:
+          </Text>
+          {FARM_LEADERBOARD_COHORTS.map(tp => (
+            <div key={tp.key}
+              className={`farm-pill ${effectiveCohort === tp.key ? 'farm-pill-cyan' : ''}`}
+              style={{ cursor: 'pointer' }} onClick={() => setCohort(tp.key)}>
+              {tp.icon} {t(tp.label)}
+            </div>
+          ))}
+        </div>
+      )}
+
       {data?.title && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <div className='farm-pill farm-pill-blue'>{t('当前榜单')}: {data.title}</div>
+          {data?.cohort_label && (
+            <div className='farm-pill farm-pill-cyan'>
+              {data.cohort === 'new' ? '🌱' : data.cohort === 'old' ? '🪵' : '👥'} {t(data.cohort_label)}
+            </div>
+          )}
           {data?.group_label && (
             <div className='farm-pill farm-pill-cyan'>🏷️ {data.group_label} {data.group_range_label ? `· ${data.group_range_label}` : ''}</div>
           )}

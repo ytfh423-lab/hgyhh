@@ -1842,6 +1842,11 @@ type FarmLeaderboardOptions struct {
 	Scope  string
 	Period string
 	Group  string
+	// Cohort 新老玩家分组："old" / "new" / "all" / ""
+	//   - "old"：首次进入农场时间 < FarmLeaderboardCohortCutoff 的玩家
+	//   - "new"：首次进入农场时间 >= FarmLeaderboardCohortCutoff 的玩家
+	//   - "all"/""：不做 cohort 过滤（管理员全量视角 / 历史兼容行为）
+	Cohort string
 	UserId int
 }
 
@@ -1855,7 +1860,86 @@ const (
 	farmLeaderboardScopeFriends = "friends"
 	farmLeaderboardPeriodAll    = "all"
 	farmLeaderboardPeriodWeekly = "weekly"
+
+	FarmLeaderboardCohortOld = "old"
+	FarmLeaderboardCohortNew = "new"
+	FarmLeaderboardCohortAll = "all"
 )
+
+// FarmLeaderboardCohortCutoff 新老玩家分水岭（Unix 秒）
+//
+// 玩家"首次进入农场"的时间定义为：该玩家在 tg_farm_logs 中最早一条
+// 记录的 created_at（只要有任何农场操作就会产生 log）。
+//   - first_at >= cutoff → new cohort（新玩家榜）
+//   - first_at <  cutoff → old cohort（老玩家榜）
+//   - 没有任何 log（纯新账号没操作过农场）→ 不会出现在排行榜里，无需分组
+//
+// 默认值：2026-04-19 00:00:00 +08（即北京时间当天零点）。
+// 如需调整分水岭，修改此变量后重启服务即可。
+var FarmLeaderboardCohortCutoff = time.Date(2026, 4, 19, 0, 0, 0, 0, time.FixedZone("CST", 8*3600)).Unix()
+
+func normalizeFarmLeaderboardCohort(cohort string) string {
+	switch cohort {
+	case FarmLeaderboardCohortOld, FarmLeaderboardCohortNew, FarmLeaderboardCohortAll:
+		return cohort
+	}
+	return ""
+}
+
+// GetFarmPlayerCohort 返回玩家所属 cohort（"old"/"new"）。
+// 判定依据：tg_farm_logs 中该玩家最早一条记录的 created_at 与 cutoff 比较。
+// 未在 tg_farm_logs 留下痕迹的账号（从未操作过农场）按 old 处理，因为
+// 他们本来就不会出现在排行榜上，归哪里都无实际影响。
+func GetFarmPlayerCohort(telegramId string) string {
+	if telegramId == "" {
+		return FarmLeaderboardCohortOld
+	}
+	var firstAt int64
+	err := DB.Model(&TgFarmLog{}).
+		Where("telegram_id = ?", telegramId).
+		Select("COALESCE(MIN(created_at), 0)").
+		Row().Scan(&firstAt)
+	if err != nil || firstAt == 0 {
+		return FarmLeaderboardCohortOld
+	}
+	if firstAt >= FarmLeaderboardCohortCutoff {
+		return FarmLeaderboardCohortNew
+	}
+	return FarmLeaderboardCohortOld
+}
+
+// getFarmLeaderboardCohortIds 预先计算属于指定 cohort 的玩家 telegram_id 集合。
+//
+// 返回值语义：
+//   - (nil, nil)     —— 不过滤（cohort 为空或 "all"）
+//   - ([], nil)      —— 指定 cohort 明确没有人（调用方应直接返回空结果）
+//   - (ids, nil)     —— 只保留 telegram_id ∈ ids 的玩家
+//
+// 性能：在 tg_farm_logs(telegram_id, created_at) 联合索引上做 GROUP BY + MIN，
+// 对几千-几万级玩家量完全够用。外层 30 秒缓存进一步降低 QPS 压力。
+func getFarmLeaderboardCohortIds(cohort string) ([]string, error) {
+	normalized := normalizeFarmLeaderboardCohort(cohort)
+	if normalized == "" || normalized == FarmLeaderboardCohortAll {
+		return nil, nil
+	}
+	var ids []string
+	q := DB.Model(&TgFarmLog{}).
+		Select("telegram_id").
+		Where("telegram_id != ''").
+		Group("telegram_id")
+	if normalized == FarmLeaderboardCohortNew {
+		q = q.Having("MIN(created_at) >= ?", FarmLeaderboardCohortCutoff)
+	} else {
+		q = q.Having("MIN(created_at) < ?", FarmLeaderboardCohortCutoff)
+	}
+	if err := q.Pluck("telegram_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	return ids, nil
+}
 
 type FarmLeaderboardGroupMeta struct {
 	Key        string
@@ -2135,7 +2219,32 @@ func buildFarmLeaderboardEntriesFromRows(rows []farmLeaderboardValueRow, nameMap
 	return entries
 }
 
-func getGlobalFarmLeaderboardEntries(boardType, period, group string) ([]FarmLeaderboardEntry, error) {
+// filterFarmLeaderboardEntriesByCohort 按 cohortIds 在内存里过滤条目。
+//   - cohortIds == nil：不过滤，原样返回（保留历史行为）
+//   - cohortIds == []：调用方应已短路，这里兜底返回空
+//   - cohortIds 非空：只保留 TelegramId ∈ cohortIds 的条目
+//
+// 之所以不在 SQL 层做 IN 过滤：
+//  1. 避免 DB.Raw 与超长 IN 列表的参数展开复杂度与 DB 驱动差异
+//  2. 全量结果最多几千-几万行，内存 O(n) 过滤 + 30 秒缓存，成本可忽略
+func filterFarmLeaderboardEntriesByCohort(entries []FarmLeaderboardEntry, cohortIds []string) []FarmLeaderboardEntry {
+	if cohortIds == nil {
+		return entries
+	}
+	allow := make(map[string]struct{}, len(cohortIds))
+	for _, id := range cohortIds {
+		allow[id] = struct{}{}
+	}
+	filtered := entries[:0]
+	for _, e := range entries {
+		if _, ok := allow[e.TelegramId]; ok {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
+}
+
+func getGlobalFarmLeaderboardEntries(boardType, period, group string, cohortIds []string) ([]FarmLeaderboardEntry, error) {
 	var entries []FarmLeaderboardEntry
 	var err error
 	labelExpr := "COALESCE(NULLIF(u.display_name, ''), u.username)"
@@ -2194,13 +2303,36 @@ func getGlobalFarmLeaderboardEntries(boardType, period, group string) ([]FarmLea
 	default:
 		return []FarmLeaderboardEntry{}, nil
 	}
-	return entries, err
+	if err != nil {
+		return entries, err
+	}
+	return filterFarmLeaderboardEntriesByCohort(entries, cohortIds), nil
 }
 
-func getFriendFarmLeaderboardEntries(boardType, period string, userId int, group string) ([]FarmLeaderboardEntry, error) {
+func getFriendFarmLeaderboardEntries(boardType, period string, userId int, group string, cohortIds []string) ([]FarmLeaderboardEntry, error) {
 	users, nameMap, farmIds, err := getFarmLeaderboardFriendUsers(userId, group)
 	if err != nil {
 		return nil, err
+	}
+	// 先按 cohortIds 裁剪好友列表，减少后续 SQL 压力
+	if cohortIds != nil {
+		allow := make(map[string]struct{}, len(cohortIds))
+		for _, id := range cohortIds {
+			allow[id] = struct{}{}
+		}
+		filteredUsers := users[:0]
+		filteredFarmIds := farmIds[:0]
+		filteredNameMap := make(map[string]string, len(nameMap))
+		for i, user := range users {
+			farmId := farmIds[i]
+			if _, ok := allow[farmId]; !ok {
+				continue
+			}
+			filteredUsers = append(filteredUsers, user)
+			filteredFarmIds = append(filteredFarmIds, farmId)
+			filteredNameMap[farmId] = nameMap[farmId]
+		}
+		users, farmIds, nameMap = filteredUsers, filteredFarmIds, filteredNameMap
 	}
 	if len(users) == 0 || len(farmIds) == 0 {
 		return []FarmLeaderboardEntry{}, nil
@@ -2287,10 +2419,11 @@ func getFarmLeaderboardEntriesWithOptions(boardType string, options FarmLeaderbo
 	options.Scope = normalizeFarmLeaderboardScope(options.Scope)
 	options.Period = normalizeFarmLeaderboardPeriod(options.Period)
 	options.Group = normalizeFarmLeaderboardGroup(options.Group)
+	options.Cohort = normalizeFarmLeaderboardCohort(options.Cohort)
 	if options.Scope == farmLeaderboardScopeFriends && options.UserId == 0 {
 		options.Scope = farmLeaderboardScopeGlobal
 	}
-	cacheKey := boardType + "|" + options.Scope + "|" + options.Period + "|" + options.Group
+	cacheKey := boardType + "|" + options.Scope + "|" + options.Period + "|" + options.Group + "|" + options.Cohort
 	if options.Scope == farmLeaderboardScopeFriends {
 		cacheKey += "|" + strconv.Itoa(options.UserId)
 	}
@@ -2302,12 +2435,22 @@ func getFarmLeaderboardEntriesWithOptions(boardType string, options FarmLeaderbo
 		}
 		farmLeaderboardCache.Delete(cacheKey)
 	}
+	// cohort 过滤：预取属于指定 cohort 的 telegram_id 列表。
+	// cohortIds == nil → 不过滤；len == 0 → 指定 cohort 无人 → 直接返回空。
+	cohortIds, err := getFarmLeaderboardCohortIds(options.Cohort)
+	if err != nil {
+		return nil, err
+	}
+	if cohortIds != nil && len(cohortIds) == 0 {
+		// 该 cohort 明确没有玩家（比如分水岭刚设置、新玩家还没出现）
+		farmLeaderboardCache.Store(cacheKey, farmLeaderboardCacheEntry{Value: []FarmLeaderboardEntry{}, ExpiresAt: now + farmLeaderboardTTLSeconds})
+		return []FarmLeaderboardEntry{}, nil
+	}
 	var entries []FarmLeaderboardEntry
-	var err error
 	if options.Scope == farmLeaderboardScopeFriends {
-		entries, err = getFriendFarmLeaderboardEntries(boardType, options.Period, options.UserId, options.Group)
+		entries, err = getFriendFarmLeaderboardEntries(boardType, options.Period, options.UserId, options.Group, cohortIds)
 	} else {
-		entries, err = getGlobalFarmLeaderboardEntries(boardType, options.Period, options.Group)
+		entries, err = getGlobalFarmLeaderboardEntries(boardType, options.Period, options.Group, cohortIds)
 	}
 	if err != nil {
 		return nil, err
@@ -2336,10 +2479,11 @@ func GetFarmRankWithOptions(telegramId, boardType string, options FarmLeaderboar
 	options.Scope = normalizeFarmLeaderboardScope(options.Scope)
 	options.Period = normalizeFarmLeaderboardPeriod(options.Period)
 	options.Group = normalizeFarmLeaderboardGroup(options.Group)
+	options.Cohort = normalizeFarmLeaderboardCohort(options.Cohort)
 	if options.Scope == farmLeaderboardScopeFriends && options.UserId == 0 {
 		options.Scope = farmLeaderboardScopeGlobal
 	}
-	cacheKey := telegramId + "|" + boardType + "|" + options.Scope + "|" + options.Period + "|" + options.Group
+	cacheKey := telegramId + "|" + boardType + "|" + options.Scope + "|" + options.Period + "|" + options.Group + "|" + options.Cohort
 	if options.Scope == farmLeaderboardScopeFriends {
 		cacheKey += "|" + strconv.Itoa(options.UserId)
 	}

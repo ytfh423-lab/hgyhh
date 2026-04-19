@@ -555,8 +555,26 @@ func WebFarmLeaderboard(c *gin.Context) {
 	if period != "weekly" {
 		period = "all"
 	}
+
+	// cohort（新老玩家分榜）：普通玩家强制绑到自己所属 cohort，看不到另一边；
+	// 管理员可传 old/new/all 自由切换，默认 all（一屏看全部）。
+	isAdmin := user.Role >= common.RoleAdminUser
+	ownCohort := model.GetFarmPlayerCohort(tgId)
+	cohort := c.DefaultQuery("cohort", "")
+	switch cohort {
+	case model.FarmLeaderboardCohortOld, model.FarmLeaderboardCohortNew, model.FarmLeaderboardCohortAll:
+		// 合法值
+	default:
+		cohort = ""
+	}
+	if !isAdmin {
+		cohort = ownCohort
+	} else if cohort == "" {
+		cohort = model.FarmLeaderboardCohortAll
+	}
+
 	group := model.ResolveFarmLeaderboardGroupByLevel(model.GetFarmLevel(tgId))
-	options := model.FarmLeaderboardOptions{Scope: scope, Period: period, Group: group, UserId: user.Id}
+	options := model.FarmLeaderboardOptions{Scope: scope, Period: period, Group: group, Cohort: cohort, UserId: user.Id}
 	entries, err := model.GetFarmLeaderboardWithOptions(boardType, 0, options)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "查询失败"})
@@ -640,8 +658,28 @@ func WebFarmLeaderboard(c *gin.Context) {
 	for _, band := range rewardBands {
 		bandItems = append(bandItems, gin.H{"key": band.Key, "label": band.Label, "title": band.Title, "short_title": band.ShortTitle, "emoji": band.Emoji, "start_rank": band.StartRank, "end_rank": band.EndRank, "count": band.Count})
 	}
+	cohortLabel := ""
+	switch cohort {
+	case model.FarmLeaderboardCohortOld:
+		cohortLabel = "老玩家榜"
+	case model.FarmLeaderboardCohortNew:
+		cohortLabel = "新玩家榜"
+	case model.FarmLeaderboardCohortAll:
+		cohortLabel = "全部玩家"
+	}
 	title := groupMeta.Label + " · " + scopeLabel + label + periodLabel
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"type": boardType, "scope": scope, "period": period, "label": label, "scope_label": scopeLabel, "period_label": periodLabel, "group": groupMeta.Key, "group_label": groupMeta.Label, "group_range_label": groupMeta.RangeLabel, "value_kind": valueKind, "title": title, "items": items, "total_players": totalPlayers, "reward_bands": bandItems, "my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev, "my_reward": rewardData(myRank)}})
+	if cohortLabel != "" {
+		title += " · " + cohortLabel
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		"type": boardType, "scope": scope, "period": period,
+		"label": label, "scope_label": scopeLabel, "period_label": periodLabel,
+		"group": groupMeta.Key, "group_label": groupMeta.Label, "group_range_label": groupMeta.RangeLabel,
+		"cohort": cohort, "cohort_label": cohortLabel, "own_cohort": ownCohort, "can_switch_cohort": isAdmin,
+		"value_kind": valueKind, "title": title,
+		"items": items, "total_players": totalPlayers, "reward_bands": bandItems,
+		"my_rank": myRank, "my_value": myValue, "gap_to_prev": gapToPrev, "my_reward": rewardData(myRank),
+	}})
 }
 
 // ========== Mini-Games ==========
