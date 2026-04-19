@@ -32,7 +32,11 @@ func FarmSessionOnly() gin.HandlerFunc {
 // ─────────────────────────────────────────────────────────
 
 func FarmActionRateLimit() gin.HandlerFunc {
-	limiter := userRateLimitFactory(10, 60, "FARM")
+	limiter := userRateLimitFactory(
+		common.FarmActionRateLimitNum,
+		common.FarmActionRateLimitDuration,
+		"FARM",
+	)
 	return func(c *gin.Context) {
 		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "DELETE" {
 			limiter(c)

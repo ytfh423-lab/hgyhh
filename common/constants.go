@@ -395,18 +395,22 @@ var (
 	GlobalWebRateLimitDuration int64
 
 	CriticalRateLimitEnable   bool
-	CriticalRateLimitNum            = 20
-	CriticalRateLimitDuration int64 = 20 * 60
+	CriticalRateLimitNum      int
+	CriticalRateLimitDuration int64
 
-	UploadRateLimitNum            = 30
-	UploadRateLimitDuration int64 = 60
+	UploadRateLimitNum      int
+	UploadRateLimitDuration int64
 
-	DownloadRateLimitNum            = 30
-	DownloadRateLimitDuration int64 = 60
+	DownloadRateLimitNum      int
+	DownloadRateLimitDuration int64
 
 	// Per-user search rate limit (applies after authentication, keyed by user ID)
-	SearchRateLimitNum            = 30
-	SearchRateLimitDuration int64 = 60
+	SearchRateLimitNum      int
+	SearchRateLimitDuration int64
+
+	// Per-user farm write rate limit (applies to farm/ranch/tree POST endpoints, keyed by user ID)
+	FarmActionRateLimitNum      int
+	FarmActionRateLimitDuration int64
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute

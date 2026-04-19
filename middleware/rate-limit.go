@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -14,6 +15,20 @@ import (
 var timeFormat = "2006-01-02T15:04:05.000Z"
 
 var inMemoryRateLimiter common.InMemoryRateLimiter
+
+// respondRateLimited 返回友好 JSON + Retry-After 头，替代裸 HTTP 429。
+func respondRateLimited(c *gin.Context, retryAfterSec int64) {
+	if retryAfterSec < 1 {
+		retryAfterSec = 1
+	}
+	c.Header("Retry-After", strconv.FormatInt(retryAfterSec, 10))
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+		"success":     false,
+		"code":        "RATE_LIMITED",
+		"message":     fmt.Sprintf("操作过快，请 %d 秒后再试", retryAfterSec),
+		"retry_after": retryAfterSec,
+	})
+}
 
 var defNext = func(c *gin.Context) {
 	c.Next()
@@ -52,10 +67,10 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		}
 		// time.Since will return negative number!
 		// See: https://stackoverflow.com/questions/50970900/why-is-time-since-returning-negative-durations-on-windows
-		if int64(nowTime.Sub(oldTime).Seconds()) < duration {
+		elapsed := int64(nowTime.Sub(oldTime).Seconds())
+		if elapsed < duration {
 			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+			respondRateLimited(c, duration-elapsed)
 			return
 		} else {
 			rdb.LPush(ctx, key, time.Now().Format(timeFormat))
@@ -68,8 +83,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 func memoryRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
 	key := mark + c.ClientIP()
 	if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
-		c.Status(http.StatusTooManyRequests)
-		c.Abort()
+		respondRateLimited(c, duration)
 		return
 	}
 }
@@ -152,8 +166,7 @@ func userRateLimitFactory(maxRequestNum int, duration int64, mark string) func(c
 		}
 		key := fmt.Sprintf("%s:user:%d", mark, userId)
 		if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+			respondRateLimited(c, duration)
 			return
 		}
 	}
@@ -191,10 +204,10 @@ func userRedisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, key
 			c.Abort()
 			return
 		}
-		if int64(nowTime.Sub(oldTime).Seconds()) < duration {
+		elapsed := int64(nowTime.Sub(oldTime).Seconds())
+		if elapsed < duration {
 			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+			respondRateLimited(c, duration-elapsed)
 			return
 		} else {
 			rdb.LPush(ctx, key, time.Now().Format(timeFormat))

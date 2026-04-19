@@ -108,18 +108,36 @@ func InitEnv() {
 	GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 	CohereSafetySetting = GetEnvOrDefaultString("COHERE_SAFETY_SETTING", "NONE")
 
-	// Initialize rate limit variables
+	// Initialize rate limit variables（默认值已按"适中档 ×4~5"放宽，
+	// 解决高活跃用户做一连串农场/Web 操作时频繁触发 429 的问题；
+	// 脚本滥用仍由 FarmRiskGuard 人机验证 + 业务层冷却兜底）
 	GlobalApiRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_API_RATE_LIMIT_ENABLE", true)
-	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 600)
+	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 2400)
 	GlobalApiRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_API_RATE_LIMIT_DURATION", 180))
 
 	GlobalWebRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_WEB_RATE_LIMIT_ENABLE", true)
-	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 360)
+	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 1800)
 	GlobalWebRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT_DURATION", 180))
 
 	CriticalRateLimitEnable = GetEnvOrDefaultBool("CRITICAL_RATE_LIMIT_ENABLE", true)
-	CriticalRateLimitNum = GetEnvOrDefault("CRITICAL_RATE_LIMIT", 60)
+	CriticalRateLimitNum = GetEnvOrDefault("CRITICAL_RATE_LIMIT", 300)
 	CriticalRateLimitDuration = int64(GetEnvOrDefault("CRITICAL_RATE_LIMIT_DURATION", 20*60))
+
+	// 以下四类此前在 constants.go 写死，现移到 env 可配；默认值为适中档
+	UploadRateLimitNum = GetEnvOrDefault("UPLOAD_RATE_LIMIT", 60)
+	UploadRateLimitDuration = int64(GetEnvOrDefault("UPLOAD_RATE_LIMIT_DURATION", 60))
+
+	DownloadRateLimitNum = GetEnvOrDefault("DOWNLOAD_RATE_LIMIT", 120)
+	DownloadRateLimitDuration = int64(GetEnvOrDefault("DOWNLOAD_RATE_LIMIT_DURATION", 60))
+
+	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 120)
+	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	// 农场写限流：覆盖偷菜/浇水/施肥/收获/买卖/交易等全部 POST。
+	// 默认 50 次 / 60 秒，比旧硬编码 10/60 放宽 5×，以消除"连点几下就限流"。
+	FarmActionRateLimitNum = GetEnvOrDefault("FARM_ACTION_RATE_LIMIT", 50)
+	FarmActionRateLimitDuration = int64(GetEnvOrDefault("FARM_ACTION_RATE_LIMIT_DURATION", 60))
+
 	initConstantEnv()
 }
 
