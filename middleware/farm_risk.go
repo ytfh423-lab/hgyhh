@@ -19,9 +19,13 @@ import (
 //
 //  核心原则：
 //    1. 仅在 TurnstileCheckEnabled=true 时启用
-//    2. 敏感动作（偷菜/交易/银行/转生/批量）→ 每次验证
+//    2. 敏感动作（偷菜/交易/银行/转生/批量）→ 无 pass 时必验
 //    3. 非敏感写操作 → 突发(45s≥6次)时验证
-//    4. 验证通过后 10 分钟内非敏感动作免验
+//    4. 验证通过后 10 分钟内所有动作（含 sensitive）免验
+//       —— sensitive 享受 pass 豁免的理由：偷菜/交易/转生等已有业务层
+//          冷却和日上限约束，pass 只在真人过 v2/v3 后发放，10 分钟内
+//          用户即使连操也是真人。若不豁免，管理员只配 v2 没配 v3 时
+//          前端永远拿不到 v3 token，sensitive 会 100% 弹窗。
 //    5. 连续 5 次验证失败 → 锁定 30 分钟
 //    6. GET/HEAD/OPTIONS 永远放行
 // ═══════════════════════════════════════════════════════════════
@@ -107,8 +111,8 @@ func FarmRiskGuard() gin.HandlerFunc {
 		action := normalizeFarmRiskAction(c.FullPath())
 		sensitive := farmRiskSensitiveActions[action]
 
-		// 非敏感动作 + 持有 pass → 直接放行
-		if !sensitive && farmRiskHasPass(userId) {
+		// 持有 pass → 直接放行（sensitive 同样豁免，详见顶部注释第 4 条）
+		if farmRiskHasPass(userId) {
 			farmRiskRecordBurst(userId)
 			c.Next()
 			return
@@ -213,11 +217,7 @@ func FarmRiskGuard() gin.HandlerFunc {
 		}
 
 		// 3) 没带 token：走 burst / sensitive 兜底
-		//    非 sensitive + 持有 pass → 放行（降低正常用户的 burst 误伤）
-		if !sensitive && farmRiskHasPass(userId) {
-			c.Next()
-			return
-		}
+		//    （上方已统一过 pass 检查，这里不再重复）
 		if needVerify {
 			// sensitive 或 burst 超阈值 → 弹验证（v2 优先）
 			respondFarmRiskStepUp(c, action, sensitive, provider)
