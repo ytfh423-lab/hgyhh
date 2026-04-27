@@ -30,7 +30,7 @@ import { getFarmRecaptchaV3Token } from './recaptcha';
 export let API = axios.create({
   baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL
     ? import.meta.env.VITE_REACT_APP_SERVER_URL
-    : 'https://www.codex1.cn',
+    : 'https://grok.hyw.me/',
   headers: {
     'New-API-User': getUserIdFromLocalStorage(),
     'Cache-Control': 'no-store',
@@ -283,7 +283,7 @@ export function updateAPI() {
   API = axios.create({
     baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL
       ? import.meta.env.VITE_REACT_APP_SERVER_URL
-      : 'https://www.codex1.cn',
+      : 'https://grok.hyw.me/',
     headers: {
       'New-API-User': getUserIdFromLocalStorage(),
       'Cache-Control': 'no-store',
