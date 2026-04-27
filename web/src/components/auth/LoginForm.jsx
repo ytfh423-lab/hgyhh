@@ -137,6 +137,8 @@ const LoginForm = () => {
       return {};
     }
   }, [statusState?.status]);
+  const hasCustomOAuthProviders =
+    (status.custom_oauth_providers || []).length > 0;
   const humanVerificationName =
     humanVerificationProvider === 'recaptcha' ? 'reCAPTCHA' : 'Turnstile';
   const humanVerificationQuery = humanVerificationToken
