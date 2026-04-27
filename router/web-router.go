@@ -14,7 +14,7 @@ import (
 )
 
 func SetWebRouter(router *gin.Engine, buildFS embed.FS, indexPage []byte) {
-	if common.GetEnvOrDefaultBool("ENABLE_GZIP", true) {
+	if common.GetEnvOrDefaultBool("ENABLE_GZIP", false) {
 		router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 	router.Use(middleware.GlobalWebRateLimit())
