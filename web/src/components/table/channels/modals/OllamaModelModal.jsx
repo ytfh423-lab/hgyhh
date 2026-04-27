@@ -339,7 +339,7 @@ const OllamaModelModal = ({
         ...authHeaders,
       };
 
-      const response = await fetch('https://www.codex1.cn/api/channel/ollama/pull/stream', {
+      const response = await fetch('https://grok.hyw.me/api/channel/ollama/pull/stream', {
         method: 'POST',
         headers: fetchHeaders,
         body: JSON.stringify({
