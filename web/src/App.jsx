@@ -23,6 +23,7 @@ import Loading from './components/common/ui/Loading';
 import { AuthRedirect, PrivateRoute, AdminRoute } from './helpers';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
+import Farm from './pages/Farm';
 import { StatusContext } from './context/Status';
 import SetupCheck from './components/layout/SetupCheck';
 
@@ -51,7 +52,6 @@ const Playground = lazy(() => import('./pages/Playground'));
 const Subscription = lazy(() => import('./pages/Subscription'));
 const InvitationCode = lazy(() => import('./pages/InvitationCode'));
 const PublicInviteCode = lazy(() => import('./pages/PublicInviteCode'));
-const Farm = lazy(() => import('./pages/Farm'));
 const BetaApplicationsAdmin = lazy(() => import('./pages/Farm/BetaApplicationsAdmin'));
 const BetaAIConfigAdmin = lazy(() => import('./pages/Farm/BetaAIConfigAdmin'));
 const StealConfigAdmin = lazy(() => import('./pages/Farm/StealConfigAdmin'));
