@@ -12,6 +12,8 @@ func Cache() func(c *gin.Context) {
 		// Don't cache API routes or root path
 		if uri == "/" || strings.HasPrefix(uri, "/api/") || strings.HasPrefix(uri, "/v1/") {
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		} else if strings.HasPrefix(uri, "/assets/") {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		} else {
 			c.Header("Cache-Control", "max-age=604800") // one week
 		}
