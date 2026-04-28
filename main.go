@@ -158,15 +158,9 @@ func main() {
 	// Cloudflare 代理支持：让 c.ClientIP() 读取 CF-Connecting-IP 而非 Cloudflare edge IP，
 	// 避免所有用户共享同一限流桶。通过 TRUSTED_PLATFORM 环境变量控制，
 	// 支持 "cloudflare" / "fly.io" / 留空（不信任代理）。
-	switch strings.ToLower(os.Getenv("TRUSTED_PLATFORM")) {
-	case "cloudflare":
+	if tp := strings.ToLower(os.Getenv("TRUSTED_PLATFORM")); tp == "cloudflare" {
 		server.TrustedPlatform = gin.PlatformCloudflare
 		common.SysLog("trusted platform: Cloudflare (using CF-Connecting-IP)")
-	case "fly.io":
-		server.TrustedPlatform = gin.PlatformFlyIO
-		common.SysLog("trusted platform: Fly.io (using Fly-Client-IP)")
-	default:
-		// 不设置，使用 Gin 默认行为
 	}
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
