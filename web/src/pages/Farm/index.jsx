@@ -18,6 +18,7 @@ import './farm.css';
 import Sidebar, { navGroups } from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import FarmOverview from './components/FarmOverview';
+import PrestigePage from './components/PrestigePage';
 import MobileDashboard from './components/MobileDashboard';
 import CommandPalette from './components/CommandPalette';
 import BetaApplicationGate from './components/BetaApplicationGate';
@@ -48,7 +49,6 @@ const DogPage = lazy(() => import('./components/DogPage'));
 const AutomationPage = lazy(() => import('./components/AutomationPage'));
 const SoilPage = lazy(() => import('./components/SoilPage'));
 const TreeFarmPage = lazy(() => import('./components/TreeFarmPage'));
-const PrestigePage = lazy(() => import('./components/PrestigePage'));
 const LogsPage = lazy(() => import('./components/LogsPage'));
 const EntrustPage = lazy(() => import('./components/EntrustPage'));
 const EntrustWorkPage = lazy(() => import('./components/EntrustWorkPage'));
@@ -120,6 +120,15 @@ class FarmErrorBoundary extends React.Component {
   }
   componentDidCatch(error, info) {
     console.error('[Farm] Page crash:', error, info);
+    const message = String(error?.message || '');
+    const isChunkError = /dynamically imported module|importing a module script failed|loading chunk|chunkloaderror/i.test(message);
+    if (isChunkError && typeof window !== 'undefined') {
+      const key = `farm_chunk_reload:${window.location.pathname}`;
+      if (window.sessionStorage.getItem(key) !== '1') {
+        window.sessionStorage.setItem(key, '1');
+        window.location.reload();
+      }
+    }
   }
   componentDidUpdate(prevProps) {
     if (prevProps.resetKey !== this.props.resetKey) {
@@ -128,14 +137,22 @@ class FarmErrorBoundary extends React.Component {
   }
   render() {
     if (this.state.hasError) {
+      const message = String(this.state.error?.message || '未知错误');
+      const isChunkError = /dynamically imported module|importing a module script failed|loading chunk|chunkloaderror/i.test(message);
       return (
         <div className='farm-locked-wrap'>
           <div className='farm-locked-card'>
             <div className='farm-locked-icon-ring'>⚠️</div>
-            <h3 className='farm-locked-title'>页面加载出错</h3>
-            <p className='farm-locked-desc'>{String(this.state.error?.message || '未知错误')}</p>
-            <button className='farm-locked-btn' onClick={() => this.setState({ hasError: false, error: null })}>
-              重试
+            <h3 className='farm-locked-title'>{isChunkError ? '资源加载失败' : '页面加载出错'}</h3>
+            <p className='farm-locked-desc'>{message}</p>
+            <button className='farm-locked-btn' onClick={() => {
+              if (isChunkError && typeof window !== 'undefined') {
+                window.location.reload();
+                return;
+              }
+              this.setState({ hasError: false, error: null });
+            }}>
+              {isChunkError ? '刷新页面' : '重试'}
             </button>
           </div>
         </div>
